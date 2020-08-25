@@ -1,5 +1,5 @@
 from software_constants import *
-from openrave_body import OpenRAVEBody
+from .openrave_body import OpenRAVEBody
 if USE_ROS:
     from openravepy import Environment
 from core.internal_repr.parameter import Object
@@ -35,7 +35,7 @@ class OpenRAVEViewer(Viewer):
         OpenRAVEViewer._viewer = self
 
     def clear(self):
-        for b in self.name_to_rave_body.itervalues():
+        for b in self.name_to_rave_body.values():
             b.delete()
         self.name_to_rave_body = {}
 
@@ -67,7 +67,7 @@ class OpenRAVEViewer(Viewer):
         if osp.exists('.video_images'):
             shutil.rmtree('.video_images')
         os.makedirs('.video_images')
-        for p in plan.params.itervalues():
+        for p in plan.params.values():
             if not p.is_symbol():
                 obj_list.append(p)
         for t in range(horizon):
@@ -164,7 +164,8 @@ class OpenRAVEViewer(Viewer):
     def animate_plan(self, plan, delay=.1):
         self.animate_range(plan, (0, plan.horizon-1), delay=delay)
 
-    def animate_range(self, plan, (start, end), delay=.1):
+    def animate_range(self, plan, xxx_todo_changeme, delay=.1):
+        (start, end) = xxx_todo_changeme
         obj_list = self._get_plan_obj_list(plan)
         for t in range(start, end+1):
             self.draw(obj_list, t)
@@ -174,13 +175,14 @@ class OpenRAVEViewer(Viewer):
         horizon = plan.horizon
         self.draw_plan_range(plan, (0, horizon-1))
 
-    def draw_plan_range(self, plan, (start, end)):
+    def draw_plan_range(self, plan, xxx_todo_changeme1):
+        (start, end) = xxx_todo_changeme1
         obj_list = self._get_plan_obj_list(plan)
-        self.draw_traj(obj_list, range(start, end+1))
+        self.draw_traj(obj_list, list(range(start, end+1)))
 
     def _get_plan_obj_list(self, plan):
         obj_list = []
-        for p in plan.params.itervalues():
+        for p in plan.params.values():
             if not p.is_symbol():
                 obj_list.append(p)
         return obj_list
@@ -189,7 +191,7 @@ class OpenRAVEViewer(Viewer):
     def draw_plan_ts(self, plan, t):
         obj_list = []
         horizon = plan.horizon
-        for p in plan.params.itervalues():
+        for p in plan.params.values():
             if not p.is_symbol():
                 obj_list.append(p)
         self.draw(obj_list, t)
@@ -199,7 +201,8 @@ class OpenRAVEViewer(Viewer):
         for t in range(horizon):
             self.draw_cols_ts(plan, t)
 
-    def draw_cols_range(self, plan, (start, end)):
+    def draw_cols_range(self, plan, xxx_todo_changeme2):
+        (start, end) = xxx_todo_changeme2
         for t in range(start, end+1):
             self.draw_cols_ts(plan, t)
 

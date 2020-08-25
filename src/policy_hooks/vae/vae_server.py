@@ -54,7 +54,7 @@ class VAEServer(object):
         while len(self.update_queue):
             obs, task_path = self.update_queue.pop()
             update = self.vae.store(obs, task_path)
-            print 'VAE Weights updated:', update, self.task
+            print('VAE Weights updated:', update, self.task)
             if update:
                 msg = UpdateTF()
                 msg.scope = 'vae'

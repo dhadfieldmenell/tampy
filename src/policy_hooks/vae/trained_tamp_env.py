@@ -77,7 +77,7 @@ class NAMOSortenv(VAEEnvWrapper):
         # self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = utils.get_state_action_inds(plans.values()[0], self.config['robot_name'], self.config['attr_map'], state_vector_include, action_vector_include)
 
         # self.target_dim, self.target_inds = utils.get_target_inds(plans.values()[0], self.config['attr_map'], target_vector_include)
-        
+
         # x0 = prob.get_random_initial_state_vec(self.config, plans, self.dX, self.state_inds, conditions)
 
         # for plan in plans.values():
@@ -187,7 +187,7 @@ class NAMOSortenv(VAEEnvWrapper):
         # self.config['dO'] = agent.dO
         # self.config['dPrimObs'] = agent.dPrim
         # self.config['dValObs'] = agent.dVal
-        # self.config['dPrimOut'] = agent.dPrimOut 
+        # self.config['dPrimOut'] = agent.dPrimOut
         # self.config['state_inds'] = self.state_inds
         # self.config['action_inds'] = self.action_inds
         # self.config['policy_out_coeff'] = self.policy_out_coeff
@@ -231,7 +231,7 @@ class NAMOSortenv(VAEEnvWrapper):
         act_space = env.action_space
         prim_dims =  {'prim{}'.format(i): act_space.nvec[i] for i in range(0, len(act_space.nvec))}
         config['vae'] = {}
-        config['vae']['task_dims'] = int(np.prod(prim_dims.values()))
+        config['vae']['task_dims'] = int(np.prod(list(prim_dims.values())))
         config['vae']['obs_dims'] = (env.im_height, env.im_wid, 3)
         config['vae']['weight_dir'] = '/home/michaelmcdonald/tampy/src/tf_saved/namo_4'
         config['vae']['rollout_len'] = 20

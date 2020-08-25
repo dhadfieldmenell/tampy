@@ -19,8 +19,8 @@ class TAMPCost(Cost):
         # for act in range(self.x0[1][0], self.x0[1][1]+1):
         #     next_act = self.plan.actions[act]
         #     params.update(next_act.params)
-        self.symbols = filter(lambda p: p.is_symbol(), self.plan.params.values())
-        self.params = filter(lambda p: not p.is_symbol(), self.plan.params.values())
+        self.symbols = [p for p in list(self.plan.params.values()) if p.is_symbol()]
+        self.params = [p for p in list(self.plan.params.values()) if not p.is_symbol()]
 
     def eval(self, sample):
         self.fill_symbolic_values()

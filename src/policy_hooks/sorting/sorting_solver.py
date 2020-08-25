@@ -59,7 +59,7 @@ class BaxterPolicySolver(RobotLLSolver):
         Integrates the GPS code base with the TAMPy codebase to create a robust
         system for combining motion planning with policy learning
 
-        Each plan must have the same state dimension and action diemensions as the others, and equivalent parameters in both (e..g same # of 
+        Each plan must have the same state dimension and action diemensions as the others, and equivalent parameters in both (e..g same # of
         cloths, same table dimensions, etc.)
         '''
 
@@ -70,7 +70,7 @@ class BaxterPolicySolver(RobotLLSolver):
         if hyperparams and self.config:
             self.config.update(hyperparams)
 
-        self.task_list = get_tasks('policy_hooks/sorting_task_mapping_2').keys()
+        self.task_list = list(get_tasks('policy_hooks/sorting_task_mapping_2').keys())
         self.task_durations = get_task_durations('policy_hooks/sorting_task_mapping_2')
         self.config['task_list'] = self.task_list
         task_encoding = get_task_encoding(self.task_list)
@@ -92,7 +92,7 @@ class BaxterPolicySolver(RobotLLSolver):
         x0 = []
         for plan in plans:
             x0.append(np.zeros((self.symbolic_bound,)))
-            utils.fill_vector(filter(lambda p: not p.is_symbol(), plan.params.values()), self.state_inds, x0[-1], 0)
+            utils.fill_vector([p for p in list(plan.params.values()) if not p.is_symbol()], self.state_inds, x0[-1], 0)
 
 
         sensor_dims = {
@@ -232,12 +232,12 @@ class BaxterPolicySolver(RobotLLSolver):
         if not self.gps:
             self.gps = GPSMain(self.config)
             for plan in plans:
-                self._add_policy_constraints_to_plan(plan, state_vector_include.keys())
+                self._add_policy_constraints_to_plan(plan, list(state_vector_include.keys()))
         # else:
         #     # TODO: Handle this case
         #     self._update_agent(x0s)
         #     self._update_algorithm(self.config['algorithm']['cost'][-len(x0s):])
-        
+
         self.gps.run()
 
 
@@ -262,11 +262,11 @@ class BaxterPolicySolver(RobotLLSolver):
         global_traj_mean = []
 
         while a_num < a_end:
-            print "Constraining actions {0} and {1} against the global policy.\n".format(a_num, a_num+1)
+            print("Constraining actions {0} and {1} against the global policy.\n".format(a_num, a_num+1))
             act_1 = plan.actions[a_num]
             act_2 = plan.actions[a_num+1]
             active_ts = (act_1.active_timesteps[0], act_2.active_timesteps[1])
-            
+
             # save free_attrs
             # old_params_free = {}
             # for p in plan.params.itervalues():
@@ -283,9 +283,9 @@ class BaxterPolicySolver(RobotLLSolver):
             #             p_attrs[attr] = [p._free_attrs[attr][:, :(active_ts[0])].copy(), p._free_attrs[attr][:, (active_ts[1])+1:].copy()]
             #             p._free_attrs[attr][:, (active_ts[1])+1:] = 0
             #             p._free_attrs[attr][:, :(active_ts[0])] = 0
-            
+
             success = success and self._optimize_against_global(plan, (active_ts[0], active_ts[1]), n_resamples=1, global_traj_mean=global_traj_mean)
-            
+
             # reset free_attrs
             # for p in plan.params.itervalues():
             #     if p.is_symbol():
@@ -381,7 +381,7 @@ class BaxterPolicySolver(RobotLLSolver):
     def _traj_policy_opt(self, plan, traj_mean, start_t, end_t):
         transfer_objs = []
         base_t = plan.actions[self.gps.agent.init_plan_states[self.gps.agent.current_cond][1][0]].active_timesteps[0]
-        for param_name, attr_name in self.action_inds.keys():
+        for param_name, attr_name in list(self.action_inds.keys()):
             param = plan.params[param_name]
             attr_type = param.get_attr_type(attr_name)
             param_ll = self._param_to_ll[param]
@@ -517,7 +517,7 @@ class BaxterPolicySolver(RobotLLSolver):
             Prob class in sco.
         """
         start, end = pred_dict['active_timesteps']
-        active_range = range(start, end+1)
+        active_range = list(range(start, end+1))
         negated = pred_dict['negated']
         pred = pred_dict['pred']
 

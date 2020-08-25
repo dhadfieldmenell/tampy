@@ -13,7 +13,7 @@ plan = plans[0][(0,0,0,2)]
 domain = plan.domain
 problem = plan.prob
 state = problem.init_state
-for p in plan.params.values():
+for p in list(plan.params.values()):
     if p.openrave_body is not None:
         p.openrave_body.set_pose([20,20])
 pr2_pose = [2.6, -2.8]
@@ -33,12 +33,12 @@ plan.params['can0_init_target'].value[:,0] = can0_pose
 plan.params['can1'].pose[:,0] = can1_pose
 plan.params['can1_init_target'].value[:,0] = can1_pose
 
-for param in plan.params.values():
+for param in list(plan.params.values()):
     for attr in param._free_attrs:
         if np.any(np.isnan(getattr(param, attr)[:,0])):
             getattr(param, attr)[:,0] = 0
 
-for param in state.params.values():
+for param in list(state.params.values()):
     for attr in param._free_attrs:
         if np.any(np.isnan(getattr(param, attr)[:,0])):
             getattr(param, attr)[:,0] = 0
@@ -70,4 +70,3 @@ state.params['can3_init_target'].value[:,0] = can3_pose
 goal = '(and (Near can0 end_target_1) (Near can1 end_target_0) (Near can2 end_target_3) (Near can3 end_target_2))'
 plan, descr = p_mod_abs(hl_solver, solver, domain, problem, goal=goal, debug=True)
 import ipdb; ipdb.set_trace()
-

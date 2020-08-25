@@ -1,7 +1,7 @@
 """ This file defines an agent for the MuJoCo simulator environment. """
 import copy
 
-import cPickle as pickle
+import pickle as pickle
 
 import ctypes
 
@@ -72,7 +72,7 @@ class LaundryWorldEEAgent(Agent):
         self.task_breaks = self._hyperparams['task_breaks']
         self.task_encoding = self._hyperparams['task_encoding']
         self.color_maps = self._hyperparams['color_maps']
-        self._samples = [{task:[] for task in self.task_encoding.keys()} for _ in range(self._hyperparams['conditions'])]
+        self._samples = [{task:[] for task in list(self.task_encoding.keys())} for _ in range(self._hyperparams['conditions'])]
         self.state_inds = self._hyperparams['state_inds']
         self.action_inds = self._hyperparams['action_inds']
         self.dX = self._hyperparams['dX']
@@ -85,8 +85,8 @@ class LaundryWorldEEAgent(Agent):
         self.viewer = self._hyperparams['viewer']
         self.pos_model = self.setup_mujoco_model(self.plans[0], motor=False, view=True) if not self._hyperparams['model'] else self._hyperparams['model']
 
-        self.symbols = [filter(lambda p: p.is_symbol(), self.plans[m].params.values()) for m in range(len(self.plans))]
-        self.params = [filter(lambda p: not p.is_symbol(), self.plans[m].params.values()) for m in range(len(self.plans))]
+        self.symbols = [[p for p in list(self.plans[m].params.values()) if p.is_symbol()] for m in range(len(self.plans))]
+        self.params = [[p for p in list(self.plans[m].params.values()) if not p.is_symbol()] for m in range(len(self.plans))]
         self.current_cond = 0
         self.cond_global_pol_sample = [None for _ in  range(len(self.x0))] # Samples from the current global policy for each condition
         self.initial_opt = True
@@ -132,7 +132,7 @@ class LaundryWorldEEAgent(Agent):
         root = base_xml.getroot()
         worldbody = root.find('worldbody')
         active_ts = (0, plan.horizon)
-        params = plan.params.values()
+        params = list(plan.params.values())
         contacts = root.find('contact')
         equality = root.find('equality')
 
@@ -160,7 +160,7 @@ class LaundryWorldEEAgent(Agent):
                 xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_r_finger_tip'})
                 xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_r_finger'})
                 xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'basket'})
-            elif param._type == 'Obstacle': 
+            elif param._type == 'Obstacle':
                 length = param.geom.dim[0]
                 width = param.geom.dim[1]
                 thickness = param.geom.dim[2]
@@ -206,7 +206,7 @@ class LaundryWorldEEAgent(Agent):
         '''
         self._generate_xml(plan, motor)
         model = mjcore.MjModel(ENV_XML)
-        
+
         self.left_grip_l_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'left_gripper_l_finger_tip')
         self.left_grip_r_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'left_gripper_r_finger_tip')
         self.right_grip_l_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'right_gripper_l_finger_tip')
@@ -246,7 +246,7 @@ class LaundryWorldEEAgent(Agent):
         model  = self.pos_model
         xpos = model.body_pos.copy()
         xquat = model.body_quat.copy()
-        params = plan.params.values()
+        params = list(plan.params.values())
 
         for param in self.params[cond]:
             if param._type != 'Robot':
@@ -345,8 +345,8 @@ class LaundryWorldEEAgent(Agent):
         self.current_cond = condition
         # x0 = self.init_plan_states[condition]
         x0 = np.zeros((self.dX,))
-        utils.fill_vector(self.params[condition], self.state_inds, x0, 0)                
-        num_tasks = len(self.task_encoding.keys())
+        utils.fill_vector(self.params[condition], self.state_inds, x0, 0)
+        num_tasks = len(list(self.task_encoding.keys()))
         cur_task_ind = 0
         next_t, task = self.task_breaks[condition][cur_task_ind]
         policy = policy_map[task]['policy']
@@ -354,11 +354,11 @@ class LaundryWorldEEAgent(Agent):
         self.T = next_t
         sample = Sample(self)
         sample.init_t = 0
-        print 'Starting on-policy sample for condition {0}.'.format(condition)
+        print('Starting on-policy sample for condition {0}.'.format(condition))
         # if self.stochastic_conditions and save_global:
         #     self.replace_cond(condition)
 
-        color_vec = np.zeros((len(self.color_maps[condition].keys())))
+        color_vec = np.zeros((len(list(self.color_maps[condition].keys()))))
         for cloth_name in self.color_maps[condition]:
             color_vec[int(cloth_name[-1])] = self.color_maps[condition][cloth_name][0] * 100
 
@@ -394,10 +394,10 @@ class LaundryWorldEEAgent(Agent):
 
                 if EE_ENUM in self._hyperparams['obs_include']:
                     obs = np.r_[obs, ee_pos]
-                
+
                 if GRIPPER_ENUM in self._hyperparams['obs_include']:
                     obs = np.r_[obs, grippers]
-                
+
                 if STATE_ENUM in self._hyperparams['obs_include']:
                     obs = np.r_[obs, X]
 
@@ -447,7 +447,7 @@ class LaundryWorldEEAgent(Agent):
                 ee_left_rot = U[self.action_inds[('baxter', 'ee_left_rot')]] + noise[self.action_inds[('baxter', 'ee_left_rot')]]
                 ee_right_pos = U[self.action_inds[('baxter', 'ee_right_pos')]] + noise[self.action_inds[('baxter', 'ee_right_pos')]]
                 ee_right_rot = U[self.action_inds[('baxter', 'ee_right_rot')]] + noise[self.action_inds[('baxter', 'ee_right_rot')]]
-                
+
                 ee_left_rot = ee_left_rot / np.linalg.norm(ee_left_rot)
                 ee_right_rot = ee_right_rot / np.linalg.norm(ee_right_rot)
 
@@ -516,7 +516,7 @@ class LaundryWorldEEAgent(Agent):
                     # import ipdb; ipdb.set_trace()
                     success = self.run_policy_step(ctrl_signal, last_successful_pos)
                     last_successful_pos[:] = self.pos_model.data.qpos.copy()[:]
-                        
+
                     xpos = self.pos_model.data.xpos
                     xquat = self.pos_model.data.xquat
                     left_vec = ee_left_pos - xpos[self.left_grip_l_ind]
@@ -542,7 +542,7 @@ class LaundryWorldEEAgent(Agent):
                     sample.init_t = 0
 
                     break
-            print 'Finished on-policy sample.\n'.format(condition)
+            print('Finished on-policy sample.\n'.format(condition))
 
         if save:
             self._samples[condition][task].append(sample)
@@ -667,7 +667,7 @@ class LaundryWorldEEAgent(Agent):
                     if p not in init_act.params: continue
                     old_params_free[p] = p._free_attrs
                     p._free_attrs = {}
-                    for attr in old_params_free[p].keys():
+                    for attr in list(old_params_free[p].keys()):
                         p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
                 else:
                     p_attrs = {}
@@ -684,7 +684,7 @@ class LaundryWorldEEAgent(Agent):
                 self.set_plan_from_cost_trajs(alg, 0, self.plans[m].horizon, m)
 
             while not success:
-                print "Solve failed."
+                print("Solve failed.")
                 for p in self.params[m]:
                     if p.is_symbol():
                         if p not in init_act.params: continue
@@ -700,7 +700,7 @@ class LaundryWorldEEAgent(Agent):
                         if p not in init_act.params: continue
                         old_params_free[p] = p._free_attrs
                         p._free_attrs = {}
-                        for attr in old_params_free[p].keys():
+                        for attr in list(old_params_free[p].keys()):
                             p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
                     else:
                         p_attrs = {}
@@ -740,7 +740,7 @@ class LaundryWorldEEAgent(Agent):
 
         if utils.POLICY_STEPS_PER_SECOND < 1:
             for t in range(0, final_t-init_t, int(1/utils.POLICY_STEPS_PER_SECOND)):
-                utils.fill_vector(self.params[m], self.state_inds, tgt_x[int(t*utils.POLICY_STEPS_PER_SECOND)], t+init_t)                
+                utils.fill_vector(self.params[m], self.state_inds, tgt_x[int(t*utils.POLICY_STEPS_PER_SECOND)], t+init_t)
                 self.plans[m].params['baxter'].openrave_body.set_dof({'lArmPose': self.plans[m].params['baxter'].lArmPose[:, init_t+t+1], \
                                                                   'lGripper': self.plans[m].params['baxter'].lGripper[:, init_t+t+1], \
                                                                   'rArmPose': self.plans[m].params['baxter'].rArmPose[:, init_t+t+1], \
@@ -749,7 +749,7 @@ class LaundryWorldEEAgent(Agent):
                 ee_pose = self.plans[m].params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransformPose()
                 tgt_u[int(t*utils.POLICY_STEPS_PER_SECOND), self.action_inds[('baxter', 'ee_left_pos')]] = ee_pose[4:]
                 tgt_u[int(t*utils.POLICY_STEPS_PER_SECOND), self.action_inds[('baxter', 'ee_left_rot')]] = ee_pose[:4]
-                
+
                 ee_pose = self.plans[m].params['baxter'].openrave_body.env_body.GetLink('right_gripper').GetTransformPose()
                 tgt_u[int(t*utils.POLICY_STEPS_PER_SECOND), self.action_inds[('baxter', 'ee_right_pos')]] = ee_pose[4:]
                 tgt_u[int(t*utils.POLICY_STEPS_PER_SECOND), self.action_inds[('baxter', 'ee_right_rot')]] = ee_pose[:4]
@@ -762,7 +762,7 @@ class LaundryWorldEEAgent(Agent):
             for t in range(0, final_t-init_t):
                 utils.fill_vector(self.params[m], self.state_inds, tgt_x[t*utils.POLICY_STEPS_PER_SECOND], t+init_t)
                 tgt_x[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND] = tgt_x[t*utils.POLICY_STEPS_PER_SECOND]
-                
+
                 self.plans[m].params['baxter'].openrave_body.set_dof({'lArmPose': self.plans[m].params['baxter'].lArmPose[:, init_t+t+1], \
                                                                   'lGripper': self.plans[m].params['baxter'].lGripper[:, init_t+t+1], \
                                                                   'rArmPose': self.plans[m].params['baxter'].rArmPose[:, init_t+t+1], \
@@ -770,14 +770,14 @@ class LaundryWorldEEAgent(Agent):
                 ee_pose = self.plans[m].params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransformPose()
                 tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.action_inds[('baxter', 'ee_left_pos')]] = ee_pose[4:]
                 tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.action_inds[('baxter', 'ee_left_rot')]] = ee_pose[:4]
-                
+
                 ee_pose = self.plans[m].params['baxter'].openrave_body.env_body.GetLink('right_gripper').GetTransformPose()
                 tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.action_inds[('baxter', 'ee_right_pos')]] = ee_pose[4:]
                 tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.action_inds[('baxter', 'ee_right_rot')]] = ee_pose[:4]
 
                 tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.action_inds[('baxter', 'lGripper')]] = 0 if self.plans[m].params['baxter'].lGripper[0, init_t+t+1] <= const.GRIPPER_CLOSE_VALUE else 1
                 tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.action_inds[('baxter', 'rGripper')]] = 0 if self.plans[m].params['baxter'].rGripper[0, init_t+t+1] <= const.GRIPPER_CLOSE_VALUE else 1
-            
+
         self.optimal_act_traj[m] = tgt_u
         self.optimal_state_traj[m] = tgt_x
 
@@ -793,7 +793,7 @@ class LaundryWorldEEAgent(Agent):
 
         def get_policy_map(m):
             policy_map = {}
-            for task in self.task_encoding.keys():
+            for task in list(self.task_encoding.keys()):
                 policy_map[task] = {}
                 policy_map[task]['policy'] = optimal_pol(lambda X, O, t, noise: self.optimal_act_traj[m][t].copy())
 
@@ -830,16 +830,16 @@ class LaundryWorldEEAgent(Agent):
 
 
     def replace_cond(self, cond):
-        print "Replacing Condition {0}.\n".format(cond)
+        print("Replacing Condition {0}.\n".format(cond))
         plan, task_breaks, color_map = self.get_plan(self.num_cloths)
         self.plans[cond].env.Destroy()
         self.plans[cond] = plan
-        self.params[cond] = filter(lambda p: not p.is_symbol(), plan.params.values())
-        self.symbols[cond] = filter(lambda p: p.is_symbol(), plan.params.values())
+        self.params[cond] = [p for p in list(plan.params.values()) if not p.is_symbol()]
+        self.symbols[cond] = [p for p in list(plan.params.values()) if p.is_symbol()]
         self.task_breaks[cond] = task_breaks
         self.color_maps[cond] = color_map
         x = np.zeros((self.symbolic_bound,))
-        utils.fill_vector(self.params[cond], self.state_inds, x, 0)                
+        utils.fill_vector(self.params[cond], self.state_inds, x, 0)
         self.x0[cond] = x
 
     def replace_all_conds(self):

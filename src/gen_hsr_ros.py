@@ -14,4 +14,3 @@ config = {
 env = HSRRosEnv.load_config(config)
 env.render(camera_id=1, view=True)
 env.render(camera_id=1, view=True)
-

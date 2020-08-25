@@ -57,7 +57,7 @@ class PostLearner(Learner):
                 self.theta = self.get_theta(f["/THETA_" + self._sample_space])
             f.close()
         except:
-            print "File not found, please train this Learner."
+            print("File not found, please train this Learner.")
 
         self.train_size = arg_dict['train_size']
         self.episode_size = arg_dict['episode_size']

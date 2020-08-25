@@ -149,7 +149,7 @@ class VAE(object):
             self.saver.restore(self.sess, self.ckpt_name)
         except Exception as e:
             self.sess.run(init_op)
-            print('\n\nCould not load previous weights for {0} from {1}\n\n'.format(self.scope, self.weight_dir))
+            print(('\n\nCould not load previous weights for {0} from {1}\n\n'.format(self.scope, self.weight_dir)))
 
         self.update_count = 0
         self.n_updates = 0
@@ -211,7 +211,7 @@ class VAE(object):
             variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='vae')
             saver = tf.train.Saver(variables)
             saver.save(self.sess, self.get_weight_file(addendum))
-            print('Saved vae weights for', self.train_mode, 'in', self.weight_dir)
+            print(('Saved vae weights for', self.train_mode, 'in', self.weight_dir))
         except:
             print('Saving variables encountered an issue but it will not crash:')
             traceback.print_exception(*sys.exc_info())
@@ -222,7 +222,7 @@ class VAE(object):
 
 
     def store(self, obs, task_list):
-        print('Storing data for', self.scope)
+        print(('Storing data for', self.scope))
         assert len(obs) == len(task_list)
         # self.T = len(obs)
 
@@ -460,7 +460,7 @@ class VAE(object):
     def update(self):
         for step in range(self.train_iters):
             # start_t = time.time()
-            ind = np.random.choice(range(len(self.obs_data)-self.batch_size), 1)[0]
+            ind = np.random.choice(list(range(len(self.obs_data)-self.batch_size)), 1)[0]
             # print 'ind:', time.time() - start_t
             obs_batch = self.obs_data[ind:ind+self.batch_size]
             task_batch = self.task_data[ind:ind+self.batch_size]
@@ -496,10 +496,10 @@ class VAE(object):
             #     task_path.append(np.concatenate([task, -1*np.ones([1, self.task_dim])], 0))
             # print 'start:', time.time() - start_t
 
-            self.sess.run(self.train_op, feed_dict={self.x_in: obs, 
-                                                    self.offset_in: next_obs, 
+            self.sess.run(self.train_op, feed_dict={self.x_in: obs,
+                                                    self.offset_in: next_obs,
                                                     self.before_offset_in: before_obs,
-                                                    self.task_in: task_path, 
+                                                    self.task_in: task_path,
                                                     self.training: True,
                                                     self.lr: self.cur_lr,})
             # print 'train:', time.time() - start_t
@@ -513,21 +513,21 @@ class VAE(object):
             # obs2 = next_obs_batch[1:self.T].reshape([-1]+list(self.obs_dims))
             # task = next_task_batch[:self.T-1].reshape([-1, self.task_dim])
 
-            # self.sess.run(self.train_op, feed_dict={self.x_in: obs1, 
-            #                                         self.offset_in: obs2, 
-            #                                         self.task_in: task, 
+            # self.sess.run(self.train_op, feed_dict={self.x_in: obs1,
+            #                                         self.offset_in: obs2,
+            #                                         self.task_in: task,
             #                                         self.lr: self.cur_lr,
             #                                         self.training: True})
             self.cur_lr *= 0.99999
         self.load_step += self.train_iters
-        print('Updated VAE', self.load_step)
+        print(('Updated VAE', self.load_step))
 
 
     def fit_prior(self):
         latents = []
-        inds = np.random.choice(range(len(self.obs_data)), np.minimum(1000, len(self.obs_data)))
+        inds = np.random.choice(list(range(len(self.obs_data))), np.minimum(1000, len(self.obs_data)))
         for i in range(len(inds)):
-            print i
+            print(i)
             batch = self.obs_data[inds[i]]
             latents.extend(self.get_latents(batch))
         self.prior_mean = np.mean(latents, axis=0)
@@ -540,7 +540,7 @@ class VAE(object):
 
 
     def check_loss(self):
-        ind = np.random.choice(range(len(self.obs_data)-self.batch_size), 1)[0]
+        ind = np.random.choice(list(range(len(self.obs_data)-self.batch_size)), 1)[0]
         obs_batch = self.obs_data[ind:ind+self.batch_size]
         task_batch = self.task_data[ind:ind+self.batch_size]
         before_obs = obs_batch[:, :self.T]
@@ -571,10 +571,10 @@ class VAE(object):
         #     task = next_task_batch[:self.T-1].reshape([1, self.task_dim])
         #     task_path.append(np.concatenate([task, -1*np.ones([1, self.task_dim])], 0))
 
-        return self.sess.run(self.loss, feed_dict={self.x_in: obs, 
-                                                    self.offset_in: next_obs, 
+        return self.sess.run(self.loss, feed_dict={self.x_in: obs,
+                                                    self.offset_in: next_obs,
                                                     self.before_offset_in: before_obs,
-                                                    self.task_in: task_path, 
+                                                    self.task_in: task_path,
                                                     self.training: True,
                                                     self.lr: self.cur_lr,})
 
@@ -600,7 +600,7 @@ class VAE(object):
 
 
     def next_latents_kl_pentalty(self, obs, task):
-        return self.sess.run(self.conditional_kl_loss, feed_dict={self.x_in: obs, self.task_in: task, self.training: True}) 
+        return self.sess.run(self.conditional_kl_loss, feed_dict={self.x_in: obs, self.task_in: task, self.training: True})
 
 
     def decode_latent(self, latents):

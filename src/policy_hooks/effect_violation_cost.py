@@ -6,7 +6,7 @@ from gps.algorithm.cost.config import COST_STATE
 from gps.algorithm.cost.cost import Cost
 
 from policy_hooks.utils.policy_solver_utils import set_param_attrs
-from policy_hooks.utils.tamp_eval_funcs import ts_constr_violations, ts_constr_grad 
+from policy_hooks.utils.tamp_eval_funcs import ts_constr_violations, ts_constr_grad
 
 
 class EffectViolationCost(Cost):
@@ -38,12 +38,11 @@ class EffectViolationCost(Cost):
         _, dim_sensor = x.shape
 
         end_ts = self.plan.horizon - 1
-        set_param_attrs(self.plan.params.values(), self.plan.state_inds, X, end_ts)
+        set_param_attrs(list(self.plan.params.values()), self.plan.state_inds, X, end_ts)
         costs = ts_constr_violations(self.plan, end_ts)
         final_l[-1] = sum([c[1] for c in costs])
 
         if self.compute_grad:
-             final_lu[-1,:], final_lx[-1,:], final_luu[-1,:], final_lxx[-1,:], final_lux[-1,:] = ts_grads(self.plan, t=end_ts)
+            final_lu[-1,:], final_lx[-1,:], final_luu[-1,:], final_lxx[-1,:], final_lux[-1,:] = ts_grads(self.plan, t=end_ts)
 
         return final_l, final_lx, final_lu, final_lxx, final_luu, final_lux
-

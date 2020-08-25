@@ -118,14 +118,14 @@ class RewardTrainer(object):
             self.saver.restore(self.sess, self.ckpt_name)
         except Exception as e:
             self.sess.run(init_op)
-            print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(self.scope, self.weight_dir)
+            print('\n\nCould not load previous weights for {0} from {1}\n\n'.format(self.scope, self.weight_dir))
 
         self.update_count = 0
         self.update_size = self.config.get('update_size', 100)
 
 
     def serialize_weights(self):
-        print 'Serializing reward weights'
+        print('Serializing reward weights')
         var_to_val = {}
         variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='reward')
         for v in variables:
@@ -160,7 +160,7 @@ class RewardTrainer(object):
             saver = tf.train.Saver(variables)
             saver.save(self.sess, weight_dir+'/reward.ckpt')
         except:
-            print 'Saving variables encountered an issue but it will not crash:'
+            print('Saving variables encountered an issue but it will not crash:')
             traceback.print_exception(*sys.exc_info())
 
 
@@ -169,7 +169,7 @@ class RewardTrainer(object):
 
 
     def store(self, obs, task_list):
-        print 'Storing data for', self.scope
+        print('Storing data for', self.scope)
         assert len(obs) == len(task_list)
         self.T = len(obs)
 
@@ -193,7 +193,7 @@ class RewardTrainer(object):
 
         self.update_count += 1
         if self.update_count > self.update_size:
-            print 'Updating', net
+            print('Updating', net)
             self.update()
             self.store_scope_weights(scopes=[net])
             self.save_buffers()
@@ -236,7 +236,7 @@ class RewardTrainer(object):
             next_batch2 = []
             ts = []
             for j in range(self.batch_size):
-                ind = np.random.choice(range(len(self.obs_data)), 1)[0]
+                ind = np.random.choice(list(range(len(self.obs_data))), 1)[0]
                 next_obs_batch = np.array(self.obs_data[ind])
                 t1 = np.random.randint(0, len(next_obs_batch)-1)
                 t2 = np.random.randint(t1+1, len(next_obs_batch))

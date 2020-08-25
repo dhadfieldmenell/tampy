@@ -3,6 +3,7 @@ import multiprocessing as mp
 import atexit
 from collections import OrderedDict
 import subprocess
+import ctypes
 import logging
 import imp
 import os
@@ -86,10 +87,10 @@ class MultiProcessMain(object):
 
         state_vector_include, action_vector_include, target_vector_include = self.config['get_vector'](self.config)
 
-        self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = utils.get_state_action_inds(plans.values()[0], self.config['robot_name'], self.config['attr_map'], state_vector_include, action_vector_include)
+        self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = utils.get_state_action_inds(list(plans.values())[0], self.config['robot_name'], self.config['attr_map'], state_vector_include, action_vector_include)
 
-        self.target_dim, self.target_inds = utils.get_target_inds(plans.values()[0], self.config['attr_map'], target_vector_include)
-        
+        self.target_dim, self.target_inds = utils.get_target_inds(list(plans.values())[0], self.config['attr_map'], target_vector_include)
+
         x0, targets = prob.get_random_initial_state_vec(self.config, plans, self.dX, self.state_inds, conditions)
 
         '''
@@ -99,7 +100,7 @@ class MultiProcessMain(object):
             targets.append(prob.get_end_targets())
         '''
 
-        for plan in plans.values():
+        for plan in list(plans.values()):
             plan.state_inds = self.state_inds
             plan.action_inds = self.action_inds
             plan.dX = self.dX
@@ -117,7 +118,7 @@ class MultiProcessMain(object):
             utils.STATE_HIST_ENUM: int((1+self.symbolic_bound)*self.config['hist_len']),
             utils.TASK_ENUM: len(self.task_list),
             utils.TARGETS_ENUM: self.target_dim,
-            utils.ONEHOT_TASK_ENUM: len(plans.keys()),
+            utils.ONEHOT_TASK_ENUM: len(list(plans.keys())),
         }
         for enum in self.config['sensor_dims']:
             sensor_dims[enum] = self.config['sensor_dims'][enum]
@@ -144,7 +145,7 @@ class MultiProcessMain(object):
         self.prim_bounds = []
         if self.config.get('onehot_task', False):
             self.config['prim_out_include'] = [utils.ONEHOT_TASK_ENUM]
-            self.prim_bounds.append((0, len(plans.keys())))
+            self.prim_bounds.append((0, len(list(plans.keys()))))
         else:
             self.prim_bounds.append((0, len(self.task_list)))
             ind = len(self.task_list)
@@ -429,7 +430,7 @@ class MultiProcessMain(object):
         self.config['dO'] = self.agent.dO
         self.config['dPrimObs'] = self.agent.dPrim
         self.config['dValObs'] = self.agent.dVal + np.sum([len(options[e]) for e in options])
-        self.config['dPrimOut'] = self.agent.dPrimOut 
+        self.config['dPrimOut'] = self.agent.dPrimOut
         self.config['state_inds'] = self.state_inds
         self.config['action_inds'] = self.action_inds
         self.config['policy_out_coeff'] = self.policy_out_coeff
@@ -455,14 +456,14 @@ class MultiProcessMain(object):
         buf_sizes = {}
         if self.config['policy_opt'].get('split_nets', False):
             for scope in self.task_list:
-                buffers[scope] = mp.Array('c', 20 * (2**20))
+                buffers[scope] = mp.Array(ctypes.c_char, 20 * (2**20))
                 buf_sizes[scope] = mp.Value('i')
         else:
-            buffers['control'] = mp.Array('c', 20 * (2**20))
+            buffers['control'] = mp.Array(ctypes.c_char, 20 * (2**20))
             buf_sizes['control'] = mp.Value('i')
-        buffers['image'] = mp.Array('c', 20 * (2**20))
-        buffers['primitive'] = mp.Array('c', 20 * (2**20))
-        buffers['value'] = mp.Array('c', 20 * (2**20))
+        buffers['image'] = mp.Array(ctypes.c_char, 20 * (2**20))
+        buffers['primitive'] = mp.Array(ctypes.c_char, 20 * (2**20))
+        buffers['value'] = mp.Array(ctypes.c_char, 20 * (2**20))
         buf_sizes['image'] = mp.Value('i')
         buf_sizes['primitive'] = mp.Value('i')
         buf_sizes['value'] = mp.Value('i')
@@ -589,7 +590,7 @@ class MultiProcessMain(object):
         server.agent = hyperparams['agent']['type'](hyperparams['agent'])
         ll_dir = hyperparams['ll_policy']
         hl_dir = hyperparams['hl_data']
-        print('Launching hl retrain from', ll_dir, hl_dir)
+        print(('Launching hl retrain from', ll_dir, hl_dir))
         hl_retrain.retrain_hl_from_samples(server, hl_dir)
 
 
@@ -607,7 +608,7 @@ class MultiProcessMain(object):
         ll_dir = hyperparams['ll_policy']
         hl_dir = hyperparams['hl_data']
         hl_retrain.retrain(server, hl_dir, ll_dir)
- 
+
 
     def run_test(self, hyperparams):
         software_constants.USE_ROS = False
@@ -657,15 +658,15 @@ class MultiProcessMain(object):
                 p = self.processes[n]
                 if not p.is_alive():
                     message = 'Killing All.' if kill_all else 'Restarting Dead Process.'
-                    print '\n\nProcess died: ' + str(self.process_info[n]) + ' - ' + message
+                    print('\n\nProcess died: ' + str(self.process_info[n]) + ' - ' + message)
                     exit = kill_all
                     if kill_all: break
                     process_config = self.process_configs[p.pid]
                     del self.process_info[n]
                     self.create_server(*process_config)
-                    print "Relaunched dead process"
+                    print("Relaunched dead process")
             time.sleep(60)
-            self.log_mem_info() 
+            self.log_mem_info()
 
         for p in self.processes:
             if p.is_alive(): p.terminate()
@@ -703,7 +704,7 @@ class MultiProcessMain(object):
             self.watch_processes(kill_all)
             if self.roscore is not None: self.roscore.shutdown()
 
-    
+
     def expand_rollout_servers(self):
         if not self.config['expand_process'] or time.time() - self.config['start_t'] < 1200: return
         self.cpu_use.append(psutil.cpu_percent(interval=1.))
@@ -713,7 +714,7 @@ class MultiProcessMain(object):
             hyp['run_alg_updates'] = False
             hyp['run_mcts_rollouts'] = True
             hyp['run_hl_test'] = False
-            print('Starting rollout server {0}'.format(self.cur_n_rollout))
+            print(('Starting rollout server {0}'.format(self.cur_n_rollout)))
             p = self._create_rollout_server(hyp, idx=self.cur_n_rollout)
             try:
                 p.start()
@@ -738,15 +739,15 @@ class MultiProcessMain(object):
                 listOfProcObjects.append(pinfo);
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
- 
+
         # Sort list of dict by key vms i.e. memory usage
         listOfProcObjects = sorted(listOfProcObjects, key=lambda procObj: procObj['vms'], reverse=True)
-        
+
         with open('memory_info.txt', 'a+') as f:
-            f.write(str(listOfProcObjects)) 
+            f.write(str(listOfProcObjects))
         return listOfProcObjects
 
-    
+
     def allocate_queues(self, config):
         queue_size = 20
         queues = {}
@@ -765,4 +766,3 @@ class MultiProcessMain(object):
 
         config['queues'] = queues
         return queues
-

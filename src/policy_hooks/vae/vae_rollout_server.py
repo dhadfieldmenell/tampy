@@ -89,7 +89,7 @@ class VAERolloutServer(object):
 
 
     def update_weights(self):
-        scopes = self.weights_to_store.keys()
+        scopes = list(self.weights_to_store.keys())
         for scope in scopes:
             save = self.id.endswith('0')
             data = self.weights_to_store[scope]
@@ -100,7 +100,7 @@ class VAERolloutServer(object):
 
     def parse_state(self, xs):
         state_info = []
-        params = self.agent.plans.values()[0].params
+        params = list(self.agent.plans.values())[0].params
         for x in xs:
             info = []
             for param_name, attr in self.agent.state_inds:
@@ -139,11 +139,11 @@ class VAERolloutServer(object):
             encode_acts = list(acts)
             for i in range(len(acts)):
                 encode_acts[i] = self.env.encode_action(acts[i])
-                
+
             # latent_preds = self.vae.get_next_latents(np.tile(obs, [len(acts), 1, 1, 1]), np.array(acts))
-            # p = np.array([1./self.prior.pdf(latent_preds[i], 
-            #                                 mean=np.zeros(len(latent_preds[i])), 
-            #                                 cov=np.ones(len(latent_preds[i]))) 
+            # p = np.array([1./self.prior.pdf(latent_preds[i],
+            #                                 mean=np.zeros(len(latent_preds[i])),
+            #                                 cov=np.ones(len(latent_preds[i])))
             #               for i in range(len(latent_preds))])
 
             temp = 1 # Softmax temperature
@@ -153,7 +153,7 @@ class VAERolloutServer(object):
             # ind = np.argmax(p)
             if np.any(np.isnan(p)):
                 p = np.ones(len(acts), dtype=np.float64) / len(acts)
-            ind = np.random.choice(range(len(acts)), p=p)
+            ind = np.random.choice(list(range(len(acts))), p=p)
             act = acts[ind]
             obs_path.append(obs)
             task_path.append(self.env.encode_action(act))
@@ -169,4 +169,3 @@ class VAERolloutServer(object):
         while not self.stopped:
             self.step()
             rospy.sleep(0.1)
-

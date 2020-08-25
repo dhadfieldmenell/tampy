@@ -1,12 +1,12 @@
 """ This file defines code for PI2-based trajectory optimization.
 
-Optimization of trajectories with PI2 and a REPS-like KL-divergence constraint. 
+Optimization of trajectories with PI2 and a REPS-like KL-divergence constraint.
 References:
-[1] E. Theodorou, J. Buchli, and S. Schaal. A generalized path integral control 
+[1] E. Theodorou, J. Buchli, and S. Schaal. A generalized path integral control
     approach to reinforcement learning. JMLR, 11, 2010.
-[2] F. Stulp and O. Sigaud. Path integral policy improvement with covariance 
+[2] F. Stulp and O. Sigaud. Path integral policy improvement with covariance
     matrix adaptation. In ICML, 2012.
-[3] J. Peters, K. Mulling, and Y. Altun. Relative entropy policy search. 
+[3] J. Peters, K. Mulling, and Y. Altun. Relative entropy policy search.
     In AAAI, 2010.
  """
 import copy
@@ -30,9 +30,9 @@ class TrajOptPI2(TrajOpt):
         kl_threshold: KL-divergence threshold between old and new policies.
         covariance_damping: If greater than zero, covariance is computed as a
             multiple of the old covariance. Multiplier is taken to the power
-            (1 / covariance_damping). If greater than one, slows down 
+            (1 / covariance_damping). If greater than one, slows down
             convergence and keeps exploration noise high for more iterations.
-        min_temperature: Minimum bound of the temperature optimiztion for the 
+        min_temperature: Minimum bound of the temperature optimiztion for the
             soft-max probabilities of the policy samples.
     """
     def __init__(self, hyperparams):
@@ -42,12 +42,12 @@ class TrajOptPI2(TrajOpt):
         self._kl_threshold = self._hyperparams['kl_threshold']
         self._covariance_damping = self._hyperparams['covariance_damping']
         self._min_temperature = self._hyperparams['min_temperature']
-    
+
     def update(self, m, algorithm, use_lqr_actions=False,
                fixed_eta=None, use_fixed_eta=False, costs=None):
         """
         Perform optimization of the feedforward controls of time-varying
-        linear-Gaussian controllers with PI2. 
+        linear-Gaussian controllers with PI2.
         Args:
             m: Current condition number.
             algorithm: Currently used algorithm.
@@ -59,12 +59,12 @@ class TrajOptPI2(TrajOpt):
         Returns:
             traj_distr: Updated linear-Gaussian controller.
         """
-        # We only use the scalar costs.      
+        # We only use the scalar costs.
         if costs is None:
             costs = algorithm.cur[m].cs
 
         # Get sampled controls, states and old trajectory distribution.
-        cur_data = algorithm.cur[m].sample_list                
+        cur_data = algorithm.cur[m].sample_list
         prev_traj_distr = algorithm.cur[m].traj_distr
         X = cur_data.get_X()
         U = cur_data.get_U()
@@ -80,22 +80,22 @@ class TrajOptPI2(TrajOpt):
             raise Exception('Nans in action: {0}'.format(U))
 
         # We only optimize feedforward controls with PI2. Subtract the feedback
-        # part from the sampled controls using feedback gain matrix and states.       
+        # part from the sampled controls using feedback gain matrix and states.
         ffw_controls = np.zeros(U.shape)
         if use_lqr_actions:
             noise = cur_data.get_noise()
-            for i in xrange(len(cur_data)):
+            for i in range(len(cur_data)):
                 U_lqr = [prev_traj_distr.K[t].dot(X[i, t]) + prev_traj_distr.k[t] +
                          prev_traj_distr.chol_pol_covar[t].T.dot(noise[i, t])
-                         for t in xrange(T)]
+                         for t in range(T)]
                 ffw_controls[i] = [U_lqr[t] - prev_traj_distr.K[t].dot(X[i, t])
-                                   for t in xrange(T)]
+                                   for t in range(T)]
         else:
-            for i in xrange(len(cur_data)):
+            for i in range(len(cur_data)):
                 ffw_controls[i] = [U[i, t] - prev_traj_distr.K[t].dot(X[i, t])
-                                   for t in xrange(T)]
+                                   for t in range(T)]
 
-        # Copy feedback gain matrix from the old trajectory distribution.                       
+        # Copy feedback gain matrix from the old trajectory distribution.
         traj_distr = prev_traj_distr.nans_like()
         traj_distr.K = prev_traj_distr.K
 
@@ -127,12 +127,12 @@ class TrajOptPI2(TrajOpt):
         Perform optimization with PI2. Computes new mean and covariance matrices
         of the policy parameters given policy samples and their costs.
         Args:
-            samples: Matrix of policy samples with dimensions: 
+            samples: Matrix of policy samples with dimensions:
                      [num_samples x num_timesteps x num_controls].
             costs: Matrix of roll-out costs with dimensions:
                    [num_samples x num_timesteps]
             mean_old: Old policy mean.
-            cov_old: Old policy covariance.            
+            cov_old: Old policy covariance.
             fixed_eta: Fixed value of eta to use if use_fixed_eta is True.
             use_fixed_eta: Whether to use fixed_eta or compute using KL dual.
         Returns:
@@ -158,9 +158,9 @@ class TrajOptPI2(TrajOpt):
         fail = True
         while fail:
             fail = False
-            for t in xrange(T):
+            for t in range(T):
                 if use_ts[t] < 1e-3:
-                    print('Skipped', t, samples[:, t, :])
+                    print(('Skipped', t, samples[:, t, :]))
                     mean_new[t] = prev_traj_distr.k[t]
                     cov_new[t] = prev_traj_distr.pol_covar[t]
                     inv_cov_new[t] = prev_traj_distr.inv_pol_covar[t]
@@ -189,7 +189,7 @@ class TrajOptPI2(TrajOpt):
                 mean_new[t] = np.sum(prob[:, np.newaxis] * samples[:, t], axis=0)
 
                 # Update policy covariance with weighted max-likelihood.
-                for i in xrange(samples.shape[0]):
+                for i in range(samples.shape[0]):
                     mean_diff = samples[i, t] - mean_new[t]
                     mean_diff = np.reshape(mean_diff, (len(mean_diff), 1))
                     cov_new[t] += prob[i] * np.dot(mean_diff, mean_diff.T)
@@ -217,8 +217,8 @@ class TrajOptPI2(TrajOpt):
                     LOGGER.debug('Increasing eta %d: %f -> %f', t, old_eta, eta[t])
                     del_[t] *= 2
                     if eta[t] >= 1e16:
-                        print(cov_new[t], t)
-                        print(samples[:, t], '<-- Value Error')
+                        print((cov_new[t], t))
+                        print((samples[:, t], '<-- Value Error'))
                         # use_ts[t] = 0.
                         raise ValueError
                         # mean_new[t] = prev_traj_distr.k[t]
@@ -233,11 +233,11 @@ class TrajOptPI2(TrajOpt):
         """
         Dual function for optimizing the temperature eta according to the given
         KL-divergence constraint.
-        
+
         Args:
             eta: Temperature that has to be optimized.
             kl_threshold: Max. KL-divergence constraint.
-            costs: Roll-out costs.            
+            costs: Roll-out costs.
         Returns:
             Value of the dual function.
         """

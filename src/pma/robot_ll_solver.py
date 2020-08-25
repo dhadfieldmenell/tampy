@@ -9,7 +9,7 @@ import core.util_classes.baxter_solve_enums as solve_enums
 from core.util_classes.matrix import Vector
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.plan_hdf5_serialization import PlanSerializer
-from ll_solver import LLSolver, LLParam
+from .ll_solver import LLSolver, LLParam
 import itertools, random
 import gurobipy as grb
 import numpy as np
@@ -29,7 +29,7 @@ DEBUG = True
 RESAMPLE_FACTOR = baxter_constants.RESAMPLE_FACTOR
 DOWN_ROT = [0, np.pi/2, 0]
 
-attr_map = baxter_constants.ATTRMAP 
+attr_map = baxter_constants.ATTRMAP
 # attr_map = {'Robot': ['lArmPose', 'lGripper','rArmPose', 'rGripper', 'pose', ],
 #             'RobotPose':['lArmPose', 'lGripper','rArmPose', 'rGripper', 'value'],
 #             'EEPose': ['value', 'rotation'],
@@ -71,7 +71,7 @@ class RobotLLSolver(LLSolver):
 
     def backtrack_solve(self, plan, callback=None, verbose=False, n_resamples=5):
         if baxter_constants.PRODUCTION:
-            print "Okay, here I go!\n"
+            print("Okay, here I go!\n")
         plan.save_free_attrs()
         success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose, n_resamples=n_resamples)
         # plan.restore_free_attrs()
@@ -200,9 +200,9 @@ class RobotLLSolver(LLSolver):
 
         a = plan.actions[anum]
         if baxter_constants.PRODUCTION:
-            print "Here's the action I'm trying to do now: {0}\n".format(a.name)
+            print("Here's the action I'm trying to do now: {0}\n".format(a.name))
         else:
-            print "backtracking Solve on {}".format(a.name)
+            print("backtracking Solve on {}".format(a.name))
         active_ts = a.active_timesteps
         inits = {}
         rs_param = self.get_resample_param(a)
@@ -211,12 +211,12 @@ class RobotLLSolver(LLSolver):
             # import ipdb; ipdb.set_trace()
             ## don't optimize over any params that are already set
             old_params_free = {}
-            for p in plan.params.itervalues():
+            for p in plan.params.values():
                 if p.is_symbol():
                     if p not in a.params: continue
                     old_params_free[p] = p._free_attrs
                     p._free_attrs = {}
-                    for attr in old_params_free[p].keys():
+                    for attr in list(old_params_free[p].keys()):
                         p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
                 else:
                     p_attrs = {}
@@ -230,7 +230,7 @@ class RobotLLSolver(LLSolver):
             success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax, n_resamples=n_resamples)
 
             # reset free_attrs
-            for p in plan.params.itervalues():
+            for p in plan.params.values():
                 if p.is_symbol():
                     if p not in a.params: continue
                     p._free_attrs = old_params_free[p]
@@ -241,7 +241,7 @@ class RobotLLSolver(LLSolver):
             return success
 
         # if there is no parameter to resample or some part of rs_param is fixed, then go ahead optimize over this action
-        if rs_param is None or sum([not np.all(rs_param._free_attrs[attr]) for attr in rs_param._free_attrs.keys() ]):
+        if rs_param is None or sum([not np.all(rs_param._free_attrs[attr]) for attr in list(rs_param._free_attrs.keys()) ]):
             ## this parameter is fixed
             if callback is not None:
                 callback_a = lambda: callback(a)
@@ -254,7 +254,7 @@ class RobotLLSolver(LLSolver):
             if not success:
                 ## if planning fails we're done
                 if baxter_constants.PRODUCTION:
-                    print "Well, I think it's safe to say I'm on the wrong track. I need to rethink what I'm doing.\n"
+                    print("Well, I think it's safe to say I'm on the wrong track. I need to rethink what I'm doing.\n")
                 return False
             ## no other options, so just return here
             return recursive_solve()
@@ -262,7 +262,7 @@ class RobotLLSolver(LLSolver):
         ## so that this won't be optimized over
         rs_free = rs_param._free_attrs
         rs_param._free_attrs = {}
-        for attr in rs_free.keys():
+        for attr in list(rs_free.keys()):
             if attr in ['ee_left_pos', 'ee_right_pos']: continue
             rs_param._free_attrs[attr] = np.zeros(rs_free[attr].shape)
 
@@ -285,7 +285,7 @@ class RobotLLSolver(LLSolver):
             callback_a = None
 
         for rp in robot_poses:
-            for attr, val in rp.items():
+            for attr, val in list(rp.items()):
                 setattr(rs_param, attr, val)
 
             success = False
@@ -298,7 +298,7 @@ class RobotLLSolver(LLSolver):
                     break
                 else:
                     if baxter_constants.PRODUCTION:
-                        print "I think I need to back up and think about that other action again.\n"
+                        print("I think I need to back up and think about that other action again.\n")
                     success = False
 
         rs_param._free_attrs = rs_free
@@ -606,7 +606,7 @@ class RobotLLSolver(LLSolver):
 
                 # old_pose = next_act.params[5].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
-                
+
                 random_dir = np.multiply(np.random.sample(3) - [2.0, 3.0, 0.5], [0.15, 0.2, 0.01])
                 ee_pos = target_pos + random_dir
                 ee_rot = np.array([target_rot[0] - np.pi/2, 0, 0])
@@ -798,7 +798,7 @@ class RobotLLSolver(LLSolver):
 
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
-            
+
             elif next_act != None and next_act.name == 'cloth_grasp_right':
                 target = next_act.params[2]
                 target_pos = target.value[:, 0]
@@ -834,7 +834,7 @@ class RobotLLSolver(LLSolver):
 
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': old_l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
-            
+
             elif next_act != None and (next_act.name == 'cloth_putdown' or next_act.name == 'cloth_putdown_near' or next_act.name == 'cloth_putdown_in_region_left'):
                 target = next_act.params[2]
                 target_pos = target.value[:, 0]
@@ -1192,7 +1192,7 @@ class RobotLLSolver(LLSolver):
                 target_rot = act.params[3]
                 init_pos = act.params[1]
                 robot_pose.append({'lArmPose': init_pos.lArmPose.copy(), 'rArmPose': init_pos.rArmPose.copy(), 'lGripper': init_pos.lGripper.copy(), 'rGripper': init_pos.rGripper.copy(), 'value': target_rot.value.copy()})
-            
+
             elif next_act != None and next_act.name == "rotate":
                 init_pos = act.params[1]
 
@@ -1254,7 +1254,7 @@ class RobotLLSolver(LLSolver):
 
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
-            
+
             elif next_act != None and next_act.name == 'grab_corner_right':
                 target = next_act.params[1]
                 target_pos = target.value[:, 0]
@@ -1271,7 +1271,7 @@ class RobotLLSolver(LLSolver):
 
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': old_l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
-            
+
             elif next_act != None and next_act.name == 'drag_cloth_left':
                 target = next_act.params[1]
                 target_pos = target.value[:, 0]
@@ -1288,7 +1288,7 @@ class RobotLLSolver(LLSolver):
 
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
-            
+
             elif next_act != None and next_act.name == 'drag_cloth_both':
                 target_left = next_act.params[1]
                 target_pos_left = target_left.value[:, 0]
@@ -1313,7 +1313,7 @@ class RobotLLSolver(LLSolver):
 
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
-            
+
             elif next_act != None and next_act.name == 'fold_in_half':
                 target_left = next_act.params[1]
                 target_pos_left = target_left.value[:, 0]
@@ -1338,7 +1338,7 @@ class RobotLLSolver(LLSolver):
 
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
-            
+
             elif act.name == 'grab_corner_left':
                 target = act.params[2]
                 target_pos = target.value[:, 0]
@@ -1355,7 +1355,7 @@ class RobotLLSolver(LLSolver):
 
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
-            
+
             elif act.name == 'grab_corner_right':
                 target = act.params[2]
                 target_pos = target.value[:, 0]
@@ -1372,7 +1372,7 @@ class RobotLLSolver(LLSolver):
 
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': old_l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
-            
+
             elif act.name == 'drag_cloth_left':
                 target = act.params[3]
                 target_pos = target.value[:, 0]
@@ -1389,7 +1389,7 @@ class RobotLLSolver(LLSolver):
 
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
-            
+
             elif act.name == 'drag_cloth_both':
                 target_left = act.params[3]
                 target_pos_left = target_left.value[:, 0]
@@ -1414,7 +1414,7 @@ class RobotLLSolver(LLSolver):
 
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
-            
+
             elif act.name == 'fold_in_half':
                 target_left = act.params[4]
                 target_pos_left = target_left.value[:, 0]
@@ -1439,7 +1439,7 @@ class RobotLLSolver(LLSolver):
 
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
-            
+
             elif act.name == 'moveto_ee_pos':
                 target_left = act.params[1]
                 target_pos_left = target_left.value[:, 0]
@@ -1464,7 +1464,7 @@ class RobotLLSolver(LLSolver):
 
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
-            
+
             elif act.name == 'moveto_ee_pos_left':
                 target = act.params[1]
                 target_pos = target.value[:, 0]
@@ -1481,13 +1481,13 @@ class RobotLLSolver(LLSolver):
 
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
-            
+
             else:
                 raise NotImplementedError
         if not robot_pose:
             if not baxter_constants.PRODUCTION:
-                print target.name, target_pos
-                print "Unable to find IK"
+                print(target.name, target_pos)
+                print("Unable to find IK")
             # import ipdb; ipdb.set_trace()
 
         # for pose in robot_pose:
@@ -1523,7 +1523,7 @@ class RobotLLSolver(LLSolver):
                 try:
                     if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
                 except:
-                    print "error in predicate checking"
+                    print("error in predicate checking")
                 if success:
                     break
 
@@ -1532,13 +1532,13 @@ class RobotLLSolver(LLSolver):
                 # if len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) > 9:
                 #     break
 
-                print "resample attempt: {}".format(attempt)
-                print(plan.get_failed_preds(active_ts=active_ts, priority=priority, tol=1e-3))
+                print("resample attempt: {}".format(attempt))
+                print((plan.get_failed_preds(active_ts=active_ts, priority=priority, tol=1e-3)))
 
                 try:
                     if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
                 except:
-                    print "error in predicate checking"
+                    print("error in predicate checking")
 
                 assert not (success and not len(plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)) == 0)
 
@@ -1578,7 +1578,7 @@ class RobotLLSolver(LLSolver):
                         if not np.allclose(val, getattr(param, attr)[index]):
                             error_bin.append((grb_name, val, getattr(param, attr)[index]))
                 if len(error_bin) != 0:
-                    print "something wrong"
+                    print("something wrong")
                     if DEBUG: import ipdb; ipdb.set_trace()
 
             """
@@ -1667,36 +1667,36 @@ class RobotLLSolver(LLSolver):
         if baxter_constants.PRODUCTION:
             if priority == -2:
                 if success:
-                    print "So far I've worked out where I need everything to be.\n"
+                    print("So far I've worked out where I need everything to be.\n")
                 else:
-                    print "There's something wrong with what I'm trying to do.\n"
+                    print("There's something wrong with what I'm trying to do.\n")
             elif priority == 0:
                 if success:
-                    print "Now I've figured out some spots where I'm going need to be.\n"
+                    print("Now I've figured out some spots where I'm going need to be.\n")
                 else:
-                    print "Huh. I can't figure out where I need to be.\n"
+                    print("Huh. I can't figure out where I need to be.\n")
             elif priority == 1:
                 if success:
-                    print "I've worked out how to approach the places I need to be.\n"
+                    print("I've worked out how to approach the places I need to be.\n")
                 else:
-                    print "Huh. I can't grab what I need to.\n"
+                    print("Huh. I can't grab what I need to.\n")
             elif priority == 2:
                 if success:
-                    print "Now I know how to get to where I need to be.\n"
+                    print("Now I know how to get to where I need to be.\n")
                 else:
-                    print "Huh. I can't get where I need to be.\n"
+                    print("Huh. I can't get where I need to be.\n")
             elif priority == 3:
                 if success:
-                    print "I've made sure I'm not going to hit anything.\n"
+                    print("I've made sure I'm not going to hit anything.\n")
                 else:
-                    print "This is hard. Everything I want to do would hit something.\n"
+                    print("This is hard. Everything I want to do would hit something.\n")
             else:
                 if success:
-                    print "Now I know how to get to where I need to be.\n"
+                    print("Now I know how to get to where I need to be.\n")
                 else:
-                    print "Huh. I can't get where I need to be.\n"
+                    print("Huh. I can't get where I need to be.\n")
         else:
-            print "priority: {}\n".format(priority)
+            print("priority: {}\n".format(priority))
         return success
 
     #@profile
@@ -1710,12 +1710,12 @@ class RobotLLSolver(LLSolver):
             active_ts = (act_1.active_timesteps[0], act_2.active_timesteps[1])
             # print active_ts
             old_params_free = {}
-            for p in plan.params.itervalues():
+            for p in plan.params.values():
                 if p.is_symbol():
                     if p in act_1.params or p in act_2.params: continue
                     old_params_free[p] = p._free_attrs
                     p._free_attrs = {}
-                    for attr in old_params_free[p].keys():
+                    for attr in list(old_params_free[p].keys()):
                         p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
                 else:
                     p_attrs = {}
@@ -1726,7 +1726,7 @@ class RobotLLSolver(LLSolver):
                         p._free_attrs[attr][:, :active_ts[0]] = 0
             success = self._traj_smoother(plan, callback, n_resamples, active_ts, verbose)
             # reset free_attrs
-            for p in plan.params.itervalues():
+            for p in plan.params.values():
                 if p.is_symbol():
                     if p in act_1.params or p in act_2.params: continue
                     p._free_attrs = old_params_free[p]
@@ -1737,7 +1737,7 @@ class RobotLLSolver(LLSolver):
 
             if not success:
                 return success
-            print 'Actions: {} and {}'.format(plan.actions[a_num].name, plan.actions[a_num+1].name)
+            print('Actions: {} and {}'.format(plan.actions[a_num].name, plan.actions[a_num+1].name))
             a_num += 1
         # try:
         #     success = self._traj_smoother(plan, callback, n_resamples, active_ts, verbose)
@@ -1749,11 +1749,11 @@ class RobotLLSolver(LLSolver):
 
     # @profile
     def _traj_smoother(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False):
-        print "Smoothing Trajectory..."
+        print("Smoothing Trajectory...")
         priority = MAX_PRIORITY
         for attempt in range(n_resamples):
             # refinement loop
-            print 'Smoother iteration #: {}\n'.format(attempt)
+            print('Smoother iteration #: {}\n'.format(attempt))
             success = self._solve_opt_prob(plan, priority=priority,
                             callback=callback, active_ts=active_ts, verbose=verbose, resample = False, smoothing = True)
             if success:
@@ -1777,9 +1777,9 @@ class RobotLLSolver(LLSolver):
 
         transfer_objs = []
         if norm == 'min-vel':
-            for param in plan.params.values():
+            for param in list(plan.params.values()):
                 # if param._type in ['Robot', 'Can', 'EEPose']:
-                for attr_name in param.__dict__.iterkeys():
+                for attr_name in param.__dict__.keys():
                     attr_type = param.get_attr_type(attr_name)
                     if issubclass(attr_type, Vector):
                         param_ll = self._param_to_ll[param]
@@ -1835,7 +1835,7 @@ class RobotLLSolver(LLSolver):
             if save: self.grb_init_mapping[grb_name] = v
             grb_val_map[grb_name] = self.grb_init_mapping.get(grb_name, v)
             ret_val.append(grb_val_map[grb_name])
-            if grb_name in self._grb_to_var_ind.keys():
+            if grb_name in list(self._grb_to_var_ind.keys()):
                 for var, i in self._grb_to_var_ind[grb_name]:
                     var._value[i] = grb_val_map[grb_name]
                     if np.all(var._grb_vars is grb_vars):
@@ -1855,7 +1855,7 @@ class RobotLLSolver(LLSolver):
     #@profile
     def check_grb_sync(self, grb_name):
         for var, i in self._grb_to_var_ind[grb_name]:
-            print var._grb_vars[i][0].VarName, var._value[i]
+            print(var._grb_vars[i][0].VarName, var._value[i])
 
     #@profile
     def check_sync(self):
@@ -1864,14 +1864,14 @@ class RobotLLSolver(LLSolver):
         """
         grb_val_map = {}
         correctness = True
-        for grb_name in self._grb_to_var_ind.keys():
+        for grb_name in list(self._grb_to_var_ind.keys()):
             for var, i in self._grb_to_var_ind[grb_name]:
                 try:
                     correctness = np.allclose(grb_val_map[grb_name], var._value[i], equal_nan=True)
                 except KeyError:
                     grb_val_map[grb_name] = var._value[i]
                 except:
-                    print "something went wrong"
+                    print("something went wrong")
                     import ipdb; ipdb.set_trace()
                 if not correctness:
                     import ipdb; ipdb.set_trace()
@@ -1883,7 +1883,7 @@ class RobotLLSolver(LLSolver):
         self._grb_to_var_ind = {}
 
     def monitor_update(self, plan, update_values, callback=None, n_resamples=5, active_ts=None, verbose=False):
-        print 'Resolving after environment update...\n'
+        print('Resolving after environment update...\n')
         if callback is not None: viewer = callback()
         if active_ts==None:
             active_ts = (0, plan.horizon-1)
@@ -1919,7 +1919,7 @@ class RobotLLSolver(LLSolver):
         plan.restore_free_attrs()
 
         self.reset_variable()
-        print "monitor_update\n"
+        print("monitor_update\n")
         return success
 
     def _update(self, plan, update_values):
@@ -2004,10 +2004,10 @@ class RobotLLSolver(LLSolver):
         priority = np.maximum(priority, 0)
         if not pred_dict['hl_info'] == "hl_state":
             start, end = pred_dict['active_timesteps']
-            active_range = range(start, end+1)
+            active_range = list(range(start, end+1))
             if verbose:
-                print "pred being added: ", pred_dict
-                print active_range, effective_timesteps
+                print("pred being added: ", pred_dict)
+                print(active_range, effective_timesteps)
             negated = pred_dict['negated']
             pred = pred_dict['pred']
 
@@ -2023,7 +2023,7 @@ class RobotLLSolver(LLSolver):
                     for t in effective_timesteps:
                         if t in active_range:
                             if verbose:
-                                print "expr being added at time ", t
+                                print("expr being added at time ", t)
                             var = self._spawn_sco_var_for_pred(pred, t)
                             bexpr = BoundExpr(expr, var)
 
@@ -2060,8 +2060,8 @@ class RobotLLSolver(LLSolver):
                     self._add_pred_dict(pred_dict, [action_end],
                                         priority=priority, add_nonlin=add_nonlin, verbose=verbose)
             ## add all of the linear ineqs
-            timesteps = range(max(action_start+1, active_ts[0]),
-                              min(action_end, active_ts[1]))
+            timesteps = list(range(max(action_start+1, active_ts[0]),
+                              min(action_end, active_ts[1])))
             for pred_dict in action.preds:
                 self._add_pred_dict(pred_dict, timesteps, add_nonlin=False,
                                     priority=priority, verbose=verbose)
@@ -2080,8 +2080,8 @@ class RobotLLSolver(LLSolver):
             if action_start >= active_ts[1] and action_start > active_ts[0]: continue
             if action_end < active_ts[0]: continue
 
-            timesteps = range(max(action_start, active_ts[0]),
-                              min(action_end, active_ts[1])+1)
+            timesteps = list(range(max(action_start, active_ts[0]),
+                              min(action_end, active_ts[1])+1))
             for pred_dict in action.preds:
                 self._add_pred_dict(pred_dict, timesteps, priority=priority,
                                     add_nonlin=add_nonlin, verbose=verbose)
@@ -2092,7 +2092,7 @@ class RobotLLSolver(LLSolver):
             update plan's parameters from low level grb_vars.
             expected to be called after each optimization.
         """
-        for ll_param in self._param_to_ll.values():
+        for ll_param in list(self._param_to_ll.values()):
             ll_param.update_param()
         if self.child_solver:
             self.child_solver._update_ll_params()
@@ -2111,12 +2111,12 @@ class RobotLLSolver(LLSolver):
         horizon = active_ts[1] - active_ts[0] + 1
         self._param_to_ll = {}
         self.ll_start = active_ts[0]
-        for param in plan.params.values():
+        for param in list(plan.params.values()):
             ll_param = LLParam(model, param, horizon, active_ts)
             ll_param.create_grb_vars()
             self._param_to_ll[param] = ll_param
         model.update()
-        for ll_param in self._param_to_ll.values():
+        for ll_param in list(self._param_to_ll.values()):
             ll_param.batch_add_cnts()
 
     #@profile
@@ -2144,11 +2144,11 @@ class RobotLLSolver(LLSolver):
             active_ts = (0, plan.horizon-1)
         start, end = active_ts
         traj_objs = []
-        for param in plan.params.values():
+        for param in list(plan.params.values()):
             if param not in self._param_to_ll:
                 continue
             if isinstance(param, Object):
-                for attr_name in param.__dict__.iterkeys():
+                for attr_name in param.__dict__.keys():
                     attr_type = param.get_attr_type(attr_name)
                     if issubclass(attr_type, Vector):
                         T = end - start + 1

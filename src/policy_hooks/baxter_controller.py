@@ -50,7 +50,7 @@ class BaxterMujocoController(object):
             PARAMETERS:
                 plan: A TAMP plan containing a baxter object that stores trajectory information
                 next_timestep: The target timestep within the trajectory; represented as an index into the trajectory
-                real_t: The actual time into the current timestep the loop is (used ot calculate the true time remaining until next_timestep) 
+                real_t: The actual time into the current timestep the loop is (used ot calculate the true time remaining until next_timestep)
                 mode: How the loop decides the torque deltas
         '''
         t = next_timestep

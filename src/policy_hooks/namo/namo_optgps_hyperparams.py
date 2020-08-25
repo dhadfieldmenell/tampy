@@ -1,4 +1,4 @@
-from __future__ import division
+
 
 from datetime import datetime
 import os
@@ -170,4 +170,3 @@ config = {
     'dim_hidden': [40, 40, 40],
     'traj_opt_steps': 1,
 }
-

@@ -58,7 +58,7 @@ def closest_arm_pose(arm_poses, cur_arm_pose):
 class LaundryWorldEEAgent(Agent):
     def __init__(self, hyperparams):
         Agent.__init__(self, hyperparams)
-        
+
         self.plan = self._hyperparams['plan']
         self.robot = self.plan.params['baxter']
         self.solver = self._hyperparams['solver']
@@ -70,8 +70,8 @@ class LaundryWorldEEAgent(Agent):
         self.l_gripper_ind = -1
         self.pos_model = self.setup_mujoco_model(self.plan, motor=False, view=True)
 
-        self.symbols = filter(lambda p: p.is_symbol(), self.plan.params.values())
-        self.params = filter(lambda p: not p.is_symbol(), self.plan.params.values())
+        self.symbols = [p for p in list(self.plan.params.values()) if p.is_symbol()]
+        self.params = [p for p in list(self.plan.params.values()) if not p.is_symbol()]
         self.current_cond = 0
         self.cond_optimal_traj = [None for _ in range(len(self.x0))]
         self.cond_global_pol_sample = [None for _ in  range(len(self.x0))] # Samples from the current global policy for each condition
@@ -86,7 +86,7 @@ class LaundryWorldEEAgent(Agent):
         root = base_xml.getroot()
         worldbody = root.find('worldbody')
         active_ts = (0, plan.horizon)
-        params = plan.params.values()
+        params = list(plan.params.values())
         contacts = root.find('contact')
 
         for param in params:
@@ -108,7 +108,7 @@ class LaundryWorldEEAgent(Agent):
                 xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_r_finger_tip'})
                 xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_r_finger'})
             # We might want to change this; in Openrave we model tables as hovering box so there's no easy translation to Mujoco
-            elif param._type == 'Obstacle': 
+            elif param._type == 'Obstacle':
                 length = param.geom.dim[0]
                 width = param.geom.dim[1]
                 thickness = param.geom.dim[2]
@@ -130,7 +130,7 @@ class LaundryWorldEEAgent(Agent):
         '''
         self._generate_xml(plan, motor)
         model = mjcore.MjModel(ENV_XML)
-        
+
         self.l_gripper_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'left_gripper_l_finger_tip')
         self.cloth_inds = []
         for i in range(self.num_cloths):
@@ -162,7 +162,7 @@ class LaundryWorldEEAgent(Agent):
         model  = self.pos_model if not motor else self.motor_model
         xpos = model.body_pos.copy()
         xquat = model.body_quat.copy()
-        param = plan.params.values()
+        param = list(plan.params.values())
 
         for param in self.params:
             if param._type != 'Robot': # and (param.name, 'rotation') in plan.state_inds:
@@ -217,7 +217,7 @@ class LaundryWorldEEAgent(Agent):
 
         return X
 
-    
+
     def _get_obs(self, cond, t):
         o_t = np.zeros((self.plan.symbolic_bound))
         return o_t
@@ -231,7 +231,7 @@ class LaundryWorldEEAgent(Agent):
         x0 = self.init_plan_states[condition]
         sample = Sample(self)
         if on_policy:
-            print 'Starting on-policy sample for condition {0}.'.format(condition)
+            print('Starting on-policy sample for condition {0}.'.format(condition))
             if self.stochastic_conditions and save_global and not condition % self.num_cloths:
                 self.replace_cond(condition, self.num_cloths)
 
@@ -260,7 +260,7 @@ class LaundryWorldEEAgent(Agent):
                         self.viewer.loop_once()
             if save_global:
                 self.cond_global_pol_sample[condition] = sample
-            print 'Finished on-policy sample.\n'.format(condition)
+            print('Finished on-policy sample.\n'.format(condition))
         else:
             success = self.sample_joint_trajectory(condition, sample)
 
@@ -306,13 +306,13 @@ class LaundryWorldEEAgent(Agent):
             success = self.solver._backtrack_solve(self.plan)
 
         self._set_simulator_state(x0[0], self.plan)
-        print "Reset Mujoco Sim to Condition {0}".format(condition)
+        print("Reset Mujoco Sim to Condition {0}".format(condition))
         for ts in range(init_t, final_t):
             U = np.zeros(self.plan.dU)
             utils.fill_vector(self.params, self.plan.action_inds, U, ts+1)
             success = self.run_traj_step(U, self.plan.action_inds, sample, ts)
             if not success:
-                print 'Collision Limit Exceeded'
+                print('Collision Limit Exceeded')
 
         return success
 
@@ -351,7 +351,7 @@ class LaundryWorldEEAgent(Agent):
             sample.set(OBS_ENUM, X, plan_t*steps+t)
             self.pos_model.step()
             if self.pos_model.data.ncon >= N_CONTACT_LIMIT:
-                print 'Collision Limit Exceeded in Position Model.'
+                print('Collision Limit Exceeded in Position Model.')
                 self._set_simulator_state(last_success_X, self.plan)
                 qpos_delta = np.zeros((19,))
                 success = False
@@ -378,7 +378,7 @@ class LaundryWorldEEAgent(Agent):
         if self.pos_model.data.ncon < N_CONTACT_LIMIT:
             self.pos_model.data.ctrl = np.r_[np.zeros((7,1)), 0, 0, left_arm.flatten(), left_grip, -left_grip].reshape((18, 1))
         else:
-            print 'Collision Limit Exceeded in Position Model.'
+            print('Collision Limit Exceeded in Position Model.')
             self.pos_model.data.ctrl = np.zeros((18,1))
             success = False
         self.pos_model.step()
@@ -442,7 +442,7 @@ class LaundryWorldEEAgent(Agent):
             success = self.solver._backtrack_solve(self.plan)
 
             while self.initial_opt and not success:
-                print "Solve failed."
+                print("Solve failed.")
                 self.replace_cond(m, self.num_cloths)
                 x0 = self.init_plan_states[m]
                 utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], 0)
@@ -475,7 +475,7 @@ class LaundryWorldEEAgent(Agent):
 
 
     def replace_cond(self, first_cond, num_conds):
-        print "Replacing Conditions {0} to {1}.\n".format(first_cond, first_cond+num_conds-1)
+        print("Replacing Conditions {0} to {1}.\n".format(first_cond, first_cond+num_conds-1))
         x0s = get_randomized_initial_state_multi_step(self.plan, first_cond / self.num_cloths)
         for i in range(first_cond, first_cond+num_conds):
             self.init_plan_states[i] = x0s[i-first_cond]

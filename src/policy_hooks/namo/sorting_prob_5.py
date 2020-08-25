@@ -28,10 +28,10 @@ pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
 
 descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.format(NUM_OBJS, SORT_CLOSET, USE_PERTURB, OPT_MCTS_FEEDBACK)
 
-# END_TARGETS = [(0., 5.8), 
-#            (0., 5.), 
-#            (0., 4.), 
-#            (2., -2.), 
+# END_TARGETS = [(0., 5.8),
+#            (0., 5.),
+#            (0., 4.),
+#            (2., -2.),
 #            (0., -2.),
 #            (4., 0.),
 #            (-4, 0.),
@@ -40,7 +40,7 @@ descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.for
 #            (-2., -2.)]
 
 END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
-END_TARGETS.extend([(2., 2.5), 
+END_TARGETS.extend([(2., 2.5),
                    (1., 2.5),
                    (-1., 2.5),
                    (-2, 2.5),
@@ -56,11 +56,11 @@ possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25 if SORT_CLOSET else 5
 # possible_can_locs.extend(list(itertools.product(range(-45, 45, 2), range(-35, MAX_Y, 2))))
 
-possible_can_locs.extend(list(itertools.product(range(-45, 46, 12), range(-20, MAX_Y, 3))))
+possible_can_locs.extend(list(itertools.product(list(range(-45, 46, 12)), list(range(-20, MAX_Y, 3)))))
 # possible_can_locs.extend(list(itertools.product(range(-45, 46, 12), range(-5, 25, 2))))
 # possible_can_locs.extend(list(itertools.product(range(-45, 46, 12), range(-40, -20, 2))))
 
-            
+
 for i in range(len(possible_can_locs)):
     loc = list(possible_can_locs[i])
     loc[0] *= 0.1
@@ -75,13 +75,13 @@ if not SORT_CLOSET:
 
 def get_prim_choices():
     out = OrderedDict({})
-    out[utils.TASK_ENUM] = get_tasks(mapping_file).keys()
+    out[utils.TASK_ENUM] = list(get_tasks(mapping_file).keys())
     out[utils.OBJ_ENUM] = ['can{0}'.format(i) for i in range(NUM_OBJS)]
     out[utils.TARG_ENUM] = ['can{0}_end_target'.format(i) for i in range(NUM_OBJS)]
     if SORT_CLOSET:
-        out[utils.TARG_ENUM] += ['middle_target', 
-                                'left_target_1', 
-                                # 'left_target_2', 
+        out[utils.TARG_ENUM] += ['middle_target',
+                                'left_target_1',
+                                # 'left_target_2',
                                 'right_target_1',
                                 # 'right_target_2'
                                 ]
@@ -118,7 +118,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
     for i in range(conditions):
         x0 = np.zeros((dX,))
         x0[state_inds['pr2', 'pose']] = np.random.uniform([-4, -4.5], [4, -3]) # [0, -2]
-        
+
         # x0[state_inds['pr2', 'pose']] = np.random.uniform([-3, -4], [3, -2]) # [0, -2]
         # x0[state_inds['pr2', 'pose']] = np.random.uniform([-3, -1], [3, 1])
         can_locs = copy.deepcopy(END_TARGETS) if SORT_CLOSET else copy.deepcopy(possible_can_locs)
@@ -193,17 +193,17 @@ def get_plans():
                 for step in next_task_str:
                     new_task_str.append(step.format(obj, targ))
                 plan = plan_from_str(new_task_str, prob_file, domain_file, env, openrave_bodies)
-                plans[(tasks.keys().index(task), i, j)] = plan
+                plans[(list(tasks.keys()).index(task), i, j)] = plan
                 if env is None:
                     env = plan.env
-                    for param in plan.params.values():
+                    for param in list(plan.params.values()):
                         if not param.is_symbol() and param.openrave_body is not None:
                             openrave_bodies[param.name] = param.openrave_body
     return plans, openrave_bodies, env
 
 def get_end_targets(num_cans=NUM_OBJS, num_targs=NUM_OBJS, targs=None, randomize=False):
     target_map = {}
-    inds = range(NUM_TARGS) # np.random.permutation(range(num_targs))
+    inds = list(range(NUM_TARGS)) # np.random.permutation(range(num_targs))
     for n in range(num_cans):
         if n > num_targs and targs is not None:
             target_map['can{0}_end_target'.format(n)] = np.array(targs[n])
@@ -458,7 +458,7 @@ def sorting_state_encode(state, plan, targets, task=(None, None, None)):
             for target_name in targets:
                 pred_list.append('CanAtTarget {0} {1}'.format(param_name, target_name))
 
-    state_encoding = dict(zip(pred_list, range(len(pred_list))))
+    state_encoding = dict(list(zip(pred_list, list(range(len(pred_list))))))
     hl_state = np.zeros((len(pred_list)))
     for param_name in plan.params:
         if plan.params[param_name]._type != 'Can': continue
@@ -467,9 +467,9 @@ def sorting_state_encode(state, plan, targets, task=(None, None, None)):
                 hl_state[state_encoding['CanAtTarget {0} {1}'.format(param_name, target_name)]] = 1
 
     if task[0] is not None:
-            for target_name in targets:
-                hl_state[state_encoding['CanAtTarget {0} {1}'.format(task[1], target_name)]] = 0
-            hl_state[state_encoding['CanAtTarget {0} {1}'.format(task[1], task[2])]] = 1
+        for target_name in targets:
+            hl_state[state_encoding['CanAtTarget {0} {1}'.format(task[1], target_name)]] = 0
+        hl_state[state_encoding['CanAtTarget {0} {1}'.format(task[1], task[2])]] = 1
 
     return tuple(hl_state)
 

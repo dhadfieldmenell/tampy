@@ -50,7 +50,7 @@ class ViewServer(object):
             hyperparams['policy_opt']['weight_dir'] = hyperparams['weight_dir'] + '_trained'
             hyperparams['policy_opt']['scope'] = None
             self.policy_opt = hyperparams['policy_opt']['type'](
-                hyperparams['policy_opt'], 
+                hyperparams['policy_opt'],
                 hyperparams['dO'],
                 hyperparams['dU'],
                 hyperparams['dObj'],
@@ -192,7 +192,7 @@ class ViewServer(object):
         task = self.agent.task_list[task_ind]
         obj = self.agent.obj_list[obj_ind]
         targ = self.agent.targ_list[targ_ind]
-        print('Executing {0} on {1} to {2}'.format(task, obj, targ))
+        print(('Executing {0} on {1} to {2}'.format(task, obj, targ)))
 
         policy = self.rollout_policies[task]
         sample = self.agent.sample_task(policy, cond, state, (task, obj, targ), noisy=False)
@@ -206,10 +206,10 @@ class ViewServer(object):
 
 
     def run_condition(self):
-        steps = 5 
+        steps = 5
         cond = self.cur_condition
-        if cond not in range(len(self.agent.x0)):
-            print('Condition {0} does not exist.'.format(cond))
+        if cond not in list(range(len(self.agent.x0))):
+            print(('Condition {0} does not exist.'.format(cond)))
             return
 
         state = self.agent.x0[cond]
@@ -219,11 +219,11 @@ class ViewServer(object):
             if self.visual:
                 self.agent.animate_sample(sample)
             else:
-                print(sample.get(STATE_ENUM))
+                print((sample.get(STATE_ENUM)))
             state = sample.end_state
         self.stopped = False
 
- 
+
     def run(self):
         if self.visual:
             ctrl_thread = Thread(target=self.gen_controls)

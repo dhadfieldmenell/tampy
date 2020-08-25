@@ -30,9 +30,7 @@ class DummyPolicyOpt(object):
     def __init__(self, prob):
         self.traj_prob = prob
 
-class AbstractMotionPlanServer(object):
-    __metaclass__ = ABCMeta
-
+class AbstractMotionPlanServer(object, metaclass=ABCMeta):
     def __init__(self, hyperparams):
         self.id =  hyperparams['id']
         self.task_name =  hyperparams['task_name']
@@ -48,16 +46,16 @@ class AbstractMotionPlanServer(object):
         self.task_list = hyperparams['task_list']
         self.on_policy = hyperparams['on_policy']
         self.problem = hyperparams['prob']
-        
+
         # self.policy_opt = hyperparams['policy_opt']
         # self.solver.policy_opt = self.policy_opt
         self.solver.policy_opt = DummyPolicyOpt(self.problem)
         self.solver.policy_priors = {task: GMM() for task in self.task_list}
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
-         
+
         if not USE_OPENRAVE:
             self.agent.plans, self.agent.openrave_bodies, self.agent.env = self.agent.prob.get_plans()
-            for plan in self.agent.plans.values():
+            for plan in list(self.agent.plans.values()):
                 plan.state_inds = self.agent.state_inds
                 plan.action_inds = self.agent.action_inds
                 plan.dX = self.agent.dX
@@ -87,7 +85,7 @@ class AbstractMotionPlanServer(object):
             self.opt_count_publisher = rospy.Publisher('optimization_counter', String, queue_size=1)
 
             # self.prob_proxy = rospy.ServiceProxy(task+'_policy_prob', PolicyProb, persistent=True)
-        
+
         self.use_local = False
         '''
         self.use_local = hyperparams['use_local']
@@ -98,7 +96,7 @@ class AbstractMotionPlanServer(object):
             hyperparams['policy_opt']['use_gpu'] = 1.
             hyperparams['policy_opt']['allow_growth'] = True
             self.policy_opt = hyperparams['policy_opt']['type'](
-                hyperparams['policy_opt'], 
+                hyperparams['policy_opt'],
                 hyperparams['dO'],
                 hyperparams['dU'],
                 hyperparams['dPrimObs'],
@@ -370,7 +368,7 @@ class AbstractMotionPlanServer(object):
                     pass
 
         if success:
-            print('Succeeded:', success, failed)
+            print(('Succeeded:', success, failed))
             print('\n')
 
         if False and success and self.agent.prob.USE_PERTURB:
@@ -404,7 +402,7 @@ class AbstractMotionPlanServer(object):
 
     def publish_hl_plan(self, msg):
         if self.busy:
-            print('Server', self.id, 'busy, rejecting request for motion plan.')
+            print(('Server', self.id, 'busy, rejecting request for motion plan.'))
         if msg.solver_id != self.id or self.busy: return
         self.busy = True
         self.hl_plans_since_log += 1
@@ -438,7 +436,7 @@ class AbstractMotionPlanServer(object):
             for step in hl_plan:
                 task = []
                 task.append(self.task_list.index(step[0]))
-                prim_options = self.problem.get_prim_choices().values()
+                prim_options = list(self.problem.get_prim_choices().values())
                 for i in range(len(step[1])):
                     # First value of prim_options is the task list
                     task.append(prim_options[i+1].index(step[1][i]))
@@ -505,7 +503,7 @@ class AbstractMotionPlanServer(object):
 
     def check_traj_cost(self, traj, task):
         if np.any(np.isnan(np.array(traj))):
-           raise Exception('Nans in trajectory passed')
+            raise Exception('Nans in trajectory passed')
         plan = self.agent.plans[task]
         old_free_attrs = plan.get_free_attrs()
         for t in range(0, len(traj)):
@@ -517,7 +515,7 @@ class AbstractMotionPlanServer(object):
                     param.fix_attr(attr, (t,t))
                     if attr == 'pose' and (param_name, 'rotation') not in plan.state_inds and hasattr(param, 'rotation'):
                         param.rotation[:, t] = 0
-                    
+
                     if attr == 'pose':
                         init_target = '{0}_init_target'.format(param_name)
                         if init_target in plan.params:
@@ -526,7 +524,7 @@ class AbstractMotionPlanServer(object):
         # Take a quick solve to resolve undetermined symbolic values
         self.solver._backtrack_solve(plan, time_limit=10, max_priority=-1, task=task)
         plan.store_free_attrs(old_free_attrs)
-        
+
         plan_total_violation = np.sum(plan.check_total_cnt_violation(active_ts=(1,plan.horizon-1)))
         plan_failed_constrs = plan.get_failed_preds_by_type()
         return plan_total_violation, plan_failed_constrs
@@ -548,7 +546,7 @@ class AbstractMotionPlanServer(object):
             f.write(str((plan_actions, plan_total_violation, plan_failed_constrs)))
             f.write('\n\n\n')
         return plan_total_violation, plan_failed_constrs
-        
+
 
     def update_weight(self, msg):
         if not self.use_local(): return
@@ -562,7 +560,7 @@ class AbstractMotionPlanServer(object):
     # def gmm_inf(self, gmm, sample):
     #     mu, sig = gmm.inference(np.concatenate([sample.get(STATE_ENUM)[:, :-1], sample.get(STATE_ENUM)[:,1:]]))
     #     return mu, sig, True, False
-   
+
     def gmm_inf(self, gmm, sample):
         dux = self.agent.symbolic_bound + self.agent.dU
         mu, sig = np.zeros((sample.T, dux)), np.zeros((sample.T, dux, dux))
@@ -571,4 +569,3 @@ class AbstractMotionPlanServer(object):
             mu[t] = mu0
             sig[t] = sig0
         return mu, sig, False, True
-

@@ -2,14 +2,14 @@ from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.openrave_body import OpenRAVEBody
 import core.util_classes.baxter_constants as const
 from policy_hooks.sample import Sample
-from policy_hooks.utils.policy_solver_utils import * 
+from policy_hooks.utils.policy_solver_utils import *
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 
 import numpy as np
 
 from collections import OrderedDict
 
-class BaxterPolicyPredicate(ExprPredicate):   
+class BaxterPolicyPredicate(ExprPredicate):
     def __init__(self, name, plan, policy_func, coeff, agent, task_ind, obj_ind, targ_ind, grad_coeff=0.1):
         self.handle = []
         self.policy_func = policy_func
@@ -64,7 +64,7 @@ class BaxterPolicyPredicate(ExprPredicate):
         for target_name in self.agent.targ_list:
             target = self.plan.params[target_name]
             target_vec[self.agent.target_inds[target.name, 'value']] = target.value[:,0]
-                
+
         sample.set(STATE_ENUM, X[self.dU*hist_len:self.dU*(hist_len+1)].copy(), 0)
         sample.set(TASK_ENUM, task_vec, 0)
         sample.set(OBJ_ENUM, obj_vec, 0)

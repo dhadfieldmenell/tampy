@@ -37,7 +37,7 @@ def planing(env, robot, params, traj, planner):
         traj_list.append(np.round(dofvalues, 3))
     t1 = time.time()
     total = t1-t0
-    print "{} Proforms: {}s".format(planner, total)
+    print("{} Proforms: {}s".format(planner, total))
     return traj_list
 
 
@@ -47,7 +47,7 @@ class TestBaxterSampling(unittest.TestCase):
         domain, problem, params, plan = load_environment("../domains/baxter_domain/baxter.domain", "../domains/baxter_domain/baxter_probs/grasp_1234_1.prob")
 
         env = problem.env
-        objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
+        objLst = [i[1] for i in list(params.items()) if not i[1].is_symbol()]
         view = OpenRAVEViewer.create_viewer(env)
         view.draw(objLst, 0, 0.7)
         baxter = params['baxter']
@@ -80,7 +80,7 @@ class TestBaxterSampling(unittest.TestCase):
         domain, problem, params, plan = load_environment("../domains/baxter_domain/baxter.domain", "../domains/baxter_domain/baxter_probs/grasp_1234_1.prob")
 
         env = problem.env
-        objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
+        objLst = [i[1] for i in list(params.items()) if not i[1].is_symbol()]
 
         # view = OpenRAVEViewer(env)
         # view.draw(objLst, 0, 0.7)
@@ -253,7 +253,7 @@ class TestBaxterSampling(unittest.TestCase):
             res, attr_inds = baxter_sampling.resample_basket_in_gripper(pred, negated, t, plan)
             self.assertTrue(pred.test(t))
 
-        checking_ts = range(30, 50)
+        checking_ts = list(range(30, 50))
         for ts in checking_ts:
             resampled_value(pred, False, ts, plan)
 
@@ -292,7 +292,7 @@ class TestBaxterSampling(unittest.TestCase):
 
         res, attr_inds = baxter_sampling.resample_washer_in_gripper(pred, False, 10, plan)
 
-        checking_ts = range(10, 20)
+        checking_ts = list(range(10, 20))
         for ts in checking_ts:
             self.assertTrue(pred.test(ts, tol=1e-3))
 

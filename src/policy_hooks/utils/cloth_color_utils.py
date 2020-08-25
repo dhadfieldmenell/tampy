@@ -16,7 +16,7 @@ def get_cloth_color_mapping(cloths):
     colors_to_cloth = {}
     cloth_to_colors = {}
     for cloth in cloths:
-        color = np.random.choice(colors.keys())
+        color = np.random.choice(list(colors.keys()))
         colors_to_cloth[color] = cloth
         cloth_to_colors[cloth.lower()] = (color, colors[color])
 

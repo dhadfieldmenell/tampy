@@ -74,7 +74,7 @@ def multi_mix_loss_layer(labels, logits, boundaries):
 
 def sotfmax_prediction_layer(logits):
     return tf.nn.softmax(logits, name="softmax_layer")
-  
+
 
 def multi_sotfmax_prediction_layer(logits, boundaries):
     start = 0
@@ -83,7 +83,7 @@ def multi_sotfmax_prediction_layer(logits, boundaries):
         start, end = boundaries[i]
         predictions.append(tf.nn.softmax(logits[:,start:end], name="softmax_layer_{0}".format(i)))
     return tf.concat(predictions, axis=1, name='multi_softmax_layer')
- 
+
 
 def multi_mix_prediction_layer(logits, boundaries):
     start = 0
@@ -93,7 +93,7 @@ def multi_mix_prediction_layer(logits, boundaries):
         predictions.append(tf.nn.softmax(logits[:,start:end], name="softmax_layer_{0}".format(i)))
     predictions.append(logits[:,end:], name="euc_layer")
     return tf.concat(predictions, axis=1, name='multi_softmax_layer')
-    
+
 
 def get_input_layer(dim_input, dim_output, ndims=1):
     """produce the placeholder inputs that are used to run ops forward and backwards.
@@ -227,7 +227,7 @@ def tf_value_network(dim_input=27, dim_output=1, batch_size=25, network_config=N
     if input_layer is not None:
         nn_input = tf.concat([input_layer, nn_input], axis=1)
     mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, n_layers, dim_hidden)
-    prediction = mlp_applied # tf.nn.sigmoid(mlp_applied, 'sigmoid_activation') 
+    prediction = mlp_applied # tf.nn.sigmoid(mlp_applied, 'sigmoid_activation')
     fc_vars = weights_FC + biases_FC
     if target is None:
         loss_out = prediction # sigmoid_loss_layer(action, prediction, precision=precision)

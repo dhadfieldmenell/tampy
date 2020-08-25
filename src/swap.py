@@ -23,9 +23,9 @@ PLAN_SWAP_STR.extend(pick_place_str(6, 'PDP_TARGET6', 'PDP_TARGET5', 0, 2, 1))
 PLAN_SWAP_STR.extend(pick_place_str(6, 'PDP_TARGET5', 'PDP_TARGET4', 1, 3, 0))
 
 
-def _test_plan(plan, method='SQP', plot=False, animate=True, verbose=False, 
+def _test_plan(plan, method='SQP', plot=False, animate=True, verbose=False,
                early_converge=False):
-    print "testing plan: {}".format(plan.actions)
+    print("testing plan: {}".format(plan.actions))
     if not plot:
         callback = None
         viewer = None
@@ -51,8 +51,8 @@ def _test_plan(plan, method='SQP', plot=False, animate=True, verbose=False,
         success = namo_solver.solve(plan, callback=callback, verbose=verbose)
     elif method == 'Backtrack':
         success = namo_solver.backtrack_solve(plan, callback=callback, verbose=verbose)
-    print "Solve Took: {}\tSolution Found: {}".format(time.time() - start, success)
-    
+    print("Solve Took: {}\tSolution Found: {}".format(time.time() - start, success))
+
     fp = plan.get_failed_preds()
     _, _, t = plan.get_failed_pred()
     if animate:

@@ -2,12 +2,12 @@ import numpy as np
 
 def ts_constr_violations(plan, ts, include=[], exclude=[], col_only=False, debug=False):
     preds = [(pred, negated) for negated, pred, t in plan.get_failed_preds(active_ts=(ts,ts), priority=3, tol=1e-3)]
-    if len(include): preds = filter(lambda p: p[0].get_type() in include, preds)
-    if len(exclude): preds = filter(lambda p: p[0].get_type() not in exclude, preds)
+    if len(include): preds = [p for p in preds if p[0].get_type() in include]
+    if len(exclude): preds = [p for p in preds if p[0].get_type() not in exclude]
     if col_only:
-        preds = filter(lambda p: 'collide' in p[0].get_type().lower() or 'obstruct' in p[0].get_type().lower())
+        preds = list(filter(lambda p: 'collide' in p[0].get_type().lower() or 'obstruct' in p[0].get_type().lower()))
     if debug:
-        print preds
+        print(preds)
     return {pred.name: np.max(pred.check_pred_violation(t, negated=negated, tol=1e-3)) for pred, negated in preds}
 
 def violated_ll_constrs(plan, ts, include=[]):

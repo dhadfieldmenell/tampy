@@ -3,7 +3,7 @@ import sys
 import time
 import traceback
 
-import cPickle as pickle
+import pickle as pickle
 
 import ctypes
 
@@ -95,7 +95,7 @@ class HSRAgent(TAMPAgent):
             if name =='hsr': continue
             cur_color = colors.pop(0)
             items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.4, 1.), 'rgba': tuple(cur_color)})
-        
+
         config['load_render'] = hyperparams['master_config'].get('load_render', False)
         self.mjc_env = MJCEnv.load_config(config)
         # self.viewer = OpenRAVEViewer(self.env)
@@ -147,13 +147,13 @@ class HSRAgent(TAMPAgent):
             # U_full = np.zeros((self.dU))
             noise_full = np.zeros((self.dU,))
             cur_state = np.zeros((plan.symbolic_bound))
-            # fill_vector(plan.params, plan.state_inds, cur_state, t)  
+            # fill_vector(plan.params, plan.state_inds, cur_state, t)
             for pname, aname in self.state_inds:
                 p = plan.params[pname]
                 if p.is_symbol(): continue
                 aval = getattr(p, aname)[:,t]
                 if np.any(np.isnan(aval)):
-                    print('NAN in:', pname, aname, t, task_f is None)
+                    print(('NAN in:', pname, aname, t, task_f is None))
                     aval[:] = 0.
                 cur_state[self.state_inds[pname, aname]] = aval
 
@@ -164,7 +164,7 @@ class HSRAgent(TAMPAgent):
                 if task not in self.plans:
                     task = self.task_to_onehot[task[0]]
                 self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
-          
+
             X = cur_state.copy()
             cur_noise = noise[t]
 
@@ -186,20 +186,20 @@ class HSRAgent(TAMPAgent):
             col_ts[t] = col
 
             new_state = np.zeros((plan.symbolic_bound))
-            # fill_vector(plan.params, plan.state_inds, cur_state, t)  
+            # fill_vector(plan.params, plan.state_inds, cur_state, t)
             for pname, aname in self.state_inds:
                 p = plan.params[pname]
                 if p.is_symbol(): continue
                 aval = getattr(p, aname)[:,min(t+1, sample.T-1)]
                 if np.any(np.isnan(aval)):
-                    print('NAN in:', pname, aname, t+1)
+                    print(('NAN in:', pname, aname, t+1))
                     aval[:] = 0.
                 new_state[self.state_inds[pname, aname]] = aval
 
 
             if np.all(np.abs(cur_state - new_state) < 1e-3):
                 sample.use_ts[t] = 0
-         
+
             if n_steps == sample.T:
                 end_state = sample.get_X(t=t)
 
@@ -253,13 +253,13 @@ class HSRAgent(TAMPAgent):
             self.target_vecs[condition] = targets.copy()
             for tname, attr in self.target_inds:
                 self.targets[condition][tname] = targets[self.target_inds[tname, attr]]
-        
+
         x0 = state[self._x_data_idx[STATE_ENUM]]
 
         failed_preds = []
         iteration = 0
         iteration += 1
-        plan = self.plans[task] 
+        plan = self.plans[task]
         prim_choices = self.prob.get_prim_choices()
         # obj_name = prim_choices[OBJ_ENUM][task[1]]
         # targ_name = prim_choices[TARG_ENUM][task[2]]
@@ -283,9 +283,9 @@ class HSRAgent(TAMPAgent):
         plan.params['obs0'].pose[:] = plan.params['obs0'].pose[:,:1]
 
         run_solve = True
-        
+
         plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
-        for param in plan.params.values():
+        for param in list(plan.params.values()):
             for attr in param._free_attrs:
                 if np.any(np.isnan(getattr(param, attr)[:,0])):
                     getattr(param, attr)[:,0] = 0
@@ -328,16 +328,16 @@ class HSRAgent(TAMPAgent):
                     for param, attr in plan.action_inds:
                         if attr == 'pose':
                             # U[plan.action_inds[param, attr]] = getattr(plan.params[param], attr)[:, t+1] - getattr(plan.params[param], attr)[:, t]
-                            U[plan.action_inds[param, attr]] = traj[t+1][plan.state_inds[param, attr]] - traj[t][plan.state_inds[param, attr]] 
+                            U[plan.action_inds[param, attr]] = traj[t+1][plan.state_inds[param, attr]] - traj[t][plan.state_inds[param, attr]]
                         elif attr == 'gripper':
                             # U[plan.action_inds[param, attr]] = getattr(plan.params[param], attr)[:, t]
-                            U[plan.action_inds[param, attr]] = traj[t+1][plan.state_inds[param, attr]] 
+                            U[plan.action_inds[param, attr]] = traj[t+1][plan.state_inds[param, attr]]
                         else:
                             raise NotImplementedError
                     # U[plan.action_inds['pr2', 'pose']] = plan.params['pr2'].pose[:, t+1] - plan.params['pr2'].pose[:, t]
                     # U[plan.action_inds['pr2', 'gripper']] = plan.params['pr2'].gripper[:, t+1]
                 if np.any(np.isnan(U)):
-                    if success: print('NAN in {0} plan act'.format(success))
+                    if success: print(('NAN in {0} plan act'.format(success)))
                     U[:] = 0.
                 return U
         sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False, skip_opt=True)
@@ -357,10 +357,10 @@ class HSRAgent(TAMPAgent):
         if not smoothing and self.debug:
             if not success:
                 sample.use_ts[:] = 0.
-                print('Failed to plan for: {0} {1} smoothing? {2} {3}'.format(task, failed_preds, smoothing, state))
+                print(('Failed to plan for: {0} {1} smoothing? {2} {3}'.format(task, failed_preds, smoothing, state)))
                 print('FAILED PLAN')
             else:
-                print('SUCCESSFUL PLAN for {0}'.format(task))
+                print(('SUCCESSFUL PLAN for {0}'.format(task)))
         # else:
         #     print('Plan success for {0} {1}'.format(task, state))
         return sample, failed_preds, success
@@ -476,7 +476,7 @@ class HSRAgent(TAMPAgent):
         outs = {}
         out[TASK_ENUM] = copy.copy(self.task_list)
         options = get_prim_choices()
-        plan = self.plans.values()[0]
+        plan = list(self.plans.values())[0]
         for enum in self.prim_dims:
             if enum == TASK_ENUM: continue
             out[enum] = []
@@ -502,7 +502,7 @@ class HSRAgent(TAMPAgent):
         plan = self.plans[task]
         options = self.prob.get_prim_choices()
         for i in range(1, len(task)):
-            enum = self.prim_dims.keys()[i-1]
+            enum = list(self.prim_dims.keys())[i-1]
             item = options[enum][task[i]]
             if item in plan.params:
                 param = plan.params[item]
@@ -525,7 +525,7 @@ class HSRAgent(TAMPAgent):
     def get_prim_indices(self, names):
         task = [self.task_list.index(names[0])]
         for i in range(1, len(names)):
-            task.append(self.get_prim_index(self.prim_dims.keys()[i-1], names[i]))
+            task.append(self.get_prim_index(list(self.prim_dims.keys())[i-1], names[i]))
         return tuple(task)
 
 
@@ -534,8 +534,8 @@ class HSRAgent(TAMPAgent):
             targets = self.target_vecs[condition]
         cost = self.prob.NUM_OBJS
         alldisp = 0
-        plan = self.plans.values()[0]
-        for param in plan.params.values():
+        plan = list(self.plans.values())[0]
+        for param in list(plan.params.values()):
             if param._type == 'Can':
                 val = targets[self.target_inds['{0}_end_target'.format(param.name), 'value']]
                 disp = state[self.state_inds[param.name, 'pose']] - val
@@ -567,13 +567,13 @@ class HSRAgent(TAMPAgent):
             active_ts = (1, plan.horizon-1)
 
         prim_choices = self.prob.get_prim_choices()
- 
+
         if active_ts[1] == 0:
             prim_choices = self.prob.get_prim_choices()
             obj = prim_choices[OBJ_ENUM][task[1]]
             targ = prim_choices[TARG_ENUM][task[2]]
             loc = Xs[0][self.state_inds[obj, 'pose']] if task[0] == 0 else targets[self.target_inds[targ, 'value']]
-            plan.params['robot_end_pose'].value[:,0] = loc 
+            plan.params['robot_end_pose'].value[:,0] = loc
         if active_ts[1] == plan.horizon-1:
             plan.params['robot_end_pose'].value[:,0] = Xs[-1][self.state_inds['pr2', 'pose']]
         prim_choices = self.prob.get_prim_choices()
@@ -603,7 +603,7 @@ class HSRAgent(TAMPAgent):
         # if debug:
         #     print(failed_preds)
 
-        failed_preds = filter(lambda p: not type(p[1].expr) is EqExpr, failed_preds)
+        failed_preds = [p for p in failed_preds if not type(p[1].expr) is EqExpr]
         return failed_preds
 
 
@@ -694,7 +694,7 @@ class HSRAgent(TAMPAgent):
             for tname, attr in self.target_inds:
                 self.targets[condition][tname] = targets[self.target_inds[tname, attr]]
             self.target_vecs[condition] = targets
-        
+
         exclude_targets = []
         plan = self.plans[task]
         act_traj = np.zeros((plan.horizon, self.dU))
@@ -708,7 +708,7 @@ class HSRAgent(TAMPAgent):
         sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, act_traj), condition, state, task, noisy=False, skip_opt=True)
         sample.set_ref_X(sample.get_X())
         sample.set_ref_U(sample.get_U())
-     
+
         # for t in range(sample.T):
         #     if np.all(np.abs(sample.get(ACTION_ENUM, t=t))) < 1e-3:
         #         sample.use_ts[t] = 0.
@@ -723,7 +723,7 @@ class HSRAgent(TAMPAgent):
     def get_hl_plan(self, state, condition, failed_preds, plan_id=''):
         targets = get_prim_choices[TARG_ENUM]
         state = state[self._x_data_idx[STATE_ENUM]]
-        params = self.plans.values()[0].params
+        params = list(self.plans.values())[0].params
 
         return hl_plan_for_state(state, targets, plan_id, params, self.state_inds, failed_preds)
 
@@ -770,7 +770,7 @@ class HSRAgent(TAMPAgent):
             x = sample.get(STATE_ENUM, sample.T-1)
             g = plan.params['grasp{0}'.format(task[3])].value[:,0] # plan.params['grasp0'].value[:,0]
             goal_ee = x[self.state_inds[pname, 'pose']] + g
-            attr_dict[('robot_end_pose', 'value')] = goal_ee 
+            attr_dict[('robot_end_pose', 'value')] = goal_ee
         elif self.task_list[task[0]] == 'transfer':
             plan = self.plans[task]
             pname = self.prob.get_prim_choices()[OBJ_ENUM][task[1]]
@@ -789,7 +789,7 @@ class HSRAgent(TAMPAgent):
 
     def relabel_goal(self, sample, debug=False):
         X = sample.get_X(sample.T-1)
-        plan = self.plans.values()[0]
+        plan = list(self.plans.values())[0]
         goal = self.target_vecs[0].copy()
         for pname, aname in self.state_inds:
             if plan.params[pname].is_symbol(): continue
@@ -811,7 +811,7 @@ class HSRAgent(TAMPAgent):
         if OBJ_ENUM in prim_choices and curric_step > 0:
             i = 0
             step = (curric_step + 1) // 2
-            inds = np.random.permutation(range(len(prim_choices[OBJ_ENUM])))
+            inds = np.random.permutation(list(range(len(prim_choices[OBJ_ENUM]))))
             for j in inds:
                 obj = prim_choices[OBJ_ENUM][j]
                 if '{0}_end_target'.format(obj) not in self.targets[cond]: continue
@@ -824,7 +824,7 @@ class HSRAgent(TAMPAgent):
             self.target_vecs[cond][self.target_inds[target_name, 'value']] = self.targets[cond][target_name]
         only_goal = np.concatenate([self.target_vecs[cond][self.target_inds['{0}_end_target'.format(o), 'value']] for o in prim_choices[OBJ_ENUM]])
         onehot_goal = self.onehot_encode_goal(only_goal)
-        
+
         nt = len(prim_choices[TARG_ENUM])
 
 
@@ -843,13 +843,13 @@ class HSRAgent(TAMPAgent):
 
 
     def check_target(self, targ):
-        vec = np.zeros(len(self.targ_labels.keys()))
+        vec = np.zeros(len(list(self.targ_labels.keys())))
         for ind in self.targ_labels:
             if np.all(np.abs(targ - self.targ_labels[ind]) < NEAR_TOL):
                 vec[ind] = 1.
                 break
         return vec
-         
+
 
     def onehot_encode_goal(self, targets, descr=None, debug=False):
         vecs = []
@@ -858,7 +858,7 @@ class HSRAgent(TAMPAgent):
             vec = self.check_target(targ)
             vecs.append(vec)
         if debug:
-            print('Encoded {0} as {1} {2}'.format(targets, vecs, self.prob.END_TARGETS))
+            print(('Encoded {0} as {1} {2}'.format(targets, vecs, self.prob.END_TARGETS)))
         return np.concatenate(vecs)
 
 
@@ -868,7 +868,7 @@ class HSRAgent(TAMPAgent):
         for a in plan.actions:
             encoded.append(self.encode_action(a))
 
-        encoded = map(lambda l: tuple(l), encoded)
+        encoded = [tuple(l) for l in encoded]
         return encoded
 
 
@@ -925,7 +925,7 @@ class HSRAgent(TAMPAgent):
             assert not np.any(np.isnan(fpts))
             interp = scipy.interpolate.interp1d(xpts, fpts, axis=0, fill_value='extrapolate')
             grip_interp = scipy.interpolate.interp1d(np.array(xpts), grippts, kind='previous', bounds_error=False, axis=0)
-          
+
             fix_pts = []
             if type(vel) is float:
                 # x = np.arange(0, d+vel/2, vel)
@@ -965,6 +965,5 @@ class HSRAgent(TAMPAgent):
                 new_traj = np.r_[new_traj, out]
             else:
                 new_traj = out
-            if np.any(np.isnan(out)): print('NAN in out', out, x)
+            if np.any(np.isnan(out)): print(('NAN in out', out, x))
         return new_traj
-        

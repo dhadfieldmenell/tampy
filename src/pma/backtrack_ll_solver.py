@@ -5,7 +5,7 @@ from sco.solver import Solver
 from core.internal_repr.parameter import Object
 from core.util_classes.matrix import Vector
 from core.util_classes.openrave_body import OpenRAVEBody
-from ll_solver import LLSolver, LLParam
+from .ll_solver import LLSolver, LLParam
 import itertools, random
 import gurobipy as grb
 import numpy as np
@@ -15,7 +15,10 @@ from core.util_classes.viewer import OpenRAVEViewer
 
 MAX_PRIORITY=3
 BASE_MOVE_COEFF = 1.
-TRAJOPT_COEFF=1e-2
+TRAJOPT_COEFF=1e-1
+TRANSFER_COEFF = 1e-1
+FIXED_COEFF = 1e0
+RS_COEFF = 1e2
 SAMPLE_SIZE = 5
 BASE_SAMPLE_SIZE = 5
 DEBUG = False
@@ -26,10 +29,10 @@ class BacktrackLLSolver(LLSolver):
         # To avoid numerical difficulties during optimization, try keep
         # range of coefficeint within 1e9
         # (largest_coefficient/smallest_coefficient < 1e9)
-        self.transfer_coeff = 1e-1
-        self.fixed_coeff = 1e0# 1e2
-        self.rs_coeff = 1e2# 5e1
-        self.trajopt_coeff = 1e-1# 1e-3#1e0
+        self.transfer_coeff = TRANSFER_COEFF
+        self.fixed_coeff = FIXED_COEFF
+        self.rs_coeff = RS_COEFF
+        self.trajopt_coeff = TRAJOPT_COEFF # 1e-3#1e0
         self.initial_trust_region_size = 1e-2 # 1e-2
         self.init_penalty_coeff = 1e0#4e3
         self.smooth_penalty_coeff = 1e2 # 1e0#7e4
@@ -59,7 +62,7 @@ class BacktrackLLSolver(LLSolver):
 
     def save_free(self, plan):
         old_params_free = {}
-        for p in plan.params.itervalues():
+        for p in plan.params.values():
             p_attrs = {}
             old_params_free[p.name] = p_attrs
             for attr in p._free_attrs:
@@ -90,13 +93,13 @@ class BacktrackLLSolver(LLSolver):
             return True
 
         a = plan.actions[anum]
-        if DEBUG: print("backtracking Solve on {}".format(a.name))
+        if DEBUG: print(("backtracking Solve on {}".format(a.name)))
         active_ts = a.active_timesteps
         inits = {}
         rs_param = self.get_resample_param(a)
         success = False
         init_free_attrs = plan.get_free_attrs()
-        for param in plan.params.values():
+        for param in list(plan.params.values()):
             if param.is_symbol(): continue
             for attr in param._free_attrs:
                 param._free_attrs[attr][:,active_ts[0]] = 0.
@@ -105,13 +108,13 @@ class BacktrackLLSolver(LLSolver):
             ## don't optimize over any params that are already set
             old_params_free = {}
             old_params_free_2 = {}
-            for p in plan.params.itervalues():
+            for p in plan.params.values():
                 if p.is_symbol():
                     continue
                     # if p not in a.params: continue
                     old_params_free[p] = p._free_attrs
                     p._free_attrs = {}
-                    for attr in old_params_free[p].keys():
+                    for attr in list(old_params_free[p].keys()):
                         p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
                 else:
                     p_attrs = {}
@@ -127,7 +130,7 @@ class BacktrackLLSolver(LLSolver):
             success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax, n_resamples=n_resamples)
 
             # reset free_attrs
-            for p in plan.params.itervalues():
+            for p in plan.params.values():
                 if p.is_symbol():
                     continue
                     if p not in a.params: continue
@@ -158,7 +161,7 @@ class BacktrackLLSolver(LLSolver):
         rs_free = rs_param._free_attrs
         if self.freeze_rs_param(plan.actions[anum]):
             rs_param._free_attrs = {}
-            for attr in rs_free.keys():
+            for attr in list(rs_free.keys()):
                 if rs_param.is_symbol():
                     rs_param._free_attrs[attr] = np.zeros(rs_free[attr].shape)
                 else:
@@ -179,7 +182,7 @@ class BacktrackLLSolver(LLSolver):
             callback_a = None
 
         for rp in robot_poses:
-            for attr, val in rp.items():
+            for attr, val in list(rp.items()):
                 if rs_param.is_symbol():
                     setattr(rs_param, attr, val)
                 else:
@@ -232,8 +235,8 @@ class BacktrackLLSolver(LLSolver):
                 success = self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
 
                 if DEBUG:
-                    print("resample attempt: {} at priority {}".format(attempt, priority))
-                    print(plan.get_failed_preds(active_ts, priority=priority))
+                    print(("resample attempt: {} at priority {}".format(attempt, priority)))
+                    print((plan.get_failed_preds(active_ts, priority=priority)))
 
                 # import ipdb; ipdb.set_trace()
                 # assert not (success and not len(plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)) == 0)
@@ -241,7 +244,7 @@ class BacktrackLLSolver(LLSolver):
             if not success:
                 break
 
-        if DEBUG: print(plan.get_failed_preds(active_ts=active_ts, tol=1e-3), active_ts)
+        if DEBUG: print((plan.get_failed_preds(active_ts=active_ts, tol=1e-3), active_ts))
         return success
 
     #@profile
@@ -365,12 +368,12 @@ class BacktrackLLSolver(LLSolver):
             act_2 = plan.actions[a_num+1]
             active_ts = (act_1.active_timesteps[0], act_2.active_timesteps[1])
             old_params_free = {}
-            for p in plan.params.itervalues():
+            for p in plan.params.values():
                 if p.is_symbol():
                     if p in act_1.params or p in act_2.params: continue
                     old_params_free[p] = p._free_attrs
                     p._free_attrs = {}
-                    for attr in old_params_free[p].keys():
+                    for attr in list(old_params_free[p].keys()):
                         p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
                 else:
                     p_attrs = {}
@@ -381,7 +384,7 @@ class BacktrackLLSolver(LLSolver):
                         p._free_attrs[attr][:, :active_ts[0]] = 0
             success = self._traj_smoother(plan, callback, n_resamples, active_ts, verbose)
             # reset free_attrs
-            for p in plan.params.itervalues():
+            for p in plan.params.values():
                 if p.is_symbol():
                     if p in act_1.params or p in act_2.params: continue
                     p._free_attrs = old_params_free[p]
@@ -428,9 +431,9 @@ class BacktrackLLSolver(LLSolver):
         transfer_objs = []
         ts = active_ts
         if norm == 'min-vel':
-            for param in plan.params.values():
+            for param in list(plan.params.values()):
                 # if param._type in ['Robot', 'Can', 'EEPose']:
-                for attr_name in param.__dict__.iterkeys():
+                for attr_name in param.__dict__.keys():
                     attr_type = param.get_attr_type(attr_name)
                     if issubclass(attr_type, Vector):
                         param_ll = self._param_to_ll[param]
@@ -491,7 +494,7 @@ class BacktrackLLSolver(LLSolver):
             if save: self.grb_init_mapping[grb_name] = v
             grb_val_map[grb_name] = self.grb_init_mapping.get(grb_name, v)
             ret_val.append(grb_val_map[grb_name])
-            if grb_name in self._grb_to_var_ind.keys():
+            if grb_name in list(self._grb_to_var_ind.keys()):
                 for var, i in self._grb_to_var_ind[grb_name]:
                     var._value[i] = grb_val_map[grb_name]
                     if np.all(var._grb_vars is grb_vars):
@@ -511,7 +514,7 @@ class BacktrackLLSolver(LLSolver):
     #@profile
     def check_grb_sync(self, grb_name):
         for var, i in self._grb_to_var_ind[grb_name]:
-            print var._grb_vars[i][0].VarName, var._value[i]
+            print(var._grb_vars[i][0].VarName, var._value[i])
 
     #@profile
     def check_sync(self):
@@ -520,14 +523,14 @@ class BacktrackLLSolver(LLSolver):
         """
         grb_val_map = {}
         correctness = True
-        for grb_name in self._grb_to_var_ind.keys():
+        for grb_name in list(self._grb_to_var_ind.keys()):
             for var, i in self._grb_to_var_ind[grb_name]:
                 try:
                     correctness = np.allclose(grb_val_map[grb_name], var._value[i], equal_nan=True)
                 except KeyError:
                     grb_val_map[grb_name] = var._value[i]
                 except:
-                    print "something went wrong"
+                    print("something went wrong")
                     import ipdb; ipdb.set_trace()
                 if not correctness:
                     import ipdb; ipdb.set_trace()
@@ -659,7 +662,7 @@ class BacktrackLLSolver(LLSolver):
         priority = np.maximum(priority, 0)
         if not pred_dict['hl_info'] == "hl_state":
             start, end = pred_dict['active_timesteps']
-            active_range = range(start, end+1)
+            active_range = list(range(start, end+1))
             negated = pred_dict['negated']
             pred = pred_dict['pred']
 
@@ -710,8 +713,8 @@ class BacktrackLLSolver(LLSolver):
                     self._add_pred_dict(pred_dict, [action_end],
                                         priority=priority, add_nonlin=add_nonlin, verbose=verbose)
             ## add all of the linear ineqs
-            timesteps = range(max(action_start+1, active_ts[0]),
-                              min(action_end, active_ts[1]))
+            timesteps = list(range(max(action_start+1, active_ts[0]),
+                              min(action_end, active_ts[1])))
             for pred_dict in action.preds:
                 self._add_pred_dict(pred_dict, timesteps, add_nonlin=False,
                                     priority=priority, verbose=verbose)
@@ -730,8 +733,8 @@ class BacktrackLLSolver(LLSolver):
             if action_start >= active_ts[1] and action_start > active_ts[0]: continue
             if action_end < active_ts[0]: continue
 
-            timesteps = range(max(action_start, active_ts[0]),
-                              min(action_end, active_ts[1])+1)
+            timesteps = list(range(max(action_start, active_ts[0]),
+                              min(action_end, active_ts[1])+1))
             for pred_dict in action.preds:
                 self._add_pred_dict(pred_dict, timesteps, priority=priority,
                                     add_nonlin=add_nonlin, verbose=verbose)
@@ -742,7 +745,7 @@ class BacktrackLLSolver(LLSolver):
             update plan's parameters from low level grb_vars.
             expected to be called after each optimization.
         """
-        for ll_param in self._param_to_ll.values():
+        for ll_param in list(self._param_to_ll.values()):
             ll_param.update_param()
         if self.child_solver:
             self.child_solver._update_ll_params()
@@ -761,12 +764,12 @@ class BacktrackLLSolver(LLSolver):
         horizon = active_ts[1] - active_ts[0] + 1
         self._param_to_ll = {}
         self.ll_start = active_ts[0]
-        for param in plan.params.values():
+        for param in list(plan.params.values()):
             ll_param = LLParam(model, param, horizon, active_ts)
             ll_param.create_grb_vars()
             self._param_to_ll[param] = ll_param
         model.update()
-        for ll_param in self._param_to_ll.values():
+        for ll_param in list(self._param_to_ll.values()):
             ll_param.batch_add_cnts()
 
     #@profile
@@ -794,11 +797,11 @@ class BacktrackLLSolver(LLSolver):
             active_ts = (0, plan.horizon-1)
         start, end = active_ts
         traj_objs = []
-        for param in plan.params.values():
+        for param in list(plan.params.values()):
             if param not in self._param_to_ll:
                 continue
             if isinstance(param, Object):
-                for attr_name in param.__dict__.iterkeys():
+                for attr_name in param.__dict__.keys():
                     attr_type = param.get_attr_type(attr_name)
                     if issubclass(attr_type, Vector):
                         T = end - start + 1
@@ -930,4 +933,3 @@ class BacktrackLLSolver(LLSolver):
                 sco_var = self.create_variable(param_ll_grb_vars, cur_val)
                 bexpr = BoundExpr(quad_expr, sco_var)
                 transfer_objs.append(bexpr)
-

@@ -10,7 +10,7 @@ def generate_xml(plan, color_map):
     root = base_xml.getroot()
     worldbody = root.find('worldbody')
     active_ts = (0, plan.horizon)
-    params = plan.params.values()
+    params = list(plan.params.values())
     contacts = root.find('contact')
     equality = root.find('equality')
 
@@ -39,7 +39,7 @@ def generate_xml(plan, color_map):
             xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_r_finger_tip'})
             xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_r_finger'})
             xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'basket'})
-        elif param._type == 'Obstacle': 
+        elif param._type == 'Obstacle':
             length = param.geom.dim[0]
             width = param.geom.dim[1]
             thickness = param.geom.dim[2]

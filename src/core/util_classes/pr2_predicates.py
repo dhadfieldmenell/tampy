@@ -12,15 +12,15 @@ This file Defines specific PR2 related predicates
 
 # Attributes used in pr2 domain. (Tuple to avoid changes to the attr_inds)
 ATTRMAP = {"Robot": (("backHeight", np.array([0], dtype=np.int)),
-                         ("lArmPose", np.array(range(7), dtype=np.int)),
+                         ("lArmPose", np.array(list(range(7)), dtype=np.int)),
                          ("lGripper", np.array([0], dtype=np.int)),
-                         ("rArmPose", np.array(range(7), dtype=np.int)),
+                         ("rArmPose", np.array(list(range(7)), dtype=np.int)),
                          ("rGripper", np.array([0], dtype=np.int)),
                          ("pose", np.array([0,1,2], dtype=np.int))),
            "RobotPose": (("backHeight", np.array([0], dtype=np.int)),
-                          ("lArmPose", np.array(range(7), dtype=np.int)),
+                          ("lArmPose", np.array(list(range(7)), dtype=np.int)),
                           ("lGripper", np.array([0], dtype=np.int)),
-                          ("rArmPose", np.array(range(7), dtype=np.int)),
+                          ("rArmPose", np.array(list(range(7)), dtype=np.int)),
                           ("rGripper", np.array([0], dtype=np.int)),
                           ("value", np.array([0,1,2], dtype=np.int))),
            "Can": (("pose", np.array([0,1,2], dtype=np.int)),
@@ -72,7 +72,7 @@ class PR2IsMP(robot_predicates.IsMP):
         val = np.vstack((joint_move, const.BASE_MOVE*np.ones((const.BASE_DIM, 1)), joint_move, const.BASE_MOVE*np.ones((const.BASE_DIM, 1))))
         A = np.eye(2*const.ROBOT_ATTR_DIM) - np.eye(2*const.ROBOT_ATTR_DIM, k=const.ROBOT_ATTR_DIM) - np.eye(2*const.ROBOT_ATTR_DIM, k=-const.ROBOT_ATTR_DIM)
         b = np.zeros((2*const.ROBOT_ATTR_DIM,1))
-        robot_body._set_active_dof_inds(range(39))
+        robot_body._set_active_dof_inds(list(range(39)))
 
         # Setting attributes for testing
         self.base_step = const.BASE_MOVE*np.ones((const.BASE_DIM, 1))
@@ -104,7 +104,7 @@ class PR2WithinJointLimit(robot_predicates.WithinJointLimit):
         A_up_limit = np.eye(const.JOINT_DIM)
         A = np.vstack((A_lb_limit, A_up_limit))
         b = np.zeros((2*const.JOINT_DIM,1))
-        robot_body._set_active_dof_inds(range(39))
+        robot_body._set_active_dof_inds(list(range(39)))
 
         joint_move = (active_ub-active_lb)/const.JOINT_MOVE_FACTOR
         self.base_step = const.BASE_MOVE*np.ones((3,1))
@@ -649,7 +649,7 @@ class PR2EEReachable(robot_predicates.EEReachable):
 class PR2EEReachableRight(PR2EEReachable):
     pass
 
-class PR2EEReachableLeft(PR2EEReachable): 
+class PR2EEReachableLeft(PR2EEReachable):
     def get_robot_info(self, robot_body):
         # Provide functionality of Obtaining Robot information
         tool_link = robot_body.env_body.GetLink("l_gripper_tool_frame")

@@ -90,7 +90,7 @@ def get_base_solver(parent_class):
             inits = {}
             rs_param = self.get_resample_param(a)
             init_free_attrs = plan.get_free_attrs()
-            for param in plan.params.values():
+            for param in list(plan.params.values()):
                 if param.is_symbol(): continue
                 for attr in param._free_attrs:
                     param._free_attrs[attr][:,active_ts[0]] = 0.
@@ -110,11 +110,11 @@ def get_base_solver(parent_class):
             def recursive_solve():
                 ## don't optimize over any params that are already set
                 old_params_free = plan.get_free_attrs()
-                for p in plan.params.itervalues():
+                for p in plan.params.values():
                     if p.is_symbol():
                         if p not in a.params: continue
                         p._free_attrs = {}
-                        for attr in old_params_free[p].keys():
+                        for attr in list(old_params_free[p].keys()):
                             p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
                     else:
                         for attr in p._free_attrs:
@@ -136,7 +136,7 @@ def get_base_solver(parent_class):
                 self.child_solver.robot_name = self.robot_name
                 self.child_solver.transfer_always = self.transfer_always
                 new_time = time.time() - start_time + total_time
-                success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax=amax, 
+                success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax=amax,
                                                              n_resamples=n_resamples, inf_f=inf_f, traj_mean=traj_mean, task=task, total_time=new_time, time_limit=time_limit, max_priority=max_priority, min_priority=min_priority)
 
                 # reset free_attrs
@@ -168,9 +168,9 @@ def get_base_solver(parent_class):
                 self.child_solver.robot_name = self.robot_name
                 new_time = time.time() - start_time + total_time
                 success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
-                                                  active_ts=active_ts, verbose=verbose, force_init=True, 
-                                                  inf_f=inf_f, traj_mean=traj_mean, task=task, total_time=new_time, 
-                                                  time_limit=time_limit, priorities=range(min_priority, max_priority+1))
+                                                  active_ts=active_ts, verbose=verbose, force_init=True,
+                                                  inf_f=inf_f, traj_mean=traj_mean, task=task, total_time=new_time,
+                                                  time_limit=time_limit, priorities=list(range(min_priority, max_priority+1)))
                 plan.store_free_attrs(init_free_attrs)
                 if not success:
                     ## if planning fails we're done
@@ -181,7 +181,7 @@ def get_base_solver(parent_class):
             ## so that this won't be optimized over
             rs_free = rs_param._free_attrs
             rs_param._free_attrs = {}
-            for attr in rs_free.keys():
+            for attr in list(rs_free.keys()):
                 if rs_param.is_symbol():
                     rs_param._free_attrs[attr] = np.zeros(rs_free[attr].shape)
                 else:
@@ -194,7 +194,7 @@ def get_base_solver(parent_class):
             robot_poses = self.obj_pose_suggester(plan, anum, resample_size=1)
             if False and len(traj_mean):
                 pos = {}
-                for attr, val in robot_poses[0].items():
+                for attr, val in list(robot_poses[0].items()):
                     pos[attr] = traj_mean[active_ts[1], plan.state_inds[rs_param.name, attr]].reshape((-1,1))
                 robot_poses.insert(0, pos)
 
@@ -209,7 +209,7 @@ def get_base_solver(parent_class):
 
             success = False
             for rp in robot_poses:
-                for attr, val in rp.items():
+                for attr, val in list(rp.items()):
                     if rs_param.is_symbol():
                         setattr(rs_param, attr, val)
                     else:
@@ -236,7 +236,7 @@ def get_base_solver(parent_class):
                 success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                                   active_ts = active_ts, verbose=verbose,
                                                   force_init=True, inf_f=inf_f, traj_mean=traj_mean, task=task, total_time=new_time,
-                                                  time_limit=time_limit, priorities=range(min_priority, max_priority+1))
+                                                  time_limit=time_limit, priorities=list(range(min_priority, max_priority+1)))
                 if success:
                     if recursive_solve():
                         break
@@ -257,7 +257,7 @@ def get_base_solver(parent_class):
             traj_step = traj[active_ts[1]]
             def pos_dist(rp):
                 dist = 0
-                for attr, val in rp.items():
+                for attr, val in list(rp.items()):
                     attr = 'pose' if attr == 'value' else attr
                     if (robot_name, attr) in plan.state_inds:
                         dist += np.linalg.norm(val.flatten() - traj_step[self.state_inds[robot_name, attr]])
@@ -268,7 +268,7 @@ def get_base_solver(parent_class):
 
             rp = robot_poses[0]
             new_pos = []
-            for attr, val in rp.items():
+            for attr, val in list(rp.items()):
                 attr = 'pose' if attr == 'value' else attr
                 if (robot_name, attr) in plan.state_inds:
                     new_pos.append((attr, traj_step[self.state_inds[robot_name, attr]].reshape(val.shape)))
@@ -310,18 +310,18 @@ def get_base_solver(parent_class):
                 for attempt in range(n_resamples):
                     ## refinement loop
                     success = self._solve_opt_prob(plan, priority=priority,
-                                    callback=callback, active_ts=active_ts, verbose=verbose, 
+                                    callback=callback, active_ts=active_ts, verbose=verbose,
                                     inf_f=inf_f, traj_mean=traj_mean, task=task)
 
                     try:
                         if DEBUG: plan.check_cnt_violation(active_ts=active_ts, priority=priority, tol=1e-3)
                     except:
-                        print "error in predicate checking"
+                        print("error in predicate checking")
 
                     if success or total_time + time.time() - start_time > time_limit:
                         break
 
-                    self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, 
+                    self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts,
                             verbose=verbose, resample=True, inf_f=inf_f, traj_mean=traj_mean, task=task)
 
                     # if len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) > 9:
@@ -333,7 +333,7 @@ def get_base_solver(parent_class):
                     try:
                         if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
                     except:
-                        print "error in predicate checking"
+                        print("error in predicate checking")
 
                     assert not (success and not len(plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)) == 0)
 
@@ -368,7 +368,7 @@ def get_base_solver(parent_class):
                 act_1 = plan.actions[a_num]
                 act_2 = plan.actions[a_num+1]
                 active_ts = (act_1.active_timesteps[0], act_2.active_timesteps[1])
-                
+
                 # save free_attrs
                 # old_params_free = {}
                 # for p in plan.params.itervalues():
@@ -385,9 +385,9 @@ def get_base_solver(parent_class):
                 #             p_attrs[attr] = [p._free_attrs[attr][:, :(active_ts[0])].copy(), p._free_attrs[attr][:, (active_ts[1])+1:].copy()]
                 #             p._free_attrs[attr][:, (active_ts[1])+1:] = 0
                 #             p._free_attrs[attr][:, :(active_ts[0])] = 0
-                
+
                 success = success and self._optimize_against_global(plan, (active_ts[0], active_ts[1]), n_resamples=1, global_traj_mean=global_traj_mean)
-                
+
                 # reset free_attrs
                 # for p in plan.params.itervalues():
                 #     if p.is_symbol():
@@ -427,7 +427,7 @@ def get_base_solver(parent_class):
                 p = plan.params[p_name]
                 if p.is_symbol(): continue
                 state[:, self.state_inds[p_name, a_name]] = getattr(p, a_name)[:, start_t:end_t+1].T
-            
+
             '''
             self.agent.T = T
             sample = Sample(self.agent)
@@ -465,7 +465,7 @@ def get_base_solver(parent_class):
                     for i in range(T):
                         Q[i::T, i::T] = chol_pol_S[start_t+i, inds][:, inds]
                         L[i::T] = l[i]
-                    
+
                     C = np.zeros((1,1))
                     C[:] = c.sum()
 
@@ -694,14 +694,14 @@ def get_base_solver(parent_class):
                 rs_param = self.get_resample_param(plan.actions[a_num])
                 robot_poses = self.obj_pose_suggester(plan, a_num, resample_size=1)
                 rp = robot_poses[0]
-                for attr, val in rp.items():
+                for attr, val in list(rp.items()):
                     if rs_param.is_symbol():
                         setattr(rs_param, attr, val)
                     else:
                         getattr(rs_param, attr)[:, active_ts[1]] = val.flatten()
 
                 old_params_free = {}
-                for p in plan.params.itervalues():
+                for p in plan.params.values():
                     if attr_dict is not None:
                         old_param_free[p] = copy.deepcopy(p._free_attrs)
                         for attr in p._free_attrs:
@@ -716,7 +716,7 @@ def get_base_solver(parent_class):
                             if p not in act_1.params: continue
                             old_params_free[p] = p._free_attrs
                             p._free_attrs = {}
-                            for attr in old_params_free[p].keys():
+                            for attr in list(old_params_free[p].keys()):
                                 p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
                         else:
                             p_attrs = {}
@@ -727,7 +727,7 @@ def get_base_solver(parent_class):
                                 p._free_attrs[attr][:, :active_ts[0]+1] = 0
                 success = self._traj_smoother(plan, callback, n_resamples, active_ts, verbose, traj_mean[active_ts[0]:active_ts[1]+1])
                 # reset free_attrs
-                for p in plan.params.itervalues():
+                for p in plan.params.values():
                     if p.is_symbol():
                         if p not in act_1.params: continue
                         p._free_attrs = old_params_free[p]
@@ -746,7 +746,7 @@ def get_base_solver(parent_class):
             #     return False
             # plan.restore_free_attrs()
             return success
-        
+
         def _traj_smoother(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False, traj_mean=[]):
             priorities = [-2, 3]
             for priority in priorities:

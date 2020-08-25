@@ -74,7 +74,7 @@ class AlgorithmMDGPS(Algorithm):
                     self.cur[m][cur_t].pol_info.policy_prior = policy_prior['type'](policy_prior)
                 cur_t = next_t
     """
-         
+
     def set_conditions(self, M):
         self.M = M
         self.cur = []
@@ -88,8 +88,8 @@ class AlgorithmMDGPS(Algorithm):
             self._hyperparams['init_traj_distr']['T'] = self.T
 
             if self._hyperparams['fit_dynamics']:
-                        dynamics = self._hyperparams['dynamics']
-                        self.cur[m].traj_info.dynamics = dynamics['type'](dynamics)
+                dynamics = self._hyperparams['dynamics']
+                self.cur[m].traj_info.dynamics = dynamics['type'](dynamics)
 
             init_traj_distr = extract_condition(
                 self._hyperparams['init_traj_distr'], 0 # Because conditions are no longer fixed
@@ -150,7 +150,7 @@ class AlgorithmMDGPS(Algorithm):
         # Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, data_len, dO)), np.zeros((0, data_len, dU))
         tgt_prc, tgt_wt = np.zeros((0, data_len, dU, dU)), np.zeros((0, data_len))
-        
+
         # Optimize global polciies with optimal samples as well
         for m in range(len(optimal_samples)):
             sample = optimal_samples[m]
@@ -160,12 +160,12 @@ class AlgorithmMDGPS(Algorithm):
             obs = np.zeros((1, data_len, dO))
             traj, pol_info = self.new_traj_distr[m], self.cur[m].pol_info
 
-            ts = np.random.choice(xrange(T), data_len, replace=False)
+            ts = np.random.choice(range(T), data_len, replace=False)
             ts.sort()
             # for t in range(data_len):
             #     prc[0,t] = 1e0 * np.eye(dU)
             #     wt[:,t] = self._hyperparams['opt_wt'] * sample.use_ts[ts[t]]
-            
+
             for j in range(data_len):
                 t = ts[j]
                 # Compute actions along this trajectory.
@@ -196,7 +196,7 @@ class AlgorithmMDGPS(Algorithm):
             obs = np.zeros((N, data_len, dO))
             full_obs = samples.get_obs()
 
-            ts = np.random.choice(xrange(T), data_len, replace=False)
+            ts = np.random.choice(range(T), data_len, replace=False)
             ts.sort()
             # Get time-indexed actions.
             for j in range(data_len):
@@ -216,7 +216,7 @@ class AlgorithmMDGPS(Algorithm):
             tgt_prc = np.concatenate((tgt_prc, prc))
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs_data = np.concatenate((obs_data, obs))
-        
+
         if len(tgt_mu):
             # print('Updating on', self.task)
             self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task)
@@ -235,7 +235,7 @@ class AlgorithmMDGPS(Algorithm):
     #         T = self.task_durations[task]
     #         obs_data[task], tgt_mu[task] = np.zeros((0, T, dO)), np.zeros((0, T, dU))
     #         tgt_prc[task], tgt_wt[task] = np.zeros((0, T, dU, dU)), np.zeros((0, T))
-        
+
     #     for m in range(self.M):
     #         T = self.agent.Ts[m]
     #         samples = self.cur[m].sample_list
@@ -300,7 +300,7 @@ class AlgorithmMDGPS(Algorithm):
                 sp.linalg.cholesky(pol_info.pol_S[t, :, :])
         except Exception as e:
             traceback.print_exception(*sys.exc_info())
-            print('Policy fit threw exception: ', e, '\n')
+            print(('Policy fit threw exception: ', e, '\n'))
 
     def _eval_cost(self, cond):
         """
@@ -309,7 +309,7 @@ class AlgorithmMDGPS(Algorithm):
             cond: Condition to evaluate cost on.
         """
         sample_list = self.cur[cond].sample_list
-        
+
         # Constants.
         T, dX, dU = self.T, self.dX, self.dU
         N = len(sample_list)

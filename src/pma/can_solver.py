@@ -134,4 +134,3 @@ class CanSolver(backtrack_ll_solver.BacktrackLLSolver):
                 raise NotImplemented
 
         return robot_pose
-

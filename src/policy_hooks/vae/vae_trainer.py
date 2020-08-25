@@ -39,6 +39,6 @@ class VAETrainer(object):
     def train(self):
         for i in range(50000):
             self.vae.update()
-            print(self.vae.get_weight_file(), np.mean([self.vae.check_loss() for _ in range(10)]))
+            print((self.vae.get_weight_file(), np.mean([self.vae.check_loss() for _ in range(10)])))
             if not i % 100:
                 self.vae.store_scope_weights()

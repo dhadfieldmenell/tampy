@@ -30,15 +30,15 @@ class optimal_pol:
 class BaxterMJCSortingAgent(TAMPAgent):
     def __init__(self, hyperparams):
         plans = hyperparams['plans']
-        params = plans.values()[0].params
+        params = list(plans.values())[0].params
         items = []
-        for p in params.values():
+        for p in list(params.values()):
             if p._type == 'Cloth':
                 items.append(get_param_xml(p))
         self.im_h, self.im_w = hyperparams['image_height'], hyperparams['image_width']
         super(BaxterMJCSortingAgent, self).__init__(hyperparams)
-        self.env = BaxterMJCEnv(items=items, 
-                                im_dims=(self.im_w, self.im_h), 
+        self.env = BaxterMJCEnv(items=items,
+                                im_dims=(self.im_w, self.im_h),
                                 obs_include=['end_effector', 'joints'],
                                 mode='end_effector_pos',
                                 view=False)
@@ -48,14 +48,14 @@ class BaxterMJCSortingAgent(TAMPAgent):
         for m in range(len(self.x0)):
             sample = Sample(self)
             mp_state = self.x0[m]
-            self.fill_sample(m, sample, mp_state, 0, tuple(np.zeros(1+len(self.prim_dims.keys()), dtype='int32')))
+            self.fill_sample(m, sample, mp_state, 0, tuple(np.zeros(1+len(list(self.prim_dims.keys())), dtype='int32')))
             self.x0[m] = sample.get_X(t=0).copy()
             for param_name, attr in self.state_inds:
                 if attr == 'pose':
                     self.env.set_item_pos(param_name, mp_state[self.state_inds[param_name, attr]], mujoco_frame=False)
 
         for m in range(len(self.x0)):
-            for param_name in self.plans.values()[0].params:
+            for param_name in list(self.plans.values())[0].params:
                 if (param_name, 'pose') in self.state_inds:
                     pose = self.env.get_pos_from_label(param_name, mujoco_frame=False)
                     if pose is not None:                        self.x0[m][self._x_data_idx[STATE_ENUM]][self.state_inds[param_name, 'pose']] = pose
@@ -160,7 +160,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
                                 U[self.action_inds['baxter', 'rGripper']],
                                 U[self.action_inds['baxter', 'ee_left_pos']],
                                 U[self.action_inds['baxter', 'lGripper']]])
-            
+
             self.traj_hist.append(U)
             while len(self.traj_hist) > self.hist_len:
                 self.traj_hist.pop(0)
@@ -216,9 +216,9 @@ class BaxterMJCSortingAgent(TAMPAgent):
         failed_preds = []
         iteration = 0
         iteration += 1
-        plan = self.plans[task] 
+        plan = self.plans[task]
         set_params_attrs(plan.params, plan.state_inds, x0, 0)
-        for param in plan.params.values():
+        for param in list(plan.params.values()):
             if param._type == 'Cloth':
                 plan.params['{0}_init_target'.format(param.name)].value[:,0] = param.pose[:,0]
 
@@ -240,7 +240,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
         try:
             success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean, inf_f=inf_f)
         except Exception as e:
-            print e
+            print(e)
             traceback.print_exception(*sys.exc_info())
             success = False
             raise e
@@ -249,12 +249,12 @@ class BaxterMJCSortingAgent(TAMPAgent):
             for action in plan.actions:
                 try:
                     print('Solve failed on action:')
-                    print(action, plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps))
-                    print(['{0}: {1}\n'.format(p.name, p.pose[:,0]) for p in plan.params.values() if not p.is_symbol()])
+                    print((action, plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)))
+                    print(['{0}: {1}\n'.format(p.name, p.pose[:,0]) for p in list(plan.params.values()) if not p.is_symbol()])
                     print('\n')
                 except:
                     pass
-            print '\n\n'
+            print('\n\n')
 
         try:
             if not len(failed_preds):
@@ -275,9 +275,9 @@ class BaxterMJCSortingAgent(TAMPAgent):
             #     vec = np.zeros((self.prim_dims[enum]))
             #     vec[task[i+1]] = 1.
             #     sample.set(enum, vec, 0)
-            
+
             # set_params_attrs(plan.params, plan.state_inds, x0, 0)
-            
+
             # sample.set(OBJ_POSE_ENUM, plan.params[obj_name].pose[:,0].copy(), 0)
             # sample.set(TARG_POSE_ENUM, plan.params[targ_name].value[:,0].copy(), 0)
 
@@ -288,7 +288,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
             # sample.condition = condition
             # sample.task = task
             return sample, failed_preds, success
-            
+
         return self._sample_opt_traj(plan, state, task, condition)
 
 
@@ -376,7 +376,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
 
     def get_hl_plan(self, state, condition, failed_preds, plan_id=''):
         self.reset_to_state(state)
-        params = self.plans.values()[0].params
+        params = list(self.plans.values())[0].params
         return hl_plan_for_state(state, targets, plan_id, params, self.state_inds, failed_preds)
 
 
@@ -415,7 +415,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
 
         prim_choices = self.prob.get_prim_choices()
         for i in range(1, len(task)):
-            enum = self.prim_dims.keys()[i-1]
+            enum = list(self.prim_dims.keys())[i-1]
             vec = np.zeros((self.prim_dims[enum]))
             vec[task[i]] = 1.
             sample.set(enum, vec, t)
@@ -430,7 +430,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
         obj_pose = mp_state[self.state_inds[obj, 'pose']]
         sample.set(OBJ_POSE_ENUM, obj_pose, t)
         param.pose[:, t] = obj_pose
-          
+
         param = plan.params[targ]
         sample.set(TARG_POSE_ENUM, obj_pose - plan.params[targ].value[:,0], t)
 
@@ -454,7 +454,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
             U[self.action_inds['baxter', 'lGripper']] = mp_state[self.state_inds['baxter', 'lGripper']]
             sample.set(ACTION_ENUM, U, t-1)
             sample.set(ACTION_ENUM, U, t)
- 
+
         if fill_obs:
             for param_name, attr in self.state_inds:
                 param = plan.params[param_name]
@@ -470,7 +470,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
                 sample.set(LEFT_IMAGE_ENUM, self.env.render(height=self.im_h, width=self.im_w, camera_id=3, view=False).flatten(), t)
             if RIGHT_IMAGE_ENUM in self._hyperparams['obs_include'] or RIGHT_IMAGE_ENUM in self._hyperparams['prim_obs_include']:
                 sample.set(RIGHT_IMAGE_ENUM, self.env.render(height=self.im_h, width=self.im_w, camera_id=2, view=False).flatten(), t)
-            
+
         return sample
 
 
@@ -479,7 +479,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
         out = {}
         out[TASK_ENUM] = copy.copy(self.task_list)
         options = self.prob.get_prim_choices()
-        plan = self.plans.values()[0]
+        plan = list(self.plans.values())[0]
         for enum in self.prim_dims:
             if enum == TASK_ENUM: continue
             out[enum] = []
@@ -507,7 +507,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
         plan = self.plans[task]
         options = self.prob.get_prim_choices()
         for i in range(1, len(task)):
-            enum = self.prim_dims.keys()[i-1]
+            enum = list(self.prim_dims.keys())[i-1]
             item = options[enum][task[i]]
             if item in plan.params:
                 param = plan.params[item]
@@ -532,7 +532,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
     def get_prim_indices(self, names):
         task = [self.task_list.index(names[0])]
         for i in range(1, len(names)):
-            task.append(self.get_prim_index(self.prim_dims.keys()[i-1], names[i]))
+            task.append(self.get_prim_index(list(self.prim_dims.keys())[i-1], names[i]))
         return tuple(task)
 
 
@@ -667,7 +667,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
         self.reset_to_state(state)
         mp_state = state[self._x_data_idx[STATE_ENUM]]
         diff = 0.
-        plan = self.plans.values()[0]
+        plan = list(self.plans.values())[0]
         l_targ = plan.params['left_target_1'].value
         r_targ = plan.params['right_target_1'].value
 

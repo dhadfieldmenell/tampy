@@ -1,4 +1,4 @@
-from __future__ import division
+
 
 NUM_OBJS = 1
 NUM_TARGS = 1
@@ -24,7 +24,7 @@ from policy_hooks.namo.namo_grip_policy_solver import NAMOGripPolicySolver
 import policy_hooks.namo.holgrip_prob as prob
 prob.NUM_OBJS = NUM_OBJS
 prob.NUM_TARGS = NUM_TARGS
-from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer 
+from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer
 from policy_hooks.policy_mp_prior_gmm import PolicyMPPriorGMM
 from policy_hooks.policy_prior_gmm import PolicyPriorGMM
 
@@ -300,7 +300,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.TRUEOBJ_ENUM: no,
                 utils.TRUETARG_ENUM: len(prob.END_TARGETS),
                 utils.ATGOAL_ENUM: no,
-                utils.FACTOREDTASK_ENUM: len(prob.get_prim_choices().keys()),
+                utils.FACTOREDTASK_ENUM: len(list(prob.get_prim_choices().keys())),
                 # utils.INIT_OBJ_POSE_ENUM: 2,
             },
         'visual': False,
@@ -326,4 +326,3 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     return config
 
 config = refresh_config()
-

@@ -25,7 +25,7 @@ class HSRSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         return rs_param
 
- 
+
     def obj_pose_suggester(self, plan, anum, resample_size=10):
         robot_pose = []
         assert anum + 1 <= len(plan.actions)
@@ -40,7 +40,7 @@ class HSRSolver(backtrack_ll_solver.BacktrackLLSolver):
         start_ts, end_ts = act.active_timesteps
         old_pose = robot.pose[:, start_ts].reshape((3, 1))
         robot_body.set_pose(old_pose[:, 0])
-        for p in plan.params.values():
+        for p in list(plan.params.values()):
             if not p.is_symbol() and 'hsr' not in p.name:
                 p.openrave_body.set_pose(p.pose[:, start_ts], p.rotation[:, start_ts])
 
@@ -84,8 +84,8 @@ class HSRSolver(backtrack_ll_solver.BacktrackLLSolver):
                         break
 
                 if robot_pos is None: continue
-                robot_pose.append({'value': robot_pos, 
-                                   'gripper': np.array([[constants.GRIPPER_CLOSE]]) if next_act.name == 'can_putdown' else np.array([[constants.GRIPPER_OPEN]]), 
+                robot_pose.append({'value': robot_pos,
+                                   'gripper': np.array([[constants.GRIPPER_CLOSE]]) if next_act.name == 'can_putdown' else np.array([[constants.GRIPPER_OPEN]]),
                                    'arm': arm})
             elif act.name == 'can_grasp' or act.name == 'can_putdown':
                 target = act.params[2]
@@ -110,7 +110,7 @@ class HSRSolver(backtrack_ll_solver.BacktrackLLSolver):
                     robot_y = y - np.sin(hand_angle) * constants.GRIPPER_OFFSET_DISP
                     robot_pos = np.array([[robot_x], [robot_y], [robot_angle]])
                     robot_body.set_pose(robot_pos.flatten())
-                    
+
                     wrist_angle = hand_angle - target.rotation[2]
                     lift = np.maximum(0, target_pos[2]-0.16+0.125)
                     arm = np.array([[lift], [-np.pi/2], [0], [-np.pi/2], [wrist_angle]])
@@ -123,8 +123,8 @@ class HSRSolver(backtrack_ll_solver.BacktrackLLSolver):
 
                 if robot_pos is None: continue
 
-                robot_pose.append({'value': old_pose, 
-                                   'gripper': np.array([[constants.GRIPPER_OPEN]]) if act.name == 'can_putdown' else np.array([[constants.GRIPPER_CLOSE]]), 
+                robot_pose.append({'value': old_pose,
+                                   'gripper': np.array([[constants.GRIPPER_OPEN]]) if act.name == 'can_putdown' else np.array([[constants.GRIPPER_CLOSE]]),
                                    'arm': arm})
             else:
                 raise NotImplementedError

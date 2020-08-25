@@ -1,7 +1,7 @@
-""" This file defines the PIGPS algorithm. 
+""" This file defines the PIGPS algorithm.
 
 Reference:
-Y. Chebotar, M. Kalakrishnan, A. Yahya, A. Li, S. Schaal, S. Levine. 
+Y. Chebotar, M. Kalakrishnan, A. Yahya, A. Li, S. Schaal, S. Levine.
 Path Integral Guided Policy Search. 2016. https://arxiv.org/abs/1610.00529.
 """
 import copy
@@ -50,8 +50,8 @@ class AlgorithmOPTGPS(AlgorithmMDGPS):
             opt_samples = []
             for sample in sample_lists[m]:
                 agent = sample.agent
-                obj = agent.plans.values()[0].params[sample.obj]
-                targ = agent.plans.values()[0].params[sample.targ]
+                obj = list(agent.plans.values())[0].params[sample.obj]
+                targ = list(agent.plans.values())[0].params[sample.targ]
                 opt_sample, _, success = agent.sample_optimal_trajectory(sample.get_X(t=0), sample.task, sample.condition, traj_mean=sample.get(STATE_ENUM), fixed_targets=[obj, targ])
                 if success:
                     opt_samples.append(opt_sample)
@@ -79,7 +79,7 @@ class AlgorithmOPTGPS(AlgorithmMDGPS):
         # for m in range(len(self.cur)):
         #     self._update_policy_fit(m)
 
-        # # C-step        
+        # # C-step
         # self._update_trajectories()
 
         # S-step
@@ -97,7 +97,7 @@ class AlgorithmOPTGPS(AlgorithmMDGPS):
         # Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, data_len, dO)), np.zeros((0, data_len, dU))
         tgt_prc, tgt_wt = np.zeros((0, data_len, dU, dU)), np.zeros((0, data_len))
-        
+
         # Optimize global polciies with optimal samples as well
         for sample in optimal_samples:
             mu = np.zeros((1, data_len, dU))
@@ -105,7 +105,7 @@ class AlgorithmOPTGPS(AlgorithmMDGPS):
             wt = np.zeros((1, data_len))
             obs = np.zeros((1, data_len, dO))
 
-            ts = np.random.choice(xrange(T), data_len, replace=False)
+            ts = np.random.choice(range(T), data_len, replace=False)
             ts.sort()
             for t in range(data_len):
                 prc[0,t] = 1e0 * np.eye(dU)
@@ -128,7 +128,7 @@ class AlgorithmOPTGPS(AlgorithmMDGPS):
                 wt = np.zeros((1, data_len))
                 obs = np.zeros((1, data_len, dO))
 
-                ts = np.random.choice(xrange(T), data_len, replace=False)
+                ts = np.random.choice(range(T), data_len, replace=False)
                 ts.sort()
                 for t in range(data_len):
                     prc[0,t] = 1e0 * np.eye(dU)

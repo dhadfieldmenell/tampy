@@ -12,4 +12,3 @@ try:
 except Exception as e:
     print(e)
     USE_OPENRAVE = False
-

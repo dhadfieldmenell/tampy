@@ -142,7 +142,7 @@ class TestHLSolver(unittest.TestCase):
         # testing for repr(a) is commented out because
         # result of repr(a) changes when the same test is executed multiple times, It's not reliable
         # self.assertEqual(repr(a), "5: grasp (59, 60) pr2 can1 target1 pdp_target1 grasp1")
-        obstrs = filter(lambda x: "Obstructs" in repr(x["pred"]), a.preds)
+        obstrs = [x for x in a.preds if "Obstructs" in repr(x["pred"])]
         self.assertEqual([o["negated"] for o in obstrs], [True, True, True, True])
         self.assertEqual([o["active_timesteps"] for o in obstrs], [(95, 114), (95, 114), (114, 114), (114, 114)])
         reprs = [repr(o["pred"]) for o in obstrs]
@@ -243,7 +243,7 @@ class TestHLSolver(unittest.TestCase):
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
 
         plan = hls.solve(hls.translate_problem(problem), domain, problem)
-        print "\n\n" + str(plan.plan_str) + "\n\n"
+        print("\n\n" + str(plan.plan_str) + "\n\n")
         self.assertFalse(plan == Plan.IMPOSSIBLE)
 
 if __name__ == '__main__':

@@ -14,7 +14,7 @@ class ValueServer(object):
         rospy.init_node('value_update_server')
         hyperparams['policy_opt']['scope'] = 'value'
         self.policy_opt = hyperparams['policy_opt']['type'](
-            hyperparams['policy_opt'], 
+            hyperparams['policy_opt'],
             hyperparams['dO'],
             hyperparams['dU'],
             hyperparams['dObj'],
@@ -117,7 +117,7 @@ class ValueServer(object):
                     f.write('Time to update {0} neural net on {1} data points: {2}\n'.format(self.task, self.policy_opt.update_size, end_time-start_time))
 
             rospy.sleep(0.01)
-            print('Weights updated:', update, self.task)
+            print(('Weights updated:', update, self.task))
             # if update:
             #     self.weight_publisher.publish(self.policy_opt.serialize_weights([self.task]))
 

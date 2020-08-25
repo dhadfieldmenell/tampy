@@ -34,7 +34,7 @@ for i in range(40, 70, 3):
 def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
     # Information is track by the environment
     x0s = []
-    baxter = plans.values()[0].params['baxter']
+    baxter = list(plans.values())[0].params['baxter']
     robot_body = baxter.openrave_body
     baxter.lArmPose[:, 0] = [0.39620987, -0.97739414, -0.04612781, 1.74220501, 0.03562036, 0.8089644, -0.45207411]
     baxter.rArmPose[:, 0] = [-0.3962099, -0.97739413, 0.04612799, 1.742205 , -0.03562013, 0.8089644, 0.45207395]
@@ -48,7 +48,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         if ('baxter', 'ee_right_pos') in state_inds:
             x0[state_inds['baxter', 'ee_right_pos']] = ee_pose['right_gripper']['pos']
         x0s.append(x0)
-        locs = np.random.choice(range(len(POSSIBLE_CLOTH_LOCS)), NUM_CLOTHS, replace=False)
+        locs = np.random.choice(list(range(len(POSSIBLE_CLOTH_LOCS))), NUM_CLOTHS, replace=False)
         for j in range(NUM_CLOTHS):
             x0[state_inds['cloth{0}'.format(j), 'pose']] = POSSIBLE_CLOTH_LOCS[locs[j]]
     return x0s
@@ -79,10 +79,10 @@ def get_plans():
                 for step in next_task_str:
                     new_task_str.append(step.format(obj, targ))
                 plan = plan_from_str(new_task_str, prob_file, domain_file, env, openrave_bodies)
-                plans[(tasks.keys().index(task), i, j)] = plan
+                plans[(list(tasks.keys()).index(task), i, j)] = plan
                 if env is None:
                     env = plan.env
-                    for param in plan.params.values():
+                    for param in list(plan.params.values()):
                         if not param.is_symbol() and param.openrave_body is not None:
                             openrave_bodies[param.name] = param.openrave_body
     return plans, openrave_bodies, env
@@ -107,7 +107,7 @@ def get_end_targets():
 
 def get_prim_choices():
     out = OrderedDict({})
-    out[utils.TASK_ENUM] = get_tasks(mapping_file).keys()
+    out[utils.TASK_ENUM] = list(get_tasks(mapping_file).keys())
     out[utils.OBJ_ENUM] = []
     out[utils.TARG_ENUM] = ['left_target_1', 'right_target_1', 'middle_target_1']
     for i in range(NUM_CLOTHS):
@@ -205,7 +205,7 @@ def parse_initial_state(cloth_locs, targets, baxter, failed_preds=[]):
             hl_init_state += " (ClothInGripperRight {0})".format(cloth)
 
     hl_init_state += ")\n"
-    print hl_init_state
+    print(hl_init_state)
     return hl_init_state
 
 

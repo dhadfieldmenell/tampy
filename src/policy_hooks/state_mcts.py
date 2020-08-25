@@ -56,9 +56,9 @@ class MCTSNode():
         children = []
         for task in self.children:
             if task is None: continue
-            for obj in task: 
+            for obj in task:
                 if obj is None: continue
-                children.extend(filter(lambda n: n is not None, obj))
+                children.extend([n for n in obj if n is not None])
         return children
 
     def has_unexplored(self):
@@ -87,7 +87,7 @@ class StateMCTS:
         self.num_distilled_samples = num_distilled_samples
         self._choose_next = choose_next if choose_next != None else self._default_choose_next
         self._plan_f = plan_f
-        self._cost_f = cost_f 
+        self._cost_f = cost_f
         self._goal_f = goal_f
         self._target_f = target_f
         self._encode_f = encode_f
@@ -138,11 +138,11 @@ class StateMCTS:
         sample.set(TARG_ENUM, targ_vec, 0)
         sample.set(TASK_ENUM, task_vec, 0)
         obj_name, targ_name = self.agent.obj_list[obj_ind], self.agent.targ_list[targ_ind]
-        sample.set(OBJ_POSE_ENUM, state[self.agent.plans.values()[0].state_inds[obj_name, 'pose']], 0)
+        sample.set(OBJ_POSE_ENUM, state[list(self.agent.plans.values())[0].state_inds[obj_name, 'pose']], 0)
         sample.set(TARG_POSE_ENUM, self.agent.targets[self.condition][targ_name].copy(), 0)
         obs = sample.get_obs(t=0)
         prim_obs = sample.get_prim_obs(t=0)
-        hl_state = self._encode_f(state, self.agent.plans.values()[0], self.agent.targets[self.condition])
+        hl_state = self._encode_f(state, list(self.agent.plans.values())[0], self.agent.targets[self.condition])
         q_expl_value = self.value_func(obs) if (hl_state, (task_ind, obj_ind, targ_ind)) not in self.hl_state_values else self.hl_state_values[(hl_state, (task_ind, obj_ind, targ_ind))]
         q_pred_value = self.value_func(obs)
         policy_distr = self.prob_func(prim_obs)
@@ -154,14 +154,14 @@ class StateMCTS:
 
     def print_run(self, state, use_distilled=True):
         path = self.simulate(state.copy(), use_distilled, debug=False)
-        print 'Testing rollout of MCTS'
+        print('Testing rollout of MCTS')
         for sample in path:
             task = self.tasks[np.argmax(sample.get(TASK_ENUM, t=0))]
             obj = self.agent.obj_list[np.argmax(sample.get(OBJ_ENUM, t=0))]
             targ = self.agent.targ_list[np.argmax(sample.get(TARG_ENUM, t=0))]
-            print task, obj, targ
-            print sample.get_X()
-        print 'End of MCTS rollout.\n\n'
+            print(task, obj, targ)
+            print(sample.get_X())
+        print('End of MCTS rollout.\n\n')
 
     def run(self, state, condition, num_rollouts=20, use_distilled=True, hl_plan=None, new_policies=None, debug=False):
         if new_policies != None:
@@ -172,11 +172,11 @@ class StateMCTS:
         if hl_plan == None:
             for n in range(num_rollouts):
                 self.agent.reset_hist()
-                print "MCTS Rollout {0} for condition {1}.\n".format(n, self.condition)
+                print("MCTS Rollout {0} for condition {1}.\n".format(n, self.condition))
                 next_path = self.simulate(state.copy(), use_distilled, debug=debug)
                 if len(next_path):
                     end = next_path[-1]
-                    new_opt_value = self._goal_f(end.get_X(t=end.T-1), self.agent.targets[self.condition], self.agent.plans.values()[0])
+                    new_opt_value = self._goal_f(end.get_X(t=end.T-1), self.agent.targets[self.condition], list(self.agent.plans.values())[0])
                     if new_opt_value == 0: paths.append(next_path)
                     opt_val = np.minimum(new_opt_value, opt_val)
         else:
@@ -185,9 +185,9 @@ class StateMCTS:
             cur_sample = None
             opt_val = np.inf
             for step in hl_plan:
-                targets = [self.agent.plans.values()[0].params[p_name] for p_name in step[1]]
+                targets = [list(self.agent.plans.values())[0].params[p_name] for p_name in step[1]]
                 if len(targets) < 2:
-                    targets.append(self.agent.plans.values()[0].params['{0}_init_target'.format(p_name)])
+                    targets.append(list(self.agent.plans.values())[0].params['{0}_init_target'.format(p_name)])
                 plan = self._plan_f(step[0], targets)
                 # next_sample, cur_state = self.sample(step[0], cur_state, targets, plan)
                 next_sample, _ = self.agent.sample_optimal_trajectory(cur_state, step[0], self.condition, targets)
@@ -197,8 +197,8 @@ class StateMCTS:
                 cur_state = cur_sample.get_X(t=cur_sample.T-1)
                 paths[0].append(cur_sample)
 
-            if cur_sample != None: 
-                opt_val = self._goal_f(cur_sample.get_X(t=cur_sample.T-1), self.agent.targets[self.condition], self.agent.plans.values()[0])
+            if cur_sample != None:
+                opt_val = self._goal_f(cur_sample.get_X(t=cur_sample.T-1), self.agent.targets[self.condition], list(self.agent.plans.values())[0])
                 for path in paths:
                     for sample in path:
                         sample.task_cost = opt_val
@@ -217,15 +217,15 @@ class StateMCTS:
         values = np.array(values)
         p = parameterizations[np.argmax(values)]
         values[np.argmax(values)] = -np.inf
-        obj = self.agent.plans.values()[0].params[self.agent.obj_list[p[1]]]
-        targ = self.agent.plans.values()[0].params[self.agent.targ_list[p[2]]]
+        obj = list(self.agent.plans.values())[0].params[self.agent.obj_list[p[1]]]
+        targ = list(self.agent.plans.values())[0].params[self.agent.targ_list[p[2]]]
         cost = self._cost_f(state, self.tasks[p[0]], [obj, targ], self.agent.targets[self.condition], self.agent.plans[self.tasks[p[0]], obj.name], active_ts=(0,0), debug=False)
         # hl_state = self._encode_f(state, self.agent.plans.values()[0], self.agent.targets[self.condition], (self.tasks[0], obj.name, targ.name))
         while (cost > 0 or p in exclude_hl) and np.any(values > -np.inf):
             p = parameterizations[np.argmax(values)]
             values[np.argmax(values)] = -np.inf
-            obj = self.agent.plans.values()[0].params[self.agent.obj_list[p[1]]]
-            targ = self.agent.plans.values()[0].params[self.agent.targ_list[p[2]]]
+            obj = list(self.agent.plans.values())[0].params[self.agent.obj_list[p[1]]]
+            targ = list(self.agent.plans.values())[0].params[self.agent.targ_list[p[2]]]
             cost = self._cost_f(state, self.tasks[p[0]], [obj, targ], self.agent.targets[self.condition], self.agent.plans[self.tasks[p[0]], obj.name], active_ts=(0,0), debug=False)
             # hl_state = self._encode_f(state, self.agent.plans.values()[0], self.agent.targets[self.condition], (self.tasks[0], obj.name, targ.name))
 
@@ -288,15 +288,15 @@ class StateMCTS:
         path_value = None
         while True:
             if debug:
-                print "Taking simulation step"
-            if self._goal_f(cur_state, self.agent.targets[self.condition], self.agent.plans.values()[0]) == 0:
+                print("Taking simulation step")
+            if self._goal_f(cur_state, self.agent.targets[self.condition], list(self.agent.plans.values())[0]) == 0:
                 break
 
 
             next_task = self._choose_next(cur_state, prev_sample, exclude_hl, use_distilled, debug=debug)
             if next_task is None:
                 break
-                
+
             if np.any(np.abs(cur_state) > 1e2):
                 import ipdb; ipdb.set_trace()
 
@@ -304,8 +304,8 @@ class StateMCTS:
             obj_name = self.agent.obj_list[next_task[1]]
             targ_name = self.agent.targ_list[next_task[2]]
 
-            obj = self.agent.plans.values()[0].params[obj_name]
-            targ = self.agent.plans.values()[0].params[targ_name]
+            obj = list(self.agent.plans.values())[0].params[obj_name]
+            targ = list(self.agent.plans.values())[0].params[targ_name]
             target = [obj, targ]
 
             plan = self._plan_f(task, target)
@@ -326,11 +326,11 @@ class StateMCTS:
             iteration += 1
 
         if path_value is None:
-            path_value = self._goal_f(cur_state, self.agent.targets[self.condition], self.agent.plans.values()[0])
+            path_value = self._goal_f(cur_state, self.agent.targets[self.condition], list(self.agent.plans.values())[0])
 
         for sample in path:
             sample.task_cost = path_value
-            hl_state = self._encode_f(sample.get_X(0), self.agent.plans.values()[0], self.agent.targets[self.condition])
+            hl_state = self._encode_f(sample.get_X(0), list(self.agent.plans.values())[0], self.agent.targets[self.condition])
             self.update_hl_info(hl_state, (sample.task_ind, sample.obj_ind, sample.targ_ind), path_value)
 
         return path

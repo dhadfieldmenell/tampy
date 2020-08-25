@@ -5,7 +5,7 @@ from pma import backtrack_ll_solver
 class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
         return a.params[0] # Experiment with avoiding robot pose symbols
-        
+
         if a.name == 'moveto':
             ## find possible values for the final pose
             rs_param = None # a.params[2]
@@ -40,7 +40,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         return rs_param
 
- 
+
     def obj_pose_suggester(self, plan, anum, resample_size=1):
         robot_pose = []
         assert anum + 1 <= len(plan.actions)
@@ -207,5 +207,3 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             sco_var = self.create_variable(param_ll_grb_vars, cur_val)
             bexpr = BoundExpr(quad_expr, sco_var)
             transfer_objs.append(bexpr)
-
-

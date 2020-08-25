@@ -132,7 +132,7 @@ def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
         #     cur_x_ind = x_inds[-1] + 1
         #     params_to_x_inds[(robot_name, attr)] = x_inds
         #     continue
-        inds = filter(lambda p: p[0]==attr, robot_attr_map)[0][1]
+        inds = next(filter(lambda p: p[0]==attr, robot_attr_map))[1]
         x_inds = inds + cur_x_ind
         cur_x_ind = x_inds[-1] + 1
         params_to_x_inds[(robot_name, attr)] = x_inds
@@ -156,7 +156,7 @@ def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
         #     params_to_u_inds[(robot_name, attr)] = u_inds
         #     continue
 
-        inds = filter(lambda p: p[0]==attr, robot_attr_map)[0][1]
+        inds = next(filter(lambda p: p[0]==attr, robot_attr_map))[1]
         u_inds = inds + cur_u_ind
         cur_u_ind = u_inds[-1] + 1
         params_to_u_inds[(robot_name, attr)] = u_inds
@@ -167,7 +167,7 @@ def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
         param_attr_map = attr_map[param._type]
         for attr in x_params[param_name]:
             if (param_name, attr) in params_to_x_inds: continue
-            inds = filter(lambda p: p[0]==attr, attr_map[param._type])[0][1] + cur_x_ind
+            inds = next(filter(lambda p: p[0]==attr, attr_map[param._type]))[1] + cur_x_ind
             cur_x_ind = inds[-1] + 1
             params_to_x_inds[(param.name, attr)] = inds
 
@@ -190,11 +190,11 @@ def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
 def get_target_inds(plan, attr_map, include):
     cur_ind = 0
     target_inds = {}
-    for param in plan.params.values():
+    for param in list(plan.params.values()):
         if param.name in include:
             for attr in include[param.name]:
                 param_attr_map = attr_map[param._type]
-                inds = filter(lambda p: p[0]==attr, attr_map[param._type])[0][1] + cur_ind
+                inds = next(filter(lambda p: p[0]==attr, attr_map[param._type]))[1] + cur_ind
                 cur_ind = inds[-1] + 1
                 target_inds[param.name, attr] = inds
 
@@ -225,10 +225,10 @@ def get_plan_to_policy_mapping(plan, robot_name, x_params=[], u_params=[], x_att
     x_params_init, u_params_init = len(x_params), len(u_params)
 
     if not x_params_init:
-        params = plan.params.values()
+        params = list(plan.params.values())
         x_params_init = len(x_params)
     else:
-        params = map(lambda p: plan.params[p], x_params)
+        params = [plan.params[p] for p in x_params]
 
     robot = plan.params[robot_name] #TODO: Make this more general
     robot_attr_map = const.ATTR_MAP[robot._type]
@@ -291,7 +291,7 @@ def get_plan_to_policy_mapping(plan, robot_name, x_params=[], u_params=[], x_att
 
     symbolic_boundary = cur_x_ind # Used to differntiate parameters from symbols in the state vector
 
-    for param in plan.params.values():
+    for param in list(plan.params.values()):
         if not param.is_symbol(): continue
         param_attr_map = const.ATTR_MAP[param._type]
         for attr in param_attr_map:
@@ -301,7 +301,7 @@ def get_plan_to_policy_mapping(plan, robot_name, x_params=[], u_params=[], x_att
             params_to_x_inds[(param.name, attr[0])] = inds
 
     # dX, state index map, dU, (policy) action map
-    return cur_x_ind, params_to_x_inds, cur_u_ind, params_to_u_inds, symbolic_boundary   
+    return cur_x_ind, params_to_x_inds, cur_u_ind, params_to_u_inds, symbolic_boundary
 
 def fill_vector(params, params_to_inds, vec, t, use_symbols=False):
     for param_name, attr in params_to_inds:
@@ -311,8 +311,8 @@ def fill_vector(params, params_to_inds, vec, t, use_symbols=False):
             if not use_symbols: continue
             vec[inds] = getattr(param, attr)[:, 0].copy()
         else:
-            vec[inds] = getattr(param, attr)[:, t].copy()       
-       
+            vec[inds] = getattr(param, attr)[:, t].copy()
+
 def set_params_attrs(params, params_to_inds, vec, t, use_symbols=False):
     for param_name, attr in params_to_inds:
         inds = params_to_inds[(param_name, attr)]
@@ -321,7 +321,7 @@ def set_params_attrs(params, params_to_inds, vec, t, use_symbols=False):
             if not use_symbols: continue
             getattr(param, attr)[:, 0] = vec[params_to_inds[(param.name, attr)]]
         else:
-            getattr(param, attr)[:, t] = vec[params_to_inds[(param.name, attr)]]               
+            getattr(param, attr)[:, t] = vec[params_to_inds[(param.name, attr)]]
 
 def fill_sample_from_trajectory(sample, plan, u_vec, noise, t, dX):
     active_ts, params = get_plan_traj_info(plan)
@@ -347,7 +347,7 @@ def get_trajectory_cost(plan, init_t, final_t, time_interval=POLICY_STEPS_PER_SE
     '''
     Calculates the constraint violations at the provided timestep for the current trajectory, as well as the first and second order approximations.
     This function handles the hierarchies of mappings from parameters to attributes to indices and translates between how the predicates consturct
-    those hierachies and how the policy states & actions 
+    those hierachies and how the policy states & actions
 
     state_inds & action_inds map (param. attr_name) to the the relevant indices
     '''
@@ -377,7 +377,7 @@ def get_trajectory_cost(plan, init_t, final_t, time_interval=POLICY_STEPS_PER_SE
         for param in attr_inds:
             pred_param_attr_inds[p['pred']][param.name] = {}
             for attr_name, inds in attr_inds[param]:
-                pred_param_attr_inds[p['pred']][param.name][attr_name] = np.array(range(cur_ind, cur_ind+len(inds)))
+                pred_param_attr_inds[p['pred']][param.name][attr_name] = np.array(list(range(cur_ind, cur_ind+len(inds))))
                 cur_ind += len(inds)
 
     for t in range(active_ts[0], active_ts[1]-1):
@@ -535,12 +535,12 @@ def create_sub_plans(plan, action_sequence):
 
 def get_state_params(plan):
     assert hasattr(plan, 'state_inds')
-    params = map(lambda k: plan.params[k[0]], plan.state_inds.keys())
+    params = [plan.params[k[0]] for k in list(plan.state_inds.keys())]
     return list(set(params))
 
 def get_action_params(plan):
     assert hasattr(plan, 'action_inds')
-    params = map(lambda k: plan.params[k[0]], plan.action_inds.keys())
+    params = [plan.params[k[0]] for k in list(plan.action_inds.keys())]
     return list(set(params))
 
 def closest_arm_pose(arm_poses, cur_arm_pose):
@@ -557,7 +557,7 @@ def closest_arm_pose(arm_poses, cur_arm_pose):
 
 def check_traj_cost(plan, solver, traj, task):
     if np.any(np.isnan(np.array(traj))):
-       raise Exception('Nans in trajectory passed')
+        raise Exception('Nans in trajectory passed')
     old_free_attrs = plan.get_free_attrs()
     for t in range(0, len(traj)):
         for param_name, attr in plan.state_inds:
@@ -568,19 +568,19 @@ def check_traj_cost(plan, solver, traj, task):
                 param.fix_attr(attr, (t,t))
                 if attr == 'pose' and (param_name, 'rotation') not in plan.state_inds and hasattr(param, 'rotation'):
                     param.rotation[:, t] = 0
-                
+
                 if attr == 'pose':
                     init_target = '{0}_init_target'.format(param_name)
                     if init_target in plan.params:
                         plan.params[init_target].value[:, 0] = param.pose[:, 0]
 
-    for p in plan.params.values():
+    for p in list(plan.params.values()):
         if p.is_symbol():
             p.free_all_attr((t,t))
     # Take a quick solve to resolve undetermined symbolic values
     solver._backtrack_solve(plan, time_limit=2, max_priority=-1, task=task)
     plan.store_free_attrs(old_free_attrs)
-   
+
     viols = plan.check_cnt_violation()
     for i in range(len(viols)):
         if np.isnan(viols[i]):
@@ -588,4 +588,3 @@ def check_traj_cost(plan, solver, traj, task):
     plan_total_violation = np.sum(viols) / plan.horizon
     plan_failed_constrs = plan.get_failed_preds_by_type()
     return plan_total_violation, plan_failed_constrs
-

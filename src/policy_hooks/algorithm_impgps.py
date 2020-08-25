@@ -1,7 +1,7 @@
-""" This file defines the PIGPS algorithm. 
+""" This file defines the PIGPS algorithm.
 
 Reference:
-Y. Chebotar, M. Kalakrishnan, A. Yahya, A. Li, S. Schaal, S. Levine. 
+Y. Chebotar, M. Kalakrishnan, A. Yahya, A. Li, S. Schaal, S. Levine.
 Path Integral Guided Policy Search. 2016. https://arxiv.org/abs/1610.00529.
 """
 import copy
@@ -196,7 +196,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
 
         # C-step
         try:
-            start_t = time.time()  
+            start_t = time.time()
             self._update_trajectories()
             # print('Time to update trajs', time.time() - start_t)
 
@@ -234,7 +234,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         # Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, data_len, dO)), np.zeros((0, data_len, dU))
         tgt_prc, tgt_wt = np.zeros((0, data_len, dU, dU)), np.zeros((0, data_len))
-        
+
         # # Optimize global policies with optimal samples as well
         # for sample in optimal_samples:
         #     mu = np.zeros((1, data_len, dU))
@@ -265,7 +265,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
 
             m = 0
             traj, pol_info = self.new_traj_distr[m], self.cur[m].pol_info
-            ts = np.random.choice(xrange(T), data_len, replace=False)
+            ts = np.random.choice(range(T), data_len, replace=False)
             ts.sort()
             for t in range(data_len):
                 prc[:, t, :, :] = np.tile(traj.inv_pol_covar[ts[t], :, :], [1, 1, 1])
@@ -279,7 +279,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
             tgt_prc = np.concatenate((tgt_prc, prc))
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs_data = np.concatenate((obs_data, obs))
-   
+
 
         for m in range(len(self.cur)):
             samples = self.cur[m].sample_list
@@ -293,7 +293,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
                 obs = np.zeros((1, data_len, dO))
 
                 traj, pol_info = self.new_traj_distr[m], self.cur[m].pol_info
-                ts = np.random.choice(xrange(T), data_len, replace=False)
+                ts = np.random.choice(range(T), data_len, replace=False)
                 ts.sort()
                 for t in range(data_len):
                     prc[:, t, :, :] = np.tile(traj.inv_pol_covar[ts[t], :, :], [1, 1, 1])
@@ -311,4 +311,3 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
             self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task)
         else:
             print('Update no cost called with no data.')
-

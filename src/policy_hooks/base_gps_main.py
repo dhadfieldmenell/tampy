@@ -41,7 +41,7 @@ class GPSMain(object):
             self._train_idx = config['common']['train_conditions']
             self._test_idx = config['common']['test_conditions']
         else:
-            self._train_idx = range(self._conditions)
+            self._train_idx = list(range(self._conditions))
             config['common']['train_conditions'] = config['common']['conditions']
             self._hyperparams=config
             self._test_idx = self._train_idx
@@ -60,13 +60,13 @@ class GPSMain(object):
         for condition in range(self._conditions):
             self.mcts.append(MCTS(
                                   tasks,
-                                  
+
                                   goal_f,
                                   target_f,
                                   rollout_policies,
                                   condition,
                                   self.agent,
-                                  num_samples,  
+                                  num_samples,
                                   ))
 
     def run(self, itr_load=None):
@@ -117,7 +117,7 @@ class GPSMain(object):
                 # log_file.write("{0}\n".format(self.agent.get_policy_avg_cost()))
                 # log_file.close()
                 # self._log_data(itr, traj_sample_lists, pol_sample_lists)
-                # self.agent.optimize_trajectories(self.algorithm)                
+                # self.agent.optimize_trajectories(self.algorithm)
                 # self.agent.update_cost_trajectories(self.algorithm)
             import ipdb; ipdb.set_trace()
         except Exception as e:
@@ -138,7 +138,7 @@ class GPSMain(object):
         algorithm_file = self._data_files_dir + 'algorithm_itr_%02d.pkl' % itr
         self.algorithm = self.data_logger.unpickle(algorithm_file)
         if self.algorithm is None:
-            print("Error: cannot find '%s.'" % algorithm_file)
+            print(("Error: cannot find '%s.'" % algorithm_file))
             os._exit(1) # called instead of sys.exit(), since t
         traj_sample_lists = self.data_logger.unpickle(self._data_files_dir +
             ('traj_sample_itr_%02d.pkl' % itr))
@@ -173,7 +173,7 @@ class GPSMain(object):
             algorithm_file = self._data_files_dir + 'algorithm_itr_%02d.pkl' % itr_load
             self.algorithm = self.data_logger.unpickle(algorithm_file)
             if self.algorithm is None:
-                print("Error: cannot find '%s.'" % algorithm_file)
+                print(("Error: cannot find '%s.'" % algorithm_file))
                 os._exit(1) # called instead of sys.exit(), since this is in a thread
 
             if self.gui:

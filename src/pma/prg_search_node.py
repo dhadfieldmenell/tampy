@@ -54,7 +54,7 @@ class LLSearchNode(SearchNode):
 
 
     def parse_state(self, plan, failed_preds, ts):
-        new_preds = filter(lambda p: p is not None, failed_preds)
+        new_preds = [p for p in failed_preds if p is not None]
         for a in plan.actions:
             a_st, a_et = a.active_timesteps
             if a_st > ts: break
@@ -123,7 +123,7 @@ class LLSearchNode(SearchNode):
         """
         goal_preds = self.concr_prob.goal_preds.copy()
         new_problem = Problem(new_state, goal_preds, self.concr_prob.env, False, start_action=anum, sess=self.curr_plan.sess)
-        
+
         return new_problem
 
     def solved(self):
@@ -161,7 +161,7 @@ class LLSearchNode(SearchNode):
         plan_prefix = tuple(self.curr_plan.prefix(fail_step))
         fail_pred_type = fail_pred.get_type()
 
-        if plan_prefix not in self.child_record.keys() or fail_pred_type not in self.child_record.get(plan_prefix, []):
+        if plan_prefix not in list(self.child_record.keys()) or fail_pred_type not in self.child_record.get(plan_prefix, []):
             self.child_record[plan_prefix] = self.child_record.get(plan_prefix, []) + [fail_pred_type]
             return True
         else:

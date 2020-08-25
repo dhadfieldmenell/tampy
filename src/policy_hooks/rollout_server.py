@@ -1,4 +1,4 @@
-import cPickle as pickle
+import pickle as pickle
 from datetime import datetime
 import numpy as np
 import os
@@ -9,7 +9,6 @@ import sys
 import time
 from software_constants import *
 
-from numba import cuda
 from scipy.cluster.vq import kmeans2 as kmeans
 import tensorflow as tf
 
@@ -109,7 +108,7 @@ class RolloutServer(object):
         self.steps_to_replace = hyperparams.get('steps_to_replace', 1000)
         self.success_to_replace = hyperparams.get('success_to_replace', 1)
         self.alg_map = hyperparams['alg_map']
-        for alg in self.alg_map.values():
+        for alg in list(self.alg_map.values()):
             alg.set_conditions(len(self.agent.x0))
         self.task_list = self.agent.task_list
         self.label_options = self.mcts[0].label_options
@@ -124,7 +123,7 @@ class RolloutServer(object):
         self.renew_publisher()
         self.last_log_t = time.time()
 
-        for alg in self.alg_map.values():
+        for alg in list(self.alg_map.values()):
             alg.policy_opt = DummyPolicyOpt(self.update, self.prob)
         self.n_optimizers = hyperparams['n_optimizers']
         self.waiting_for_opt = {}
@@ -158,14 +157,14 @@ class RolloutServer(object):
             hyperparams['policy_opt']['use_gpu'] = 1.
             hyperparams['policy_opt']['allow_growth'] = True
             self.policy_opt = hyperparams['policy_opt']['type'](
-                hyperparams['policy_opt'], 
+                hyperparams['policy_opt'],
                 hyperparams['dO'],
                 hyperparams['dU'],
                 hyperparams['dPrimObs'],
                 hyperparams['dValObs'],
                 hyperparams['prim_bounds']
             )
-            for alg in self.alg_map.values():
+            for alg in list(self.alg_map.values()):
                 alg.local_policy_opt = self.policy_opt
             self.weights_to_store = {}
 
@@ -175,7 +174,7 @@ class RolloutServer(object):
         self.sampled_probs = []
 
         self.agent.plans, self.agent.openrave_bodies, self.agent.env = self.agent.prob.get_plans(use_tf=True)
-        for plan in self.agent.plans.values():
+        for plan in list(self.agent.plans.values()):
             plan.state_inds = self.agent.state_inds
             plan.action_inds = self.agent.action_inds
             plan.dX = self.agent.dX
@@ -202,7 +201,7 @@ class RolloutServer(object):
         self.fail_data = []
         self.last_hl_test = time.time()
         state_info = []
-        params = self.agent.plans.values()[0].params
+        params = list(self.agent.plans.values())[0].params
         # for x in self.agent.x0:
         #     info = []
         #     for param_name, attr in self.agent.state_inds:
@@ -258,7 +257,7 @@ class RolloutServer(object):
         wt[np.where(wt < -1e10)] = -1e10
         mu[np.where(np.abs(mu) > 1e10)] = 0
         if np.any(np.isnan(obs)):
-            print(obs, task, np.isnan(obs))
+            print((obs, task, np.isnan(obs)))
         assert not np.any(np.isnan(obs))
         assert not np.any(np.isinf(obs))
         obs[np.where(np.abs(obs) > 1e10)] = 0
@@ -275,7 +274,7 @@ class RolloutServer(object):
             msg.terminal = terminal
         msg.dO = self.agent.dO
         msg.dPrimObs = self.agent.dPrim
-        msg.dOpts = len(self.agent.prob.get_prim_choices().keys())
+        msg.dOpts = len(list(self.agent.prob.get_prim_choices().keys()))
         msg.dValObs = self.agent.dVal
         msg.dAct = np.sum([len(opts[e]) for e in opts])
         msg.nActs = np.prod([len(opts[e]) for e in opts])
@@ -313,7 +312,7 @@ class RolloutServer(object):
 
     def update_weights(self):
         if self.use_local:
-            scopes = self.weights_to_store.keys()
+            scopes = list(self.weights_to_store.keys())
             for scope in scopes:
                 save = self.id.endswith('0')
                 data = self.weights_to_store[scope]
@@ -373,7 +372,7 @@ class RolloutServer(object):
             out = []
             for d in distrs:
                 p = d / np.sum(d)
-                ind = np.random.choice(range(len(d)), p=p)
+                ind = np.random.choice(list(range(len(d))), p=p)
                 d[ind] += 1e1
                 d /= np.sum(d)
                 out.append(d)
@@ -489,7 +488,7 @@ class RolloutServer(object):
         # self.opt_buffer.append(opt_sample)
         # self.opt_buffer = self.opt_buffer[-MAX_BUFFER:]
 
-    
+
     def store_prob(self, msg, check=True):
         task_name = self.task_list[eval(msg.task)[0]]
         if check and (not self.run_alg_updates or msg.alg_id != '{0}_{1}'.format(self.id, self.group_id)): return
@@ -513,7 +512,7 @@ class RolloutServer(object):
            (check and self.run_alg_updates and msg.alg_id != '{0}_{1}'.format(self.id, self.group_id)):
             return
 
-        print('Server {0} in group {1} received solved plan: alg server? {2}'.format(self.id, self.group_id, self.run_alg_updates))
+        print(('Server {0} in group {1} received solved plan: alg server? {2}'.format(self.id, self.group_id, self.run_alg_updates)))
         self.n_opt_calls += 1
         self.n_received_probs += 1
         plan_id = msg.plan_id
@@ -553,7 +552,7 @@ class RolloutServer(object):
         for i in range(len(samples)):
             probs[labels[i]][1].append(samples[i])
 
-        probs = filter(lambda p: len(p[1]), probs)
+        probs = [p for p in probs if len(p[1])]
 
         for p in probs:
             p[1] = SampleList(p[1])
@@ -712,10 +711,10 @@ class RolloutServer(object):
                 self.rollout_opt_pairs[task_name] = self.rollout_opt_pairs[task_name][-self.max_opt_sample_queue:]
             i -= 1
 
-    
+
     def parse_state(self, sample):
         state_info = {}
-        params = self.agent.plans.values()[0].params
+        params = list(self.agent.plans.values())[0].params
         state = sample.get(STATE_ENUM)
         for param_name, attr in self.agent.state_inds:
             if params[param_name].is_symbol(): continue
@@ -758,7 +757,7 @@ class RolloutServer(object):
     def run_gps(self):
         rollout_policies = {task: DummyPolicy(task, self.policy_call) for task in self.agent.task_list}
         for task in self.task_list:
-            inds = np.random.choice(range(len(self.rollout_opt_pairs[task])), min(self.num_conds, len(self.rollout_opt_pairs[task])), replace=False)
+            inds = np.random.choice(list(range(len(self.rollout_opt_pairs[task]))), min(self.num_conds, len(self.rollout_opt_pairs[task])), replace=False)
             opt_samples = []
             for i in inds:
                 opt_sample, old_samples = self.rollout_opt_pairs[task][i]
@@ -780,9 +779,9 @@ class RolloutServer(object):
         if self.config['state_select'] == 'end':
             return path[-1].get_X(path[-1].T-1)
         elif self.config['state_select'] == 'random':
-            ind = np.random.choice(range(len(path)))
+            ind = np.random.choice(list(range(len(path))))
             step = path[ind]
-            ind = np.random.choice(range(step.T))
+            ind = np.random.choice(list(range(step.T)))
             return step.get_X(t=ind)
 
         return x0
@@ -808,7 +807,7 @@ class RolloutServer(object):
             elif mode == 'tail':
                 wts = np.exp(np.arange(len(path)) / 5.)
                 wts /= np.sum(wts)
-                s = np.random.choice(range(len(path)), p=wts)
+                s = np.random.choice(list(range(len(path))), p=wts)
                 t = np.random.randint(path[s].T)
 
             else:
@@ -818,7 +817,7 @@ class RolloutServer(object):
             self.agent.reset_to_state(x0)
             self.agent.store_x_hist(path[s].get(STATE_HIST_ENUM, t=t))
             val, path, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=False)
-            print('Plan from fail?', plan, val, len(path), self.id)
+            print(('Plan from fail?', plan, val, len(path), self.id))
             if augment and type(plan) is Plan:
                 self.agent.resample_hl_plan(plan, targets)
 
@@ -841,7 +840,7 @@ class RolloutServer(object):
                 return
 
             self.update_primitive(samples)
-            with open(self.ff_data_file.format(self.cur_step, self.id), 'w+') as f:
+            with open(self.ff_data_file.format(self.cur_step, self.id), 'wb+') as f:
                 pickle.dump(samples, f)
 
 
@@ -859,11 +858,11 @@ class RolloutServer(object):
                 chol_pol_covar[task] = np.eye(self.agent.dU) # self.alg_map[task].cur[0].traj_distr.chol_pol_covar
             else:
                 chol_pol_covar[task] = self.policy_opt.task_map[task_name]['policy'].chol_pol_covar
-          
-        rollout_policies = {task: DummyPolicy(task, 
-                                              self.policy_call, 
+
+        rollout_policies = {task: DummyPolicy(task,
+                                              self.policy_call,
                                               chol_pol_covar=chol_pol_covar[task],
-                                              scale=self.policy_opt.task_map[task if task in self.policy_opt.valid_scopes else 'control']['policy'].scale) 
+                                              scale=self.policy_opt.task_map[task if task in self.policy_opt.valid_scopes else 'control']['policy'].scale)
                                   for task in self.agent.task_list}
         self.agent.policies = rollout_policies
         for mcts in self.mcts:
@@ -888,11 +887,11 @@ class RolloutServer(object):
                 chol_pol_covar[task] = np.eye(self.agent.dU) # self.alg_map[task].cur[0].traj_distr.chol_pol_covar
             else:
                 chol_pol_covar[task] = self.policy_opt.task_map[task_name]['policy'].chol_pol_covar
-          
-        rollout_policies = {task: DummyPolicy(task, 
-                                              self.policy_call, 
+
+        rollout_policies = {task: DummyPolicy(task,
+                                              self.policy_call,
                                               chol_pol_covar=chol_pol_covar[task],
-                                              scale=self.policy_opt.task_map[task if task in self.policy_opt.valid_scopes else 'control']['policy'].scale) 
+                                              scale=self.policy_opt.task_map[task if task in self.policy_opt.valid_scopes else 'control']['policy'].scale)
                                   for task in self.agent.task_list}
         self.agent.policies = rollout_policies
         start_time = time.time()
@@ -902,7 +901,7 @@ class RolloutServer(object):
         # if 'rollout_server_'+str(self.id) not in os.popen("rosnode list").read():
         #     print "\n\nRestarting dead ros node: rollout server\n\n", self.id
         #     rospy.init_node('rollout_server_'+str(self.id))
-        
+
         # self.renew_publisher()
 
         task_costs = {}
@@ -971,7 +970,7 @@ class RolloutServer(object):
 
                 if mcts.n_runs >= self.steps_to_replace or mcts.n_success >= self.success_to_replace:
                     mcts.reset()
-                
+
             ### Run an update step of the algorithm if there are any waiting rollouts that already have an optimized result from the MP server
             # self.run_opt_queue()
             # for task in self.agent.task_list:
@@ -1022,12 +1021,12 @@ class RolloutServer(object):
             # if time.time() - start_t > 1:
             #     print('Time to finish alg iteration', time.time() - start_t)
 
-            if len(costs.keys()):
+            if len(list(costs.keys())):
                 self.latest_traj_costs.clear()
                 self.latest_traj_costs.update(costs)
 
             if (time.time() - self.last_log_t > 120) and self.rollout_log is not None:
-                info = {'id': self.id, 
+                info = {'id': self.id,
                         'n_opt_calls': self.n_opt_calls,
                         'n_steps': self.n_steps,
                         'cur_step': self.cur_step,
@@ -1058,7 +1057,7 @@ class RolloutServer(object):
                     path = random.choice(ref_paths)
                     abs_dev, perc_dev = self._log_hl_solve_dev(path)
                     ll_dev = self._log_ll_solve_dev(path)
-                info = {'id': self.id, 
+                info = {'id': self.id,
                         'n_success': self.n_success,
                         'n_opt_calls': self.n_opt_calls,
                         'n_steps': self.n_steps,
@@ -1101,7 +1100,7 @@ class RolloutServer(object):
 
     def test_hl(self, rlen=None, save=True, ckpt_ind=None, restore=False, debug=False, save_fail=False):
         if ckpt_ind is not None:
-            print('Rolling out for index', ckpt_ind)
+            print(('Rolling out for index', ckpt_ind))
 
         if restore:
             self.policy_opt.restore_ckpts(ckpt_ind)
@@ -1120,16 +1119,16 @@ class RolloutServer(object):
                 chol_pol_covar[task] = np.eye(self.agent.dU) # self.alg_map[task].cur[0].traj_distr.chol_pol_covar
             else:
                 chol_pol_covar[task] = self.policy_opt.task_map[task_name]['policy'].chol_pol_covar
-          
-        rollout_policies = {task: DummyPolicy(task, 
-                                              self.policy_call, 
+
+        rollout_policies = {task: DummyPolicy(task,
+                                              self.policy_call,
                                               chol_pol_covar=chol_pol_covar[task],
-                                              scale=self.policy_opt.task_map[task if task in self.policy_opt.valid_scopes else 'control']['policy'].scale) 
+                                              scale=self.policy_opt.task_map[task if task in self.policy_opt.valid_scopes else 'control']['policy'].scale)
                                   for task in self.agent.task_list}
         self.mcts[0].rollout_policy = rollout_policies
         prim_opts = self.agent.prob.get_prim_choices()
         if OBJ_ENUM not in prim_opts: return
-        n_targs = range(len(prim_opts[OBJ_ENUM]))
+        n_targs = list(range(len(prim_opts[OBJ_ENUM])))
         res = []
         ns = [self.config['num_targs']]
         if self.config['curric_thresh'] > 0:
@@ -1170,10 +1169,10 @@ class RolloutServer(object):
         if all([s.opt_strength == 0 for s in path]): self.hl_data.append(res)
         if save:
             if val > 1-1e-2:
-                print('Rollout succeeded in test! With pre?', self.check_precond)
+                print(('Rollout succeeded in test! With pre?', self.check_precond))
             # if self.use_qfunc: self.log_td_error(path)
             np.save(self.hl_test_log.format('pre_' if self.check_precond else '', 'rerun_' if ckpt_ind is not None else ''), np.array(self.hl_data))
-           
+
         if val < 1:
             fail_pt = {'time': time.time() - self.start_t,
                         'no': self.config['num_objs'],
@@ -1195,17 +1194,17 @@ class RolloutServer(object):
                     f.write('\n')
         if debug:
             if val < 1:
-                print('failed for', x0, [s.task for s in path])
+                print(('failed for', x0, [s.task for s in path]))
                 for s in path:
                     # print(s.task, s.get(STATE_ENUM, t=0))
-                    print(s.task, s.get_val_obs(t=0))
+                    print((s.task, s.get_val_obs(t=0)))
             else:
-                print('succeeded for', path[0].get_X(t=0))
-                print('succeeded for', path[0].get_X(t=0))
-                print('path len:', len(path))
-            print('n_success', len([d for d in self.hl_data if d[0][0] > 1-1e-3]))
-            print('n_true_success', len([d for d in self.hl_data if d[0][2] > 1-1e-3]))
-            print('n_runs', len(self.hl_data))
+                print(('succeeded for', path[0].get_X(t=0)))
+                print(('succeeded for', path[0].get_X(t=0)))
+                print(('path len:', len(path)))
+            print(('n_success', len([d for d in self.hl_data if d[0][0] > 1-1e-3])))
+            print(('n_true_success', len([d for d in self.hl_data if d[0][2] > 1-1e-3])))
+            print(('n_runs', len(self.hl_data)))
         if self.render:
             self.save_video(path, true_val > 0)
         self.last_hl_test = time.time()
@@ -1340,7 +1339,7 @@ class RolloutServer(object):
 
         for t in range(sample.T):
             x = sample.get(STATE_ENUM, t)
-            inds = np.random.permutation(range(len(self.label_options)))
+            inds = np.random.permutation(list(range(len(self.label_options))))
             for i in inds:
                 l = self.label_options[i]
                 cost = self.agent.cost_f(x, l, sample.condition, active_ts=(0,0), targets=sample.targets)
@@ -1411,7 +1410,7 @@ class RolloutServer(object):
                 tgt_prc = np.concatenate((tgt_prc, prc))
                 tgt_wt = np.concatenate((tgt_wt, wt))
                 tgt_mu = np.concatenate((tgt_mu, mu))
-        
+
         ref_acts = np.tile([self.agent.get_encoded_tasks()], [len(tgt_mu), 1, 1])
         if len(tgt_mu):
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'value', 1, acts=acts, ref_acts=ref_acts, terminal=done)
@@ -1442,13 +1441,13 @@ class RolloutServer(object):
                 obs_data = np.concatenate((obs_data, obs))
                 prc = np.tile(np.eye(dP), (sample.T,1,1))
                 tgt_prc = np.concatenate((tgt_prc, prc))
-            
+
         return obs_data, tgt_mu, tgt_prc, tgt_wt
 
 
     def update_primitive(self, samples):
         dP, dO = self.agent.dPrimOut, self.agent.dPrim
-        dOpts = len(self.agent.prob.get_prim_choices().keys())
+        dOpts = len(list(self.agent.prob.get_prim_choices().keys()))
         ### Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dOpts)), np.zeros((0))
@@ -1463,7 +1462,7 @@ class RolloutServer(object):
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs = sample.get_prim_obs()
             if np.any(np.isnan(obs)):
-                 print(obs, sample.task, 'SAMPLE')
+                print((obs, sample.task, 'SAMPLE'))
             obs_data = np.concatenate((obs_data, obs))
             prc = np.concatenate([self.agent.get_mask(sample, enum) for enum in self.config['prim_out_include']], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
             if not self.config['hl_mask']:
@@ -1482,7 +1481,7 @@ class RolloutServer(object):
 
                 # prc = np.ones(prc.shape) # np.concatenate([[1.] for enum in self.config['prim_out_include']], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
                 tgt_prc = np.concatenate((tgt_prc, prc))
-        ''' 
+        '''
         obs_data = obs_data[::self.check_prim_t]
         tgt_mu = tgt_mu[::self.check_prim_t]
         tgt_prc = tgt_prc[::self.check_prim_t]
@@ -1491,7 +1490,7 @@ class RolloutServer(object):
         if len(tgt_mu):
             print('Sending update to primitive net')
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', 1)
-           
+
 
     def gmm_inf(self, gmm, sample):
         dux = self.agent.symbolic_bound + self.agent.dU
@@ -1505,7 +1504,7 @@ class RolloutServer(object):
 
     def check_traj_cost(self, traj, task, targets=[], active_ts=None):
         if np.any(np.isnan(np.array(traj))):
-           raise Exception('Nans in trajectory passed')
+            raise Exception('Nans in trajectory passed')
         plan = self.agent.plans[task]
         if active_ts is None:
             active_ts = (1, plan.horizon-1)
@@ -1523,19 +1522,19 @@ class RolloutServer(object):
                     param.fix_attr(attr, (t,t))
                     if attr == 'pose' and (param_name, 'rotation') not in plan.state_inds and hasattr(param, 'rotation'):
                         param.rotation[:, t] = 0
-                    
+
                     if attr == 'pose':
                         init_target = '{0}_init_target'.format(param_name)
                         if init_target in plan.params:
                             plan.params[init_target].value[:, 0] = param.pose[:, 0]
 
-        for p in plan.params.values():
+        for p in list(plan.params.values()):
             if p.is_symbol():
                 p.free_all_attr((t,t))
         # Take a quick solve to resolve undetermined symbolic values
         self.solver._backtrack_solve(plan, time_limit=2, max_priority=-1, task=task)
         plan.store_free_attrs(old_free_attrs)
-       
+
         viols = plan.check_cnt_violation(active_ts=active_ts)
         for i in range(len(viols)):
             if np.isnan(viols[i]):
@@ -1553,7 +1552,7 @@ class RolloutServer(object):
                 prim_info.append(np.c_[s.get(FACTOREDTASK_ENUM), path2[i].get(FACTOREDTASK_ENUM)].tolist())
             else:
                 prim_info.append(s.get(FACTOREDTASK_ENUM).tolist())
-        
+
         for i, s in enumerate(path1):
             if i < len(path2):
                 prim_info.append(np.c_[s.get(STATE_ENUM), path2[i].get(STATE_ENUM)].round(4).tolist())
@@ -1581,8 +1580,7 @@ class RolloutServer(object):
                 else:
                     d += np.linalg.norm(traj[t+1][inds] - traj[t][inds])
         interp = scipy.interpolate.interp1d(xpts, fpts)
-        
+
         x = np.linspace(0, d, int(d / vel))
         out = interp(x)
         return out
-        

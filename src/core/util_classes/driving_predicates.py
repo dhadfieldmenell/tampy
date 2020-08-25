@@ -34,7 +34,7 @@ def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
         if param in attr_inds:
             res[param].extend(val[inds].flatten().tolist())
             attr_inds[param].append((attr_name, inds, t))
-            
+
         else:
             res[param] = val[inds].flatten().tolist()
             attr_inds[param] = [(attr_name, inds, t)]
@@ -55,7 +55,7 @@ class HLPred(DrivingPredicate):
         val = np.zeros((2, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
-        super(HLPred, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=-2)    
+        super(HLPred, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=-2)
 
 class HLNoCollisions(HLPred):
     def __init__(self, name, params, expected_param_types, env=None):
@@ -128,7 +128,7 @@ class YValid(DynamicPredicate):
             grad = np.zeros((1, 14))
             grad[0,8] = -GRAD_COEFF
             dyn_grads = grad_y_new_from_y_theta_new_v_new(self.wheelbase, x[1], x[2], x[3])
-            grad[0,1], grad[0,2], grad[0,3] = dyn_grads 
+            grad[0,1], grad[0,2], grad[0,3] = dyn_grads
             return DYNAMICS_GRAD_COEFF * grad
 
         self.f = f
@@ -170,7 +170,7 @@ class VelValid(DynamicPredicate):
         self.f = f
         self.grad = grad
         super(VelValid, self).__init__(name, params, expected_param_types, env)
-        
+
 class PhiValid(DynamicPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         def f(x):
@@ -238,7 +238,7 @@ class VelNewValidPxDotThetaNew(DynamicPredicate):
         elif t == action.active_timesteps[0]:
             next_x = f_x_new_from_x_theta_new_v_new(self.wheelbase, x1, theta, vel)
             add_to_attr_inds_and_res(t+1, attr_inds, res, self.obj, [('xy', np.array([next_x, self.obj.xy[1,t+1]]))])
-        
+
         else:
             next_x = f_x_new_from_x_theta_new_v_new(self.wheelbase, x1, theta, vel)
             avg_next_x = (next_x + x2) / 2.
@@ -297,7 +297,7 @@ class VelNewValidPyDotThetaNew(DynamicPredicate):
         elif t == action.active_timesteps[0]:
             next_y = f_y_new_from_y_theta_new_v_new(self.wheelbase, y1, theta, vel)
             add_to_attr_inds_and_res(t+1, attr_inds, res, self.obj, [('xy', np.array([self.obj.xy[0,t+1], next_y]))])
-        
+
         else:
             next_y = f_y_new_from_y_theta_new_v_new(self.wheelbase, y1, theta, vel)
             avg_next_y = (next_y + y2) / 2.
@@ -323,7 +323,7 @@ class VelNewValidThetaDotPhiNew(DynamicPredicate):
             grad = np.zeros((1, 14))
             grad[0, 3] = -GRAD_COEFF
             if np.abs(np.sin(x[4])) < ZERO_TOL: return DYNAMICS_GRAD_COEFF * grad
-            dyn_grads = grad_v_new_from_theta_dot_phi_new(self.wheelbase, x[9] - x[2], x[4]) 
+            dyn_grads = grad_v_new_from_theta_dot_phi_new(self.wheelbase, x[9] - x[2], x[4])
             grad[0,2], grad[0,9], grad[0,4] = -dyn_grads[0], dyn_grads[0], dyn_grads[1]
             return DYNAMICS_GRAD_COEFF * grad
 
@@ -346,7 +346,7 @@ class PhiNewValidThetaDotVelNew(DynamicPredicate):
             x = x.flatten()
             grad = np.zeros((1, 14))
             grad[0, 4] = -GRAD_COEFF
-            if np.abs(x[3]) < ZERO_TOL: return DYNAMICS_GRAD_COEFF * grad 
+            if np.abs(x[3]) < ZERO_TOL: return DYNAMICS_GRAD_COEFF * grad
             dyn_grads = grad_phi_new_from_theta_dot_v_new(self.wheelbase, x[9] - x[2], x[3])
             grad[0,2], grad[0,9], grad[0,3] = -dyn_grads[0], dyn_grads[0], dyn_grads[1]
             return DYNAMICS_GRAD_COEFF * grad
@@ -380,7 +380,7 @@ class PhiNewValidThetaDotVelNew(DynamicPredicate):
         elif t == action.active_timesteps[0]:
             next_theta = f_theta_new_from_theta_v_new_phi_new(self.wheelbase, theta1, vel, phi)
             add_to_attr_inds_and_res(t+1, attr_inds, res, self.obj, [('theta', np.array([next_theta]))])
-        
+
         else:
             next_theta = f_theta_new_from_theta_v_new_phi_new(self.wheelbase, theta1, vel, phi)
             avg_next_theta = (next_theta + theta2) / 2.
@@ -436,7 +436,7 @@ class At(DrivingPredicate):
 
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=-2)
         self.spacial_anchor = True
-    
+
 class VehicleAt(At):
     pass
 
@@ -706,7 +706,7 @@ class XY_Limit(DrivingPredicate):
         A = np.zeros((4,4))
         A[:2,:2] = -np.eye(2)
         A[:2,2:4] = np.eye(2)
-        A[2:4,:2] = -np.eye(2) 
+        A[2:4,:2] = -np.eye(2)
         b, val = np.zeros((4, 1)), np.zeros((4, 1))
         e = LEqExpr(AffExpr(A, b), val)
         super(XY_Limit, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=-2)
@@ -774,7 +774,7 @@ class CollisionPredicate(DrivingPredicate):
             self.obj1.geom.update_xy_theta(0, old_pose1[0], old_pose1[1], old_pose1[2])
             self.obj2.geom.update_xy_theta(0, old_pose2[0], old_pose2[1], old_pose2[2])
             return COLLISION_COEFF * collision_vector(obj1_pts, obj2_pts)
-        
+
         def grad(obj1_body, obj2_body):
             grad = np.zeros((2,6))
             grad[:, :2] = -np.eye(2)
@@ -851,7 +851,7 @@ class PathCollisionPredicate(DrivingPredicate):
             self.obj1.geom.update_xy_theta(1, old_1_pose1[0], old_1_pose1[1], old_1_pose1[2])
             self.obj2.geom.update_xy_theta(1, old_1_pose2[0], old_1_pose2[1], old_1_pose2[2])
             return COLLISION_COEFF * collision_vector(obj1_pts, obj2_pts)
-        
+
         def grad(obj1_body, obj2_body):
             grad = np.zeros((2,12))
             grad[:, :2] = -np.eye(2)
@@ -925,7 +925,7 @@ class Follow(DrivingPredicate):
                                  (self.v2, [("xy", np.array([0,1], dtype=np.int)),
                                             ("theta", np.array([0], dtype=np.int))]),
                                  (self.dist, [("value", np.array([0], dtype=np.int))])])
-        
+
         def f(x):
             old_v1_pose = self.v1.geom.update_xy_theta(x[0], x[1], x[5], 0)
             front_x, front_y = self.v1.geom.vehicle_front()
@@ -964,7 +964,7 @@ class StopAtStopSign(DrivingPredicate):
                 return np.zeros((2,1))
 
             direction = self.sign.geom.road.direction
-            rot_mat = np.array([[np.cos(direction), -np.sin(direction)], 
+            rot_mat = np.array([[np.cos(direction), -np.sin(direction)],
                                 [np.sin(direction), np.cos(direction)]])
             dist_vec = self.sign.geom.loc - x[:2]
             rot_dist_vec = rot_mat.dot(dist_vec)
@@ -990,7 +990,7 @@ class ExternalDriveDownRoad(DrivingPredicate):
 
         if self.obj.geom.road:
             direction = self.obj.geom.road.direction
-            rot_mat = np.array([[np.cos(direction), -np.sin(direction)], 
+            rot_mat = np.array([[np.cos(direction), -np.sin(direction)],
                                 [np.sin(direction), np.cos(direction)]])
             self.dir_vec = rot_mat.dot([1,0])
         else:

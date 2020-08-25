@@ -316,5 +316,3 @@ def tf_cond_network(dim_input=27, dim_output=2, batch_size=25, network_config=No
     loss_out = get_loss_layer(mlp_out=mlp_applied, task=action, boundaries=boundaries)
 
     return TfMap.init_from_lists([nn_input, action, precision], [prediction], [loss_out]), fc_vars, []
-
-

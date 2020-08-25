@@ -12,10 +12,10 @@ import core.util_classes.hsr_constants as const
 from core.util_classes.items import Box, Can, Sphere
 from core.util_classes.param_setup import ParamSetup
 # Attribute map used in hsr domain. (Tuple to avoid changes to the attr_inds)
-ATTRMAP = {"Robot": (("arm", np.array(range(5), dtype=np.int)),
+ATTRMAP = {"Robot": (("arm", np.array(list(range(5)), dtype=np.int)),
                      ("gripper", np.array([0], dtype=np.int)),
                      ("pose", np.array([0, 1, 2], dtype=np.int))),
-           "RobotPose": (("arm", np.array(range(5), dtype=np.int)),
+           "RobotPose": (("arm", np.array(list(range(5)), dtype=np.int)),
                          ("gripper", np.array([0], dtype=np.int)),
                          ("value", np.array([0, 1, 2], dtype=np.int))),
            "Rotation": [("value", np.array([0], dtype=np.int))],
@@ -114,8 +114,8 @@ class HSRStacked(robot_predicates.ExprPredicate):
         self.attr_dim = 12
         self.bottom_can = params[0]
         self.top_can = params[1]
-        A = np.r_[np.c_[np.eye(3), np.zeros((3,3)), -np.eye(3), np.zeros((3,3))], 
-                  np.c_[np.zeros((3,3)), np.eye(3), np.zeros((3,6))], 
+        A = np.r_[np.c_[np.eye(3), np.zeros((3,3)), -np.eye(3), np.zeros((3,3))],
+                  np.c_[np.zeros((3,3)), np.eye(3), np.zeros((3,6))],
                   np.c_[np.zeros((3,9)), np.eye(3)]]
 
         b = np.zeros((self.attr_dim/2,1))
@@ -1941,10 +1941,10 @@ class HSRClothTargetInBasket(ExprPredicate):
 class HSRObjectWithinRotLimit(robot_predicates.ObjectWithinRotLimit):
     # HSRObjectWithinRotLimit Object
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-            self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][1]])])
-            self.attr_dim = 3
-            self.object = params[0]
-            super(HSRObjectWithinRotLimit, self).__init__(name, params, expected_param_types, env, debug)
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][1]])])
+        self.attr_dim = 3
+        self.object = params[0]
+        super(HSRObjectWithinRotLimit, self).__init__(name, params, expected_param_types, env, debug)
 
 class HSRGripperLevel(robot_predicates.GrippersLevel):
     # HSRLeftGripperDownRot Robot
@@ -2007,4 +2007,3 @@ class HSRGripperLevel(robot_predicates.GrippersLevel):
         jac = np.zeros((1, 11))
         jac[0,:5] = arm_jac
         return jac
-

@@ -34,7 +34,7 @@ def planing(env, robot, params, traj, planner):
         traj_list.append(np.round(dofvalues, 3))
     t1 = time.time()
     total = t1-t0
-    print "{} Proforms: {}s".format(planner, total)
+    print("{} Proforms: {}s".format(planner, total))
     return traj_list
 
 class TestRobots(unittest.TestCase):
@@ -81,11 +81,11 @@ class TestRobots(unittest.TestCase):
             can_trans[:3,:3] = target_trans[:3,:3].dot(matrixFromAxisAngle([theta,0,0])[:3,:3])
             solution =  manip.FindIKSolutions(IkParameterization(can_trans, iktype), IkFilterOptions.CheckEnvCollisions)
             if len(solution) > 0:
-                print "Solution found with pose and rotation:"
-                print OpenRAVEBody.obj_pose_from_transform(can_trans)
+                print("Solution found with pose and rotation:")
+                print(OpenRAVEBody.obj_pose_from_transform(can_trans))
             else:
-                print "Solution not found with pose and rotation:"
-                print OpenRAVEBody.obj_pose_from_transform(can_trans)
+                print("Solution not found with pose and rotation:")
+                print(OpenRAVEBody.obj_pose_from_transform(can_trans))
             for sols in solution:
                 dof[10:17] = sols
                 robot.SetActiveDOFValues(dof)
@@ -125,7 +125,7 @@ class TestRobots(unittest.TestCase):
                                                    '../domains/baxter_domain/baxter_probs/grasp_1234_1.prob')
 
         env = Environment() # create openrave environment
-        objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
+        objLst = [i[1] for i in list(params.items()) if not i[1].is_symbol()]
         view = OpenRAVEViewer.create_viewer(env)
         view.draw(objLst, 0, 0.7)
         can_body = view.name_to_rave_body["can0"]
@@ -175,7 +175,7 @@ class TestRobots(unittest.TestCase):
                        '../domains/laundry_domain/laundry_probs/laundry_env.prob')
         env = problem.env
         viewer = OpenRAVEViewer.create_viewer(env)
-        objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
+        objLst = [i[1] for i in list(params.items()) if not i[1].is_symbol()]
         viewer.draw(objLst, 0, 0.7)
         robot = params['baxter']
         basket = params['basket']

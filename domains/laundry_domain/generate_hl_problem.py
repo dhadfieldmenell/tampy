@@ -324,4 +324,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    print "Problem File Generated Successfully "
+    print("Problem File Generated Successfully ")

@@ -19,4 +19,3 @@ def get_vector(num_cans):
         target_vector_include['cloth{0}_end_target'.format(i)] = ['value']
 
     return state_vector_include, action_vector_include, target_vector_include
-

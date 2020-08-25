@@ -20,10 +20,10 @@ class TestParseProblemConfig(unittest.TestCase):
         #The number of params and preds keeps on changing
         self.assertEqual(len(problem.init_state.params), 13)
         self.assertEqual(len(problem.init_state.preds), 17)
-        self.assertEqual(sum(1 for k, p in problem.init_state.params.items() if p.get_type() == "Can"), 2)
-        self.assertEqual(sum(1 for k, p in problem.init_state.params.items() if p.get_type() == "Target"), 3)
-        self.assertEqual(sum(1 for k, p in problem.init_state.params.items() if not p.is_symbol()), 4)
-        self.assertEqual(sum(1 for k, p in problem.init_state.params.items() if p.name.startswith("pdp")), 3)
+        self.assertEqual(sum(1 for k, p in list(problem.init_state.params.items()) if p.get_type() == "Can"), 2)
+        self.assertEqual(sum(1 for k, p in list(problem.init_state.params.items()) if p.get_type() == "Target"), 3)
+        self.assertEqual(sum(1 for k, p in list(problem.init_state.params.items()) if not p.is_symbol()), 4)
+        self.assertEqual(sum(1 for k, p in list(problem.init_state.params.items()) if p.name.startswith("pdp")), 3)
 
     def test_goal_test(self):
         problem = parse_problem_config.ParseProblemConfig.parse(self.p_c, self.domain)
@@ -31,7 +31,7 @@ class TestParseProblemConfig(unittest.TestCase):
         self.assertFalse(problem.goal_test())
         ## want can0 at target1 and can1 at target0
         ## target1 is at 7, 6; target0 is at 2, 3
-        for k, p in problem.init_state.params.items():
+        for k, p in list(problem.init_state.params.items()):
             if k == "can0":
                 p.pose = matrix.Vector2d((7, 6))
             if k == "can1":
@@ -54,7 +54,7 @@ class TestParseProblemConfig(unittest.TestCase):
         self.assertEqual(cm.exception.message, "Problem file needs objects.")
 
     def test_missing_prim_preds(self):
-	p2 = self.p_c.copy()
+        p2 = self.p_c.copy()
         p2["Init"] = ";(At can0 target0), (InContact pr2 gp_can0 can0)"
         with self.assertRaises(ProblemConfigException) as cm:
             problem = parse_problem_config.ParseProblemConfig.parse(p2, self.domain)
@@ -110,4 +110,4 @@ class TestParseProblemConfig(unittest.TestCase):
     #     self.assertEqual(cm.exception.message, "Parameter 'target3' for predicate type 'At' not defined in domain file.")
 
 if __name__ == "__main__":
-	unittest.main()
+    unittest.main()

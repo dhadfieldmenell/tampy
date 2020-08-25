@@ -144,11 +144,11 @@ def _test_resampling(test_obj, n_resamples=0):
     _, _, t = plan.get_failed_pred()
 
     # import ipdb; ipdb.set_trace()
-    print(plan.satisfied())
+    print((plan.satisfied()))
 
 
 def _test_plan(test_obj, plan, n_resamples=10):
-    print "testing plan: {}".format(plan.actions)
+    print("testing plan: {}".format(plan.actions))
     callback = None
     viewer = None
     """
@@ -188,7 +188,7 @@ def _test_plan(test_obj, plan, n_resamples=10):
     action_execution.execute_action(action)
 
 
-    print(plan.get_failed_preds())
+    print((plan.get_failed_preds()))
     return timesteps
     # assert plan.satisfied()
 

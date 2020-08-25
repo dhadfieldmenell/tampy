@@ -1,4 +1,4 @@
-import cPickle as pickle
+import pickle as pickle
 import os
 import pandas as pd
 import matplotlib
@@ -54,7 +54,7 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False, tdelta=TDE
                     for k in exclude:
                         if dir_name.find(k) >= 0 or dir_prefix.find(k) >= 0:
                             skip = True
-                            print('skipping', dir_name)
+                            print(('skipping', dir_name))
                     if skip: continue
 
                 full_dir = dir_prefix + dir_name
@@ -64,7 +64,7 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False, tdelta=TDE
                 used.append(full_exp)
                 i = 0
                 data = []
-                while i < 20: 
+                while i < 20:
                     cur_dir = '{0}_{1}'.format(full_exp, i)
                     if not os.path.isdir(cur_dir):
                         i += 1
@@ -79,7 +79,7 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False, tdelta=TDE
                         info = [f for f in fnames if f.find('hl_test') >= 0 and f.endswith('test_log.npy')]
                     if len(info):
                         for fname in info:
-                            print('Loading data from', fname, full_dir)
+                            print(('Loading data from', fname, full_dir))
                             data.append(np.load(cur_dir+'/'+fname))
 
                         label = gen_label(cur_dir, label_vars)
@@ -91,7 +91,7 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False, tdelta=TDE
                                 no, nt = int(pt[4]), int(pt[5])
                                 all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'N': pt[6], 'key': (no, nt), 'description': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9]})
                                 all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta+1)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'N': pt[6], 'key': (no, nt), 'description': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9]})
-                            
+
                     i += 1
     return all_data
 
@@ -172,7 +172,7 @@ def get_rollout_data(keywords=[], nfiles=20, exclude=[]):
                         r_data = eval(next_data)
                         rollout_data[r] = r_data
                     else:
-                        print('no data for', r)
+                        print(('no data for', r))
                 data[k][full_exp][full_dir] = rollout_data
 
     return data
@@ -197,7 +197,7 @@ def gen_first_success_plots(x_var='time'):
             rollout_data = {}
             ts_to_data = {}
             for i, r in enumerate(rollout_logs):
-                print(exp_name, dir_name, r)
+                print((exp_name, dir_name, r))
                 with open(full_dir+'/'+r, 'r') as f:
                     next_data = f.read()
                 if len(next_data):
@@ -212,7 +212,7 @@ def gen_first_success_plots(x_var='time'):
             xs = [np.mean([c[x_var] for c in ts_to_data[n]]) for n in ts_to_data]
             ys = [np.mean([c['ind'] for c in ts_to_data[n]]) for n in ts_to_data]
             all_data.append((exp_name+dir_name, xs, ys))
-                
+
     plt.title('Steps to first success')
     plt.xlabel(x_var)
     plt.ylabel('Avg. step of first success')
@@ -253,7 +253,7 @@ def get_td_loss(keywords=[], exclude=[], pre=False):
             full_exp = full_dir[:-1]
             i = 0
             data = []
-            while i < 20: 
+            while i < 20:
                 if not os.path.isdir(full_exp+str(i)):
                     i += 1
                     continue
@@ -270,12 +270,12 @@ def get_td_loss(keywords=[], exclude=[], pre=False):
                     data[-1] = np.array(data[-1])
                 i += 1
 
-            if not len(data): 
-                print('skipping', full_exp)
+            if not len(data):
+                print(('skipping', full_exp))
                 continue
             dlen = min([len(d) for d in data])
             dmax = max([len(d) for d in data])
-            print('Gathering data for', full_exp, 'length:', dlen, 'all len:', [len(d) for d in data])
+            print(('Gathering data for', full_exp, 'length:', dlen, 'all len:', [len(d) for d in data]))
             end = False
             cur_t = 0
             while not end:
@@ -310,7 +310,7 @@ def get_td_loss(keywords=[], exclude=[], pre=False):
                         exp_data[no, nt].append((full_exp, cur_t, val))
             '''
         for no, nt in exp_data:
-            print('Plotting', no, nt, exp_name)
+            print(('Plotting', no, nt, exp_name))
             pd_frame = pd.DataFrame(exp_data[no, nt], columns=['exp_name', 'time', 'value'])
             sns.set()
             sns_plot = sns.relplot(x='time', y='value', hue='exp_name', kind='line', data=pd_frame)
@@ -357,7 +357,7 @@ def get_fail_info(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', 
                 for k in exclude:
                     if dir_name.find(k) >= 0 or dir_prefix.find(k) >= 0:
                         skip = True
-                        print('skipping', dir_name)
+                        print(('skipping', dir_name))
                 if skip: continue
 
             full_dir = dir_prefix + dir_name
@@ -366,7 +366,7 @@ def get_fail_info(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', 
             used.append(full_exp)
             i = 0
             data = []
-            while i < 20: 
+            while i < 20:
                 cur_dir = '{0}_{1}'.format(full_exp, i)
                 if not os.path.isdir(cur_dir):
                     i += 1
@@ -376,7 +376,7 @@ def get_fail_info(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', 
                 info = [f for f in fnames if f.find('failure') >= 0 and f.endswith('data.txt')]
                 if len(info):
                     for fname in info:
-                        print('Loading data from', fname)
+                        print(('Loading data from', fname))
                         with open(cur_dir+'/'+fname, 'r') as f:
                             data.append(f.read().splitlines())
 
@@ -398,9 +398,9 @@ def get_fail_info(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', 
                 i += 1
 
     for no, nt in targets:
-        print('Plotting', no, nt, exp_name)
+        print(('Plotting', no, nt, exp_name))
         pd_frame = pd.DataFrame(targets[no, nt], columns=['targets']) #'target_{0}'.format(i) for i in range(no)])
-        print(pd_frame['targets'].value_counts()[:10])
+        print((pd_frame['targets'].value_counts()[:10]))
         sns.set()
         plt.clf()
         sns_plot = sns.countplot(x="value", hue="variable", data=pd.melt(pd_frame))
@@ -449,7 +449,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                 for k in exclude:
                     if dir_name.find(k) >= 0 or dir_prefix.find(k) >= 0:
                         skip = True
-                        print('skipping', dir_name)
+                        print(('skipping', dir_name))
                 if skip: continue
 
             full_dir = dir_prefix + dir_name
@@ -458,7 +458,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
             used.append(full_exp)
             i = 0
             data = []
-            while i < 20: 
+            while i < 20:
                 cur_dir = '{0}_{1}'.format(full_exp, i)
                 if not os.path.isdir(cur_dir):
                     i += 1
@@ -473,7 +473,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                     info = [f for f in fnames if f.find('hl_test') >= 0 and f.endswith('test_log.npy')]
                 if len(info):
                     for fname in info:
-                        print('Loading data from', fname)
+                        print(('Loading data from', fname))
                         data.append(np.load(cur_dir+'/'+fname))
 
                     label = gen_label(cur_dir, label_vars)
@@ -486,7 +486,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                             if (no,nt) not in exp_len_data: exp_len_data[no,nt] = []
                             if (no,nt) not in exp_dist_data: exp_dist_data[no,nt] = []
                             if (no,nt) not in exp_true_data: exp_true_data[no,nt] = []
-                             
+
                             if xvar == 'time':
                                 xval = (pt[3] // tdelta) * tdelta
                                 if xval < max_t:
@@ -505,7 +505,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                                 if pt[0] > lenthresh:
                                     exp_len_data[no, nt].append((label, pt[6], pt[1]))
                             all_data.append({'time': (pt[3]//tdelta)*tdelta, 'value': pt[0], 'len': pt[1], 'dist': pt[2], 'N': pt[6], 'problem': '{0} object {1} goals'.format(no, nt), 'description': label, 'ind': i})
-                        
+
                 i += 1
 
     pd_frame = pd.DataFrame(all_data, columns=['time', 'description', 'N', 'value', 'len', 'dist', 'problem', 'ind'])
@@ -525,7 +525,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
     sns_plot.fig.add_axes((l+w+0.1, b, w, h))
     sns_plot_2 = sns.relplot(x=xvar, y='dist', hue='description', row='problem', kind='line', data=pd_frame, legend=False, ax=sns_plot.fig.axes[1])
     sns_plot.fig.axes[1].set_title('distance')
-   
+
     l, b, w, h = sns_plot.fig.axes[1]._position.bounds
     sns_plot.fig.add_axes((l+w+0.1, b, w, h))
     sns_plot_2 = sns.relplot(x=xvar, y='len', hue='description', row='problem', kind='line', data=pd_frame, legend=False, ax=sns_plot.fig.axes[2])
@@ -536,7 +536,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
     sns_plot.fig.savefig(SAVE_DIR+'/allgraphs_{0}_{1}.png'.format(keyid, lab), bbox_inches="tight")
 
     for no, nt in exp_data:
-        print('Plotting', no, nt, exp_name)
+        print(('Plotting', no, nt, exp_name))
         pd_frame = pd.DataFrame(exp_data[no, nt], columns=['exp_name', xvar, 'value'])
         sns.set()
         sns_plot = sns.relplot(x=xvar, y='value', hue='exp_name', kind='line', data=pd_frame)
@@ -550,7 +550,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
         sns_plot.fig.savefig(SAVE_DIR+'/{0}obj_{1}targ_val{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab), bbox_inches="tight")
 
     for no, nt in exp_len_data:
-        print('Plotting', no, nt, exp_name)
+        print(('Plotting', no, nt, exp_name))
         pd_frame = pd.DataFrame(exp_len_data[no, nt], columns=['exp_name', xvar, 'length'])
         sns.set()
         sns_plot = sns.relplot(x=xvar, y='length', hue='exp_name', kind='line', data=pd_frame)
@@ -562,7 +562,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
         sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_len{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
 
     for no, nt in exp_dist_data:
-        print('Plotting', no, nt, exp_name)
+        print(('Plotting', no, nt, exp_name))
         pd_frame = pd.DataFrame(exp_dist_data[no, nt], columns=['exp_name', xvar, 'disp'])
         sns.set()
         sns_plot = sns.relplot(x=xvar, y='disp', hue='exp_name', kind='line', data=pd_frame)
@@ -575,7 +575,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
 
 
     for no, nt in exp_true_data:
-        print('Plotting', no, nt, exp_name)
+        print(('Plotting', no, nt, exp_name))
         pd_frame = pd.DataFrame(exp_true_data[no, nt], columns=['exp_name', xvar, 'true'])
         sns.set()
         sns_plot = sns.relplot(x=xvar, y='true', hue='exp_name', kind='line', data=pd_frame)
@@ -598,7 +598,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0):
         # leg_labels = getattr(pd_frame, columns[0]).unique()
         for xv in xvars:
             for yv in yvars:
-                print('Plotting', xv, yv)
+                print(('Plotting', xv, yv))
                 if type(yv) not in (np.string_, str):
                     df = pd_frame.melt(id_vars=[xv, columns[0]], value_vars=yv, var_name='y_variable', value_name='value')
                     sns_plot = sns.relplot(x=xv, y='value', hue=columns[0], style="y_variable", kind='line', data=df, markers=True, dashes=False)
@@ -617,7 +617,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0):
             sns_plot = None
             for xv in xvars:
                 for yv in yvars:
-                    print('Plotting', xv, yv)
+                    print(('Plotting', xv, yv))
                     cur_y = yv
                     style = None
                     df = pd_frame
@@ -625,7 +625,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0):
                         df = pd_frame.melt(id_vars=[xv, columns[0]], value_vars=yv, var_name='y_variable', value_name='value')
                         style = 'y_variable'
                         cur_y = 'value'
-                        print('Combining', yv)
+                        print(('Combining', yv))
                     if sns_plot is None:
                         sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=style, kind='line', data=df, markers=True, dashes=False)
                         sns_plot.fig.set_figwidth(10)
@@ -648,7 +648,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0):
             sns_plot.fig.get_axes()[0].legend(bbox_to_anchor=[-0.05, -0.15], loc='upper left', prop={'size': 12})
             sns_plot.savefig(SAVE_DIR+'/{0}_{1}.png'.format(k, descr))
             sns.set()
-    print('PLOTTED for', descr)
+    print(('PLOTTED for', descr))
 
 def gen_label(exp_dir, label_vars=[]):
     if not len(label_vars) or not os.path.isfile(exp_dir+'/args.pkl'):
@@ -660,7 +660,7 @@ def gen_label(exp_dir, label_vars=[]):
     for v in label_vars:
         if v not in args: continue
         label += ' {0}_{1}'.format(v, args[v])
-    return label 
+    return label
 
 
 def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1., label_vars=[], ylabel='value', separate=True, keyind=3, exclude=[]):
@@ -697,7 +697,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1., label_vars=
                         yinds = []
                         for v in yvars:
                             if type(v) is not str:
-                                if hasattr(pt[v[0]], '__len__'): 
+                                if hasattr(pt[v[0]], '__len__'):
                                     for i in range(len(pt[v[0]])):
                                         for j in range(len(v)):
                                             yvals.append(pt[v[j]][i])
@@ -709,7 +709,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1., label_vars=
                                         inds_to_var[v[j]] = 1
 
                             else:
-                                if hasattr(pt[v], '__len__'): 
+                                if hasattr(pt[v], '__len__'):
                                     for i in range(len(pt[v])):
                                         yvals.append(pt[v][i])
                                     inds_to_var[v] = inds_to_var.get(v, len(pt[v]))
@@ -717,7 +717,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1., label_vars=
                                     yvals.append(pt[v])
                                     inds_to_var[v] = 1
                         key_data.append([label, keyword]+xvals+yvals)
-            print('Set data for', keyword, fullexp)
+            print(('Set data for', keyword, fullexp))
         data[keyword] = key_data
     yvar_labs = []
     flat_yvar_labs = []
@@ -751,5 +751,3 @@ label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] 
 gen_data_plots(xvar='time', yvar=[['success at end', 'success anywhere', 'optimal_rollout_success'], 'path length', 'distance from goal'], keywords=keywords, lab='test', label_vars=label_vars, separate=True, keyind=5, ylabel='rollout_res_obj2', exclude=[])
 gen_data_plots(xvar='time', yvar=[['val_component_loss', 'train_component_loss']], keywords=keywords, lab='control', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_control_net', exclude=[], inter=500)
 gen_data_plots(xvar='time', yvar=[['val_component_loss', 'train_component_loss']], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_primitive_net', exclude=[], inter=500)
-
-

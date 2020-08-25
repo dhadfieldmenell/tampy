@@ -1,4 +1,4 @@
-import cPickle as pickle
+import pickle as pickle
 import numpy as np
 import os
 
@@ -17,15 +17,15 @@ def retrain(rollout_server, hl_dir, ll_dir, maxlen=100000, incr=5000, rlen=5):
     cur_ind = 0
     key = 'primitive'
     while cur_ind < maxlen:
-        print('Loading data at ind', cur_ind)
-        rollout_server.policy_opt.store(obs[key][key][cur_ind:cur_ind+incr], 
-                                        mu[key][key][cur_ind:cur_ind+incr], 
-                                        prc[key][key][cur_ind:cur_ind+incr], 
+        print(('Loading data at ind', cur_ind))
+        rollout_server.policy_opt.store(obs[key][key][cur_ind:cur_ind+incr],
+                                        mu[key][key][cur_ind:cur_ind+incr],
+                                        prc[key][key][cur_ind:cur_ind+incr],
                                         wt[key][key][cur_ind:cur_ind+incr], key, key, val_ratio=-1)
         if cur_ind+incr < len(val_mu[key][key]):
-            rollout_server.policy_opt.store(val_obs[key][key][cur_ind:cur_ind+incr], 
-                                            val_mu[key][key][cur_ind:cur_ind+incr], 
-                                            val_prc[key][key][cur_ind:cur_ind+incr], 
+            rollout_server.policy_opt.store(val_obs[key][key][cur_ind:cur_ind+incr],
+                                            val_mu[key][key][cur_ind:cur_ind+incr],
+                                            val_prc[key][key][cur_ind:cur_ind+incr],
                                             val_wt[key][key][cur_ind:cur_ind+incr], key, key, val_ratio=1)
         updated = rollout_server.policy_opt.run_update([key])
         update_log_data(log_infos, rollout_server, cur_ind)
@@ -38,7 +38,7 @@ def retrain(rollout_server, hl_dir, ll_dir, maxlen=100000, incr=5000, rlen=5):
             rollout_server.test_hl(rlen=rlen, save=True, debug=False)
         if cur_ind > len(obs[key][key]): break
 
-    print('Finished retrain', cur_ind)
+    print(('Finished retrain', cur_ind))
 
 
 def retrain_hl_from_samples(policy_server, hl_dir):
@@ -56,9 +56,9 @@ def retrain_hl_from_samples(policy_server, hl_dir):
         psid = int(psid)
         val_ratio = 1. if psid >= 25 else -1.
         obs, mu, prc, wt = policy_server.get_prim_update(samples)
-        policy_server.policy_opt.store(obs, 
-                                        mu, 
-                                        prc, 
+        policy_server.policy_opt.store(obs,
+                                        mu,
+                                        prc,
                                         wt, key, key, val_ratio=val_ratio)
         policy_server.full_N += len(mu)
         policy_server.update_network() # policy_server.policy_opt.run_update()
@@ -76,9 +76,9 @@ def retrain_from_samples(rollout_server, hl_dir, ll_dir, maxlen=100000, incr=500
         for s in samples:
             s.agent = rollout_server.agent
         obs, mu, prc, wt = rollout_server.get_prim_update(samples)
-        rollout_server.policy_opt.store(obs, 
-                                        mu, 
-                                        prc, 
+        rollout_server.policy_opt.store(obs,
+                                        mu,
+                                        prc,
                                         wt, key, key)
         updated = rollout_server.policy_opt.run_update()
         if updated:
@@ -86,7 +86,7 @@ def retrain_from_samples(rollout_server, hl_dir, ll_dir, maxlen=100000, incr=500
             rollout_server.policy_opt.write_shared_weights([key])
         for _ in range(50):
             rollout_server.test_hl(rlen=rlen, save=True, debug=False)
-    print('Finished retrain', cur_ind)
+    print(('Finished retrain', cur_ind))
 
 
 def update_log_data(log_infos, rollout_server, full_N, time=0):
@@ -110,4 +110,3 @@ def update_log_data(log_infos, rollout_server, full_N, time=0):
     with open(policy_opt_log, 'w+') as f:
         f.write(str(log_infos))
     return log_infos
-

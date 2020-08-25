@@ -84,7 +84,7 @@ class TestPolicySolver(unittest.TestCase):
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         hls = hl_solver.FFSolver(d_c)
-        print "loading laundry problem..."
+        print("loading laundry problem...")
         p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/single_cloth_policy.prob')
 
         plans = []

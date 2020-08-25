@@ -53,7 +53,7 @@ class RewrdServer(object):
 
 
     def update_weights(self):
-        scopes = self.weights_to_store.keys()
+        scopes = list(self.weights_to_store.keys())
         for scope in scopes:
             save = self.id.endswith('0')
             data = self.weights_to_store[scope]
@@ -73,7 +73,7 @@ class RewrdServer(object):
         while len(self.update_queue):
             obs, task_path = self.update_queue.pop()
             update = self.reward_trainer.store(obs, task_path)
-            print 'Reward Weights updated:', update, self.task
+            print('Reward Weights updated:', update, self.task)
             if update:
                 msg = UpdateTF()
                 msg.scope = 'reward'

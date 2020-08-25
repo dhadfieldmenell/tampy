@@ -5,6 +5,7 @@ import core.util_classes.pr2_constants as const
 from sco.expr import Expr
 import math
 import numpy as np
+from functools import reduce
 
 PI = np.pi
 
@@ -300,7 +301,7 @@ def ee_reachable_resample(pred, negated, t, plan):
                                                   dist=OBJ_RING_SAMPLING_RADIUS,
                                                   callback=plot_time_step_callback)
         if base_pose is None:
-            print "we should always be able to sample a collision-free base pose"
+            print("we should always be able to sample a collision-free base pose")
             st()
         # generate collision free arm pose
         target_rot = np.array([get_random_theta(), 0, 0])
@@ -311,7 +312,7 @@ def ee_reachable_resample(pred, negated, t, plan):
                                                            callback=target_trans_callback)
         st()
         if torso_pose is None:
-            print "we should be able to find an IK"
+            print("we should be able to find an IK")
             continue
 
         # generate approach IK
@@ -342,7 +343,7 @@ def ee_reachable_resample(pred, negated, t, plan):
         if torso_pose_retreat is not None:
             break
     else:
-        print "we should always be able to sample a collision-free base and arm pose"
+        print("we should always be able to sample a collision-free base and arm pose")
         st()
 
     attr_inds = OrderedDict()

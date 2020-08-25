@@ -222,13 +222,13 @@ class OpenRAVEBody(object):
             # Get current dof value for each joint
             dof_val = self.env_body.GetActiveDOFValues()
 
-            for k, v in dof_value_map.items():
+            for k, v in list(dof_value_map.items()):
                 if k not in self._geom.dof_map or np.any(np.isnan(v)): continue
                 inds = self._geom.dof_map[k]
                 try:
                     dof_val[inds] = v
                 except IndexError:
-                    print('\n\n\nBad index in set dof:', inds, k, v, self._geom, '\n\n\n')
+                    print(('\n\n\nBad index in set dof:', inds, k, v, self._geom, '\n\n\n'))
             # Set new DOF value to the robot
             self.env_body.SetActiveDOFValues(dof_val)
         else:
@@ -329,7 +329,7 @@ class OpenRAVEBody(object):
                 length = abs(start[ind_diff] - end[ind_diff])
                 dim_x, dim_y = length/2 + thickness, thickness
             else:
-                raise NotImplemented, 'Can only create axis-aligned walls'
+                raise NotImplemented('Can only create axis-aligned walls')
 
             transform = np.eye(4)
             transform[ind_same, 3] = start[ind_same]
@@ -394,7 +394,7 @@ class OpenRAVEBody(object):
                 length = abs(start[ind_diff] - end[ind_diff])
                 dim_x, dim_y = length/2 + thickness, thickness
             else:
-                raise NotImplemented, 'Can only create axis-aligned walls'
+                raise NotImplemented('Can only create axis-aligned walls')
 
             transform = np.eye(4)
             transform[ind_same, 3] = start[ind_same]
@@ -692,7 +692,7 @@ class OpenRAVEBody(object):
     def param_fwd_kinematics(self, param, manip_names, t, mat_result=False):
         if not isinstance(self._geom, Robot): return
 
-        attrs = param._attr_types.keys()
+        attrs = list(param._attr_types.keys())
         if USE_OPENRAVE:
             dof_val = self.env_body.GetActiveDOFValues()
             for attr in attrs:

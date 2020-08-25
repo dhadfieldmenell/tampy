@@ -25,7 +25,7 @@ class PrimitivePredicates(object):
     def get_str(self):
         prim_str = 'Primitive Predicates: '
         first = True
-        for name, attrs in self.attr_dict.items():
+        for name, attrs in list(self.attr_dict.items()):
             for attr_name, attr_type in attrs:
                 pred_str = attr_name + ', ' + name + ', ' + attr_type
                 if first:
@@ -61,7 +61,7 @@ class DerivatedPredicates(object):
         prim_str = 'Derived Predicates: '
 
         first = True
-        for name, args in self.pred_dict.items():
+        for name, args in list(self.pred_dict.items()):
             pred_str = name
             for arg in args:
                 pred_str += ', ' + arg
@@ -382,6 +382,6 @@ for action in actions:
 dom_str = dom_str.replace('            ', '')
 dom_str = dom_str.replace('    ', '')
 
-print dom_str
+print(dom_str)
 f = open('driving.domain', 'w')
 f.write(dom_str)

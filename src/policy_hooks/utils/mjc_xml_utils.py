@@ -33,29 +33,29 @@ def get_param_xml(param):
 
         return param.name, cloth_body, {'contacts': contacts}
 
-    elif param._type == 'Obstacle': 
+    elif param._type == 'Obstacle':
         length = param.geom.dim[0]
         width = param.geom.dim[1]
         thickness = param.geom.dim[2]
         x, y, z = param.pose[:, 0]
-        table_body = xml.Element('body', {'name': param.name, 
-                                          'pos': "{} {} {}".format(x, y, z+MUJOCO_MODEL_Z_OFFSET), 
+        table_body = xml.Element('body', {'name': param.name,
+                                          'pos': "{} {} {}".format(x, y, z+MUJOCO_MODEL_Z_OFFSET),
                                           'euler': "0 0 0"})
-        table_geom = xml.SubElement(table_body, 'geom', {'name':param.name, 
-                                                         'type':'box', 
+        table_geom = xml.SubElement(table_body, 'geom', {'name':param.name,
+                                                         'type':'box',
                                                          'size':"{} {} {}".format(length, width, thickness)})
         return param.name, table_body, {'contacts': []}
 
     elif param._type == 'Basket':
         x, y, z = param.pose[:, 0]
         yaw, pitch, roll = param.rotation[:, 0]
-        basket_body = xml.Element('body', {'name':param.name, 
-                                  'pos':"{} {} {}".format(x, y, z+MUJOCO_MODEL_Z_OFFSET), 
-                                  'euler':'{} {} {}'.format(roll, pitch, yaw), 
+        basket_body = xml.Element('body', {'name':param.name,
+                                  'pos':"{} {} {}".format(x, y, z+MUJOCO_MODEL_Z_OFFSET),
+                                  'euler':'{} {} {}'.format(roll, pitch, yaw),
                                   'mass': "1"})
         # basket_intertial = xml.SubElement(basket_body, 'inertial', {'pos':"0 0 0", 'mass':"0.1", 'diaginertia':"2 1 1"})
-        basket_geom = xml.SubElement(basket_body, 'geom', {'name':param.name, 
-                                                           'type':'mesh', 
+        basket_geom = xml.SubElement(basket_body, 'geom', {'name':param.name,
+                                                           'type':'mesh',
                                                            'mesh': "laundry_basket"})
         return param.name, basket_body, {'contacts': []}
 

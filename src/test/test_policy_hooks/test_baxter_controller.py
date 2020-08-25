@@ -122,7 +122,7 @@ class TestBaxterController(unittest.TestCase):
         for pos_exp in range(-1,2):
             for vel_exp in range(-5,--4):
                 for i in range(10):
-                    pos_gains = np.ones((16)) * i * 10**pos_exp 
+                    pos_gains = np.ones((16)) * i * 10**pos_exp
                     vel_gains = np.zeros((16,)) * np.random.uniform(0, 10) * 10**vel_exp
                     controller = baxter_controller.BaxterMujocoController(model, pos_gains=pos_gains, vel_gains=vel_gains)
                     avg_err = np.zeros((16,))
@@ -139,7 +139,7 @@ class TestBaxterController(unittest.TestCase):
                     avg_err /= 30
                     if np.mean(avg_err) < np.mean(best_avg_err):
                         best_avg_err = avg_err
-                        print best_avg_err
+                        print(best_avg_err)
                         best_gains = np.r_[pos_gains, vel_gains]
 
                     if np.all(avg_err) <= 1e-3:
@@ -173,18 +173,18 @@ class TestBaxterController(unittest.TestCase):
 
                     agent._set_simulator_state(x0, plan, active_ts[0])
                     model.data.qpos = agent._baxter_to_mujoco(plan, 0)
-                print best_avg_err
+                print(best_avg_err)
 
-        print best_gains
-        print good_gains
-        print best_avg_err
+        print(best_gains)
+        print(good_gains)
+        print(best_avg_err)
         np.save('best_gains_2', best_gains)
         np.save('good_gains_2', np.array(good_gains))
 
             # print curr_pos_error
             # if curr_pos_tracker is not None:
             #     print("Error trend")
-            #     print curr_pos_error - curr_pos_tracker 
+            #     print curr_pos_error - curr_pos_tracker
             # curr_pos_tracker = curr_pos_error
             # viewer.cam.distance = 5
             # viewer.cam.azimuth = 220
@@ -271,12 +271,12 @@ class TestBaxterController(unittest.TestCase):
                 cur_t += 0.002
                 cur_pos_error  = controller._pos_error(np.r_[baxter.rArmPose[:, t+1], baxter.rGripper[:, t+1], baxter.lArmPose[:, t+1], baxter.lGripper[:, t+1]])
                 i += 1.0
-                print cur_pos_error
+                print(cur_pos_error)
             avg_err += cur_pos_error
             viewer.loop_once()
             import ipdb; ipdb.set_trace()
         avg_err /= 30
-        print avg_err
+        print(avg_err)
 
 
     def run_baxter_mujoco_pos_vel_controller(self):
@@ -351,7 +351,7 @@ class TestBaxterController(unittest.TestCase):
         for pos_exp in range(-4, 2):
             for vel_exp in range(-3, -2):
                 for i in range(10):
-                    pos_gains = np.ones((16)) * i * 10**pos_exp 
+                    pos_gains = np.ones((16)) * i * 10**pos_exp
                     vel_gains = np.ones((16,)) * np.random.uniform(0, 10) * 10**vel_exp
                     controller = baxter_controller.BaxterMujocoController(model, pos_gains=pos_gains, vel_gains=vel_gains)
                     avg_err = np.zeros((16,))
@@ -400,16 +400,16 @@ class TestBaxterController(unittest.TestCase):
                     agent._set_simulator_state(x0, plan, active_ts[0])
                     model.data.qpos = agent._baxter_to_mujoco(plan, 0)
 
-        print best_gains
-        print good_gains
-        print best_avg_err
+        print(best_gains)
+        print(good_gains)
+        print(best_avg_err)
         np.save('best_gains', best_gains)
         np.save('good_gains', np.array(good_gains))
 
             # print curr_pos_error
             # if curr_pos_tracker is not None:
             #     print("Error trend")
-            #     print curr_pos_error - curr_pos_tracker 
+            #     print curr_pos_error - curr_pos_tracker
             # curr_pos_tracker = curr_pos_error
             # viewer.cam.distance = 5
             # viewer.cam.azimuth = 220

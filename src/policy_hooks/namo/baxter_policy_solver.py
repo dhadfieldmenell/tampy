@@ -45,7 +45,8 @@ EXP_DIR = BASE_DIR + '/experiments'
 BASE_CLASS = get_base_solver(RobotLLSolver)
 
 class BaxterPolicySolver(BASE_CLASS):
-    def _fill_sample(self, (i, j), start_t, end_t, plan):
+    def _fill_sample(self, xxx_todo_changeme, start_t, end_t, plan):
+        (i, j) = xxx_todo_changeme
         T = end_t - start_t + 1
         self.agent.T = T
         sample = self.fill_sample((i, j, k), start_t, end_t)

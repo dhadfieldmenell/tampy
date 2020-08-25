@@ -59,7 +59,7 @@ class TestBasketDomain(unittest.TestCase):
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         hls = hl_solver.FFSolver(d_c)
-        print "loading laundry problem..."
+        print("loading laundry problem...")
         p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/baxter_laundry_mitch_1.prob')
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
 
@@ -71,11 +71,11 @@ class TestBasketDomain(unittest.TestCase):
         '4: ROTATE_HOLDING_BASKET BAXTER BASKET BASKET_GRASP_END_0 ROBOT_REGION_3_POSE_1 REGION1',
         '5: ROTATE_HOLDING_BASKET BAXTER BASKET ROBOT_REGION_3_POSE_1 BASKET_PUTDOWN_BEGIN_0 REGION3',
         '6: BASKET_PUTDOWN BAXTER BASKET BASKET_FAR_TARGET BASKET_PUTDOWN_BEGIN_0 BP_EE_LEFT_0 BP_EE_RIGHT_0 BASKET_PUTDOWN_END_0',
-        '7: MOVETO BAXTER BASKET_PUTDOWN_END_0 ROBOT_INIT_POSE'   
+        '7: MOVETO BAXTER BASKET_PUTDOWN_END_0 ROBOT_INIT_POSE'
         ]
 
         plan = hls.get_plan(plan_str, domain, problem)
-        print "solving basket domain problem..."
+        print("solving basket domain problem...")
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         serializer = PlanSerializer()
         def callback(a): return viewer
@@ -86,9 +86,9 @@ class TestBasketDomain(unittest.TestCase):
         start = time.time()
         result = solver.backtrack_solve(plan, callback = callback, verbose=False)
         end = time.time()
-        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
+        print("Planning finished within {}s, displaying failed predicates...".format(end - start))
 
-        print "Saving current plan to file rotate_basket_plan.hdf5..."
+        print("Saving current plan to file rotate_basket_plan.hdf5...")
 
         serializer.write_plan_to_hdf5("rotate_basket_plan.hdf5", plan)
         self.assertTrue(result)
@@ -98,7 +98,7 @@ class TestBasketDomain(unittest.TestCase):
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         hls = hl_solver.FFSolver(d_c)
-        print "loading laundry problem..."
+        print("loading laundry problem...")
         p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/baxter_laundry_mitch_1.prob')
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
 
@@ -113,20 +113,20 @@ class TestBasketDomain(unittest.TestCase):
         ]
 
         plan = hls.get_plan(plan_str, domain, problem)
-        print "solving basket domain problem..."
+        print("solving basket domain problem...")
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         serializer = PlanSerializer()
         def callback(a): return viewer
 
-        solver = robot_ll_solver.RobotLLSolver()    
+        solver = robot_ll_solver.RobotLLSolver()
         viewer.draw_plan_ts(plan, 0)
         # import ipdb; ipdb.set_trace()
         start = time.time()
         result = solver.backtrack_solve(plan, callback = callback, verbose=False)
         end = time.time()
-        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
+        print("Planning finished within {}s, displaying failed predicates...".format(end - start))
 
-        print "Saving current plan to file rotate_basket_plan.hdf5..."
+        print("Saving current plan to file rotate_basket_plan.hdf5...")
 
         serializer.write_plan_to_hdf5("rotate_washer_manipulation.hdf5", plan)
         self.assertTrue(result)
@@ -136,7 +136,7 @@ class TestBasketDomain(unittest.TestCase):
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         hls = hl_solver.FFSolver(d_c)
-        print "loading laundry problem..."
+        print("loading laundry problem...")
         p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/baxter_laundry_mitch_1.prob')
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
 
@@ -149,22 +149,22 @@ class TestBasketDomain(unittest.TestCase):
         '5: ROTATE BAXTER CLOTH_PUTDOWN_END_0 ROBOT_REGION_3_POSE_0 REGION3',
         '6: MOVETO BAXTER ROBOT_REGION_3_POSE_0 ROBOT_INIT_POSE',
         ]
-        
+
         plan = hls.get_plan(plan_str, domain, problem)
-        print "solving basket domain problem..."
+        print("solving basket domain problem...")
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         serializer = PlanSerializer()
         def callback(a): return viewer
 
-        solver = robot_ll_solver.RobotLLSolver()    
+        solver = robot_ll_solver.RobotLLSolver()
         viewer.draw_plan_ts(plan, 0)
         # import ipdb; ipdb.set_trace()
         start = time.time()
         result = solver.backtrack_solve(plan, callback = callback, verbose=False)
         end = time.time()
-        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
+        print("Planning finished within {}s, displaying failed predicates...".format(end - start))
 
-        print "Saving current plan to file cloth_pickup_putdown.hdf5..."
+        print("Saving current plan to file cloth_pickup_putdown.hdf5...")
 
         serializer.write_plan_to_hdf5("cloth_pickup_putdown.hdf5", plan)
         self.assertTrue(result)
@@ -174,7 +174,7 @@ class TestBasketDomain(unittest.TestCase):
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         hls = hl_solver.FFSolver(d_c)
-        print "loading laundry problem..."
+        print("loading laundry problem...")
         p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/baxter_laundry_mitch_1.prob')
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
 
@@ -192,20 +192,20 @@ class TestBasketDomain(unittest.TestCase):
         ]
 
         plan = hls.get_plan(plan_str, domain, problem)
-        print "solving basket domain problem..."
+        print("solving basket domain problem...")
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         serializer = PlanSerializer()
         def callback(a): return viewer
 
-        solver = robot_ll_solver.RobotLLSolver()    
+        solver = robot_ll_solver.RobotLLSolver()
         viewer.draw_plan_ts(plan, 0)
         # import ipdb; ipdb.set_trace()
         start = time.time()
         result = solver.backtrack_solve(plan, callback = callback, verbose=False)
         end = time.time()
-        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
+        print("Planning finished within {}s, displaying failed predicates...".format(end - start))
 
-        print "Saving current plan to file cloth_in_out_washer.hdf5..."
+        print("Saving current plan to file cloth_in_out_washer.hdf5...")
 
         serializer.write_plan_to_hdf5("cloth_in_out_washer.hdf5", plan)
         self.assertTrue(result)
@@ -215,7 +215,7 @@ class TestBasketDomain(unittest.TestCase):
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         hls = hl_solver.FFSolver(d_c)
-        print "loading laundry problem..."
+        print("loading laundry problem...")
         p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/baxter_laundry_mitch_1.prob')
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
 
@@ -240,9 +240,9 @@ class TestBasketDomain(unittest.TestCase):
         # '2: ROTATE_HOLDING_BASKET BAXTER BASKET BASKET_GRASP_END_0 ROBOT_REGION_3_POSE_1 REGION1',
         # '3: ROTATE_HOLDING_BASKET BAXTER BASKET ROBOT_REGION_3_POSE_1 BASKET_PUTDOWN_BEGIN_0 REGION3',
         # '4: BASKET_PUTDOWN BAXTER BASKET BASKET_FAR_TARGET BASKET_PUTDOWN_BEGIN_0 BP_EE_LEFT_0 BP_EE_RIGHT_0 BASKET_PUTDOWN_END_0',
-        # '5: MOVETO BAXTER BASKET_PUTDOWN_END_0 ROBOT_INIT_POSE'   
+        # '5: MOVETO BAXTER BASKET_PUTDOWN_END_0 ROBOT_INIT_POSE'
         plan = hls.get_plan(plan_str, domain, problem)
-        print "solving basket domain problem..."
+        print("solving basket domain problem...")
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         serializer = PlanSerializer()
         def callback(a): return viewer
@@ -253,9 +253,9 @@ class TestBasketDomain(unittest.TestCase):
         start = time.time()
         result = solver.backtrack_solve(plan, callback = callback, verbose=False)
         end = time.time()
-        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
+        print("Planning finished within {}s, displaying failed predicates...".format(end - start))
 
-        print "Saving current plan to file rotate_basket_plan.hdf5..."
+        print("Saving current plan to file rotate_basket_plan.hdf5...")
 
         serializer.write_plan_to_hdf5("rotate_basket_stress_plan.hdf5", plan)
         self.assertTrue(result)
@@ -265,7 +265,7 @@ class TestBasketDomain(unittest.TestCase):
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         hls = hl_solver.FFSolver(d_c)
-        print "loading laundry problem..."
+        print("loading laundry problem...")
         p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/baxter_laundry_mitch_1.prob')
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
 
@@ -283,22 +283,22 @@ class TestBasketDomain(unittest.TestCase):
         '10: ROTATE BAXTER CLOTH_PUTDOWN_END_1 ROBOT_REGION_3_POSE_0 REGION3',
         '11: MOVETO BAXTER ROBOT_REGION_3_POSE_0 ROBOT_INIT_POSE',
         ]
-        
+
         plan = hls.get_plan(plan_str, domain, problem)
-        print "solving basket domain problem..."
+        print("solving basket domain problem...")
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         serializer = PlanSerializer()
         def callback(a): return viewer
 
-        solver = robot_ll_solver.RobotLLSolver()    
+        solver = robot_ll_solver.RobotLLSolver()
         viewer.draw_plan_ts(plan, 0)
         # import ipdb; ipdb.set_trace()
         start = time.time()
         result = solver.backtrack_solve(plan, callback = callback, verbose=False)
         end = time.time()
-        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
+        print("Planning finished within {}s, displaying failed predicates...".format(end - start))
 
-        print "Saving current plan to file cloth_pickup_putdown_in_basket.hdf5..."
+        print("Saving current plan to file cloth_pickup_putdown_in_basket.hdf5...")
 
         serializer.write_plan_to_hdf5("cloth_pickup_putdown_in_basket.hdf5", plan)
         self.assertTrue(result)

@@ -76,7 +76,7 @@ class LLParam(object):
         """
         Creates Gurobi variables for attributes of certain types.
         """
-        for k, _ in self._param.__dict__.items():
+        for k, _ in list(self._param.__dict__.items()):
             rows = None
             attr_type = self._param.get_attr_type(k)
             if issubclass(attr_type, Vector):
@@ -208,7 +208,7 @@ class NAMOSolver(LLSolver):
         def recursive_solve():
             ## don't optimize over any params that are already set
             old_params_free = {}
-            for p in plan.params.itervalues():
+            for p in plan.params.values():
                 if p.is_symbol():
                     if p not in a.params: continue
                     old_params_free[p] = p._free_attrs['value'].copy()
@@ -260,7 +260,7 @@ class NAMOSolver(LLSolver):
 
         if len(targets) == 0 or np.all(targets[0]._free_attrs['value']):
             ## sample 4 possible poses
-            coords = list(itertools.product(range(WIDTH), range(HEIGHT)))
+            coords = list(itertools.product(list(range(WIDTH)), list(range(HEIGHT))))
             random.shuffle(coords)
             robot_poses = [np.array(x)[:, None] for x in coords[:4]]
         elif np.any(targets[0]._free_attrs['value']):
@@ -392,7 +392,7 @@ class NAMOSolver(LLSolver):
     def _get_transfer_obj(self, plan, norm):
         transfer_objs = []
         if norm in ['min-vel', 'l2']:
-            for param in plan.params.values():
+            for param in list(plan.params.values()):
                 # if param._type in ['Robot', 'Can']:
                 K = 2
                 if param.is_symbol():
@@ -489,10 +489,10 @@ class NAMOSolver(LLSolver):
         priority = np.maximum(priority, 0)
         if not pred_dict['hl_info'] == "hl_state":
             start, end = pred_dict['active_timesteps']
-            active_range = range(start, end+1)
+            active_range = list(range(start, end+1))
             if verbose:
-                print "pred being added: ", pred_dict
-                print active_range, effective_timesteps
+                print("pred being added: ", pred_dict)
+                print(active_range, effective_timesteps)
             negated = pred_dict['negated']
             pred = pred_dict['pred']
 
@@ -508,7 +508,7 @@ class NAMOSolver(LLSolver):
                     if expr is not None:
                         if add_nonlin or isinstance(expr.expr, AffExpr):
                             if verbose:
-                                print "expr being added at time ", t
+                                print("expr being added at time ", t)
                             var = self._spawn_sco_var_for_pred(pred, t)
                             bexpr = BoundExpr(expr, var)
                             self._bexpr_to_pred[bexpr] = (negated, pred, t)
@@ -536,8 +536,8 @@ class NAMOSolver(LLSolver):
                     self._add_pred_dict(pred_dict, [action_end],
                                         priority=priority, add_nonlin=add_nonlin, verbose=verbose)
             ## add all of the linear ineqs
-            timesteps = range(max(action_start+1, active_ts[0]),
-                              min(action_end, active_ts[1]))
+            timesteps = list(range(max(action_start+1, active_ts[0]),
+                              min(action_end, active_ts[1])))
             for pred_dict in action.preds:
                 self._add_pred_dict(pred_dict, timesteps, add_nonlin=False, priority=priority, verbose=verbose)
 
@@ -550,13 +550,13 @@ class NAMOSolver(LLSolver):
             if action_start >= active_ts[1] and action_start > active_ts[0]: continue
             if action_end < active_ts[0]: continue
 
-            timesteps = range(max(action_start, active_ts[0]),
-                              min(action_end, active_ts[1])+1)
+            timesteps = list(range(max(action_start, active_ts[0]),
+                              min(action_end, active_ts[1])+1))
             for pred_dict in action.preds:
                 self._add_pred_dict(pred_dict, timesteps, priority=priority, add_nonlin=add_nonlin, verbose=verbose)
 
     def _update_ll_params(self):
-        for ll_param in self._param_to_ll.values():
+        for ll_param in list(self._param_to_ll.values()):
             ll_param.update_param()
         if self.child_solver:
             self.child_solver._update_ll_params()
@@ -567,12 +567,12 @@ class NAMOSolver(LLSolver):
         horizon = active_ts[1] - active_ts[0] + 1
         self._param_to_ll = {}
         self.ll_start = active_ts[0]
-        for param in plan.params.values():
+        for param in list(plan.params.values()):
             ll_param = LLParam(model, param, horizon, active_ts)
             ll_param.create_grb_vars()
             self._param_to_ll[param] = ll_param
         model.update()
-        for ll_param in self._param_to_ll.values():
+        for ll_param in list(self._param_to_ll.values()):
             ll_param.batch_add_cnts()
 
     def _add_obj_bexprs(self, obj_bexprs):
@@ -585,7 +585,7 @@ class NAMOSolver(LLSolver):
             active_ts = (0, plan.horizon-1)
         start, end = active_ts
         traj_objs = []
-        for param in plan.params.values():
+        for param in list(plan.params.values()):
             if param not in self._param_to_ll:
                 continue
             if param._type in ['Robot', 'Can']:

@@ -46,7 +46,7 @@ class TestLearner(unittest.TestCase):
         learner.store_theta(group)
         hdf5.close()
         hdf5 = h5py.File("test_learner.hdf5", "r")
-        group = hdf5.values()[0]
+        group = list(hdf5.values())[0]
         theta = learner.get_theta(group)
         for param in theta:
             attr_dict = theta[param]
@@ -107,7 +107,7 @@ class TestLearner(unittest.TestCase):
         plt.ylabel('Frequency')
         plt.xlabel('x')
         plt.legend(('PDF','Samples'))
-        print "data sample generated successfully."
+        print("data sample generated successfully.")
         if debug == True:
             plt.show()
 
@@ -167,7 +167,7 @@ class TestLearner(unittest.TestCase):
         plt.ylabel('Frequency')
         plt.xlabel('x')
         plt.legend(('PDF','Samples'))
-        print "data sample generated successfully."
+        print("data sample generated successfully.")
         if debug == True:
             plt.show()
 
@@ -188,7 +188,7 @@ class TestLearner(unittest.TestCase):
         #8 doesn't work
         plan_list = [1, 2, 3]
         for i in [1]:
-            print "Generating plan_{}".format(i)
+            print("Generating plan_{}".format(i))
             prob_file = '../domains/baxter_domain/baxter_training_probs/grasp_training_4321_{}.prob'.format(i)
 
             plan_str = ['0: MOVETO BAXTER ROBOT_INIT_POSE PDP_TARGET0',

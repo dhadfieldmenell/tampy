@@ -1,4 +1,4 @@
-from __future__ import division
+
 
 from datetime import datetime
 import os
@@ -48,7 +48,7 @@ NUM_PRETRAIN_STEPS = 100
 NUM_TRAJ_OPT_STEPS = 1
 NUM_PRETRAIN_TRAJ_OPT_STEPS = 2
 HL_TIMEOUT = 100
-CLOTH_W = 5 
+CLOTH_W = 5
 CLOTH_L = 3
 IM_W = 64
 IM_H = 64
@@ -277,4 +277,3 @@ config = {
             utils.RIGHT_GRIPPER_ENUM: 1,
         }
 }
-

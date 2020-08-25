@@ -7,12 +7,11 @@ from policy_hooks.sample_list import SampleList
 from policy_hooks.utils.policy_solver_utils import ACTION_ENUM
 
 
-class Agent(object):
+class Agent(object, metaclass=abc.ABCMeta):
     """
     Agent superclass. The agent interacts with the environment to
     collect samples.
     """
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, hyperparams):
         config = copy.deepcopy(AGENT)

@@ -52,10 +52,10 @@ def get_plans():
         plan = plan_from_str(next_task_str, prob_file, domain_file, env, openrave_bodies)
         for i in range(len(prim_options[utils.LEFT_TARG_ENUM])):
             for j in range(len(prim_options[utils.RIGHT_TARG_ENUM])):
-                plans[(tasks.keys().index(task), i, j)] = plan
+                plans[(list(tasks.keys()).index(task), i, j)] = plan
         if env is None:
             env = plan.env
-            for param in plan.params.values():
+            for param in list(plan.params.values()):
                 if not param.is_symbol() and param.openrave_body is not None:
                     openrave_bodies[param.name] = param.openrave_body
     return plans, openrave_bodies, env
@@ -76,7 +76,7 @@ def get_end_targets():
 
 def get_prim_choices():
     out = OrderedDict({})
-    out[utils.TASK_ENUM] = get_tasks(mapping_file).keys()
+    out[utils.TASK_ENUM] = list(get_tasks(mapping_file).keys())
     out[utils.LEFT_TARG_ENUM] = ['left_rest_pose', 'bottom_left', 'top_left', 'bottom_right', 'top_right', 'leftmost', 'rightmost']
     out[utils.RIGHT_TARG_ENUM] = ['right_rest_pose', 'bottom_left', 'top_left', 'bottom_right', 'top_right', 'leftmost', 'rightmost']
     return out

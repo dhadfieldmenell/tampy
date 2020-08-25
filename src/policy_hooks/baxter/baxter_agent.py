@@ -2,7 +2,7 @@ import copy
 import sys
 import traceback
 
-import cPickle as pickle
+import pickle as pickle
 
 import ctypes
 
@@ -100,7 +100,7 @@ class BaxterSortingAgent(TAMPAgent):
                 U[np.isnan(U)] = 0
             sample.set(ACTION_ENUM, U.copy(), t)
                 # import ipdb; ipdb.set_trace()
-            
+
             self.traj_hist.append(U)
             while len(self.traj_hist) > self.hist_len:
                 self.traj_hist.pop(0)
@@ -118,7 +118,7 @@ class BaxterSortingAgent(TAMPAgent):
         x_inds = self.state_inds
         in_gripper = False
 
-        
+
         if t < plan.horizon - 1:
             self._clip_joint_angles(u, plan)
             for param, attr in u_inds:
@@ -133,7 +133,7 @@ class BaxterSortingAgent(TAMPAgent):
             l_pose = plan.params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransformPose()[4:]
             r_pose = plan.params['baxter'].openrave_body.env_body.GetLink('right_gripper').GetTransformPose()[4:]
 
-            for param in plan.params.values():
+            for param in list(plan.params.values()):
                 if param._type == 'Cloth':
                     l_dist = l_pose - plan.params[param.name].pose[:, t]
                     r_dist = r_pose - plan.params[param.name].pose[:, t]
@@ -202,8 +202,8 @@ class BaxterSortingAgent(TAMPAgent):
             targ = fixed_targets[1]
         else:
             task_distr, obj_distr, targ_distr = self.prob_func(sample.get_prim_obs(t=0))
-            obj = self.plans.values()[0].params[self.obj_list[np.argmax(obj_distr)]]
-            targ = self.plans.values()[0].params[self.targ_list[np.argmax(targ_distr)]]
+            obj = list(self.plans.values())[0].params[self.obj_list[np.argmax(obj_distr)]]
+            targ = list(self.plans.values())[0].params[self.targ_list[np.argmax(targ_distr)]]
             targets = [obj, targ]
             # targets = get_next_target(self.plans.values()[0], state, task, self.targets[condition], sample_traj=traj_mean)
 
@@ -211,13 +211,13 @@ class BaxterSortingAgent(TAMPAgent):
         iteration = 0
         while not success and targets[0] != None:
             if iteration > 0 and not len(fixed_targets):
-                 targets = get_next_target(self.plans.values()[0], state, task, self.targets[condition], sample_traj=traj_mean, exclude=exclude_targets)
+                targets = get_next_target(list(self.plans.values())[0], state, task, self.targets[condition], sample_traj=traj_mean, exclude=exclude_targets)
 
             iteration += 1
             if targets[0] is None:
                 break
 
-            plan = self.plans[task, targets[0].name] 
+            plan = self.plans[task, targets[0].name]
             set_params_attrs(plan.params, plan.state_inds, state, 0)
             for param_name in plan.params:
                 param = plan.params[param_name]
@@ -232,7 +232,7 @@ class BaxterSortingAgent(TAMPAgent):
 
             if task == 'grasp':
                 plan.params[targ.name].value[:,0] = plan.params[obj.name].pose[:,0]
-            
+
             plan.params['robot_init_pose'].lArmPose[:,0] = plan.params['baxter'].lArmPose[:,0]
             plan.params['robot_init_pose'].lGripper[:,0] = plan.params['baxter'].lGripper[:,0]
             plan.params['robot_init_pose'].rArmPose[:,0] = plan.params['baxter'].rArmPose[:,0]
@@ -263,15 +263,15 @@ class BaxterSortingAgent(TAMPAgent):
                 success = False
 
             if not success:
-                print state
-                print plan.actions
-                print plan.state_inds
+                print(state)
+                print(plan.actions)
+                print(plan.state_inds)
                 for action in plan.actions:
                     try:
-                        print plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)
+                        print(plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps))
                     except:
                         pass
-                print '\n\n'
+                print('\n\n')
 
             try:
                 exclude_targets.append(targets[0].name)
@@ -324,8 +324,8 @@ class BaxterSortingAgent(TAMPAgent):
 
 
     def get_sample_constr_cost(self, sample):
-        obj = self.plans.values()[0].params[self.obj_list[np.argmax(sample.get(OBJ_ENUM, t=0))]]
-        targ = self.plans.values()[0].params[self.targ_list[np.argmax(sample.get(TARG_ENUM, t=0))]]
+        obj = list(self.plans.values())[0].params[self.obj_list[np.argmax(sample.get(OBJ_ENUM, t=0))]]
+        targ = list(self.plans.values())[0].params[self.targ_list[np.argmax(sample.get(TARG_ENUM, t=0))]]
         targets = [obj, targ]
         # targets = get_next_target(self.plans.values()[0], sample.get(STATE_ENUM, t=0), sample.task, self.targets[sample.condition])
         plan = self.plans[sample.task, targets[0].name]
@@ -365,4 +365,3 @@ class BaxterSortingAgent(TAMPAgent):
 
         if keep != (1., 1.):
             self.clear_samples(*keep)
-

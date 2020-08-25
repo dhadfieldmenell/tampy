@@ -35,4 +35,3 @@ if __name__ == '__main__':
                 save_video(sys.argv[1]+'{0}/'.format(pre)+f)
         else:
             save_video(sys.argv[1])
-

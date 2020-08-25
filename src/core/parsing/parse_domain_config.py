@@ -25,14 +25,14 @@ class ParseDomainConfig(object):
             attr_paths = dict([l.split() for l in map(str.strip, attr_paths.split(","))])
         except KeyError:
             attr_paths = {}
-        for k, v in attr_paths.items():
+        for k, v in list(attr_paths.items()):
             attr_paths[k] = importlib.import_module(v)
 
         param_schemas = {}
         for t in map(str.strip, domain_config["Types"].split(",")):
             param_schemas[t] = {"_type" : eval("str"), "name" : eval("str")} # name added by default
         for prim_preds in domain_config["Primitive Predicates"].split(";"):
-            k, type_name, v = map(str.strip, prim_preds.split(","))
+            k, type_name, v = list(map(str.strip, prim_preds.split(",")))
             param_schemas[type_name][k] = v
             if v in attr_paths:
                 if not hasattr(attr_paths[v], v):
@@ -43,7 +43,7 @@ class ParseDomainConfig(object):
                     param_schemas[type_name][k] = eval(v)
                 except NameError as e:
                     raise DomainConfigException("Need to provide attribute import path for non-primitive %s."%v)
-        for type_name, attr_dict in param_schemas.items():
+        for type_name, attr_dict in list(param_schemas.items()):
             assert "pose" in attr_dict or "value" in attr_dict
             obj_or_symbol = ParseDomainConfig._dispatch_obj_or_symbol(attr_dict)
             param_schemas[type_name] = ParameterSchema(type_name, getattr(parameter, obj_or_symbol), attr_dict)
@@ -63,7 +63,7 @@ class ParseDomainConfig(object):
         #         raise PredicateException("Predicate type '%s' not defined!"%p_type)
         #     pred_schemas[p_type] = PredicateSchema(p_type, getattr(common_predicates, p_type), [s.strip() for s in exp_types.split(",")])
         for p_defn in domain_config["Derived Predicates"].split(";"):
-            p_type, exp_types = map(str.strip, p_defn.split(",", 1))
+            p_type, exp_types = list(map(str.strip, p_defn.split(",", 1)))
             if not hasattr(pred_path, p_type):
                 raise PredicateException("Predicate type '%s' not defined!" % p_type)
             pred_schemas[p_type] = PredicateSchema(p_type, getattr(pred_path, p_type),
@@ -88,7 +88,7 @@ class ParseDomainConfig(object):
     @staticmethod
     def _create_action_schemas(domain_config):
         action_schemas = {}
-        for k, v in domain_config.items():
+        for k, v in list(domain_config.items()):
             if k.startswith("Action"):
                 _, a_name, horizon = k.split()
                 # parse out params, predicates, time ranges
@@ -133,7 +133,7 @@ class ParseDomainConfig(object):
                         pred = pred[m.span()[1]:-1].strip()
                         g = re.match("\((.*?)\)(.*)", pred).groups()
                         v = g[0].split("/")
-                        loop_var_name, loop_var_type = map(str.strip, v[0].split("-"))
+                        loop_var_name, loop_var_type = list(map(str.strip, v[0].split("-")))
                         pred = g[1].strip()
                         # if this dummy variable name is already used, then change the name
                         unique_loop_var_name = loop_var_name

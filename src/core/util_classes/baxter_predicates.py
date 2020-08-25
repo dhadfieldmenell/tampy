@@ -93,8 +93,8 @@ class BaxterStacked(robot_predicates.ExprPredicate):
         self.attr_dim = 12
         self.bottom_can = params[0]
         self.top_can = params[1]
-        A = np.r_[np.c_[np.eye(3), np.zeros((3,3)), -np.eye(3), np.zeros((3,3))], 
-                  np.c_[np.zeros((3,3)), np.eye(3), np.zeros((3,6))], 
+        A = np.r_[np.c_[np.eye(3), np.zeros((3,3)), -np.eye(3), np.zeros((3,3))],
+                  np.c_[np.zeros((3,3)), np.eye(3), np.zeros((3,6))],
                   np.c_[np.zeros((3,9)), np.eye(3)]]
 
         b = np.zeros((self.attr_dim/2,1))
@@ -1114,9 +1114,9 @@ class BaxterObstructs(robot_predicates.Obstructs):
     #@profile
     def resample(self, negated, t, plan):
         if const.PRODUCTION:
-            print "I need to think about how not to hit anything."
+            print("I need to think about how not to hit anything.")
         else:
-            print "resample {}".format(self.get_type())
+            print("resample {}".format(self.get_type()))
         return baxter_sampling.resample_basket_obstructs(self, negated, t, plan)
 
     def set_active_dof_inds(self, robot_body, reset = False):
@@ -1366,9 +1366,9 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
     #@profile
     def resample(self, negated, t, plan):
         if const.PRODUCTION:
-            print "I need to think about how not to hit anything."
+            print("I need to think about how not to hit anything.")
         else:
-            print "resample {}".format(self.get_type())
+            print("resample {}".format(self.get_type()))
         return baxter_sampling.resample_basket_obstructs_holding(self, negated, t, plan)
 
     def set_robot_poses(self, x, robot_body):
@@ -1662,9 +1662,9 @@ class BaxterCollidesWasher(BaxterRCollides):
     def resample(self, negated, t, plan):
         # return None, None
         if const.PRODUCTION:
-            print "I need to make sure I don't hit the washer."
+            print("I need to make sure I don't hit the washer.")
         else:
-            print "resample {}".format(self.get_type())
+            print("resample {}".format(self.get_type()))
         return baxter_sampling.resample_washer_rcollides(self, negated, t, plan)
 
 """
@@ -1692,9 +1692,9 @@ class BaxterEEReachable(robot_predicates.EEReachable):
     #@profile
     def resample(self, negated, t, plan):
         if const.PRODUCTION:
-            print "Let me try a new approach.\n"
+            print("Let me try a new approach.\n")
         else:
-            print "resample {}".format(self.get_type())
+            print("resample {}".format(self.get_type()))
         return baxter_sampling.resample_eereachable_rrt(self, negated, t, plan, inv = False)
 
     def set_robot_poses(self, x, robot_body):
@@ -1757,9 +1757,9 @@ class BaxterEEReachableLeftInv(BaxterEEReachableLeft):
 
     def resample(self, negated, t, plan):
         if const.PRODUCTION:
-            print "Let me try a new approach.\n"
+            print("Let me try a new approach.\n")
         else:
-            print "resample {}".format(self.get_type())
+            print("resample {}".format(self.get_type()))
         return baxter_sampling.resample_eereachable_rrt(self, negated, t, plan, inv = True)
 
 class BaxterEEReachableRightInv(BaxterEEReachableRight):
@@ -1775,9 +1775,9 @@ class BaxterEEReachableRightInv(BaxterEEReachableRight):
     #@profile
     def resample(self, negated, t, plan):
         if const.PRODUCTION:
-            print "Let me try a new approach."
+            print("Let me try a new approach.")
         else:
-            print "resample {}".format(self.get_type())
+            print("resample {}".format(self.get_type()))
         return baxter_sampling.resample_eereachable_rrt(self, negated, t, plan, inv='True')
 
 class BaxterEEReachableLeftVer(BaxterEEReachableLeft):
@@ -1793,9 +1793,9 @@ class BaxterEEReachableLeftVer(BaxterEEReachableLeft):
     #@profile
     def resample(self, negated, t, plan):
         if const.PRODUCTION:
-            print "Let me try a new approach."
+            print("Let me try a new approach.")
         else:
-            print "resample {}".format(self.get_type())
+            print("resample {}".format(self.get_type()))
         return baxter_sampling.resample_eereachable_ver(self, negated, t, plan)
 
 class BaxterEEReachableRightVer(BaxterEEReachableRight):
@@ -1809,9 +1809,9 @@ class BaxterEEReachableRightVer(BaxterEEReachableRight):
     #@profile
     def resample(self, negated, t, plan):
         if const.PRODUCTION:
-            print "Let me try a new approach."
+            print("Let me try a new approach.")
         else:
-            print "resample {}".format(self.get_type())
+            print("resample {}".format(self.get_type()))
         return baxter_sampling.resample_eereachable_ver(self, negated, t, plan)
 
 class BaxterEEApproachLeft(BaxterEEReachable):
@@ -1823,9 +1823,9 @@ class BaxterEEApproachLeft(BaxterEEReachable):
     #@profile
     def resample(self, negated, t, plan):
         if const.PRODUCTION:
-            print "Let me try a new approach."
+            print("Let me try a new approach.")
         else:
-            print "resample {}".format(self.get_type())
+            print("resample {}".format(self.get_type()))
         return baxter_sampling.resample_washer_ee_approach(self, negated, t, plan, approach = True)
 
     def get_rel_pt(self, rel_step):
@@ -1843,9 +1843,9 @@ class BaxterEEApproachOpenDoorLeft(BaxterEEReachable):
     #@profile
     def resample(self, negated, t, plan):
         if const.PRODUCTION:
-            print "Let me try a new approach."
+            print("Let me try a new approach.")
         else:
-            print "resample {}".format(self.get_type())
+            print("resample {}".format(self.get_type()))
         rel_pt = np.array([-const.APPROACH_DIST/2, -const.APPROACH_DIST*np.sqrt(3)/2, 0])
         return baxter_sampling.resample_washer_ee_approach(self, negated, t, plan, approach=True, rel_pt=rel_pt)
 
@@ -1864,9 +1864,9 @@ class BaxterEEApproachCloseDoorLeft(BaxterEEReachable):
     #@profile
     def resample(self, negated, t, plan):
         if const.PRODUCTION:
-            print "Let me try a new approach."
+            print("Let me try a new approach.")
         else:
-            print "resample {}".format(self.get_type())
+            print("resample {}".format(self.get_type()))
         return baxter_sampling.resample_washer_ee_approach(self, negated, t, plan, approach = True)
 
     def get_rel_pt(self, rel_step):
@@ -1884,9 +1884,9 @@ class BaxterEEApproachRight(BaxterEEReachable):
     #@profile
     def resample(self, negated, t, plan):
         if const.PRODUCTION:
-            print "Let me try a new approach."
+            print("Let me try a new approach.")
         else:
-            print "resample {}".format(self.get_type())
+            print("resample {}".format(self.get_type()))
         return baxter_sampling.resample_washer_ee_approach(self, negated, t, plan, approach = True)
 
     def get_rel_pt(self, rel_step):
@@ -1910,9 +1910,9 @@ class BaxterEERetreatLeft(BaxterEEReachable):
     #@profile
     def resample(self, negated, t, plan):
         if const.PRODUCTION:
-            print "Let me try a new approach."
+            print("Let me try a new approach.")
         else:
-            print "resample {}".format(self.get_type())
+            print("resample {}".format(self.get_type()))
         return baxter_sampling.resample_washer_ee_approach(self, negated, t, plan, approach = False)
 
 class BaxterEERetreatOpenDoorLeft(BaxterEEReachable):
@@ -1930,9 +1930,9 @@ class BaxterEERetreatOpenDoorLeft(BaxterEEReachable):
     #@profile
     def resample(self, negated, t, plan):
         if const.PRODUCTION:
-            print "Let me try a new approach."
+            print("Let me try a new approach.")
         else:
-            print "resample {}".format(self.get_type())
+            print("resample {}".format(self.get_type()))
         return baxter_sampling.resample_washer_ee_approach(self, negated, t, plan, approach = False)
 
 class BaxterEERetreatCloseDoorLeft(BaxterEEReachable):
@@ -1956,9 +1956,9 @@ class BaxterEERetreatCloseDoorLeft(BaxterEEReachable):
     #@profile
     def resample(self, negated, t, plan):
         if const.PRODUCTION:
-            print "Let me try a new approach."
+            print("Let me try a new approach.")
         else:
-            print "resample {}".format(self.get_type())
+            print("resample {}".format(self.get_type()))
         rel_pt = np.array([-const.APPROACH_DIST/2, -const.APPROACH_DIST*np.sqrt(3)/2, 0])
         return baxter_sampling.resample_washer_ee_approach(self, negated, t, plan, approach=False, rel_pt=rel_pt)
 
@@ -1977,9 +1977,9 @@ class BaxterEERetreatRight(BaxterEEReachable):
     #@profile
     def resample(self, negated, t, plan):
         if const.PRODUCTION:
-            print "Let me try a new approach."
+            print("Let me try a new approach.")
         else:
-            print "resample {}".format(self.get_type())
+            print("resample {}".format(self.get_type()))
         return baxter_sampling.resample_washer_ee_approach(self, negated, t, plan, approach = False)
 
 """
@@ -2868,10 +2868,10 @@ class BaxterClothTargetInBasket(ExprPredicate):
 class BaxterObjectWithinRotLimit(robot_predicates.ObjectWithinRotLimit):
     # BaxterObjectWithinRotLimit Object
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-            self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][1]])])
-            self.attr_dim = 3
-            self.object = params[0]
-            super(BaxterObjectWithinRotLimit, self).__init__(name, params, expected_param_types, env, debug)
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][1]])])
+        self.attr_dim = 3
+        self.object = params[0]
+        super(BaxterObjectWithinRotLimit, self).__init__(name, params, expected_param_types, env, debug)
 
 class BaxterGrippersLevel(robot_predicates.GrippersLevel):
     # BaxterGrippersLevel Robot
@@ -3274,7 +3274,7 @@ class BaxterGrippersDownRot(robot_predicates.GrippersLevel):
         obj_trans = np.zeros((4,4))
         obj_trans[:3,:3] = [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]
         obj_trans[3,3] = 1
-        
+
         left_rot_jacs = []
         right_rot_jacs = []
         for local_dir in np.eye(3):

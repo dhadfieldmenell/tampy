@@ -5,4 +5,3 @@ env.render(camera_id=1)
 env.render(camera_id=1)
 
 import ipdb; ipdb.set_trace()
-

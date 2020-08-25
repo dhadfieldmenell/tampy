@@ -27,7 +27,7 @@ class Parameter(object):
             self._attr_types = {'attr_types': dict}
 
         if attrs is not None:
-            for attr_name, arg in attrs.items():
+            for attr_name, arg in list(attrs.items()):
                 if "undefined" in arg:
                     setattr(self, attr_name, "undefined")
                 else:
@@ -51,7 +51,7 @@ class Parameter(object):
         try:
             attr = self._attr_types[attr_name]
         except Exception as e:
-            print(self, self.name)
+            print((self, self.name))
             raise e
         return attr
 
@@ -68,14 +68,14 @@ class Parameter(object):
             return not np.all([self._free_attrs[attr][:, t] for attr in attr_list])
 
     def is_defined(self):
-        for attr_name in self._attr_types.iterkeys():
+        for attr_name in self._attr_types.keys():
             if getattr(self, attr_name) is "undefined":
                 return False
         return True
 
     def save_free_attrs(self):
         self._saved_free_attrs = {}
-        for k, v in self._free_attrs.items():
+        for k, v in list(self._free_attrs.items()):
             self._saved_free_attrs[k] = v.copy()
 
     def restore_free_attrs(self):
@@ -83,7 +83,7 @@ class Parameter(object):
 
     def get_free_attrs(self):
         free_attrs = {}
-        for k, v in self._free_attrs.items():
+        for k, v in list(self._free_attrs.items()):
             free_attrs[k] = v.copy()
         return free_attrs
 
@@ -94,7 +94,7 @@ class Parameter(object):
         if self.is_symbol():
             active_ts = (0,0)
         self._free_attrs[attr][:,active_ts[0]:active_ts[1]+1] = 0
-     
+
     def free_attr(self, attr, active_ts):
         if self.is_symbol():
             active_ts = (0,0)
@@ -136,7 +136,7 @@ class Object(Parameter):
     def copy(self, new_horizon, reset_free=False):
         new = Object()
         new_free = {}
-        for attr_name, v in self.__dict__.items():
+        for attr_name, v in list(self.__dict__.items()):
             attr_type = self.get_attr_type(attr_name)
             if issubclass(attr_type, Vector):
                 new_value = np.empty((attr_type.dim, new_horizon))
@@ -156,7 +156,7 @@ class Object(Parameter):
     def write_to_hdf5(self, file_name):
         hdf5_file = h5py.File(file_name, 'w')
         group = hdf5_file.create_group('trajectory')
-        for attr_name, value in self.__dict__.items():
+        for attr_name, value in list(self.__dict__.items()):
             if issubclass(self.get_attr_type(attr_name), Vector):
                 group.create_dataset(attr_name, data=value)
         hdf5_file.close()
@@ -186,7 +186,7 @@ class Symbol(Parameter):
     def copy(self, new_horizon, reset_free=False):
         new = Symbol()
         new_free = {}
-        for k, v in self.__dict__.items():
+        for k, v in list(self.__dict__.items()):
             if v == 'undefined':
                 attr_type = self.get_attr_type(k)
                 assert issubclass(attr_type, Vector)

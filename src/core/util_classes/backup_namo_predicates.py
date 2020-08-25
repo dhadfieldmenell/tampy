@@ -34,16 +34,16 @@ NEAR_TOL = 0.4
 
 
 ATTRMAP = {
-    "Robot":     (("pose", np.array(range(2), dtype=np.int)),
-                  ("gripper", np.array(range(1), dtype=np.int)),
-                  ("vel", np.array(range(2), dtype=np.int)),
-                  ("acc", np.array(range(2), dtype=np.int))),
-    "Can":       (("pose", np.array(range(2), dtype=np.int)),),
-    "Target":    (("value", np.array(range(2), dtype=np.int)),),
-    "RobotPose": (("value", np.array(range(2), dtype=np.int)),
-                  ("gripper", np.array(range(1), dtype=np.int))),
-    "Obstacle":  (("pose", np.array(range(2), dtype=np.int)),),
-    "Grasp":     (("value", np.array(range(2), dtype=np.int)),),
+    "Robot":     (("pose", np.array(list(range(2)), dtype=np.int)),
+                  ("gripper", np.array(list(range(1)), dtype=np.int)),
+                  ("vel", np.array(list(range(2)), dtype=np.int)),
+                  ("acc", np.array(list(range(2)), dtype=np.int))),
+    "Can":       (("pose", np.array(list(range(2)), dtype=np.int)),),
+    "Target":    (("value", np.array(list(range(2)), dtype=np.int)),),
+    "RobotPose": (("value", np.array(list(range(2)), dtype=np.int)),
+                  ("gripper", np.array(list(range(1)), dtype=np.int))),
+    "Obstacle":  (("pose", np.array(list(range(2)), dtype=np.int)),),
+    "Grasp":     (("value", np.array(list(range(2)), dtype=np.int)),),
 }
 
 
@@ -192,7 +192,7 @@ class CollisionPredicate(ExprPredicate):
         #     self._env.SetViewer("qtcoin")
         if USE_OPENRAVE:
             self._cc = ctrajoptpy.GetCollisionChecker(self._env)
-        
+
         self.dsafe = dsafe
         self.ind0 = ind0
         self.ind1 = ind1
@@ -274,10 +274,10 @@ class CollisionPredicate(ExprPredicate):
         n_cols = len(collisions)
         assert n_cols <= self.n_cols
         jac = np.zeros((1, 4))
-        
-        p0 = filter(lambda p: p.name == name0, self._param_to_body.keys())[0]
-        p1 = filter(lambda p: p.name == name1, self._param_to_body.keys())[0]
-        
+
+        p0 = filter(lambda p: p.name == name0, list(self._param_to_body.keys()))[0]
+        p1 = filter(lambda p: p.name == name1, list(self._param_to_body.keys()))[0]
+
         b0 = self._param_to_body[p0]
         b1 = self._param_to_body[p1]
         for i, c in enumerate(collisions):
@@ -304,12 +304,12 @@ class CollisionPredicate(ExprPredicate):
                 sign = 0
                 if linkAParent == b0.body_id and linkBParent == b1.body_id:
                     #pt0, pt1 = c.positionOnA, c.positionOnB
-                    pt0, pt1 = c[5], c[6] 
+                    pt0, pt1 = c[5], c[6]
                     linkRobot, linkObj = linkA, linkB
                     sign = -1
                 elif linkBParent == b0.body_id and linkAParent == b1.body_id:
                     # pt0, pt1 = c.positionOnB, c.positionOnA
-                    pt1, pt0 = c[5], c[6] 
+                    pt1, pt0 = c[5], c[6]
                     linkRobot, linkObj = linkB, linkA
                     sign = 1
                 else:
@@ -326,19 +326,19 @@ class CollisionPredicate(ExprPredicate):
                 pt0[2] = 1.01
                 pt1[2] = 1.01
                 self._plot_collision(pt0, pt1, distance)
-                print "pt0 = ", pt0
-                print "pt1 = ", pt1
-                print "distance = ", distance
-                print "normal = ", normal
+                print("pt0 = ", pt0)
+                print("pt1 = ", pt1)
+                print("distance = ", distance)
+                print("normal = ", normal)
 
             vals[i, 0] = self.dsafe - distance
             jacs[i, :2] = -1*normal[:2]
             jacs[i, 2:] = normal[:2]
 
         if self._debug:
-            print "options: ", results
-            print "selected: ", chosen_pt0, chosen_pt1
-            print "selected distance: ", chosen_distance
+            print("options: ", results)
+            print("selected: ", chosen_pt0, chosen_pt1)
+            print("selected distance: ", chosen_distance)
             self._plot_collision(chosen_pt0, chosen_pt1, chosen_distance)
 
         # if jac0 is None or jac1 is None or val is None:
@@ -944,7 +944,7 @@ class RCollides(CollisionPredicate):
 
         if a >= len(plan.actions) or time == plan.actions[a].active_timesteps[0]:
             return None, None
-            
+
         act = plan.actions[a]
 
         if time == plan.actions[a].active_timesteps[1]:
@@ -958,8 +958,8 @@ class RCollides(CollisionPredicate):
             jac = np.mean(jac[:,:2], axis=0)
 
         if np.all(jac == 0):
-                return None, None
-        
+            return None, None
+
         jac = jac / (np.linalg.norm(jac) + 1e-3)
 
         new_robot_pose = self.r.pose[:, time] + np.random.uniform(0.1, 0.5) * jac
@@ -1052,7 +1052,7 @@ class Obstructs(CollisionPredicate):
 
         if a >= len(plan.actions) or time == plan.actions[a].active_timesteps[0]:
             return None, None
-            
+
         act = plan.actions[a]
 
         disp = self.c.pose[:, time] - self.r.pose[:,time]
@@ -1287,7 +1287,7 @@ class ObstructsHolding(CollisionPredicate):
             w1, w2 = 0.9, 0.1
         orth *= np.random.choice([-1., 1.], p=[w1, w2])
         orth = orth / np.linalg.norm(orth)
-        
+
         rdisp = -(self.obstr.geom.radius + self.held.geom.radius + self.dsafe + 2e-1) * disp / np.linalg.norm(disp)
         orth = rdisp + np.random.uniform(0.2, 0.5) * orth
         # orth *= np.random.uniform(1.2, 1.8) * (self.obstr.geom.radius + self.r.geom.radius)
@@ -1363,7 +1363,7 @@ class ObstructsHolding(CollisionPredicate):
             pose_held = x[4:6]
             b2.set_pose(pose_held)
 
-            
+
             if USE_OPENRAVE:
                 collisions2 = self._cc.BodyVsBody(b2.env_body, b1.env_body)
             else:
@@ -1645,5 +1645,3 @@ class AccValid(VelValid):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
         super(AccValid, self).__init__(name, params, expected_param_types, env, debug, dmove)
         self.attr_inds = OrderedDict([(self.r, [("vel", np.array([0, 1], dtype=np.int)), ("acc", np.array([0, 1], dtype=np.int))]),])
-
-

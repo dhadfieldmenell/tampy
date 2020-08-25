@@ -1,4 +1,4 @@
-from __future__ import division
+
 
 from datetime import datetime
 import os
@@ -152,4 +152,3 @@ config = {
     'hist_len': 3,
     'take_optimal_sample': True
 }
-

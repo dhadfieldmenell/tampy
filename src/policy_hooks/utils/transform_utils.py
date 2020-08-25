@@ -6,7 +6,7 @@ From: https://github.com/StanfordVL/robosuite/blob/master/robosuite/utils/transf
   author={Fan, Linxi and Zhu, Yuke and Zhu, Jiren and Liu, Zihua and Zeng, Orien and Gupta, Anchit and Creus-Costa, Joan and Savarese, Silvio and Fei-Fei, Li},
   booktitle={Conference on Robot Learning},
   year={2018}
-  
+
 
 Utility functions of matrix and vector transformations.
 
@@ -51,7 +51,7 @@ _AXES2TUPLE = {
     "rzyz": (2, 1, 1, 1),
 }
 
-_TUPLE2AXES = dict((v, k) for k, v in _AXES2TUPLE.items())
+_TUPLE2AXES = dict((v, k) for k, v in list(_AXES2TUPLE.items()))
 
 
 def convert_quat(q, to="xyzw"):

@@ -33,7 +33,7 @@ ENV_XML = 'policy_hooks/mujoco/current_baxter_env.xml'
 
 MUJOCO_JOINT_ORDER = ['right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'right_w1', 'right_w2', 'right_gripper_l_finger_joint', 'right_gripper_r_finger_joint',\
                       'left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', 'left_w1', 'left_w2', 'left_gripper_l_finger_joint', 'left_gripper_r_finger_joint']
-                      
+
 
 NO_CLOTH = 0
 NO_FOLD = 1
@@ -66,7 +66,7 @@ TWIST_FOLD = 9
 #     'right_w2': (1000, 0.1, 0.01),
 #     'right_gripper_l_finger_joint': (1000, 0.1, 0.01),
 #     'right_gripper_r_finger_joint': (1000, 0.1, 0.01),
-# }                      
+# }
 
 BAXTER_GAINS = {
     'left_s0': (5000., 0.01, 2.5),
@@ -172,9 +172,9 @@ class BaxterMJCEnv(object):
         self.physics.forward()
 
         self.action_inds = {
-            ('baxter', 'rArmPose'): np.array(range(7)),
+            ('baxter', 'rArmPose'): np.array(list(range(7))),
             ('baxter', 'rGripper'): np.array([7]),
-            ('baxter', 'lArmPose'): np.array(range(8, 15)),
+            ('baxter', 'lArmPose'): np.array(list(range(8, 15))),
             ('baxter', 'lGripper'): np.array([15]),
         }
 
@@ -210,10 +210,10 @@ class BaxterMJCEnv(object):
         if self._viewer is None or not self.use_glew: return
 
         if self._render_surface:
-          self._render_surface.free()
+            self._render_surface.free()
 
         if self._renderer:
-          self._renderer.release()
+            self._renderer.release()
 
         self._render_surface = render.Renderer(
             max_width=_MAX_FRONTBUFFER_SIZE, max_height=_MAX_FRONTBUFFER_SIZE)
@@ -297,7 +297,7 @@ class BaxterMJCEnv(object):
         pos = (self.physics.data.xpos[ll_gripper_ind] + self.physics.data.xpos[lr_gripper_ind]) / 2
         if not mujoco_frame:
             pos[2] -= MUJOCO_MODEL_Z_OFFSET
-        return pos 
+        return pos
 
 
     def get_right_ee_pos(self, mujoco_frame=True):
@@ -596,7 +596,7 @@ class BaxterMJCEnv(object):
                     # if not self.physics.model.eq_active[r_eq_ind]:
                     #     self._shift_cloth_to_grip(right_ee, (i, j))
                     self.physics.model.eq_active[r_eq_ind] = True
-                    print 'Activated right equality'.format(i, j)
+                    print('Activated right equality'.format(i, j))
                 # else:
                 #     self.physics.model.eq_active[r_eq_ind] = False
 
@@ -604,7 +604,7 @@ class BaxterMJCEnv(object):
                     # if not self.physics.model.eq_active[l_eq_ind]:
                     #     self._shift_cloth_to_grip(left_ee, (i, j))
                     self.physics.model.eq_active[l_eq_ind] = True
-                    print 'Activated left equality {0} {1}'.format(i, j)
+                    print('Activated left equality {0} {1}'.format(i, j))
                 # else:
                 #     self.physics.model.eq_active[l_eq_ind] = False
 
@@ -700,12 +700,12 @@ class BaxterMJCEnv(object):
             # target_left_ee_rot /= np.linalg.norm(target_left_ee_rot)
 
             start_t = time.time()
-            right_cmd = self._calc_ik(target_right_ee_pos, 
-                                      target_right_ee_rot, 
+            right_cmd = self._calc_ik(target_right_ee_pos,
+                                      target_right_ee_rot,
                                       use_right=True)
 
-            left_cmd = self._calc_ik(target_left_ee_pos, 
-                                     target_left_ee_rot, 
+            left_cmd = self._calc_ik(target_left_ee_pos,
+                                     target_left_ee_rot,
                                      use_right=False)
             # print 'IK time:', time.time() - start_t
 
@@ -730,12 +730,12 @@ class BaxterMJCEnv(object):
             target_left_ee_rot = self.get_left_ee_rot()
 
             start_t = time.time()
-            right_cmd = self._calc_ik(target_right_ee_pos, 
-                                      target_right_ee_rot, 
+            right_cmd = self._calc_ik(target_right_ee_pos,
+                                      target_right_ee_rot,
                                       use_right=True)
 
-            left_cmd = self._calc_ik(target_left_ee_pos, 
-                                     target_left_ee_rot, 
+            left_cmd = self._calc_ik(target_left_ee_pos,
+                                     target_left_ee_rot,
                                      use_right=False)
             # print 'IK time:', time.time() - start_t
 
@@ -783,15 +783,15 @@ class BaxterMJCEnv(object):
         #     self.activate_cloth_eq()
 
         if debug:
-            print '\n'
-            print 'Joint Errors:', abs_cmd - self.physics.data.qpos[1:19]
-            print 'EE Position', self.get_right_ee_pos(), self.get_left_ee_pos()
-            print 'EE Quaternion', self.get_right_ee_rot(), self.get_left_ee_rot()
+            print('\n')
+            print('Joint Errors:', abs_cmd - self.physics.data.qpos[1:19])
+            print('EE Position', self.get_right_ee_pos(), self.get_left_ee_pos())
+            print('EE Quaternion', self.get_right_ee_rot(), self.get_left_ee_rot())
             corner1 = self.get_item_pos('B0_0')
             corner2 = self.get_item_pos('B0_{0}'.format(self.cloth_width-1))
             corner3 = self.get_item_pos('B{0}_0'.format(self.cloth_length-1))
             corner4 = self.get_item_pos('B{0}_{1}'.format(self.cloth_length-1, self.cloth_width-1))
-            print 'Cloth corners:', corner1, corner2, corner3, corner4
+            print('Cloth corners:', corner1, corner2, corner3, corner4)
 
         return self.get_obs(), self.compute_reward(), False, {}
 
@@ -840,7 +840,7 @@ class BaxterMJCEnv(object):
         model  = self.physics.model
         xpos = model.body_pos.copy()
         xquat = model.body_quat.copy()
-        param = plan.params.values()
+        param = list(plan.params.values())
 
         for param_name in plan.params:
             param = plan.params[param_name]
@@ -920,13 +920,13 @@ class BaxterMJCEnv(object):
 
     def list_joint_info(self):
         for i in range(self.physics.model.njnt):
-            print '\n'
-            print 'Jnt ', i, ':', self.physics.model.id2name(i, 'joint')
-            print 'Axis :', self.physics.model.jnt_axis[i]
-            print 'Dof adr :', self.physics.model.jnt_dofadr[i]
+            print('\n')
+            print('Jnt ', i, ':', self.physics.model.id2name(i, 'joint'))
+            print('Axis :', self.physics.model.jnt_axis[i])
+            print('Dof adr :', self.physics.model.jnt_dofadr[i])
             body_id = self.physics.model.jnt_bodyid[i]
-            print 'Body :', self.physics.model.id2name(body_id, 'body')
-            print 'Parent body :', self.physics.model.id2name(self.physics.model.body_parentid[body_id], 'body')
+            print('Body :', self.physics.model.id2name(body_id, 'body'))
+            print('Parent body :', self.physics.model.id2name(self.physics.model.body_parentid[body_id], 'body'))
 
 
     def compute_reward(self):

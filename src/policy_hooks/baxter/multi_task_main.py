@@ -46,7 +46,7 @@ class GPSMain(object):
         self._quit_on_end = quit_on_end
         self._hyperparams = config
         self.agent = config['agent']['type'](config['agent'])
-        self._train_idx = range(config['num_conds'])
+        self._train_idx = list(range(config['num_conds']))
         self._hyperparams=config
         self._test_idx = self._train_idx
         self.iter_count = 0
@@ -125,7 +125,7 @@ class GPSMain(object):
                 self.supervised_pretrain()
 
             for itr in range(itr_start, self._hyperparams['iterations']):
-                print '\n\nITERATION ', itr
+                print('\n\nITERATION ', itr)
                 paths = []
                 for cond in self._train_idx:
                     rollout_policies = {}
@@ -154,7 +154,7 @@ class GPSMain(object):
 
             import ipdb; ipdb.set_trace()
             for itr in range(itr_start, self._hyperparams['iterations']):
-                print '\n\nITERATION ', itr
+                print('\n\nITERATION ', itr)
                 self.agent.reset_conditions(len(self._train_idx))
                 paths = []
                 for cond in self._train_idx:
@@ -212,7 +212,7 @@ class GPSMain(object):
                     old_cur_state = cur_state
                     for step in hl_plan:
                         try:
-                            targets = [self.agent.plans.values()[0].params[p_name] for p_name in step[1]]
+                            targets = [list(self.agent.plans.values())[0].params[p_name] for p_name in step[1]]
                         except:
                             import ipdb; ipdb.set_trace()
                         plan = self._hyperparams['plan_f'](step[0], targets)
@@ -234,14 +234,14 @@ class GPSMain(object):
                         cur_sample = next_sample
                         cur_state = cur_sample.get_X(t=cur_sample.T-1)
                         opt_hl_plan.append(step)
-                    if self._hyperparams['goal_f'](cur_state, self.agent.targets[cond], self.agent.plans.values()[0]) == 0:
+                    if self._hyperparams['goal_f'](cur_state, self.agent.targets[cond], list(self.agent.plans.values())[0]) == 0:
                         break
 
                     attempt += 1
 
                 paths.append(cur_path)
-                if cur_sample != None: 
-                    opt_val = self._hyperparams['goal_f'](cur_sample.get_X(t=cur_sample.T-1), self.agent.targets[cond], self.agent.plans.values()[0])
+                if cur_sample != None:
+                    opt_val = self._hyperparams['goal_f'](cur_sample.get_X(t=cur_sample.T-1), self.agent.targets[cond], list(self.agent.plans.values())[0])
                     for path in paths:
                         for sample in path:
                             sample.task_cost = opt_val
@@ -265,8 +265,8 @@ class GPSMain(object):
 
 
     def update_primitives(self, samples):
-        dP, dO = len(self.task_list), self.alg_map.values()[0].dPrimObs
-        dObj, dTarg = self.alg_map.values()[0].dObj, self.alg_map.values()[0].dTarg
+        dP, dO = len(self.task_list), list(self.alg_map.values())[0].dPrimObs
+        dObj, dTarg = list(self.alg_map.values())[0].dObj, list(self.alg_map.values())[0].dTarg
         dP += dObj + dTarg
         # Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
@@ -286,7 +286,7 @@ class GPSMain(object):
             self.policy_opt.update_primitive_filter(obs_data, tgt_mu, tgt_prc, tgt_wt)
 
     def update_value_network(self, samples):
-        dV, dO = 1, self.alg_map.values()[0].dO
+        dV, dO = 1, list(self.alg_map.values())[0].dO
 
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dV))
         tgt_prc, tgt_wt = np.zeros((0, dV, dV)), np.zeros((0))
@@ -306,21 +306,21 @@ class GPSMain(object):
 
     def update_distilled(self, optimal_samples=[]):
         """ Compute the new distilled policy. """
-        dU, dO = self.agent.dU, self.alg_map.values()[0].dPrimObs
+        dU, dO = self.agent.dU, list(self.alg_map.values())[0].dPrimObs
         # Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dU))
         tgt_prc, tgt_wt = np.zeros((0, dU, dU)), np.zeros((0,))
-        
+
         # Optimize global polciies with optimal samples as well
         for sample in optimal_samples:
             T = sample.T
-            data_len = int(self.alg_map.values()[0].sample_ts_prob * T) 
+            data_len = int(list(self.alg_map.values())[0].sample_ts_prob * T)
             mu = np.zeros((0, dU))
             prc = np.zeros((0, dU, dU))
             wt = np.zeros((0))
             obs = np.zeros((0, dO))
 
-            ts = np.random.choice(xrange(T), data_len, replace=False)
+            ts = np.random.choice(range(T), data_len, replace=False)
             ts.sort()
             for t in range(data_len):
                 prc[t] = np.eye(dU)
@@ -340,7 +340,7 @@ class GPSMain(object):
             for m in range(len(alg.cur)):
                 samples = alg.cur[m].sample_list
                 if samples is None or not hasattr(alg, 'new_traj_distr'):
-                    print "No samples for {0} in distilled update.\n".format(task)
+                    print("No samples for {0} in distilled update.\n".format(task))
                     break
                 T = samples[0].T
                 X = samples.get_X()
@@ -353,7 +353,7 @@ class GPSMain(object):
                 obs = np.zeros((0, dO))
                 full_obs = np.array([sample.get_prim_obs() for sample in samples])
 
-                ts = np.random.choice(xrange(T), data_len, replace=False)
+                ts = np.random.choice(range(T), data_len, replace=False)
                 ts.sort()
                 # Get time-indexed actions.
                 for j in range(data_len):
@@ -386,7 +386,7 @@ class GPSMain(object):
         algorithm_file = self._data_files_dir + 'algorithm_itr_%02d.pkl' % itr
         self.algorithm = self.data_logger.unpickle(algorithm_file)
         if self.algorithm is None:
-            print("Error: cannot find '%s.'" % algorithm_file)
+            print(("Error: cannot find '%s.'" % algorithm_file))
             os._exit(1) # called instead of sys.exit(), since t
         traj_sample_lists = self.data_logger.unpickle(self._data_files_dir +
             ('traj_sample_itr_%02d.pkl' % itr))
@@ -421,7 +421,7 @@ class GPSMain(object):
             algorithm_file = self._data_files_dir + 'algorithm_itr_%02d.pkl' % itr_load
             self.algorithm = self.data_logger.unpickle(algorithm_file)
             if self.algorithm is None:
-                print("Error: cannot find '%s.'" % algorithm_file)
+                print(("Error: cannot find '%s.'" % algorithm_file))
                 os._exit(1) # called instead of sys.exit(), since this is in a thread
 
             if self.gui:
@@ -510,7 +510,7 @@ class GPSMain(object):
                 pol, cond, use_base_t=False,
                 verbose=(i < self._hyperparams['verbose_trials'])
             )
-            
+
 
     def _take_iteration(self, itr, sample_lists, paths):
         """
@@ -569,19 +569,19 @@ class GPSMain(object):
             self.agent.reset_hist()
 
         sample = self.agent.sample_task(self.rollout_policies[task], cond, self.agent.x0[cond], [task, obj, targ], noisy=noisy)
-        print sample.get_X()
+        print(sample.get_X())
         return sample.get_X(t=sample.T-1)
 
     def predict_condition(self, cond):
         sample = Sample(self.agent)
         sample.set(STATE_ENUM, self.agent.x0[cond].copy(), t=0)
         sample.set(TARGETS_ENUM, self.agent.target_vecs[cond].copy(), t=0)
-        print self.policy_opt.task_distr([sample.get_prim_obs()])
+        print(self.policy_opt.task_distr([sample.get_prim_obs()]))
 
     def save_rollout(self, reset_hist=True, cond=0, noisy=False):
         if reset_hist:
             self.agent.reset_hist()
-            
+
         file_time = str(datetime.now())
         with open('experiments/' + file_time + '.txt', 'w+') as f:
             f.write(file_time+'\n\n')
@@ -611,7 +611,7 @@ class GPSMain(object):
         with open('experiments/' + file_time + '.txt', 'a+') as f:
             f.write(pprint.pformat(self._hyperparams, width=1))
             f.write('\n\n\n')
-            f.write(str(self._hyperparams['algorithm'].values()[0]['cost']['type']))
+            f.write(str(list(self._hyperparams['algorithm'].values())[0]['cost']['type']))
             f.write('\n\n')
 
     def _log_data(self, itr, traj_sample_lists, pol_sample_lists=None):

@@ -112,7 +112,7 @@ class TestLLSolver(unittest.TestCase):
         start = move.params[1]
         end = move.params[2]
 
-        plan_params = plan.params.values()
+        plan_params = list(plan.params.values())
         for action in plan.actions:
             for p in action.params:
                 self.assertTrue(p in plan_params)
@@ -121,7 +121,7 @@ class TestLLSolver(unittest.TestCase):
                 for p in pred.params:
                     if p not in plan_params:
                         if pred_dict['hl_info'] != 'hl_state':
-                            print pred
+                            print(pred)
                             break
                     # self.assertTrue(p in plan_params)
 
@@ -184,9 +184,9 @@ class TestLLSolver(unittest.TestCase):
 
 
     def test_early_converge(self):
-        print "No Early Converge"
+        print("No Early Converge")
         _test_plan(self, self.putaway2, plot=False, animate=False)
-        print "Early Converge"
+        print("Early Converge")
         _test_plan(self, self.putaway2, plot=False, early_converge=True, animate=False)
     def test_backtrack_move(self):
         _test_plan(self, self.move_no_obs, method='Backtrack')
@@ -205,7 +205,7 @@ class TestLLSolver(unittest.TestCase):
 
 def _test_plan(test_obj, plan, method='SQP', plot=False, animate=False, verbose=False,
                early_converge=False):
-    print "testing plan: {}".format(plan.actions)
+    print("testing plan: {}".format(plan.actions))
     if not plot:
         callback = None
         viewer = None
@@ -232,7 +232,7 @@ def _test_plan(test_obj, plan, method='SQP', plot=False, animate=False, verbose=
         namo_solver.solve(plan, callback=callback, verbose=verbose)
     elif method == 'Backtrack':
         namo_solver.backtrack_solve(plan, callback=callback, verbose=verbose)
-    print "Solve Took: {}".format(time.time() - start)
+    print("Solve Took: {}".format(time.time() - start))
     fp = plan.get_failed_preds()
     _, _, t = plan.get_failed_pred()
     if animate:

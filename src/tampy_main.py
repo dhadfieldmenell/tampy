@@ -30,14 +30,14 @@ def main(domain_file, problem_file, solvers_file):
         solvers_config = parse_file_to_dict(solvers_file)
         plan, msg = pr_graph.p_mod_abs(domain_config, problem_config, solvers_config)
         if plan:
-            print "Executing plan!"
+            print("Executing plan!")
             plan.execute()
         else:
-            print msg
+            print(msg)
     except TampyException as e:
-        print "Caught an exception in Tampy:"
+        print("Caught an exception in Tampy:")
         traceback.print_exc()
-        print "Terminating..."
+        print("Terminating...")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run tampy.")

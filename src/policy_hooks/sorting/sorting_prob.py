@@ -61,7 +61,7 @@ targets = {
 #                 hl_init_state += " (ClothAtLeftTarget Cloth{0} {1})".format(i, target)
 #             else:
 #                 hl_init_state += " (not (ClothAtLeftTarget Cloth{0} {1}))".format(i, target)
-        
+
 #         for target in ['white_target', 'yellow_target']:
 #             if np.all(np.abs(np.array(targets[target]) - loc) < 0.03):
 #                 hl_init_state += " (ClothAtRightTarget Cloth{0} {1})".format(i, target)
@@ -116,16 +116,16 @@ def parse_initial_state(cloth_locs):
 
         if np.all(np.abs(np.array(targets['blue_target']) - loc) < 0.03):
             hl_init_state += " (ClothAtBlueTarget Cloth{0})".format(i)
-        
+
         if np.all(np.abs(np.array(targets['green_target']) - loc) < 0.03):
             hl_init_state += " (ClothAtGreenTarget Cloth{0})".format(i)
-        
+
         if np.all(np.abs(np.array(targets['yellow_target']) - loc) < 0.03):
             hl_init_state += " (ClothAtYellowTarget Cloth{0})".format(i)
-        
+
         if np.all(np.abs(np.array(targets['white_target']) - loc) < 0.03):
             hl_init_state += " (ClothAtWhiteTarget Cloth{0})".format(i)
-        
+
     hl_init_state += ")\n"
     return hl_init_state
 
@@ -171,7 +171,7 @@ def get_plan(num_cloths):
     cloths = ["Cloth{0}".format(i) for i in range(num_cloths)]
     color_map, colors = get_cloth_color_mapping(cloths)
     cloth_locs = get_random_initial_cloth_locations(num_cloths)
-    print "\n\n", cloth_locs, "\n\n"
+    print("\n\n", cloth_locs, "\n\n")
     prob, goal_state = get_sorting_problem(cloth_locs, color_map)
     hl_plan = get_hl_plan(prob)
     ll_plan_str, actions_per_task = get_ll_plan_str(hl_plan, num_cloths)
@@ -253,7 +253,7 @@ def get_random_initial_cloth_locations(num_cloths):
         return 0
 
     locs.sort(compare_locs)
-    
+
     return locs
 
 def sorting_state_eval(x, state_inds, num_cloths):

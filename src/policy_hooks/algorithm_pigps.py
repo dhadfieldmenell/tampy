@@ -1,7 +1,7 @@
-""" This file defines the PIGPS algorithm. 
+""" This file defines the PIGPS algorithm.
 
 Reference:
-Y. Chebotar, M. Kalakrishnan, A. Yahya, A. Li, S. Schaal, S. Levine. 
+Y. Chebotar, M. Kalakrishnan, A. Yahya, A. Li, S. Schaal, S. Levine.
 Path Integral Guided Policy Search. 2016. https://arxiv.org/abs/1610.00529.
 """
 import copy
@@ -46,8 +46,8 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
         for m in range(len(self.cur)):
             if not np.any(sample_lists[m][0].get_ref_X()):
                 s = sample_lists[m][0]
-                obj = s.agent.plans.values()[0].params[s.agent.obj_list[np.argmax(s.get(OBJ_ENUM, t=0))]]
-                targ = s.agent.plans.values()[0].params[s.agent.targ_list[np.argmax(s.get(TARG_ENUM, t=0))]]
+                obj = list(s.agent.plans.values())[0].params[s.agent.obj_list[np.argmax(s.get(OBJ_ENUM, t=0))]]
+                targ = list(s.agent.plans.values())[0].params[s.agent.targ_list[np.argmax(s.get(TARG_ENUM, t=0))]]
 
                 traj_mean = np.sum([sample.get_U() for sample in sample_lists[m]], axis=0) / len(sample_lists[m])
                 opt_sample, _, success = s.agent.sample_optimal_trajectory(sample_lists[m][0].get_X(t=0), sample_lists[m][0].task, sample_lists[m][0].condition, traj_mean=traj_mean, fixed_targets=[obj, targ])
@@ -93,7 +93,7 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
         for m in range(len(self.cur)):
             self._update_policy_fit(m)
 
-        # C-step        
+        # C-step
         self._update_trajectories()
 
         # S-step
@@ -103,4 +103,3 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
         # self._advance_iteration_variables()
 
         return sample_list
-

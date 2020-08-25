@@ -99,7 +99,7 @@ def tf_lstm_network(dim_input, dim_output, batch_size, network_config=None):
     lstm_size = network_config['lstm_size'] if lstm_size in network_config else 40
     n_lstm_layers = network_config['n_lstm_layers'] if 'n_lstm_layers' in network_config else 1
     lstm_steps = network_config['lstm_steps'] if 'lstm_steps' in network_config else 5
-    
+
     n_layers = 1 if 'n_layers' not in network_config else network_config['n_layers'] + 1
     dim_hidden = (n_layers - 1) * [40] if 'dim_hidden' not in network_config else copy(network_config['dim_hidden'])
     dim_hidden.append(dim_output)
@@ -107,10 +107,10 @@ def tf_lstm_network(dim_input, dim_output, batch_size, network_config=None):
     nn_inputs, action, precision = get_lstm_input_layer(dim_input, dim_output, lstm_steps)
 
     init_state, final_state, lstm_out = get_lstm_layers(lstm_size, n_lstm_layers, lstm_steps, nn_inputs, batch_size)
-    
+
     mlp_applied, weights, biases = get_mlp_layers(lstm_out, n_layers, dim_hidden)
     fc_vars = weights + biases
 
     loss_out = get_loss_layer(mlp_out=mlp_applied, action=action, precision=precision, batch_size=batch_size)
- 
+
     return TfMap.init_from_lists([nn_inputs, action, precision], [mlp_applied], [loss_out]), fc_vars, []

@@ -230,7 +230,7 @@ def sorting_state_encode(state, plan, targets, task=(None, None, None)):
             pred_list.append('ClothInMiddle {0}'.format(param_name))
             pred_list.append('ClothInLeftRegion {0}'.format(param_name))
             pred_list.append('ClothInRightRegion {0}'.format(param_name))
-    state_encoding = dict(zip(pred_list, range(len(pred_list))))
+    state_encoding = dict(list(zip(pred_list, list(range(len(pred_list))))))
     hl_state = np.zeros((len(pred_list)))
     for param_name in plan.params:
         if plan.params[param_name]._type != 'Cloth': continue
@@ -288,7 +288,7 @@ def get_next_target(plan, state, task, target_poses, sample_traj=[], exclude=[])
             robot_end_pose = sample_traj[-1, plan.state_inds['baxter', 'pose']]
             closest_dist = np.inf
             closest_can = None
-            for param in plan.params.values():
+            for param in list(plan.params.values()):
 
                 if param._type != 'Cloth' or param.name in exclude: continue
                 param_pose = state[plan.state_inds[param.name, 'pose']]
@@ -303,14 +303,14 @@ def get_next_target(plan, state, task, target_poses, sample_traj=[], exclude=[])
 
             return closest_can, plan.params['{0}_end_target'.format(closest_can.name)]
 
-        for param in plan.params.values():
+        for param in list(plan.params.values()):
             if param._type != 'Can' or param.name in exclude: continue
             param_pose = state[plan.state_inds[param.name, 'pose']]
             if np.sum((param_pose - target_poses['{0}_end_target'.format(param.name)])**2) > 0.01:
                 return param, plan.params['{0}_end_target'.format(param.name)]
 
         import ipdb; ipdb.set_trace()
-    
+
     if task == 'putdown':
         target_occupied = False
         middle_occupied = False
@@ -323,7 +323,7 @@ def get_next_target(plan, state, task, target_poses, sample_traj=[], exclude=[])
             closest_dist = np.inf
             closest_can = None
 
-            for param in plan.params.values():
+            for param in list(plan.params.values()):
 
                 if param._type != 'Can' or param.name in exclude: continue
                 param_pose = state[plan.state_inds[param.name, 'pose']]
@@ -334,18 +334,18 @@ def get_next_target(plan, state, task, target_poses, sample_traj=[], exclude=[])
                     closest_can = param
 
             if closest_can is not None:
-                for param_2 in plan.params.values():
+                for param_2 in list(plan.params.values()):
                     if param_2._type != 'Can': continue
- 
+
                     param_2_pose = state[plan.state_inds[param_2.name, 'pose']]
                     if param_2.name != param.name:
                         param_2_pose = state[plan.state_inds[param_2.name, 'pose']]
                         taget_occupied = target_occupied or np.sum((param_2_pose - plan.params['can{0}_end_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
- 
+
                     middle_occupied = middle_occupied or np.sum((param_2_pose - plan.params['middle_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
                     left_occupied = left_occupied or np.sum((param_2_pose - plan.params['left_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
                     right_occupied = right_occupied or np.sum((param_2_pose - plan.params['right_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
- 
+
                 if target_occupied:
                     if not middle_occupied: return closest_can, plan.params['middle_target']
                     if not left_occupied: return closest_can, plan.params['left_target']
@@ -354,23 +354,23 @@ def get_next_target(plan, state, task, target_poses, sample_traj=[], exclude=[])
                 else:
                     return closest_can, plan.params['{0}_end_target'.format(closest_can.name)]
 
-        for param in plan.params.values():
+        for param in list(plan.params.values()):
             if param._type != 'Can' or param.name in exclude: continue
             param_pose = state[plan.state_inds[param.name, 'pose']]
- 
+
             if np.all(np.abs(param_pose-robot_pose-[0, param.geom.radius+plan.params['baxter'].geom.radius+dsafe]) < 0.7):
-                for param_2 in plan.params.values():
+                for param_2 in list(plan.params.values()):
                     if param_2._type != 'Can': continue
- 
+
                     param_2_pose = state[plan.state_inds[param_2.name, 'pose']]
                     if param_2.name != param.name:
                         param_2_pose = state[plan.state_inds[param_2.name, 'pose']]
                         taget_occupied = target_occupied or np.sum((param_2_pose - plan.params['can{0}_end_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
- 
+
                     middle_occupied = middle_occupied or np.sum((param_2_pose - plan.params['middle_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
                     left_occupied = left_occupied or np.sum((param_2_pose - plan.params['left_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
                     right_occupied = right_occupied or np.sum((param_2_pose - plan.params['right_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
- 
+
                 if target_occupied:
                     if not middle_occupied: return param, plan.params['middle_target']
                     if not left_occupied: return param, plan.params['left_target']
@@ -440,7 +440,7 @@ def cost_f(Xs, task, params, targets, plan, active_ts=None):
 
 def goal_f(X, targets, plan):
     cost = 0
-    for param in plan.params.values():
+    for param in list(plan.params.values()):
         if param._type == 'Cloth':
             dist = np.sum((X[plan.state_inds[param.name, 'pose']] - targets['{0}_end_target'.format(param.name)])**2)
             cost += dist if dist > 0.01 else 0

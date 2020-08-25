@@ -8,7 +8,7 @@ from core.util_classes.matrix import Vector
 from core.util_classes.pr2 import PR2
 from core.util_classes.namo_predicates import StationaryW, InContact
 from core.util_classes.openrave_body import OpenRAVEBody
-from ll_solver import LLSolver, LLParam
+from .ll_solver import LLSolver, LLParam
 import itertools, random
 import gurobipy as grb
 import numpy as np
@@ -89,7 +89,7 @@ class CanSolver(LLSolver):
         def recursive_solve():
             ## don't optimize over any params that are already set
             old_params_free = {}
-            for p in plan.params.itervalues():
+            for p in plan.params.values():
                 old_param_map = {}
                 if p.is_symbol():
                     if p not in a.params: continue
@@ -192,8 +192,8 @@ class CanSolver(LLSolver):
             robot_poses.append({'lArmPose': lpose,
                                 'lGripper': np.array([[GRIPPER_OPEN_VAL]]),
                                 'rArmPose': old_r_arm_pose,
-                                'rGripper': np.array([[GRIPPER_OPEN_VAL]]), 
-                                'pose': old_pose, 
+                                'rGripper': np.array([[GRIPPER_OPEN_VAL]]),
+                                'pose': old_pose,
                                 'backHeight': old_backHeight })
         elif act.name == 'right_grasp' or act.name == 'right_putdown':
             target = act.params[2]
@@ -210,11 +210,11 @@ class CanSolver(LLSolver):
             robot_poses.append({'lArmPose': old_l_arm_pose,
                                 'lGripper': np.array([[GRIPPER_OPEN_VAL]]),
                                 'rArmPose': rpose,
-                                'rGripper': np.array([[GRIPPER_OPEN_VAL]]), 
-                                'pose': old_pose, 
+                                'rGripper': np.array([[GRIPPER_OPEN_VAL]]),
+                                'pose': old_pose,
                                 'backHeight': old_backHeight })
         elif act.name == 'left_grasp' or act.name == 'left_putdown':
-            target = act.params[2]            
+            target = act.params[2]
             target_pos = target.pose[:,0] + np.array([0, 0, 0.1])
             next_act.params[1].openrave_body.set_pose(target.pose[:,0], target.rotation[:, 0])
             robot.openrave_body.set_dof({'rArmPose': old_r_arm_pose})
@@ -238,7 +238,7 @@ class CanSolver(LLSolver):
 
         for rp in robot_poses:
             for attr in attr_map[rs_param._type]:
-		dim = len(rp[attr])
+                dim = len(rp[attr])
                 setattr(rs_param, attr, rp[attr].reshape((dim, 1)))
             success = False
             self.child_solver = CanSolver()
@@ -271,7 +271,7 @@ class CanSolver(LLSolver):
 
         dummy_body.delete()
         if len(possible_rps) <= 0:
-            print "something went wrong"
+            print("something went wrong")
             # import ipdb; ipdb.set_trace()
 
         return possible_rps
@@ -376,16 +376,16 @@ class CanSolver(LLSolver):
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=True)
         self._update_ll_params()
-        print "priority: {}".format(priority)
+        print("priority: {}".format(priority))
         # if callback is not None: callback(True)
         return success
 
     def _get_transfer_obj(self, plan, norm):
         transfer_objs = []
         if norm == 'min-vel':
-            for param in plan.params.values():
+            for param in list(plan.params.values()):
                 # if param._type in ['Robot', 'Can', 'EEPose']:
-                for attr_name in param.__dict__.iterkeys():
+                for attr_name in param.__dict__.keys():
                     attr_type = param.get_attr_type(attr_name)
                     if issubclass(attr_type, Vector):
                         if param.is_symbol():
@@ -467,10 +467,10 @@ class CanSolver(LLSolver):
         priority = np.maximum(priority, 0)
         if not pred_dict['hl_info'] == "hl_state":
             start, end = pred_dict['active_timesteps']
-            active_range = range(start, end+1)
+            active_range = list(range(start, end+1))
             if verbose:
-                print "pred being added: ", pred_dict
-                print active_range, effective_timesteps
+                print("pred being added: ", pred_dict)
+                print(active_range, effective_timesteps)
             negated = pred_dict['negated']
             pred = pred_dict['pred']
 
@@ -486,7 +486,7 @@ class CanSolver(LLSolver):
                     if expr is not None:
                         if add_nonlin or isinstance(expr.expr, AffExpr):
                             if verbose:
-                                print "expr being added at time ", t
+                                print("expr being added at time ", t)
                             var = self._spawn_sco_var_for_pred(pred, t)
                             bexpr = BoundExpr(expr, var)
                             # TODO: REMOVE line below, for tracing back predicate for debugging.
@@ -516,8 +516,8 @@ class CanSolver(LLSolver):
                     self._add_pred_dict(pred_dict, [action_end],
                                         priority=priority, add_nonlin=add_nonlin, verbose=verbose)
             ## add all of the linear ineqs
-            timesteps = range(max(action_start+1, active_ts[0]),
-                              min(action_end, active_ts[1]))
+            timesteps = list(range(max(action_start+1, active_ts[0]),
+                              min(action_end, active_ts[1])))
             for pred_dict in action.preds:
                 self._add_pred_dict(pred_dict, timesteps, add_nonlin=False, priority=priority, verbose=verbose)
 
@@ -529,13 +529,13 @@ class CanSolver(LLSolver):
             if action_start >= active_ts[1] and action_start > active_ts[0]: continue
             if action_end < active_ts[0]: continue
 
-            timesteps = range(max(action_start, active_ts[0]),
-                              min(action_end, active_ts[1])+1)
+            timesteps = list(range(max(action_start, active_ts[0]),
+                              min(action_end, active_ts[1])+1))
             for pred_dict in action.preds:
                 self._add_pred_dict(pred_dict, timesteps, priority=priority, add_nonlin=add_nonlin, verbose=verbose)
 
     def _update_ll_params(self):
-        for ll_param in self._param_to_ll.values():
+        for ll_param in list(self._param_to_ll.values()):
             ll_param.update_param()
         if self.child_solver:
             self.child_solver._update_ll_params()
@@ -546,12 +546,12 @@ class CanSolver(LLSolver):
         horizon = active_ts[1] - active_ts[0] + 1
         self._param_to_ll = {}
         self.ll_start = active_ts[0]
-        for param in plan.params.values():
+        for param in list(plan.params.values()):
             ll_param = LLParam(model, param, horizon, active_ts)
             ll_param.create_grb_vars()
             self._param_to_ll[param] = ll_param
         model.update()
-        for ll_param in self._param_to_ll.values():
+        for ll_param in list(self._param_to_ll.values()):
             ll_param.batch_add_cnts()
 
     def _add_obj_bexprs(self, obj_bexprs):
@@ -563,11 +563,11 @@ class CanSolver(LLSolver):
             active_ts = (0, plan.horizon-1)
         start, end = active_ts
         traj_objs = []
-        for param in plan.params.values():
+        for param in list(plan.params.values()):
             if param not in self._param_to_ll:
                 continue
             if param._type in ['Robot', 'Can']:
-                for attr_name in param.__dict__.iterkeys():
+                for attr_name in param.__dict__.keys():
                     attr_type = param.get_attr_type(attr_name)
                     if issubclass(attr_type, Vector):
                         T = end - start + 1

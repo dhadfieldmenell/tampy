@@ -23,7 +23,7 @@ class PlanSerializer:
         action_group = plan_group.create_group('actions')
         param_group = plan_group.create_group('params')
 
-        for param in plan.params.values():
+        for param in list(plan.params.values()):
             self._add_param_to_group(param_group, param)
 
         for action in plan.actions:
@@ -36,7 +36,7 @@ class PlanSerializer:
         action_group = group.create_group(str(action))
         action_group['name'] = action.name
         action_group['active_ts'] = action.active_timesteps
-        action_group['params'] = map(lambda p: p.name, action.params)
+        action_group['params'] = [p.name for p in action.params]
         action_group['step_num'] = action.step_num
         pred_group = action_group.create_group('preds')
 
@@ -83,7 +83,7 @@ class PlanSerializer:
         try:
             param_group['data'] = pickle.dumps(param)
         except pickle.PicklingError:
-            print "Could not pickle {0}.".format(param.name)
+            print("Could not pickle {0}.".format(param.name))
 
         if geom:
             param.geom = geom
@@ -98,7 +98,7 @@ class PlanSerializer:
         try:
             geom_group['data'] = pickle.dumps(geom)
         except pickle.PicklingError:
-            print "Could not pickle {0}.".format(type(geom))
+            print("Could not pickle {0}.".format(type(geom)))
             geom_group['data'] = pickle.dumps(None)
 
 
@@ -109,11 +109,11 @@ class PlanDeserializer:
         try:
             file = h5py.File(file_name, 'r')
         except IOError:
-            print 'Cannot read plan from hdf5: No such file or directory.'
+            print('Cannot read plan from hdf5: No such file or directory.')
             return
 
         if 'plan' not in file:
-            print 'Cannot read plan from hdf5: File does not contain a plan.'
+            print('Cannot read plan from hdf5: File does not contain a plan.')
             return
 
         plan = self._build_plan(file['plan'])
@@ -125,12 +125,12 @@ class PlanDeserializer:
     def _build_plan(self, group):
         env = Environment()
         params = {}
-        for param in group['params'].values():
+        for param in list(group['params'].values()):
             new_param = self._build_param(param)
             params[new_param.name] = new_param
 
         actions = []
-        for action in group['actions'].values():
+        for action in list(group['actions'].values()):
             actions.append(self._build_action(action, params, env))
 
         new_plan = Plan(params, actions, group['horizon'].value, env, determine_free=False)
@@ -144,7 +144,7 @@ class PlanDeserializer:
             params.append(plan_params[param])
 
         preds = []
-        for pred in group['preds'].values():
+        for pred in list(group['preds'].values()):
             preds.append(self._build_actionpred(pred, plan_params, env))
 
         active_timesteps = (group['active_ts'].value[0], group['active_ts'].value[1])
@@ -171,7 +171,7 @@ class PlanDeserializer:
             if param in plan_params:
                 params.append(plan_params[param])
             else:
-                print 'Param {0} for pred {1} was not serialized with plan.'.format(param, class_path)
+                print('Param {0} for pred {1} was not serialized with plan.'.format(param, class_path))
 
         return pred_class(group['name'].value, params, group['param_types'].value, env=env)
 
@@ -180,7 +180,7 @@ class PlanDeserializer:
         try:
             param = pickle.loads(group['data'].value)
         except pickle.UnpicklingError:
-            print "Could not unpickle parameter."
+            print("Could not unpickle parameter.")
             raise
 
         if 'geom' in group:
@@ -193,11 +193,11 @@ class PlanDeserializer:
         class_path = group['class_path'].value.rsplit(".", 1)
         geom_module = importlib.import_module(class_path[0])
         geom_class = getattr(geom_module, class_path[1])
-        if 'data' in group.keys():
+        if 'data' in list(group.keys()):
             try:
                 geom = pickle.loads(group['data'].value)
             except pickle.UnpicklingError:
-                print "Cannot unpickle geometry {0}.".format(geom_class)
+                print("Cannot unpickle geometry {0}.".format(geom_class))
         else:
             geom = geom_class()
 

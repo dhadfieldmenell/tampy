@@ -45,7 +45,7 @@ class BaxterMotionPlanServer(AbstractMotionPlanServer):
         while not success:
             iteration += 1
 
-            plan = self.agent.plans[task, targets[0]] 
+            plan = self.agent.plans[task, targets[0]]
             targets[0] = plan.params[targets[0]]
             targets[1] = plan.params[targets[1]]
             obj, targ = targets
@@ -64,7 +64,7 @@ class BaxterMotionPlanServer(AbstractMotionPlanServer):
 
             if task == 'grasp':
                 plan.params[targ.name].value[:,0] = plan.params[obj.name].pose[:,0]
-            
+
             plan.params['robot_init_pose'].lArmPose[:,0] = plan.params['baxter'].lArmPose[:,0]
             plan.params['robot_init_pose'].lGripper[:,0] = plan.params['baxter'].lGripper[:,0]
             plan.params['robot_init_pose'].rArmPose[:,0] = plan.params['baxter'].rArmPose[:,0]

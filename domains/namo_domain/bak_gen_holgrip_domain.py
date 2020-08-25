@@ -167,6 +167,6 @@ dom_str = dom_str.replace('            ', '')
 dom_str = dom_str.replace('    ', '')
 dom_str = dom_str.replace('    ', '')
 
-print dom_str
+print(dom_str)
 f = open('namo_current_holgrip.domain', 'w')
 f.write(dom_str)

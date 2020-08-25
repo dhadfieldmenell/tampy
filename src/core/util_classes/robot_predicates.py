@@ -8,7 +8,7 @@ from errors_exceptions import PredicateException
 from collections import OrderedDict
 import numpy as np
 
-from core.util_classes.openrave_body import USE_OPENRAVE 
+from core.util_classes.openrave_body import USE_OPENRAVE
 if USE_OPENRAVE:
     import ctrajoptpy
 else:
@@ -350,11 +350,11 @@ class CollisionPredicate(ExprPredicate):
                 distance = c[8] # c.contactDistance
                 normal = c[7] # c.contactNormalOnB # Pointing towards A
                 n_jnts = p.getNumJoints(robot_body.body_id)
-                jnts = p.getJointStates(range(n_jnts))[0]
-                robot_jac, robot_ang_jac = p.calculateJacobian(robot_body.body_id, 
+                jnts = p.getJointStates(list(range(n_jnts)))[0]
+                robot_jac, robot_ang_jac = p.calculateJacobian(robot_body.body_id,
                                                                linkRobot,
                                                                ptRobot,
-                                                               objPositions=jnts, 
+                                                               objPositions=jnts,
                                                                objVelocities=np.zeros(n_jnts),
                                                                objAccelerations=np.zeros(n_jnts))
 
@@ -435,7 +435,7 @@ class CollisionPredicate(ExprPredicate):
 
             if linkRobot1 not in col_links or linkRobot2 not in col_links:
                 continue
-  
+
             # Obtain distance between two collision points, and their normal collision vector
             if USE_OPENRAVE:
                 distance = c.GetDistance()
@@ -448,11 +448,11 @@ class CollisionPredicate(ExprPredicate):
                 distance = c.contactDistance
                 normal = c.contactNormalOnB # Pointing towards A
                 n_jnts = p.getNumJoints(robot_body.body_id)
-                jnts = p.getJointStates(range(n_jnts))[0]
-                robot_jac, robot_ang_jac = p.calculateJacobian(robot_body.body_id, 
+                jnts = p.getJointStates(list(range(n_jnts)))[0]
+                robot_jac, robot_ang_jac = p.calculateJacobian(robot_body.body_id,
                                                                linkRobot1,
                                                                ptRobot1,
-                                                               objPositions=jnts, 
+                                                               objPositions=jnts,
                                                                objVelocities=np.zeros(n_jnts),
                                                                objAccelerations=np.zeros(n_jnts))
 
@@ -1335,7 +1335,7 @@ class AtPose(ExprPredicate):
         self.obj, self.target = params
         attr_inds = OrderedDict([(self.obj, [("pose", np.array([0,1,2], dtype=np.int))]),
                                  (self.target, [("value", np.array([0,1,2], dtype=np.int))])])
-        
+
         A = np.c_[np.r_[np.eye(3), -np.eye(3)], np.r_[-np.eye(3), np.eye(3)]]
         b, val = np.zeros((6, 1)), np.ones((6, 1))*1e-3
         aff_e = AffExpr(A, b)
@@ -1705,7 +1705,7 @@ class AlmostInGripper(PosePredicate):
         self._param_to_body = {
         self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
         self.obj: self.lazy_spawn_or_body(self.obj, self.obj.name, self.obj.geom)}
-        
+
         e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
         # e = LEqExpr(Expr(self.eval_f, self.eval_grad), self.max_dist.reshape(-1,1))
         super(AlmostInGripper, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = 2)

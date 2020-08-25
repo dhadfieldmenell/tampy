@@ -13,7 +13,7 @@ class State(object):
         self.timestep = timestep
 
     def is_concrete(self):
-        for p in self.params.itervalues():
+        for p in self.params.values():
             if not p.is_symbol() and not p.is_defined():
                 return False
         return True
@@ -23,7 +23,7 @@ class State(object):
             if p.active_range != (0,0): continue
             if p.is_concrete() and not p.test(time=self.timestep):
                 # if 'Obstructs' in p.get_type(): continue
-                print "Initial State Not Consistent with predicates {} at time {}".format(p, self.timestep)
+                print("Initial State Not Consistent with predicates {} at time {}".format(p, self.timestep))
                 import ipdb; ipdb.set_trace()
                 return False
         return True

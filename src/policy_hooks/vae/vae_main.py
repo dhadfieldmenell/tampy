@@ -93,13 +93,13 @@ class MultiProcessMain(object):
 
         state_vector_include, action_vector_include, target_vector_include = prob.get_vector(self.config)
 
-        self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = utils.get_state_action_inds(plans.values()[0], self.config['robot_name'], self.config['attr_map'], state_vector_include, action_vector_include)
+        self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = utils.get_state_action_inds(list(plans.values())[0], self.config['robot_name'], self.config['attr_map'], state_vector_include, action_vector_include)
 
-        self.target_dim, self.target_inds = utils.get_target_inds(plans.values()[0], self.config['attr_map'], target_vector_include)
-        
+        self.target_dim, self.target_inds = utils.get_target_inds(list(plans.values())[0], self.config['attr_map'], target_vector_include)
+
         x0 = prob.get_random_initial_state_vec(self.config, plans, self.dX, self.state_inds, conditions)
 
-        for plan in plans.values():
+        for plan in list(plans.values()):
             plan.state_inds = self.state_inds
             plan.action_inds = self.action_inds
             plan.dX = self.dX
@@ -271,7 +271,7 @@ class MultiProcessMain(object):
         self.config['dO'] = self.agent.dO
         self.config['dPrimObs'] = self.agent.dPrim
         self.config['dValObs'] = self.agent.dVal
-        self.config['dPrimOut'] = self.agent.dPrimOut 
+        self.config['dPrimOut'] = self.agent.dPrimOut
         self.config['state_inds'] = self.state_inds
         self.config['action_inds'] = self.action_inds
         self.config['policy_out_coeff'] = self.policy_out_coeff
@@ -283,7 +283,7 @@ class MultiProcessMain(object):
 
         self.config['rollout_len'] =self.config.get('rollout_len', 20)
         self.config['vae'] = {}
-        self.config['vae']['task_dims'] = int(len(self.task_list) + np.sum(self.prim_dims.values()))
+        self.config['vae']['task_dims'] = int(len(self.task_list) + np.sum(list(self.prim_dims.values())))
         self.config['vae']['obs_dims'] = (utils.IM_W, utils.IM_H, 3)
         self.config['vae']['weight_dir'] = self.weight_dir
         self.config['vae']['rollout_len'] = self.config['rollout_len']
@@ -326,7 +326,7 @@ class MultiProcessMain(object):
                               opt_strength=0,
                               )
         config['vae'] = {}
-        config['vae']['task_dims'] = int(n * np.sum(prim_dims.values()))
+        config['vae']['task_dims'] = int(n * np.sum(list(prim_dims.values())))
         config['vae']['obs_dims'] = (temp_env.im_height, temp_env.im_wid, 3)
         config['vae']['weight_dir'] = config['weight_dir']
         config['vae']['rollout_len'] = config['rollout_len']
@@ -397,15 +397,15 @@ class MultiProcessMain(object):
                 p = self.processes[n]
                 if not p.is_alive():
                     message = 'Killing All.' if kill_all else 'Restarting Dead Process.'
-                    print '\n\nProcess died: ' + str(self.process_info[n]) + ' - ' + message
+                    print('\n\nProcess died: ' + str(self.process_info[n]) + ' - ' + message)
                     exit = kill_all
                     if kill_all: break
                     process_config = self.process_configs[p.pid]
                     del self.process_info[n]
                     self.create_server(*process_config)
-                    print "Relaunched dead process"
+                    print("Relaunched dead process")
             time.sleep(60)
-            # self.log_mem_info() 
+            # self.log_mem_info()
 
         for p in self.processes:
             if p.is_alive(): p.terminate()
@@ -424,7 +424,7 @@ class MultiProcessMain(object):
             self.roscore = ROSLaunchParent('train_roscore', [], is_core=True, num_workers=16, verbose=True)
             self.roscore.start()
         except RLException as e:
-            
+
             pass
 
 

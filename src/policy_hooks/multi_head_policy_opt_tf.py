@@ -24,7 +24,7 @@ class MultiHeadPolicyOptTf(ControlAttentionPolicyOpt):
         import tensorflow as tf
         self.scope = hyperparams['scope'] if 'scope' in hyperparams else None
         # tf.reset_default_graph()
-        
+
         config = copy.deepcopy(POLICY_OPT_TF)
         config.update(hyperparams)
 
@@ -52,7 +52,7 @@ class MultiHeadPolicyOptTf(ControlAttentionPolicyOpt):
         self.var[""] = self._hyperparams['init_var'] * np.ones(dU)
         self.distilled_var = self._hyperparams['init_var'] * np.ones(dU)
         self.weight_dir = self._hyperparams['weight_dir']
-        self.scope = self._hyperparams['scope'] if 'scope' in self._hyperparams else None 
+        self.scope = self._hyperparams['scope'] if 'scope' in self._hyperparams else None
 
         self.gpu_fraction = self._hyperparams['gpu_fraction']
         # gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=self.gpu_fraction)
@@ -70,7 +70,7 @@ class MultiHeadPolicyOptTf(ControlAttentionPolicyOpt):
                     self.task_map[self.scope]['policy'].scale = np.load('tf_saved/'+self.weight_dir+'/'+self.scope+'_scale.npy')
                     self.task_map[self.scope]['policy'].bias = np.load('tf_saved/'+self.weight_dir+'/'+self.scope+'_bias.npy')
             except Exception as e:
-                print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(self.scope, self.weight_dir)
+                print('\n\nCould not load previous weights for {0} from {1}\n\n'.format(self.scope, self.weight_dir))
 
         else:
             for scope in self.task_list + ('image', 'value', 'primitive'):
@@ -82,8 +82,8 @@ class MultiHeadPolicyOptTf(ControlAttentionPolicyOpt):
                         self.task_map[scope]['policy'].scale = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_scale.npy')
                         self.task_map[scope]['policy'].bias = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_bias.npy')
                 except Exception as e:
-                    print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(scope, self.weight_dir)
-        
+                    print('\n\nCould not load previous weights for {0} from {1}\n\n'.format(scope, self.weight_dir))
+
         # List of indices for state (vector) data and image (tensor) data in observation.
         self.x_idx, self.img_idx, i = [], [], 0
         if 'obs_image_data' not in self._hyperparams['network_params']:
@@ -125,7 +125,7 @@ class MultiHeadPolicyOptTf(ControlAttentionPolicyOpt):
         if scopes is None:
             scopes = self.task_list + ('image', 'value', 'primitive')
 
-        print 'Serializing', scopes
+        print('Serializing', scopes)
         var_to_val = {}
         for scope in scopes:
             variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
@@ -143,7 +143,7 @@ class MultiHeadPolicyOptTf(ControlAttentionPolicyOpt):
     def deserialize_weights(self, json_wts):
         scopes, var_to_val, scales, biases, variances = json.loads(json_wts)
 
-        print 'Deserializing', scopes
+        print('Deserializing', scopes)
         for scope in scopes:
             variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
             for var in variables:
@@ -156,7 +156,7 @@ class MultiHeadPolicyOptTf(ControlAttentionPolicyOpt):
                 self.task_map[task]['policy'].scale = np.array(scales[task])
                 self.task_map[task]['policy'].bias = np.array(biases[task])
                 self.var[task] = np.array(variances[task])
-        print 'Weights for {0} successfully deserialized and stored.'.format(scopes)
+        print('Weights for {0} successfully deserialized and stored.'.format(scopes))
 
     def update_weights(self, scope, weight_dir=None):
         if weight_dir is None:
@@ -196,7 +196,7 @@ class MultiHeadPolicyOptTf(ControlAttentionPolicyOpt):
 
         self.update_count += len(mu)
         if self.update_count > self.update_size:
-            print 'Updating', task
+            print('Updating', task)
             self.update(self.obs[task].copy(), self.mu[task].copy(), self.prc[task].copy(), self.wt[task].copy(), task)
             self.store_scope_weights(scopes=[task])
             self.update_count = 0
@@ -366,13 +366,13 @@ class MultiHeadPolicyOptTf(ControlAttentionPolicyOpt):
     def init_policies(self, dU):
         for task in self.task_list:
             if self.scope is None or task == self.scope:
-                self.task_map[task]['policy'] = TfPolicy(dU, 
-                                                        self.task_map[task]['obs_tensor'], 
-                                                        self.task_map[task]['act_op'], 
+                self.task_map[task]['policy'] = TfPolicy(dU,
+                                                        self.task_map[task]['obs_tensor'],
+                                                        self.task_map[task]['act_op'],
                                                         self.task_map[task]['feat_op'],
-                                                        np.zeros(dU), 
-                                                        self.sess, 
-                                                        self.device_string, 
+                                                        np.zeros(dU),
+                                                        self.sess,
+                                                        self.device_string,
                                                         copy_param_scope=None)
 
         # self.distilled_policy = TfPolicy(dU,
@@ -452,7 +452,7 @@ class MultiHeadPolicyOptTf(ControlAttentionPolicyOpt):
 
         # Assuming that N*T >= self.batch_size.
         batches_per_epoch = np.maximum(np.floor(N*T / self.batch_size), 1)
-        idx = range(N*T)
+        idx = list(range(N*T))
         average_loss = 0
         np.random.shuffle(idx)
 
@@ -566,7 +566,7 @@ class MultiHeadPolicyOptTf(ControlAttentionPolicyOpt):
 
         # Assuming that N >= self.batch_size.
         batches_per_epoch = np.maximum(np.floor(N / self.batch_size), 1)
-        idx = range(N)
+        idx = list(range(N))
         average_loss = 0
         np.random.shuffle(idx)
 
@@ -729,4 +729,3 @@ class MultiHeadPolicyOptTf(ControlAttentionPolicyOpt):
             f.write(state['wts'])
             f.seek(0)
             self.restore_model(f.name)
-

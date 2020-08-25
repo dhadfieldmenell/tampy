@@ -6,7 +6,7 @@ import sys
 import time
 import traceback
 
-import cPickle as pickle
+import pickle as pickle
 
 import ctypes
 
@@ -65,9 +65,7 @@ class optimal_pol:
         return u
 
 
-class TAMPAgent(Agent):
-    __metaclass__ = ABCMeta
-
+class TAMPAgent(Agent, metaclass=ABCMeta):
     def __init__(self, hyperparams):
         Agent.__init__(self, hyperparams)
         # Note: All plans should contain identical sets of parameters
@@ -131,7 +129,7 @@ class TAMPAgent(Agent):
         self.stochastic_conditions = self._hyperparams['stochastic_conditions']
 
         opts = self._hyperparams['prob'].get_prim_choices()
-        self.label_options = list(itertools.product(*[range(len(opts[e])) for e in opts])) # range(self.num_tasks), *[range(n) for n in self.num_prims]))
+        self.label_options = list(itertools.product(*[list(range(len(opts[e]))) for e in opts])) # range(self.num_tasks), *[range(n) for n in self.num_prims]))
         self.hist_len = self._hyperparams['hist_len']
         self.traj_hist = None
         self.reset_hist()
@@ -176,7 +174,7 @@ class TAMPAgent(Agent):
     def get_init_state(self, condition):
         return self.x0[condition][self._x_data_idx[STATE_ENUM]].copy()
 
-    
+
     def get_goal(self, condition):
         return self.goals[condition].copy()
 
@@ -195,7 +193,7 @@ class TAMPAgent(Agent):
     def get_opt_samples(self, task=None, clear=False):
         data = []
         if task is None:
-            tasks = self.optimal_samples.keys()
+            tasks = list(self.optimal_samples.keys())
         else:
             tasks = [task]
         for task in tasks:
@@ -211,8 +209,8 @@ class TAMPAgent(Agent):
             samples.append(batch)
 
         return samples
-    
-    
+
+
     def store_hl_problem(self, x0, initial, goal, keep_prob=0.1, max_len=20):
         if np.random.uniform() < keep_prob:
             self._hl_probs.append((x0, initial, goal))
@@ -222,7 +220,7 @@ class TAMPAgent(Agent):
     def sample_hl_problem(self, eta=1.):
         if not len(self._hl_probs):
             return None, None
-        inds = np.array(range(len(self._hl_probs)))
+        inds = np.array(list(range(len(self._hl_probs))))
         wt = np.exp(inds / eta)
         wt /= np.sum(eta)
         ind = np.random.choice(inds, p=wt)
@@ -308,7 +306,7 @@ class TAMPAgent(Agent):
 
         if self.viewer is None: return
         plan = self.plans_list[0]
-        for p in plan.params.values():
+        for p in list(plan.params.values()):
             if p.is_symbol(): continue
             p.openrave_body.set_pose(p.pose[:,0])
 
@@ -333,7 +331,7 @@ class TAMPAgent(Agent):
     def draw_sample_ts(self, sample, t):
         if self.viewer is None: return
         plan = self.plans_list[0]
-        for p in plan.params.values():
+        for p in list(plan.params.values()):
             if p.is_symbol(): continue
             p.openrave_body.set_pose(p.pose[:,0])
         state = sample.get(STATE_ENUM)
@@ -354,7 +352,7 @@ class TAMPAgent(Agent):
 
     def save_free(self, plan):
         old_params_free = {}
-        for p in plan.params.itervalues():
+        for p in plan.params.values():
             p_attrs = {}
             old_params_free[p.name] = p_attrs
             for attr in p._free_attrs:
@@ -396,7 +394,7 @@ class TAMPAgent(Agent):
     @abstractmethod
     def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None):
         raise NotImplementedError
-    
+
     def sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, skip_opt=False):
         if not skip_opt and (policy is None or (hasattr(policy, 'scale') and policy.scale is None)): # Policy is uninitialized
             s, failed, success = self.solve_sample_opt_traj(state, task, condition)
@@ -611,7 +609,7 @@ class TAMPAgent(Agent):
     '''
     def replace_conditions(self, conditions=None, curric_step=-1):
         if conditions is None:
-            conditions = range(len(self.x0))
+            conditions = list(range(len(self.x0)))
         for c in conditions:
             self.replace_cond(c, curric_step)
 
@@ -644,7 +642,7 @@ class TAMPAgent(Agent):
         prim_choices = self.prob.get_prim_choices()
         if OBJ_ENUM in prim_choices and curric_step > 0:
             i = 0
-            inds = np.random.permutation(range(len(prim_choices[OBJ_ENUM])))
+            inds = np.random.permutation(list(range(len(prim_choices[OBJ_ENUM]))))
             for j in inds:
                 obj = prim_choices[OBJ_ENUM][j]
                 if '{0}_end_target'.format(obj) not in self.targets[cond]: continue
@@ -752,7 +750,7 @@ class TAMPAgent(Agent):
             mp_state = sample.get(STATE_ENUM)
 
         info = {}
-        plan = self.plans.values()[0]
+        plan = list(self.plans.values())[0]
         for param_name, attr in self.state_inds:
             if plan.params[param_name].is_symbol(): continue
             info[param_name, attr] = mp_state[:, self.state_inds[param_name, attr]]
@@ -784,7 +782,7 @@ class TAMPAgent(Agent):
         assert t is None and len(mp_state.shape) == 1 or t is not None and len(mp_state) == 2
         info = {}
         for param_name, attr in self.state_inds:
-            if self.plans.values()[0].params[param_name].is_symbol(): continue
+            if list(self.plans.values())[0].params[param_name].is_symbol(): continue
             inds = self.state_inds[param_name, attr]
             info[param_name, attr] = mp_state[inds] if t is None else mp_state[t, inds]
         return info
@@ -806,7 +804,7 @@ class TAMPAgent(Agent):
         mp_state = mp_state.copy()
         if mp_state is None: return info
         for param_name, attr in self.state_inds:
-            if self.plans.values()[0].params[param_name].is_symbol(): continue
+            if list(self.plans.values())[0].params[param_name].is_symbol(): continue
             info[param_name, attr] = self.get_obj_trajectory(param_name, mp_state=mp_state)
         return info
 
@@ -845,7 +843,7 @@ class TAMPAgent(Agent):
             new_path.append(new_s)
             start_X = new_path[-1].get_X(new_path[-1].T-1)
             i += 1
-        
+
         for i, s in enumerate(new_path):
             s.discount = 0.9 ** (len(new_path) - i)
         return new_path
@@ -858,7 +856,7 @@ class TAMPAgent(Agent):
         initial = ['(RobotAt pr2 robot_init_pose)']
         plans = [plan]
         if plan is None:
-            plans = self.plans.values()
+            plans = list(self.plans.values())
 
         st = plans[0].actions[act].active_timesteps[0]
         for plan in plans:
@@ -880,7 +878,7 @@ class TAMPAgent(Agent):
 
 
     def solve_hl(self, state, targets):
-        plan = self.plans.values()[0]
+        plan = list(self.plans.values())[0]
         prob = plan.prob
         initial, goal = self.get_hl_info(state, targets)
         abs_prob = self.hl_solver.translate_problem(prob, initial, goal)
@@ -893,8 +891,8 @@ class TAMPAgent(Agent):
         if type(plan) == str:
             return None
         return self.encode_plan(plan)
-    
-    
+
+
     def check_curric(self, buf, n_thresh, curr_thresh, cur_curr):
         prim_choices = self.prob.get_prim_choices()
         curr_thresh *= cur_curr
@@ -931,7 +929,7 @@ class TAMPAgent(Agent):
             encoded.append(self.encode_action(a))
         return encoded
 
-    
+
     def get_encoded_tasks(self):
         if hasattr(self, '_cached_encoded_tasks'):
             return self._cached_encoded_tasks
@@ -977,7 +975,7 @@ class TAMPAgent(Agent):
                 self.set_symbols(plan, x0, task, anum=a)
                 free_attrs = plan.get_free_attrs()
                 for param in plan.actions[a].params:
-                    if not param.is_symbol(): 
+                    if not param.is_symbol():
                         for attr in param._free_attrs:
                             param._free_attrs[attr][:] = 0
                 try:
@@ -1009,15 +1007,15 @@ class TAMPAgent(Agent):
                             plan.restore_params()
                 except Exception as e:
                     traceback.print_exception(*sys.exc_info())
-                    print('Exception in full solve for', x0, task, plan.actions[a])
+                    print(('Exception in full solve for', x0, task, plan.actions[a]))
                     success = False
                 self.n_opt[task] = self.n_opt.get(task, 0) + 1
-            
+
             if not success:
                 failed = plan.get_failed_preds((0, et))
                 if not len(failed):
                     continue
-                print('Graph failed solve on', x0, task, plan.actions[a], 'up to {0}'.format(et), failed, self.process_id)
+                print(('Graph failed solve on', x0, task, plan.actions[a], 'up to {0}'.format(et), failed, self.process_id))
                 self.n_fail_opt[task] = self.n_fail_opt.get(task, 0) + 1
                 return False
         #path = self.run_plan(plan)
@@ -1045,7 +1043,7 @@ class TAMPAgent(Agent):
             for pname, attr in self.state_inds:
                 if plan.params[pname].is_symbol(): continue
                 opt_traj[:,self.state_inds[pname, attr]] = getattr(plan.params[pname], attr)[:,st:et+1].T
-          
+
             # self.reset_hist()
             cur_len = len(path)
             if self.retime:
@@ -1113,15 +1111,15 @@ class TAMPAgent(Agent):
             for s in path:
                 self.optimal_samples[self.task_list[s.task[0]]].append(s)
             self.n_plans_suc_run += 1
-        print('Plans run vs. success:', self.n_plans_run, self.n_plans_suc_run)
+        print(('Plans run vs. success:', self.n_plans_run, self.n_plans_suc_run))
         return path
-    
+
     def run_pr_graph(self, state, targets=None, cond=None):
         if targets is None:
             targets = self.target_vecs[cond]
         initial, goal = self.get_hl_info(state, targets=targets)
-        domain = self.plans.values()[0].domain
-        prob = self.plans.values()[0].prob
+        domain = list(self.plans.values())[0].domain
+        prob = list(self.plans.values())[0].prob
         for pname, attr in self.state_inds:
             p = prob.init_state.params[pname]
             if p.is_symbol(): continue
@@ -1155,11 +1153,11 @@ class TAMPAgent(Agent):
                 else:
                     d += np.linalg.norm(traj[t+1][inds] - traj[t][inds])
         interp = scipy.interpolate.interp1d(xpts, fpts, axis=0)
-        
+
         x = np.linspace(0, d, int(d / vel))
         out = interp(x)
         return out
-      
+
 
     def project_onto_constr(self, x0, plan, targets, ts=(0,0)):
         x0 = x0.copy()
@@ -1174,7 +1172,7 @@ class TAMPAgent(Agent):
         for pname, aname in self.state_inds:
             if plan.params[pname].is_symbol(): continue
             x0[self.state_inds[pname, aname]] = getattr(plan.params[pname], aname)[:,0]
-        return x0 
+        return x0
 
 
     def resample_hl_plan(self, plan, targets, n=5):
@@ -1196,15 +1194,15 @@ class TAMPAgent(Agent):
             try:
                 success = self.solver._backtrack_solve(plan)
             except Exception as e:
-                print('Failed in resample of hl', e)
+                print(('Failed in resample of hl', e))
                 success = False
             if success:
                 nsuc += 1
                 path = self.run_plan(plan, targets=targets)
-                print('RESAMPLED!', nsuc)
+                print(('RESAMPLED!', nsuc))
             else:
-                print('Failed to resample', plan.get_failed_preds(), x0)
-        print('Generated', x0s, 'for', plan.actions, 'success:', nsuc)
+                print(('Failed to resample', plan.get_failed_preds(), x0))
+        print(('Generated', x0s, 'for', plan.actions, 'success:', nsuc))
         return x0s
 
 
@@ -1236,5 +1234,3 @@ class TAMPAgent(Agent):
             cost += 1
 
         return cost
-
-

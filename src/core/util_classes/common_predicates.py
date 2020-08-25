@@ -22,12 +22,12 @@ def get_param_vector_helper(pred, res_arr, startind, t, attr_inds):
     for p in pred.attr_inds:
         for attr, ind_arr in pred.attr_inds[p]:
             n_vals = len(ind_arr)
-	    if p.is_symbol():
+            if p.is_symbol():
                 res_arr[i:i+n_vals] = getattr(p, attr)[ind_arr, 0]
-	    else:
+            else:
                 # print(p, attr, t, getattr(p,attr).shape)
-	        res_arr[i:i+n_vals] = getattr(p, attr)[ind_arr, t]
-	    i += n_vals
+                res_arr[i:i+n_vals] = getattr(p, attr)[ind_arr, t]
+            i += n_vals
     return i
 
 
@@ -50,7 +50,7 @@ class ExprPredicate(Predicate):
         self.tol = tol
 
         self.x_dim = sum(len(active_inds)
-                         for p_attrs in attr_inds.values()
+                         for p_attrs in list(attr_inds.values())
                          for (_, active_inds) in p_attrs)
         start, end = active_range
         self.x_dim *= end + 1 - start
@@ -112,7 +112,7 @@ class ExprPredicate(Predicate):
             raise PredicateException("Out of range time for predicate '%s'."%self)
         except Exception as err:
             traceback.print_exception(*sys.exc_info())
-            print(self, 'threw error')
+            print((self, 'threw error'))
             raise err
 
     def unpack(self, y):

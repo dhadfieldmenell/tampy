@@ -43,12 +43,12 @@ class ParseProblemConfig(object):
                     pass
                 env = P.connect(P.DIRECT)
                 P.resetSimulation()
-            
+
         if "Objects" not in problem_config or not problem_config["Objects"]:
             raise ProblemConfigException("Problem file needs objects.")
         for t in problem_config["Objects"].split(";"):
             if t.strip() == '': continue
-            o_type, attrs = map(str.strip, t.strip(" )").split("(", 1))
+            o_type, attrs = list(map(str.strip, t.strip(" )").split("(", 1)))
             attr_dict = {}
             for l in map(str.strip, attrs.split(".")):
                 lst = l.split(" ", 1)
@@ -61,7 +61,7 @@ class ParseProblemConfig(object):
 
         if "Init" not in problem_config or not problem_config["Init"]:
             raise ProblemConfigException("Problem file needs init.")
-        prim_preds, deriv_preds = map(str.strip, problem_config["Init"].split(";"))
+        prim_preds, deriv_preds = list(map(str.strip, problem_config["Init"].split(";")))
         if prim_preds:
             for pred in map(str.strip, prim_preds.split(")")):
                 if pred:
@@ -69,7 +69,7 @@ class ParseProblemConfig(object):
                     if a != -1:
                         new_s = "".join(pred[a:b].split())
                         pred = pred.replace(pred[a:b], new_s)
-                    lst = map(str.strip, pred.strip(",() ").split())
+                    lst = list(map(str.strip, pred.strip(",() ").split()))
                     k = lst[0]
                     obj_name = lst[1]
                     v = lst[2:]
@@ -79,7 +79,7 @@ class ParseProblemConfig(object):
             if reuse_params is not None:
                 params = reuse_params
             else:
-                for obj_name, attr_dict in params.items():
+                for obj_name, attr_dict in list(params.items()):
                     # assert "pose" in attr_dict or "value" in attr_dict
                     if "pose" not in attr_dict and "value" not in attr_dict:
                         import pdb; pdb.set_trace()
@@ -94,15 +94,15 @@ class ParseProblemConfig(object):
                     except KeyError:
                         raise ProblemConfigException("Parameter '%s' not defined in domain file."%name)
                     except ValueError as e:
-                        print e
+                        print(e)
                         raise ProblemConfigException("Some attribute type in parameter '%s' is incorrect."%name)
-        for k, v in params.items():
+        for k, v in list(params.items()):
             if type(v) is dict:
                 raise ProblemConfigException("Problem file has no primitive predicates for object '%s'."%k)
         init_preds = set()
         if initial is not None:
             for i, pred in enumerate(initial):
-                spl = map(str.strip, pred.strip("() ").split())
+                spl = list(map(str.strip, pred.strip("() ").split()))
                 p_name, p_args = spl[0], spl[1:]
                 p_objs = []
                 for n in p_args:
@@ -116,11 +116,11 @@ class ParseProblemConfig(object):
                                                                           expected_param_types=domain.pred_schemas[p_name].expected_params,
                                                                           env=env))
                 except TypeError as e:
-                    print("type error for {}".format(pred))
+                    print(("type error for {}".format(pred)))
 
         elif deriv_preds:
             for i, pred in enumerate(deriv_preds.split(",")):
-                spl = map(str.strip, pred.strip("() ").split())
+                spl = list(map(str.strip, pred.strip("() ").split()))
                 p_name, p_args = spl[0], spl[1:]
                 p_objs = []
                 for n in p_args:
@@ -134,7 +134,7 @@ class ParseProblemConfig(object):
                                                                           expected_param_types=domain.pred_schemas[p_name].expected_params,
                                                                           env=env))
                 except TypeError as e:
-                    print("type error for {}".format(pred))
+                    print(("type error for {}".format(pred)))
 
         # use params and initial preds to create an initial State object
         initial_state = state.State("initstate", params, init_preds, timestep=0)
@@ -142,7 +142,7 @@ class ParseProblemConfig(object):
         # create goal predicate objects
         goal_preds = set()
         for i, pred in enumerate(problem_config["Goal"].split(",")):
-            spl = map(str.strip, pred.strip("() ").split())
+            spl = list(map(str.strip, pred.strip("() ").split()))
             p_name, p_args = spl[0], spl[1:]
             p_objs = []
             for n in p_args:

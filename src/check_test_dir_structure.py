@@ -15,5 +15,5 @@ for f in files:
     if not f.startswith("./test") and not any(x in f for x in EXCLUDE):
         f2 = f.replace("/", "/test_").replace("./", "./test/")
         if f2 not in files:
-            print "%s doesn't have matching test script, aborting."%f
+            print("%s doesn't have matching test script, aborting."%f)
             sys.exit(-1)

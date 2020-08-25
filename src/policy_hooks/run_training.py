@@ -44,7 +44,7 @@ def load_multi(exp_list, n_objs=None, n_targs=None, args=None):
                 next_config.update(vars(args))
             next_config['weight_dir'] = get_dir_name(next_config['base_weight_dir'], next_config['num_objs'], next_config['num_targs'], i, next_config['descr'], args)
             next_config['server_id'] = '{0}'.format(str(random.randint(0, 2**16)))
-            next_config['mp_server'] = True 
+            next_config['mp_server'] = True
             next_config['pol_server'] = True
             next_config['mcts_server'] = True
             next_config['use_local'] = True
@@ -191,7 +191,7 @@ def main():
         config, config_module = load_config(args)
 
     else:
-        print('LOADING {0}'.format(args.file))
+        print(('LOADING {0}'.format(args.file)))
         current_id = 0
         if exps is None:
             exps = []
@@ -243,7 +243,7 @@ def main():
                 shutil.copyfile(src, 'tf_saved/'+c['weight_dir']+'/hyp.py')
                 with open('tf_saved/'+c['weight_dir']+'/__init__.py', 'w+') as f:
                     f.write('')
-                with open('tf_saved/'+c['weight_dir']+'/args.pkl', 'w+') as f:
+                with open('tf_saved/'+c['weight_dir']+'/args.pkl', 'wb+') as f:
                     pickle.dump(args, f)
 
                 m = MultiProcessMain(c)
@@ -251,7 +251,7 @@ def main():
                 m.group_id = current_id
                 with open('tf_saved/'+c['weight_dir']+'/exp_info.txt', 'w+') as f:
                     f.write(str(cm))
-               
+
                 if args.hl_retrain:
                     m.hl_retrain(c)
                 elif args.hl_only_retrain:
@@ -261,7 +261,7 @@ def main():
                 mains.append(m)
                 time.sleep(1)
             active = True
-            
+
             start_t = time.time()
             while active:
                 time.sleep(120.)
@@ -269,7 +269,7 @@ def main():
                 active = False
                 for m in mains:
                     p_info = m.check_processes()
-                    print('PINFO {0}'.format(p_info))
+                    print(('PINFO {0}'.format(p_info)))
                     active = active or any([code is None for code in p_info])
                     if active: m.expand_rollout_servers()
 

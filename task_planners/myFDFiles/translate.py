@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function
+
 
 from collections import defaultdict
 from copy import deepcopy
@@ -49,7 +49,7 @@ def strips_to_sas_dictionary(groups, assert_partial):
             dictionary.setdefault(atom, []).append((var_no, val_no))
     if assert_partial:
         assert all(len(sas_pairs) == 1
-                   for sas_pairs in dictionary.values())
+                   for sas_pairs in list(dictionary.values()))
     return [len(group) + 1 for group in groups], dictionary
 
 def translate_strips_conditions_aux(conditions, dictionary, ranges):
@@ -122,12 +122,12 @@ def translate_strips_conditions_aux(conditions, dictionary, ranges):
                 # this atom. So we need to introduce a new condition:
                 # We can select any from new_condition and currently prefer the
                 # smalles one.
-                candidates = sorted(new_condition.items(), key=number_of_values)
+                candidates = sorted(list(new_condition.items()), key=number_of_values)
                 var, vals = candidates[0]
                 condition[var] = vals
 
         def multiply_out(condition): # destroys the input
-            sorted_conds = sorted(condition.items(), key=number_of_values)
+            sorted_conds = sorted(list(condition.items()), key=number_of_values)
             flat_conds = [{}]
             for var, vals in sorted_conds:
                 if len(vals) == 1:
@@ -293,11 +293,11 @@ def translate_strips_operator_aux(operator, dictionary, ranges, mutex_dict,
 
     if ADD_IMPLIED_PRECONDITIONS:
         implied_precondition = set()
-        for fact in condition.items():
+        for fact in list(condition.items()):
             implied_precondition.update(implied_facts[fact])
 
     pre_post = []
-    for var, (post, eff_condition_lists) in effect.items():
+    for var, (post, eff_condition_lists) in list(effect.items()):
         pre = condition.pop(var, -1)
         if ranges[var] == 2:
             # Apply simplifications for binary variables.
@@ -360,7 +360,7 @@ def translate_strips_axiom(axiom, dictionary, ranges, mutex_dict, mutex_ranges):
         [effect] = dictionary[axiom.effect]
     axioms = []
     for condition in conditions:
-        axioms.append(sas_tasks.SASAxiom(condition.items(), effect))
+        axioms.append(sas_tasks.SASAxiom(list(condition.items()), effect))
     return axioms
 
 def translate_strips_operators(actions, strips_to_sas, ranges, mutex_dict, mutex_ranges, implied_facts):
@@ -398,7 +398,7 @@ def dump_task(init, goals, actions, axioms, axiom_layer_dict):
             axiom.dump()
         print()
         print("Axiom layers")
-        for atom, layer in axiom_layer_dict.items():
+        for atom, layer in list(axiom_layer_dict.items()):
             print("%s: layer %d" % (atom, layer))
     sys.stdout = old_stdout
 
@@ -423,7 +423,7 @@ def translate_task(strips_to_sas, ranges, translation_key,
 
     if DUMP_TASK:
         # Remove init facts that don't occur in strips_to_sas: they are constant.
-        nonconstant_init = filter(strips_to_sas.get, init)
+        nonconstant_init = list(filter(strips_to_sas.get, init))
         dump_task(nonconstant_init, goals, actions, axioms, axiom_layer_dict)
 
     init_values = [rang - 1 for rang in ranges]
@@ -452,7 +452,7 @@ def translate_task(strips_to_sas, ranges, translation_key,
     axioms = translate_strips_axioms(axioms, strips_to_sas, ranges, mutex_dict, mutex_ranges)
 
     axiom_layers = [-1] * len(ranges)
-    for atom, layer in axiom_layer_dict.items():
+    for atom, layer in list(axiom_layer_dict.items()):
         assert layer >= 0
         [(var, val)] = strips_to_sas[atom]
         axiom_layers[var] = layer

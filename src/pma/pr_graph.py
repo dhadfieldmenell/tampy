@@ -3,8 +3,8 @@ from core.parsing.parse_domain_config import ParseDomainConfig
 from core.parsing.parse_problem_config import ParseProblemConfig
 from core.util_classes.learning import PostLearner
 from core.internal_repr.plan import Plan
-from Queue import PriorityQueue
-from prg_search_node import HLSearchNode, LLSearchNode
+from queue import PriorityQueue
+from .prg_search_node import HLSearchNode, LLSearchNode
 
 """
 Many methods called in p_mod_abs have detailed documentation.
@@ -49,12 +49,12 @@ def p_mod_abs(hl_solver, ll_solver, domain, problem, initial=None, goal=None, su
 
         if debug:
             if n.is_hl_node():
-                print "Current Iteration: HL Search Node with priority {}".format( n.priority)
+                print("Current Iteration: HL Search Node with priority {}".format( n.priority))
             elif n.is_ll_node():
-                print "Current Iteration: LL Search Node with priority {}".format( n.priority)
+                print("Current Iteration: LL Search Node with priority {}".format( n.priority))
                 # print "plan str: {}".format(n.curr_plan.get_plan_str())
 
 
 
-    print('PR GRAPH hit iteration limit {0}'.format(label))
+    print(('PR GRAPH hit iteration limit {0}'.format(label)))
     return None, "Hit iteration limit, aborting."

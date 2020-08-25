@@ -86,9 +86,9 @@ class BaxterPolicyEEPredicate(ExprPredicate):
 
     def error_grad(self, x):
         jac = np.zeros((self.dU, self.dX))
-        l_arm_inds = range(2,9)
+        l_arm_inds = list(range(2,9))
         l_arm_joints = [self.robot.openrave_body.env_body.GetJointFromDOFIndex(ind) for ind in l_arm_inds]
-        r_arm_inds = range(10,17)
+        r_arm_inds = list(range(10,17))
         r_arm_joints = [self.robot.openrave_body.env_body.GetJointFromDOFIndex(ind) for ind in r_arm_inds]
         self.robot.openrave_body.set_dof({'lArmPose': x[-16:-9, 0],
                                           'lGripper': x[-9:-8, 0],

@@ -114,4 +114,3 @@ class LogServer(object):
         for queue in []:
             self.queue(update[queue], queue)
         self.n_hl_calls += 1
-

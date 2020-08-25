@@ -58,7 +58,7 @@ class CollisionFreeTargetValueGenerator(object):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         collides = True
         while collides:
             collides = False
@@ -115,7 +115,7 @@ def main():
 
         s += "Init: "
         for i in range(NUM_TARGETS):
-            target_pos = target_gen.next()
+            target_pos = next(target_gen)
             s += "(geom target{} {} {}), ".format(i, CAN_GEOM[0], CAN_GEOM[1])
             s += "(value target{} {}), ".format(i, target_pos)
             s += "(rotation target{} {}),".format(i, CAN_ROTATION_INIT)

@@ -3,7 +3,7 @@ import sys
 import time
 import traceback
 
-import cPickle as pickle
+import pickle as pickle
 
 import ctypes
 
@@ -74,7 +74,7 @@ class NAMOSortingAgent(TAMPAgent):
     def __init__(self, hyperparams):
         super(NAMOSortingAgent, self).__init__(hyperparams)
 
-        for plan in self.plans.values():
+        for plan in list(self.plans.values()):
             for t in range(plan.horizon):
                 plan.params['obs0'].pose[:,t] = plan.params['obs0'].pose[:,0]
 
@@ -108,7 +108,7 @@ class NAMOSortingAgent(TAMPAgent):
             next_dim = dim # [dim[1], dim[0], dim[2]]
             pos = next_trans[:3,3] # [next_trans[1,3], next_trans[0,3], next_trans[2,3]]
             items.append({'name': 'wall{0}'.format(i), 'type': 'box', 'is_fixed': True, 'pos': pos, 'dimensions': next_dim, 'rgba': (0.2, 0.2, 0.2, 1)})
-        
+
         config['load_render'] = hyperparams['master_config'].get('load_render', False)
         self.mjc_env = MJCEnv.load_config(config)
         # self.viewer = OpenRAVEViewer(self.env)
@@ -179,13 +179,13 @@ class NAMOSortingAgent(TAMPAgent):
             # U_full = np.zeros((self.dU))
             noise_full = np.zeros((self.dU,))
             cur_state = np.zeros((plan.symbolic_bound))
-            # fill_vector(plan.params, plan.state_inds, cur_state, t)  
+            # fill_vector(plan.params, plan.state_inds, cur_state, t)
             for pname, aname in self.state_inds:
                 p = plan.params[pname]
                 if p.is_symbol(): continue
                 aval = getattr(p, aname)[:,t]
                 if np.any(np.isnan(aval)):
-                    print('NAN in:', pname, aname, t, task_f is None)
+                    print(('NAN in:', pname, aname, t, task_f is None))
                     aval[:] = 0.
                 cur_state[self.state_inds[pname, aname]] = aval
 
@@ -196,11 +196,11 @@ class NAMOSortingAgent(TAMPAgent):
                 if task not in self.plans:
                     task = self.task_to_onehot[task[0]]
                 self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
-          
+
             grasp = np.array([0, -0.601])
             if GRASP_ENUM in prim_choices and self.discrete_prim:
                 grasp = self.set_grasp(grasp, task[3])
-       
+
             X = cur_state.copy()
             cur_noise = noise[t]
 
@@ -224,20 +224,20 @@ class NAMOSortingAgent(TAMPAgent):
             col_ts[t] = col
 
             new_state = np.zeros((plan.symbolic_bound))
-            # fill_vector(plan.params, plan.state_inds, cur_state, t)  
+            # fill_vector(plan.params, plan.state_inds, cur_state, t)
             for pname, aname in self.state_inds:
                 p = plan.params[pname]
                 if p.is_symbol(): continue
                 aval = getattr(p, aname)[:,min(t+1, sample.T-1)]
                 if np.any(np.isnan(aval)):
-                    print('NAN in:', pname, aname, t+1)
+                    print(('NAN in:', pname, aname, t+1))
                     aval[:] = 0.
                 new_state[self.state_inds[pname, aname]] = aval
 
 
             if np.all(np.abs(cur_state - new_state) < 1e-3):
                 sample.use_ts[t] = 0
-         
+
             if n_steps == sample.T:
                 end_state = sample.get_X(t=t)
 
@@ -270,7 +270,7 @@ class NAMOSortingAgent(TAMPAgent):
             n_dirs = self.n_dirs
         pr2 = plan.params['pr2']
         obs = 1e1*np.ones(n_dirs)
-        angles = 2 * np.pi * np.array(range(n_dirs), dtype='float32') / n_dirs
+        angles = 2 * np.pi * np.array(list(range(n_dirs)), dtype='float32') / n_dirs
         rays = np.zeros((n_dirs, 6))
         rays[:, 2] = 0.25
         for i in range(n_dirs):
@@ -326,7 +326,7 @@ class NAMOSortingAgent(TAMPAgent):
         pr2 = plan.params['pr2']
         n_dirs = self.n_dirs
         obs = 1e1*np.ones(n_dirs)
-        angles = 2 * np.pi * np.array(range(n_dirs), dtype='float32') / n_dirs
+        angles = 2 * np.pi * np.array(list(range(n_dirs)), dtype='float32') / n_dirs
         pr2.openrave_body.set_pose(pr2.pose[:,t])
 
         for p_name in plan.params:
@@ -336,7 +336,7 @@ class NAMOSortingAgent(TAMPAgent):
                 p.openrave_body.set_pose(p.pose[:,t])
             else:
                 p.openrave_body.set_pose(p.pose[:,0])
-            collisions = self._cc.BodyVsBody(pr2.openrave_body.env_body, 
+            collisions = self._cc.BodyVsBody(pr2.openrave_body.env_body,
                                              p.openrave_body.env_body)
             for i, c in enumerate(collisions):
                 linkA = c.GetLinkAParentName()
@@ -393,8 +393,8 @@ class NAMOSortingAgent(TAMPAgent):
                     getattr(plan.params[param], 'vel')[:, t+1] = new_vel
                 # else:
                 #     getattr(plan.params[param], attr)[:, t] = x[x_inds[param, attr]] + u[u_inds[param, attr]]
- 
-            for param in plan.params.values():
+
+            for param in list(plan.params.values()):
                 if param._type == 'Can':
                     disp = old_state[x_inds['pr2', 'pose']] - old_state[x_inds[param.name, 'pose']]# plan.params['pr2'].pose[:, t] - param.pose[:, t]
                     new_disp = plan.params['pr2'].pose[:, t] - param.pose[:, t]
@@ -457,7 +457,7 @@ class NAMOSortingAgent(TAMPAgent):
                             plan.params['pr2'].pose[:, t] = [zx + x, zy + y]
                             if self.in_gripper is not None:
                                 self.in_gripper.pose[:, t] = plan.params['pr2'].pose[:, t] - (old_state[x_inds['pr2', 'pose']] - old_state[x_inds[self.in_gripper.name, 'pose']])
-                      
+
                         '''
                         # if self.in_gripper is not None and self.in_gripper is not param and np.linalg.norm(self.in_gripper.pose[:,t] - param.pose[:,t]) < radius2 + radius2 - dtol:
                         if self.in_gripper is not None and self.in_gripper is not param and np.linalg.norm(self.in_gripper.pose[:,t] - param.pose[:,t]) < radius2 + radius2 + 5e-3:
@@ -575,13 +575,13 @@ class NAMOSortingAgent(TAMPAgent):
             self.target_vecs[condition] = targets.copy()
             for tname, attr in self.target_inds:
                 self.targets[condition][tname] = targets[self.target_inds[tname, attr]]
-        
+
         x0 = state[self._x_data_idx[STATE_ENUM]]
 
         failed_preds = []
         iteration = 0
         iteration += 1
-        plan = self.plans[task] 
+        plan = self.plans[task]
         prim_choices = self.prob.get_prim_choices()
         # obj_name = prim_choices[OBJ_ENUM][task[1]]
         # targ_name = prim_choices[TARG_ENUM][task[2]]
@@ -605,9 +605,9 @@ class NAMOSortingAgent(TAMPAgent):
         plan.params['obs0'].pose[:] = plan.params['obs0'].pose[:,:1]
 
         run_solve = True
-        
+
         plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
-        for param in plan.params.values():
+        for param in list(plan.params.values()):
             for attr in param._free_attrs:
                 if np.any(np.isnan(getattr(param, attr)[:,0])):
                     getattr(param, attr)[:,0] = 0
@@ -650,16 +650,16 @@ class NAMOSortingAgent(TAMPAgent):
                     for param, attr in plan.action_inds:
                         if attr == 'pose':
                             # U[plan.action_inds[param, attr]] = getattr(plan.params[param], attr)[:, t+1] - getattr(plan.params[param], attr)[:, t]
-                            U[plan.action_inds[param, attr]] = traj[t+1][plan.state_inds[param, attr]] - traj[t][plan.state_inds[param, attr]] 
+                            U[plan.action_inds[param, attr]] = traj[t+1][plan.state_inds[param, attr]] - traj[t][plan.state_inds[param, attr]]
                         elif attr == 'gripper':
                             # U[plan.action_inds[param, attr]] = getattr(plan.params[param], attr)[:, t]
-                            U[plan.action_inds[param, attr]] = traj[t+1][plan.state_inds[param, attr]] 
+                            U[plan.action_inds[param, attr]] = traj[t+1][plan.state_inds[param, attr]]
                         else:
                             raise NotImplementedError
                     # U[plan.action_inds['pr2', 'pose']] = plan.params['pr2'].pose[:, t+1] - plan.params['pr2'].pose[:, t]
                     # U[plan.action_inds['pr2', 'gripper']] = plan.params['pr2'].gripper[:, t+1]
                 if np.any(np.isnan(U)):
-                    if success: print('NAN in {0} plan act'.format(success))
+                    if success: print(('NAN in {0} plan act'.format(success)))
                     U[:] = 0.
                 return U
         sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False, skip_opt=True)
@@ -679,10 +679,10 @@ class NAMOSortingAgent(TAMPAgent):
         if not smoothing and self.debug:
             if not success:
                 sample.use_ts[:] = 0.
-                print('Failed to plan for: {0} {1} smoothing? {2} {3}'.format(task, failed_preds, smoothing, state))
+                print(('Failed to plan for: {0} {1} smoothing? {2} {3}'.format(task, failed_preds, smoothing, state)))
                 print('FAILED PLAN')
             else:
-                print('SUCCESSFUL PLAN for {0}'.format(task))
+                print(('SUCCESSFUL PLAN for {0}'.format(task)))
         # else:
         #     print('Plan success for {0} {1}'.format(task, state))
         return sample, failed_preds, success
@@ -772,7 +772,7 @@ class NAMOSortingAgent(TAMPAgent):
                 grasp_vec[task[3]] = 1.
                 sample.set(GRASP_ENUM, grasp_vec, t)
                 # plan.params['grasp0'].value[:,0] = grasp
-            
+
             obj_vec = np.zeros((len(prim_choices[OBJ_ENUM])), dtype='float32')
             targ_vec = np.zeros((len(prim_choices[TARG_ENUM])), dtype='float32')
             if task[0] == 0:
@@ -838,7 +838,7 @@ class NAMOSortingAgent(TAMPAgent):
 
         if fill_obs:
             if LIDAR_ENUM in self._hyperparams['obs_include']:
-                plan = self.plans.values()[0]
+                plan = list(self.plans.values())[0]
                 set_params_attrs(plan.params, plan.state_inds, mp_state, t)
                 lidar = self.dist_obs(plan, t)
                 sample.set(LIDAR_ENUM, lidar.flatten(), t)
@@ -854,7 +854,7 @@ class NAMOSortingAgent(TAMPAgent):
         X = sample.get(STATE_ENUM)
         pos_inds = self.action_inds['pr2', 'pose']
         act[:-1, self.action_inds['pr2', 'pose']] = X[1:, pos_inds] - X[:-1, pos_inds]
-        act[:-1, self.action_inds['pr2', 'gripper']] = X[1:, self.action_inds['pr2', 'gripper']] 
+        act[:-1, self.action_inds['pr2', 'gripper']] = X[1:, self.action_inds['pr2', 'gripper']]
         act[np.abs(act) > 2] = 2.
         sample.set(ACTION_ENUM, act)
 
@@ -864,7 +864,7 @@ class NAMOSortingAgent(TAMPAgent):
         outs = {}
         out[TASK_ENUM] = copy.copy(self.task_list)
         options = get_prim_choices()
-        plan = self.plans.values()[0]
+        plan = list(self.plans.values())[0]
         for enum in self.prim_dims:
             if enum == TASK_ENUM: continue
             out[enum] = []
@@ -890,7 +890,7 @@ class NAMOSortingAgent(TAMPAgent):
         plan = self.plans[task]
         options = self.prob.get_prim_choices()
         for i in range(1, len(task)):
-            enum = self.prim_dims.keys()[i-1]
+            enum = list(self.prim_dims.keys())[i-1]
             item = options[enum][task[i]]
             if item in plan.params:
                 param = plan.params[item]
@@ -913,7 +913,7 @@ class NAMOSortingAgent(TAMPAgent):
     def get_prim_indices(self, names):
         task = [self.task_list.index(names[0])]
         for i in range(1, len(names)):
-            task.append(self.get_prim_index(self.prim_dims.keys()[i-1], names[i]))
+            task.append(self.get_prim_index(list(self.prim_dims.keys())[i-1], names[i]))
         return tuple(task)
 
 
@@ -922,8 +922,8 @@ class NAMOSortingAgent(TAMPAgent):
             targets = self.target_vecs[condition]
         cost = self.prob.NUM_OBJS
         alldisp = 0
-        plan = self.plans.values()[0]
-        for param in plan.params.values():
+        plan = list(self.plans.values())[0]
+        for param in list(plan.params.values()):
             if param._type == 'Can':
                 val = targets[self.target_inds['{0}_end_target'.format(param.name), 'value']]
                 disp = state[self.state_inds[param.name, 'pose']] - val
@@ -978,7 +978,7 @@ class NAMOSortingAgent(TAMPAgent):
         if GRASP_ENUM in prim_choices:
             grasp = self.set_grasp(grasp, task[3])
         # plan.params['grasp0'].value[:,0] = grasp
- 
+
         if active_ts[1] == 0:
             prim_choices = self.prob.get_prim_choices()
             obj = prim_choices[OBJ_ENUM][task[1]]
@@ -1017,7 +1017,7 @@ class NAMOSortingAgent(TAMPAgent):
         # if debug:
         #     print(failed_preds)
 
-        failed_preds = filter(lambda p: not type(p[1].expr) is EqExpr, failed_preds)
+        failed_preds = [p for p in failed_preds if not type(p[1].expr) is EqExpr]
         return failed_preds
 
 
@@ -1101,7 +1101,7 @@ class NAMOSortingAgent(TAMPAgent):
     #                 pass
 
     #     return cost
-    
+
 
     def reset_to_sample(self, sample):
         self.reset_to_state(sample.get_X(sample.T-1))
@@ -1180,7 +1180,7 @@ class NAMOSortingAgent(TAMPAgent):
             for tname, attr in self.target_inds:
                 self.targets[condition][tname] = targets[self.target_inds[tname, attr]]
             self.target_vecs[condition] = targets
-        
+
         exclude_targets = []
         plan = self.plans[task]
         act_traj = np.zeros((plan.horizon, self.dU))
@@ -1194,7 +1194,7 @@ class NAMOSortingAgent(TAMPAgent):
         sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, act_traj), condition, state, task, noisy=False, skip_opt=True)
         sample.set_ref_X(sample.get_X())
         sample.set_ref_U(sample.get_U())
-     
+
         # for t in range(sample.T):
         #     if np.all(np.abs(sample.get(ACTION_ENUM, t=t))) < 1e-3:
         #         sample.use_ts[t] = 0.
@@ -1209,7 +1209,7 @@ class NAMOSortingAgent(TAMPAgent):
     def get_hl_plan(self, state, condition, failed_preds, plan_id=''):
         targets = get_prim_choices[TARG_ENUM]
         state = state[self._x_data_idx[STATE_ENUM]]
-        params = self.plans.values()[0].params
+        params = list(self.plans.values())[0].params
 
         return hl_plan_for_state(state, targets, plan_id, params, self.state_inds, failed_preds)
 
@@ -1273,7 +1273,7 @@ class NAMOSortingAgent(TAMPAgent):
             x = sample.get(STATE_ENUM, sample.T-1)
             g = plan.params['grasp{0}'.format(task[3])].value[:,0] # plan.params['grasp0'].value[:,0]
             goal_ee = x[self.state_inds[pname, 'pose']] + g
-            attr_dict[('robot_end_pose', 'value')] = goal_ee 
+            attr_dict[('robot_end_pose', 'value')] = goal_ee
         elif task[0] == 1:
             plan = self.plans[task]
             pname = self.prob.get_prim_choices()[OBJ_ENUM][task[1]]
@@ -1292,7 +1292,7 @@ class NAMOSortingAgent(TAMPAgent):
 
     def relabel_goal(self, sample, debug=False):
         X = sample.get_X(sample.T-1)
-        plan = self.plans.values()[0]
+        plan = list(self.plans.values())[0]
         goal = self.target_vecs[0].copy()
         for pname, aname in self.state_inds:
             if plan.params[pname].is_symbol(): continue
@@ -1314,7 +1314,7 @@ class NAMOSortingAgent(TAMPAgent):
         if OBJ_ENUM in prim_choices and curric_step > 0:
             i = 0
             step = (curric_step + 1) // 2
-            inds = np.random.permutation(range(len(prim_choices[OBJ_ENUM])))
+            inds = np.random.permutation(list(range(len(prim_choices[OBJ_ENUM]))))
             for j in inds:
                 obj = prim_choices[OBJ_ENUM][j]
                 if '{0}_end_target'.format(obj) not in self.targets[cond]: continue
@@ -1334,7 +1334,7 @@ class NAMOSortingAgent(TAMPAgent):
             self.target_vecs[cond][self.target_inds[target_name, 'value']] = self.targets[cond][target_name]
         only_goal = np.concatenate([self.target_vecs[cond][self.target_inds['{0}_end_target'.format(o), 'value']] for o in prim_choices[OBJ_ENUM]])
         onehot_goal = self.onehot_encode_goal(only_goal)
-        
+
         nt = len(prim_choices[TARG_ENUM])
 
 
@@ -1353,13 +1353,13 @@ class NAMOSortingAgent(TAMPAgent):
 
 
     def check_target(self, targ):
-        vec = np.zeros(len(self.targ_labels.keys()))
+        vec = np.zeros(len(list(self.targ_labels.keys())))
         for ind in self.targ_labels:
             if np.all(np.abs(targ - self.targ_labels[ind]) < NEAR_TOL):
                 vec[ind] = 1.
                 break
         return vec
-         
+
 
     def onehot_encode_goal(self, targets, descr=None, debug=False):
         vecs = []
@@ -1368,7 +1368,7 @@ class NAMOSortingAgent(TAMPAgent):
             vec = self.check_target(targ)
             vecs.append(vec)
         if debug:
-            print('Encoded {0} as {1} {2}'.format(targets, vecs, self.prob.END_TARGETS))
+            print(('Encoded {0} as {1} {2}'.format(targets, vecs, self.prob.END_TARGETS)))
         return np.concatenate(vecs)
 
 
@@ -1381,7 +1381,7 @@ class NAMOSortingAgent(TAMPAgent):
         for i, l in enumerate(encoded[:-1]):
             if l[0] == 0 and encoded[i+1][0] == 1:
                 l[2] = encoded[i+1][2]
-        encoded = map(lambda l: tuple(l), encoded)
+        encoded = [tuple(l) for l in encoded]
         return encoded
 
 
@@ -1438,7 +1438,7 @@ class NAMOSortingAgent(TAMPAgent):
             assert not np.any(np.isnan(fpts))
             interp = scipy.interpolate.interp1d(xpts, fpts, axis=0, fill_value='extrapolate')
             grip_interp = scipy.interpolate.interp1d(np.array(xpts), grippts, kind='previous', bounds_error=False, axis=0)
-          
+
             fix_pts = []
             if type(vel) is float:
                 # x = np.arange(0, d+vel/2, vel)
@@ -1478,6 +1478,5 @@ class NAMOSortingAgent(TAMPAgent):
                 new_traj = np.r_[new_traj, out]
             else:
                 new_traj = out
-            if np.any(np.isnan(out)): print('NAN in out', out, x)
+            if np.any(np.isnan(out)): print(('NAN in out', out, x))
         return new_traj
-        

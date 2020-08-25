@@ -38,7 +38,7 @@ class Encoder(object):
         last_conv_shape = None
         with tf.variable_scope('encoder', reuse=reuse):
             if n_channels is not None:
-                n_conv_layers = range(len(n_channels))
+                n_conv_layers = list(range(len(n_channels)))
                 for n_c, fs, s, i in zip(n_channels, filter_sizes, strides, n_conv_layers):
                     out = conv2d(out, n_c, (fs, fs), padding='same', strides=s, name='encode_conv{0}'.format(i), reuse=reuse)
                     # out = tf.layers.batch_normal/zization(out, training=training, name='batch_encoder{0}'.format(i))
@@ -51,7 +51,7 @@ class Encoder(object):
                 if fc_in is not None:
                     out = tf.concat([out, fc_in], axis=-1)
 
-                n_dense_layers = range(len(fc_dims))
+                n_dense_layers = list(range(len(fc_dims)))
                 for d, i in zip(fc_dims, n_dense_layers):
                     if i == len(fc_dims) - 1:
                         d = 2 * d # Need to get mu and std
@@ -78,7 +78,7 @@ class Decoder(object):
             fc_dims = config.get('fc_dims', fc_dims)
             fc_out_size = config.get('fc_out_size', fc_out_size)
             conv_init_shape = config['conv_init_shape']
-            
+
         out = x_in
         with tf.variable_scope('decoder', reuse=reuse):
             if fc_dims is not None:
@@ -99,7 +99,7 @@ class Decoder(object):
             out = tf.reshape(out, (-1, conv_init_shape[0], conv_init_shape[1], conv_init_shape[2]))
 
             if n_channels is not None:
-                n_deconv_layers = range(len(n_channels))
+                n_deconv_layers = list(range(len(n_channels)))
                 for n_c, fs, s, i in zip(n_channels, filter_sizes, strides, n_deconv_layers):
                     if i == len(n_channels)-1:
                         n_c *= 2
@@ -120,7 +120,7 @@ class LatentDynamics(object):
         import tensorflow as tf
         if config is not None:
             fc_dims = config.get('fc_dims', fc_dims)
-        
+
         self.weights = []
         with tf.variable_scope('latent_dynamics', reuse=reuse):
             out = tf.concat([x_in, task_in], axis=-1)
@@ -181,7 +181,7 @@ class RecurrentLatentDynamics(object):
             initial_state = self.lstm_cell.zero_state(batch_size=x_in.shape[0].value, dtype=tf.float32)
             self.initial_state = initial_state
             out, self.last_state = tf.nn.dynamic_rnn(self.lstm_cell, out, initial_state=initial_state,
-                                           time_major=False, swap_memory=True, dtype=tf.float32, 
+                                           time_major=False, swap_memory=True, dtype=tf.float32,
                                            scope="RNN")
             self.weights = tf.get_variable(name='dense_w', shape=[out.shape[-1].value, 2*x_in.shape[-1]])
             self.bias = tf.get_variable(name='dense_b', initializer=tf.zeros([2*x_in.shape[-1]]))

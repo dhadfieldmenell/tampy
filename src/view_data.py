@@ -9,4 +9,3 @@ obs = f['obs_data']
 
 def get_obs(t):
     return np.array(obs[np.random.randint(0, len(obs))][t])
-

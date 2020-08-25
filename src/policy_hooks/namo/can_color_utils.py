@@ -15,8 +15,7 @@ colors = {
 def get_can_color_mapping(cans):
     can_to_colors = {}
     for can in cans:
-        color = np.random.choice(colors.keys())
+        color = np.random.choice(list(colors.keys()))
         can_to_colors[can.lower()] = (color, colors[color])
 
     return can_to_colors
-

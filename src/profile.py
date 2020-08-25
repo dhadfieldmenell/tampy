@@ -31,7 +31,7 @@ def test_realistic_training():
     #8 doesn't work
     plan_list = [1, 2, 3]
     for i in plan_list:
-        print "Generating plan_{}".format(i)
+        print("Generating plan_{}".format(i))
         prob_file = '../domains/baxter_domain/baxter_training_probs/grasp_training_4321_{}.prob'.format(i)
 
         plan_str = ['0: MOVETO BAXTER ROBOT_INIT_POSE PDP_TARGET0',

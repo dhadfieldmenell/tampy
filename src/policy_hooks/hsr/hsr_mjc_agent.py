@@ -31,12 +31,12 @@ class HSRMJCAgent(TAMPAgent):
     def __init__(self, hyperparams):
         plans = hyperparams['plans']
         items = []
-        for param in plans[0].params.values():
+        for param in list(plans[0].params.values()):
             items.append(get_param_xml(param))
         self.im_h, self.im_w = hyperparams['image_height'], hyperparams['image_width']
         super(HSRMJCAgent, self).__init__(hyperparams)
-        self.env = HSREnv(items=items, 
-                          im_dims=(self.im_w, self.im_h), 
+        self.env = HSREnv(items=items,
+                          im_dims=(self.im_w, self.im_h),
                           obs_include=['end_effector', 'joints'],
                           view=False)
 
@@ -44,7 +44,7 @@ class HSRMJCAgent(TAMPAgent):
         for m in range(len(self.x0)):
             sample = Sample(self)
             mp_state = self.x0[m][self._x_data_idx[STATE_ENUM]]
-            self.fill_sample(m, sample, mp_state, 0, tuple(np.zeros(1+len(self.prim_dims.keys()), dtype='int32')))
+            self.fill_sample(m, sample, mp_state, 0, tuple(np.zeros(1+len(list(self.prim_dims.keys())), dtype='int32')))
             self.x0[m] = sample.get_X(t=0)
 
 
@@ -110,7 +110,7 @@ class HSRMJCAgent(TAMPAgent):
             self.env.step(np.r_[U[self.action_inds['hsr', 'pose']],
                                 U[self.action_inds['hsr', 'arm']],
                                 U[self.action_inds['hsr', 'gripper']]])
-            
+
             self.traj_hist.append(U)
             while len(self.traj_hist) > self.hist_len:
                 self.traj_hist.pop(0)
@@ -118,7 +118,7 @@ class HSRMJCAgent(TAMPAgent):
         X = np.zeros((plan.symbolic_bound))
         fill_vector(plan.params, plan.state_inds, X, plan.horizon-1)
         sample.end_state = X
-        print 'Sample time:', time.time() - start_time
+        print('Sample time:', time.time() - start_time)
         return sample
 
 
@@ -134,10 +134,10 @@ class HSRMJCAgent(TAMPAgent):
         failed_preds = []
         iteration = 0
         iteration += 1
-        plan = self.plans[task] 
+        plan = self.plans[task]
         set_params_attrs(plan.params, plan.state_inds, x0, 0)
 
-        prim_vals = self.get_prim_value(condition, state, task)            
+        prim_vals = self.get_prim_value(condition, state, task)
         plan.params['left_corner'].pose[:,0] = prim_vals[LEFT_TARG_ENUM]
         plan.params['left_corner'].pose[:2,0] += np.random.normal(0, mp_var, 2)
         plan.params['left_corner_init_target'].value[:, 0] = plan.params['left_corner'].pose[:,0]
@@ -156,7 +156,7 @@ class HSRMJCAgent(TAMPAgent):
         try:
             success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean, inf_f=inf_f)
         except Exception as e:
-            print e
+            print(e)
             traceback.print_exception(*sys.exc_info())
             success = False
             raise e
@@ -164,10 +164,10 @@ class HSRMJCAgent(TAMPAgent):
         if not success:
             for action in plan.actions:
                 try:
-                    print plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)
+                    print(plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps))
                 except:
                     pass
-            print '\n\n'
+            print('\n\n')
 
         try:
             if not len(failed_preds):
@@ -178,14 +178,14 @@ class HSRMJCAgent(TAMPAgent):
 
         if not success:
             sample = Sample(self)
-            for i in range(len(self.prim_dims.keys())):
-                enum = self.prim_dims.keys()[i]
+            for i in range(len(list(self.prim_dims.keys()))):
+                enum = list(self.prim_dims.keys())[i]
                 vec = np.zeros((self.prim_dims[enum]))
                 vec[task[i]] = 1.
                 sample.set(enum, vec, 0)
-            
+
             set_params_attrs(plan.params, plan.state_inds, x0, 0)
-            
+
             sample.set(RIGHT_TARG_POSE_ENUM, plan.params['right_corner'].pose[:,0].copy(), 0)
             sample.set(LEFT_TARG_POSE_ENUM, plan.params['left_corner'].pose[:,0].copy(), 0)
 
@@ -216,11 +216,11 @@ class HSRMJCAgent(TAMPAgent):
         self.env.physics.data.qpos[:2] = pose[:2]
         self.env.physics.data.qpos[2:7] = arm
         self.env.physics.data.qpos[7:9] = gripper
-        plan = self.plans.values()[0]
+        plan = list(self.plans.values())[0]
         for param_name, attr in self.state_inds:
             if attr == 'pose' and plan.params[param_name]._type == 'Can':
                 self.env.set_item_pos(param_name, mp_state[self.state_inds[param_name, attr]], False)
-        
+
 
     def get_hl_plan(self, state, condition, failed_preds, plan_id=''):
         self.reset_to_state(state)
@@ -256,7 +256,7 @@ class HSRMJCAgent(TAMPAgent):
             U[self.action_inds['hsr', 'gripper']] = hsr.gripper[:,t]
             U[self.action_inds['hsr', 'pose']] = hsr.pose[:,t] - sample.get(POS_ENUM, t=t-1)
             sample.set(ACTION_ENUM, U, t-1)
-            sample.set(ACTION_ENUM, U, t)            
+            sample.set(ACTION_ENUM, U, t)
 
         sample.task = task
         sample.task_name = self.task_list[task[0]]
@@ -267,7 +267,7 @@ class HSRMJCAgent(TAMPAgent):
 
         prim_choices = self.prob.get_prim_choices()
         for i in range(1, len(task)):
-            enum = self.prim_dims.keys()[i-1]
+            enum = list(self.prim_dims.keys())[i-1]
             vec = np.zeros((self.prim_dims[enum]))
             vec[task[i]] = 1.
             sample.set(enum, vec, t)
@@ -283,7 +283,7 @@ class HSRMJCAgent(TAMPAgent):
                 sample.set(LEFT_IMAGE_ENUM, self.env.render(height=self.im_h, width=self.im_w, camera_id=3, view=False).flatten(), t)
             if RIGHT_IMAGE_ENUM in self._hyperparams['obs_include'] or RIGHT_IMAGE_ENUM in self._hyperparams['prim_obs_include']:
                 sample.set(RIGHT_IMAGE_ENUM, self.env.render(height=self.im_h, width=self.im_w, camera_id=2, view=False).flatten(), t)
-            
+
         return sample
 
 
@@ -292,7 +292,7 @@ class HSRMJCAgent(TAMPAgent):
         outs = {}
         out[TASK_ENUM] = copy.copy(self.task_list)
         options = self.prob.get_prim_choices()
-        plan = self.plans.values()[0]
+        plan = list(self.plans.values())[0]
         for enum in self.prim_dims:
             if enum == TASK_ENUM: continue
             out[enum] = []
@@ -320,7 +320,7 @@ class HSRMJCAgent(TAMPAgent):
         plan = self.plans[task]
         options = self.prob.get_prim_choices()
         for i in range(1, len(task)):
-            enum = self.prim_dims.keys()[i-1]
+            enum = list(self.prim_dims.keys())[i-1]
             item = options[enum][task[i]]
             if item in plan.params:
                 param = plan.params[item]
@@ -345,7 +345,7 @@ class HSRMJCAgent(TAMPAgent):
     def get_prim_indices(self, names):
         task = [self.task_list.index(names[0])]
         for i in range(1, len(names)):
-            task.append(self.get_prim_index(self.prim_dims.keys()[i-1], names[i]))
+            task.append(self.get_prim_index(list(self.prim_dims.keys())[i-1], names[i]))
         return tuple(task)
 
 
@@ -374,10 +374,10 @@ class HSRMJCAgent(TAMPAgent):
 
         failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
         if debug:
-            print failed_preds
+            print(failed_preds)
 
         cost = 0
-        print plan.actions, failed_preds
+        print(plan.actions, failed_preds)
         for failed in failed_preds:
             for t in range(active_ts[0], active_ts[1]+1):
                 if t + failed[1].active_range[1] > active_ts[1]:
@@ -423,7 +423,7 @@ class HSRMJCAgent(TAMPAgent):
         cur_arm = hsr.arm[:,0]
         cur_pos = hsr.pose[:,0]
         for t in range(plan.horizon-1):
-            act_traj[t, self.action_inds['hsr', 'arm']] = hsr.arm[:,t+1] - hsr.arm[:,t] 
+            act_traj[t, self.action_inds['hsr', 'arm']] = hsr.arm[:,t+1] - hsr.arm[:,t]
             act_traj[t, self.action_inds['hsr', 'gripper']] = hsr.gripper[:,t]
             act_traj[t, self.action_inds['hse', 'pose']] = hsr.pose[:,t]
         act_traj[-1] = act_traj[-2]

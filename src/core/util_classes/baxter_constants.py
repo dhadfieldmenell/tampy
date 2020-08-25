@@ -143,9 +143,9 @@ Following constants are for general use
 # }
 
 
-ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
+ATTRMAP = {"Robot": (("lArmPose", np.array(list(range(7)), dtype=np.int)),
                      ("lGripper", np.array([0], dtype=np.int)),
-                     ("rArmPose", np.array(range(7), dtype=np.int)),
+                     ("rArmPose", np.array(list(range(7)), dtype=np.int)),
                      ("rGripper", np.array([0], dtype=np.int)),
                      ("pose", np.array([0], dtype=np.int)),
                      ("time", np.array([0], dtype=np.int)),
@@ -153,9 +153,9 @@ ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
                      ("ee_left_rot", np.array([0, 1, 2], dtype=np.int)),
                      ("ee_right_pos", np.array([0, 1, 2], dtype=np.int)),
                      ("ee_right_rot", np.array([0, 1, 2], dtype=np.int))),
-           "RobotPose": (("lArmPose", np.array(range(7), dtype=np.int)),
+           "RobotPose": (("lArmPose", np.array(list(range(7)), dtype=np.int)),
                          ("lGripper", np.array([0], dtype=np.int)),
-                         ("rArmPose", np.array(range(7), dtype=np.int)),
+                         ("rArmPose", np.array(list(range(7)), dtype=np.int)),
                          ("rGripper", np.array([0], dtype=np.int)),
                          ("value", np.array([0], dtype=np.int)),),
            "Rotation": [("value", np.array([0], dtype=np.int))],

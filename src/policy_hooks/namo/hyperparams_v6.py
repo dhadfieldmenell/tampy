@@ -1,4 +1,4 @@
-from __future__ import division
+
 
 from datetime import datetime
 import os
@@ -31,7 +31,7 @@ from pma.namo_solver import NAMOSolver
 from policy_hooks.namo.namo_agent import NAMOSortingAgent
 from policy_hooks.namo.namo_policy_solver import NAMOPolicySolver
 import policy_hooks.namo.sorting_prob_3 as prob
-from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer 
+from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer
 from policy_hooks.policy_mp_prior_gmm import PolicyMPPriorGMM
 from policy_hooks.policy_prior_gmm import PolicyPriorGMM
 

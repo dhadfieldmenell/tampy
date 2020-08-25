@@ -23,7 +23,7 @@ class AgentEnvWrapper(Env):
                          else env.action_space.nvec[0]
         self.tol = 0.03
         self.init_state = agent.x0[0] if agent is not None else env.physics.data.qpos.copy()
-        self.action_space = env.action_space if env is not None else spaces.MultiDiscrete([len(opts) for opts in self.task_options.values()])
+        self.action_space = env.action_space if env is not None else spaces.MultiDiscrete([len(opts) for opts in list(self.task_options.values())])
         self.observation_space = spaces.Box(0, 255, [self.sub_env.im_height, self.sub_env.im_wid, 3], dtype='uint8')
         self.cur_state = env.physics.data.qpos.copy() if env is not None else self.agent.x0[0]
         self.reset_goal()
@@ -38,7 +38,7 @@ class AgentEnvWrapper(Env):
             # act[task[0]] += 1.
             # cur_ind = self.num_tasks
 
-            act = np.zeros(np.sum([len(opts) for opts in self.task_options.values()]))
+            act = np.zeros(np.sum([len(opts) for opts in list(self.task_options.values())]))
             cur_ind = 0
             for i, opt in enumerate(self.task_options.keys()):
                 act[cur_ind+task[i]] = 1.

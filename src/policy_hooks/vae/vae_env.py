@@ -24,7 +24,7 @@ class VAEEnvWrapper(AgentEnvWrapper):
                          else env.action_space.nvec[0]
         self.tol = 0.03
         self.init_state = agent.x0[0] if agent is not None else env.physics.data.qpos.copy()
-        self.action_space = env.action_space if env is not None else spaces.MultiDiscrete([len(opts) for opts in self.task_options.values()])
+        self.action_space = env.action_space if env is not None else spaces.MultiDiscrete([len(opts) for opts in list(self.task_options.values())])
         self.observation_space = spaces.Box(0, 255, [self.sub_env.im_height, self.sub_env.im_wid, 3], dtype='uint8')
         self.cur_state = env.physics.data.qpos.copy() if env is not None else self.agent.x0[0]
         self.goal = None
@@ -50,7 +50,7 @@ class VAEEnvWrapper(AgentEnvWrapper):
                 next_latent, self.h = self.vae.get_next_latents([self.cur_latent_obs], [self.encode_action(action)], self.h)[0]
             else:
                 next_latent, _ = self.vae.get_next_latents([self.cur_latent_obs], [self.encode_action(action)])[0]
-                
+
         self.cur_latent_obs = next_latent
         obs = np.r_[next_latent, self.goal_latent]
         reward = self.check_goal()

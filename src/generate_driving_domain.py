@@ -25,7 +25,7 @@ class PrimitivePredicates(object):
     def get_str(self):
         prim_str = 'Primitive Predicates: '
         first = True
-        for name, attrs in self.attr_dict.items():
+        for name, attrs in list(self.attr_dict.items()):
             for attr_name, attr_type in attrs:
                 pred_str = attr_name + ', ' + name + ', ' + attr_type
                 if first:
@@ -61,7 +61,7 @@ class DerivatedPredicates(object):
         prim_str = 'Derived Predicates: '
 
         first = True
-        for name, args in self.pred_dict.items():
+        for name, args in list(self.pred_dict.items()):
             pred_str = name
             for arg in args:
                 pred_str += ', ' + arg
@@ -196,7 +196,7 @@ class DriveDownRoad(DrivingAction):
         timesteps = 100
         end = timesteps - 1
         args = '(?vehicle - Vehicle ?road - Road ?start - VehiclePose ?end - VehiclePose ?vu_limit - Limit ?vl_limit - Limit ?au_limit - Limit ?al_limit - Limit)'
-        
+
         pre = [\
                 ('(OnRoad ?vehicle ?road)', '{}:{}'.format(0, end)),
                 ('(forall (?obj - Vehicle)\
@@ -228,7 +228,7 @@ class Follow(Action):
         args = '(?vehicle - Vehicle ?external - Vehicle ?road - Road \
                  ?start - VehiclePose ?end - VehiclePose ?external_start - VehiclePose \
                  ?lane_n - LaneNumber ?vu_limit - Limit ?vl_limit - Limit \
-                 ?au_limit - Limit ?al_limit - Limit)'      
+                 ?au_limit - Limit ?al_limit - Limit)'
 
         pre = [\
                 ('(OnRoad ?vehicle ?road)', '{}:{}'.format(0, end)),
@@ -265,7 +265,7 @@ class Pass(Action):
         args = '(?vehicle - Vehicle ?external - Vehicle ?road - Road \
                  ?start - VehiclePose ?end - VehiclePose ?external_start - VehiclePose \
                  ?lane_n - LaneNumber ?vu_limit - Limit ?vl_limit - Limit \
-                 ?au_limit - Limit ?al_limit - Limit)'      
+                 ?au_limit - Limit ?al_limit - Limit)'
 
         pre = [\
                 ('(OnRoad ?vehicle ?road)', '{}:{}'.format(0, end)),
@@ -298,7 +298,7 @@ class Left(Action):
         end = timesteps - 1
         args = '(?vehicle - Vehicle ?road - Road ?start - VehiclePose ?end - VehiclePose \
                  ?lane_n - LaneNumber ?merge_dist - Distance \
-                 ?vu_limit - Limit ?vl_limit - Limit ?au_limit - Limit ?al_limit - Limit)'      
+                 ?vu_limit - Limit ?vl_limit - Limit ?au_limit - Limit ?al_limit - Limit)'
 
         pre = [\
                 ('(OnRoad ?vehicle ?road)', '{}:{}'.format(0, end)),
@@ -333,7 +333,7 @@ class Right(Action):
         end = timesteps - 1
         args = '(?vehicle - Vehicle ?road - Road ?start - VehiclePose ?end - VehiclePose \
                  ?lane_n - LaneNumber ?merge_dist - Distance \
-                 ?vu_limit - Limit ?vl_limit - Limit ?au_limit - Limit ?al_limit - Limit)'      
+                 ?vu_limit - Limit ?vl_limit - Limit ?au_limit - Limit ?al_limit - Limit)'
 
         pre = [\
                 ('(OnRoad ?vehicle ?road)', '{}:{}'.format(0, end)),

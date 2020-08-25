@@ -14,7 +14,7 @@ class MCTSNode():
         self.value = value
         self.is_leaf = True
         self.children = {}
-        label_options = itertools.product(*[range(n) for n in nvec])
+        label_options = itertools.product(*[list(range(n)) for n in nvec])
         for option in label_options:
             self.children[option] = None
         self.parent = parent
@@ -65,11 +65,11 @@ class MCTSNode():
 
 
     def get_explored_children(self):
-        return filter(lambda n: n is not None, self.children.values())
+        return [n for n in list(self.children.values()) if n is not None]
 
 
     def has_unexplored(self):
-        for child in self.children.values():
+        for child in list(self.children.values()):
             if child is None: return True
         return False
 
@@ -113,9 +113,9 @@ class MCTSExplore(MCTS):
         if label is None:
             label = tuple(self.env.action_space.sample())
 
-        next_node = MCTSNode(tuple(label), 
-                             0, 
-                             node, 
+        next_node = MCTSNode(tuple(label),
+                             0,
+                             node,
                              self.env.action_space.nvec)
         path = self.simulate_from_next(next_node, state, debug=debug)
         # next_node.update_value(int(cost==0))
@@ -135,14 +135,14 @@ class MCTSExplore(MCTS):
         #     print "State: ", state
 
         if label is None:
-            children = node.get_explored_children() 
-            children_distr = map(self.node_check_f, children)
+            children = node.get_explored_children()
+            children_distr = list(map(self.node_check_f, children))
         else:
             children = [node.get_child(label)]
             assert children[0] is not None
             children_distr = np.ones(1)
 
-        next_ind = np.random.choice(range(len(children)), 1, p=children_distr)
+        next_ind = np.random.choice(list(range(len(children))), 1, p=children_distr)
         next_node = children[next_ind]
         label = next_node.label
         # plan = self.agent.plans[label]
@@ -155,7 +155,7 @@ class MCTSExplore(MCTS):
         # if debug:
         #     print 'Choosing next node.'
         parameterizations, values = [], []
-        for label in itertools.product(range(self.num_tasks), *[range(n) for n in self.num_prims]):
+        for label in itertools.product(list(range(self.num_tasks)), *[list(range(n)) for n in self.num_prims]):
             label = tuple(label)
             parameterizations.append(label)
             values.append(self.node_check_f(label, state, node))
@@ -231,7 +231,7 @@ class MCTSExplore(MCTS):
                 break
 
             path.append((label, cur_obs, self.env.check_goal())) # Repeat observations?
- 
+
             current_node = next_node
             # path.append(current_node)
             # exclude_hl += [self._encode_f(cur_state, plan, self.agent.targets[self.condition])]
@@ -277,7 +277,7 @@ class MCTSExplore(MCTS):
 
         next_label = []
         for n in self.nvec:
-            next_label.append(np.random.choice(range(n)))
+            next_label.append(np.random.choice(list(range(n))))
 
         next_label = tuple(next_label)
         return self._default_simulate_from_next(next_label, depth+1, init_depth, end_state, prob_func, samples, num_samples=num_samples, save=False, use_distilled=use_distilled, debug=debug)

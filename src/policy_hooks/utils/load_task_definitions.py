@@ -26,7 +26,7 @@ def get_tasks(file_name):
         task_info = f.read().split(';')
         task_map = eval(task_info[0])
     return task_map
-    
+
 def get_task_durations(file_name):
     with open(file_name, 'r+') as f:
         task_info = f.read().split(';')
@@ -110,5 +110,3 @@ def parse_state(plan, failed_preds, ts):
                 elif p['negated'] and not p['pred'].hl_test(check_ts, tol=1e-3, negated=True):
                     new_preds.append(p['pred'])
     return new_preds
-
-

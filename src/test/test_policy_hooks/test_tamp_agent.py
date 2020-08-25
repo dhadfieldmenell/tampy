@@ -55,7 +55,7 @@ class TestTampAgent(unittest.TestCase):
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         hls = hl_solver.FFSolver(d_c)
-        print "loading laundry problem..."
+        print("loading laundry problem...")
         p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/cloth_grasp_policy.prob')
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
 
@@ -184,7 +184,7 @@ class TestTampAgent(unittest.TestCase):
             mj_u[9:17] = u[8:].reshape(-1, 1)
             mj_u[17] = -u[15]
             real_t = plan.time[:,t]
-            agent.motor_model.data.ctrl = mj_u         
+            agent.motor_model.data.ctrl = mj_u
             start_t = agent.motor_model.data.time
             cur_t = start_t
             while cur_t < start_t + real_t:

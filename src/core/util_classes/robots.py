@@ -109,7 +109,7 @@ class Baxter(Robot):
             iktype = IkParameterizationType.Transform6D
             ikmodel = databases.inversekinematics.InverseKinematicsModel(robot, IkParameterizationType.Transform6D, True)
             if not ikmodel.load():
-                print 'Something went wrong when loading ikmodel'
+                print('Something went wrong when loading ikmodel')
             #   ikmodel.autogenerate()
             right_manip = robot.GetManipulator('right_arm')
             ikmodel.manip = right_manip
@@ -117,7 +117,7 @@ class Baxter(Robot):
 
             ikmodel = databases.inversekinematics.InverseKinematicsModel(robot, IkParameterizationType.Transform6D, True)
             if not ikmodel.load():
-              print 'Something went wrong'
+                print('Something went wrong')
             left_manip = robot.GetManipulator('left_arm')
             ikmodel.manip = left_manip
             left_manip.SetIkSolver(ikmodel.iksolver)
@@ -133,16 +133,16 @@ class HSR(Robot):
     def __init__(self):
         self._type = "hsr"
         shape = "../models/hsr/hsrb4s.xml"
-        self.col_links = set([u'arm_lift_link', u'arm_flex_link', u'arm_roll_link', 
-                              u'wrist_flex_link', u'wrist_roll_link', u'hand_palm_link', 
-                              u'hand_l_proximal_link', u'hand_l_spring_proximal_link', 
-                              u'hand_l_mimic_distal_link', u'hand_l_distal_link', 
-                              u'hand_motor_dummy_link', u'hand_r_proximal_link', 
-                              u'hand_r_spring_proximal_link', u'hand_r_mimic_distal_link', 
-                              u'hand_r_distal_link', u'base_roll_link', 
-                              u'base_l_drive_wheel_link', u'base_l_passive_wheel_z_link', 
-                              u'base_r_drive_wheel_link', u'base_r_passive_wheel_z_link', 
-                              u'torso_lift_link', u'head_pan_link', u'head_tilt_link'])
+        self.col_links = set(['arm_lift_link', 'arm_flex_link', 'arm_roll_link',
+                              'wrist_flex_link', 'wrist_roll_link', 'hand_palm_link',
+                              'hand_l_proximal_link', 'hand_l_spring_proximal_link',
+                              'hand_l_mimic_distal_link', 'hand_l_distal_link',
+                              'hand_motor_dummy_link', 'hand_r_proximal_link',
+                              'hand_r_spring_proximal_link', 'hand_r_mimic_distal_link',
+                              'hand_r_distal_link', 'base_roll_link',
+                              'base_l_drive_wheel_link', 'base_l_passive_wheel_z_link',
+                              'base_r_drive_wheel_link', 'base_r_passive_wheel_z_link',
+                              'torso_lift_link', 'head_pan_link', 'head_tilt_link'])
         self.dof_map = {'arm': [0, 1, 2, 3, 4], 'gripper': [6]}
         super(HSR, self).__init__(shape)
 
@@ -154,7 +154,7 @@ class HSR(Robot):
             iktype = IkParameterizationType.Translation3D
             ikmodel = databases.inversekinematics.InverseKinematicsModel(robot, iktype, True)
             if not ikmodel.load():
-                print 'Something went wrong when loading ikmodel'
+                print('Something went wrong when loading ikmodel')
                 ikmodel.autogenerate()
             manip = robot.GetManipulator('arm')
             ikmodel.manip = manip
@@ -190,7 +190,7 @@ class Washer(Robot):
             self.good_rot = np.array([np.pi/2, 0, 0])
         self.dof_map = {"door": [0]}
 
-        self.col_links = set(["external_1", "external_2", "external_3", "external_4", "back", 
+        self.col_links = set(["external_1", "external_2", "external_3", "external_4", "back",
                               "corner_1", "corner_2", "corner_3", "corner_4",
                               "strip_1", "strip_2", "strip_3", "strip_4", "washer_door",
                               "washer_handle", "barrel_1", "barrel_2",

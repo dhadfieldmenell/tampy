@@ -128,7 +128,7 @@ def get_draw_cols_ts_fn(viewer, plan):
     return draw_cols_ts
 
 def _test_resampling(test_obj, plan, n_resamples=0):
-    print "testing plan: {}".format(plan.actions)
+    print("testing plan: {}".format(plan.actions))
     callback = None
     viewer = None
     """
@@ -193,7 +193,7 @@ def _test_resampling(test_obj, plan, n_resamples=0):
 
 
 def _test_plan(test_obj, plan, n_resamples=0):
-    print "testing plan: {}".format(plan.actions)
+    print("testing plan: {}".format(plan.actions))
     callback = None
     viewer = None
     """
@@ -235,7 +235,7 @@ def _test_plan(test_obj, plan, n_resamples=0):
     # test_obj.assertTrue(plan.satisfied(FAKE_TOL))
 
 def _test_backtrack_plan(test_obj, plan, n_resamples=0):
-    print "testing plan: {}".format(plan.actions)
+    print("testing plan: {}".format(plan.actions))
     callback = None
     viewer = None
     solver = can_solver.CanSolver()
@@ -268,7 +268,7 @@ def _test_backtrack_plan(test_obj, plan, n_resamples=0):
 
 def _test_backtrack_plan(test_obj, plan, method='SQP', plot=False, animate=True, verbose=False,
                early_converge=False):
-    print "testing plan: {}".format(plan.actions)
+    print("testing plan: {}".format(plan.actions))
     if not plot:
         callback = None
         viewer = None
@@ -294,7 +294,7 @@ def _test_backtrack_plan(test_obj, plan, method='SQP', plot=False, animate=True,
         solver.solve(plan, callback=callback, verbose=verbose)
     elif method == 'Backtrack':
         solver.backtrack_solve(plan, callback=callback, verbose=verbose)
-    print "Solve Took: {}".format(time.time() - start)
+    print("Solve Took: {}".format(time.time() - start))
     fp = plan.get_failed_preds()
     _, _, t = plan.get_failed_pred()
     if animate:

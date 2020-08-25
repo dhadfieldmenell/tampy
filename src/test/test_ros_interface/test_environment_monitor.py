@@ -10,7 +10,7 @@ from pma.robot_ll_solver import RobotLLSolver
 
 class TestEnvMonitoring(unittest.TestCase):
 
-    def test_env_monitoring(self): 
+    def test_env_monitoring(self):
         pass
 
     def test_plan_updating(self):

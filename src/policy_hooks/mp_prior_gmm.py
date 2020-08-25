@@ -145,4 +145,3 @@ class PolicyMPPriorGMM(object):
             # print('Time to run mp prior fit step:', time.time() - start_t)
         pol_S += pol_sig
         return pol_K, pol_k, pol_S
-

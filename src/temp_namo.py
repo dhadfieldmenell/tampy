@@ -23,7 +23,7 @@ plan = plans[0][(0,0,7,2)]
 domain = plan.domain
 problem = plan.prob
 state = problem.init_state
-for p in plan.params.values():
+for p in list(plan.params.values()):
     if p.openrave_body is not None:
         p.openrave_body.set_pose([20,20])
 
@@ -49,18 +49,19 @@ plan.params['can0_init_target'].value[:,0] = can0_pose
 plan.params['can1'].pose[:,0] = can1_pose
 plan.params['can1_init_target'].value[:,0] = can1_pose
 
-for param in plan.params.values():
+for param in list(plan.params.values()):
     for attr in param._free_attrs:
         if np.any(np.isnan(getattr(param, attr)[:,0])):
             getattr(param, attr)[:,0] = 0
 
-for param in state.params.values():
+for param in list(state.params.values()):
     for attr in param._free_attrs:
         if np.any(np.isnan(getattr(param, attr)[:,0])):
             getattr(param, attr)[:,0] = 0
 
 solver = NAMOSolver()
 bt_ll.DEBUG = True
+bt_ll.TRAJOPT_COEFF = 1e-3
 hl_solver = FFSolver(plan.d_c)
 # solver.backtrack_solve(plan)
 abs_domain = hl_solver.abs_domain
@@ -117,7 +118,7 @@ for t in range(plan.horizon-1):
     # cmdx, cmdy = -pr2.vel[0,t+1]*np.sin(theta), pr2.vel[0,t+1]*np.cos(theta)
     cmdx, cmdy = -vel*np.sin(theta), vel*np.cos(theta)
     nsteps = int(max(abs(cmdx), abs(cmdy)) / 0.20) + 1
-    grip = pr2.gripper[:,t] * 5
+    grip = pr2.gripper[0,t] * 5
     # x, y = pr2.pose[:,t]
     for n in range(nsteps+1):
         curx = x + float(n)/nsteps * cmdx
@@ -128,13 +129,12 @@ for t in range(plan.horizon-1):
     env.step(ctrl, mode='velocity')
     env.step(ctrl, mode='velocity')
     env.step(ctrl, mode='velocity')
-    print(t, env.get_item_pos('can0'))
-    print(t, env.get_item_pos('can1'))
-    print(t, env.get_item_pos('pr2'), env.get_joints(['robot_theta']))
-    print(t, (env.get_item_pos('left_finger')+env.get_item_pos('right_finger'))/2.)
+    print((t, env.get_item_pos('can0')))
+    print((t, env.get_item_pos('can1')))
+    print((t, env.get_item_pos('pr2'), env.get_joints(['robot_theta'])))
+    print((t, (env.get_item_pos('left_finger')+env.get_item_pos('right_finger'))/2.))
     print('\n\n')
     if t == plan.actions[act].active_timesteps[1]:
         act += 1
         import ipdb; ipdb.set_trace()
 import ipdb; ipdb.set_trace()
-

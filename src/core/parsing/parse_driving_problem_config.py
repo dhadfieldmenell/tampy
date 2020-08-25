@@ -26,12 +26,12 @@ class ParseDrivingProblemConfig(object):
     def parse(problem_config, domain, env=None):
         # create parameter objects
         params = {}
-            
+
         if "Objects" not in problem_config or not problem_config["Objects"]:
             raise ProblemConfigException("Problem file needs objects.")
         for t in problem_config["Objects"].split(";"):
             if t.strip() == '': continue
-            o_type, attrs = map(str.strip, t.strip(" )").split("(", 1))
+            o_type, attrs = list(map(str.strip, t.strip(" )").split("(", 1)))
             attr_dict = {}
             for l in map(str.strip, attrs.split(".")):
                 lst = l.split(" ", 1)
@@ -44,7 +44,7 @@ class ParseDrivingProblemConfig(object):
 
         if "Init" not in problem_config or not problem_config["Init"]:
             raise ProblemConfigException("Problem file needs init.")
-        prim_preds, deriv_preds = map(str.strip, problem_config["Init"].split(";"))
+        prim_preds, deriv_preds = list(map(str.strip, problem_config["Init"].split(";")))
         if prim_preds:
             for pred in map(str.strip, prim_preds.split(")")):
                 if pred:
@@ -52,21 +52,21 @@ class ParseDrivingProblemConfig(object):
                     if a != -1:
                         new_s = "".join(pred[a:b].split())
                         pred = pred.replace(pred[a:b], new_s)
-                    lst = map(str.strip, pred.strip(",() ").split())
+                    lst = list(map(str.strip, pred.strip(",() ").split()))
                     k = lst[0]
                     obj_name = lst[1]
                     v = lst[2:]
                     if obj_name not in params:
                         raise ProblemConfigException("'%s' is not an object in problem file."%obj_name)
                     params[obj_name][k] = [x.replace("[", "(").replace("]", ")") for x in v]
-            for obj_name, attr_dict in params.items():
+            for obj_name, attr_dict in list(params.items()):
                 # assert "pose" in attr_dict or "value" in attr_dict
                 if "pose" not in attr_dict and "value" not in attr_dict:
                     import pdb; pdb.set_trace()
                 o_type = attr_dict["_type"][0]
                 name = attr_dict["name"][0]
                 if 'geom' in attr_dict:
-                    attr_dict['geom'] = map(eval, attr_dict['geom'])
+                    attr_dict['geom'] = list(map(eval, attr_dict['geom']))
 
                 try:
                     params[obj_name] = domain.param_schemas[o_type].param_class(attrs=attr_dict,
@@ -77,7 +77,7 @@ class ParseDrivingProblemConfig(object):
                     raise ProblemConfigException("Parameter '%s' not defined in domain file."%name)
                 except ValueError:
                     raise ProblemConfigException("Some attribute type in parameter '%s' is incorrect."%name)
-        for k, v in params.items():
+        for k, v in list(params.items()):
             if type(v) is dict:
                 raise ProblemConfigException("Problem file has no primitive predicates for object '%s'."%k)
 
@@ -86,7 +86,7 @@ class ParseDrivingProblemConfig(object):
         init_preds = set()
         if deriv_preds:
             for i, pred in enumerate(deriv_preds.split(",")):
-                spl = map(str.strip, pred.strip("() ").split())
+                spl = list(map(str.strip, pred.strip("() ").split()))
                 p_name, p_args = spl[0], spl[1:]
                 p_objs = []
                 for n in p_args:
@@ -100,7 +100,7 @@ class ParseDrivingProblemConfig(object):
                                                                           expected_param_types=domain.pred_schemas[p_name].expected_params,
                                                                           env=env))
                 except TypeError:
-                    print("type error for {}".format(pred))
+                    print(("type error for {}".format(pred)))
 
         # use params and initial preds to create an initial State object
         initial_state = state.State("initstate", params, init_preds, timestep=0)
@@ -108,7 +108,7 @@ class ParseDrivingProblemConfig(object):
         # create goal predicate objects
         goal_preds = set()
         for i, pred in enumerate(problem_config["Goal"].split(",")):
-            spl = map(str.strip, pred.strip("() ").split())
+            spl = list(map(str.strip, pred.strip("() ").split()))
             p_name, p_args = spl[0], spl[1:]
             p_objs = []
             for n in p_args:

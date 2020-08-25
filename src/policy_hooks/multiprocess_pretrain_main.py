@@ -7,7 +7,7 @@ import os
 import os.path
 import sys
 import copy
-import cPickle as pickle
+import pickle as pickle
 import argparse
 from datetime import datetime
 import threading
@@ -59,8 +59,8 @@ def solve_condition(trainer, cond, paths=[], all_samples=[], all_successful_samp
     while not stop and attempt < 6 * trainer.config['num_objs']:
         last_reset += 1
         for step in hl_plan:
-            print 'Current hl plan for '+str(cond)+ ': ', opt_hl_plan
-            targets = [trainer.agent.plans.values()[0].params[p_name] for p_name in step[1]]
+            print('Current hl plan for '+str(cond)+ ': ', opt_hl_plan)
+            targets = [list(trainer.agent.plans.values())[0].params[p_name] for p_name in step[1]]
             plan = trainer.config['plan_f'](step[0], targets)
             if len(targets) < 2:
                 targets.append(plan.params['{0}_end_target'.format(targets[0].name)])
@@ -76,13 +76,13 @@ def solve_condition(trainer, cond, paths=[], all_samples=[], all_successful_samp
                 if not len(new_failed):
                     stop = True
                     if not len(hl_plan):
-                        print 'NAMO COULD NOT FIND HL PLAN FOR {0}'.format(cur_state)
+                        print('NAMO COULD NOT FIND HL PLAN FOR {0}'.format(cur_state))
                 else:
                     failed.extend(new_failed)
                     try:
                         hl_plan = trainer.agent.get_hl_plan(cur_state, cond, failed)
                         if not len(hl_plan):
-                            print '\nCould not solve hl for condition '+ str(cond)
+                            print('\nCould not solve hl for condition '+ str(cond))
                     except:
                         hl_plan = []
                     # attempt += 1
@@ -94,7 +94,7 @@ def solve_condition(trainer, cond, paths=[], all_samples=[], all_successful_samp
             cur_state = cur_sample.end_state.copy()
             opt_hl_plan.append(step)
 
-        if trainer.config['goal_f'](cur_state, trainer.agent.targets[cond], trainer.agent.plans.values()[0]) == 0:
+        if trainer.config['goal_f'](cur_state, trainer.agent.targets[cond], list(trainer.agent.plans.values())[0]) == 0:
             for sample in cur_path:
                 sample.success = SUCCESS_LABEL
             break
@@ -102,7 +102,7 @@ def solve_condition(trainer, cond, paths=[], all_samples=[], all_successful_samp
         attempt += 1
 
     paths.append(cur_path)
-    print 'Final hl plan for '+str(cond)+ ': ', opt_hl_plan
+    print('Final hl plan for '+str(cond)+ ': ', opt_hl_plan)
     return [cur_path, all_samples, all_successful_samples]
 
 
@@ -147,23 +147,23 @@ class MultiProcessPretrainMain(object):
                 plans[task, '{0}{1}'.format(obj_type, c)] = prob.get_plan_for_task(task, ['{0}{1}'.format(obj_type, c), '{0}{1}_end_target'.format(obj_type, c)], num_objs, env, openrave_bodies)
                 if env is None:
                     env = plans[task, '{0}{1}'.format(obj_type, c)].env
-                    for param in plans[task, '{0}{1}'.format(obj_type, c)].params.values():
+                    for param in list(plans[task, '{0}{1}'.format(obj_type, c)].params.values()):
                         if not param.is_symbol():
                             openrave_bodies[param.name] = param.openrave_body
 
         state_vector_include, action_vector_include, target_vector_include = self.config['get_vector'](num_objs)
 
-        self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = utils.get_state_action_inds(plans.values()[0], self.config['robot_name'], self.config['attr_map'], state_vector_include, action_vector_include)
+        self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = utils.get_state_action_inds(list(plans.values())[0], self.config['robot_name'], self.config['attr_map'], state_vector_include, action_vector_include)
 
-        self.target_dim, self.target_inds = utils.get_target_inds(plans.values()[0], self.config['attr_map'], target_vector_include)
+        self.target_dim, self.target_inds = utils.get_target_inds(list(plans.values())[0], self.config['attr_map'], target_vector_include)
 
         for i in range(conditions):
             targets.append(prob.get_end_targets(num_objs))
-        
+
         x0 = prob.get_random_initial_state_vec(num_objs, targets, self.dX, self.state_inds, conditions)
         obj_list = ['{0}{1}'.format(obj_type, c) for c in range(num_objs)]
 
-        for plan in plans.values():
+        for plan in list(plans.values()):
             plan.state_inds = self.state_inds
             plan.action_inds = self.action_inds
             plan.dX = self.dX
@@ -179,14 +179,14 @@ class MultiProcessPretrainMain(object):
             utils.TASK_ENUM: len(self.task_list),
             utils.TARGETS_ENUM: self.target_dim,
             utils.OBJ_ENUM: num_objs,
-            utils.TARG_ENUM: len(targets[0].keys()),
+            utils.TARG_ENUM: len(list(targets[0].keys())),
             utils.OBJ_POSE_ENUM: 2,
             utils.TARG_POSE_ENUM: 2,
             utils.LIDAR_ENUM: self.config['n_dirs'],
             utils.EE_ENUM: 2,
         }
 
-        self.config['plan_f'] = lambda task, targets: plans[task, targets[0].name] 
+        self.config['plan_f'] = lambda task, targets: plans[task, targets[0].name]
         self.config['goal_f'] = prob.goal_f
         self.config['cost_f'] = prob.cost_f
         self.config['target_f'] = prob.get_next_target
@@ -323,7 +323,7 @@ class MultiProcessPretrainMain(object):
                 'dim_hidden': [40, 40],
                 'output_boundaries': [len(self.task_list),
                                       len(obj_list),
-                                      len(targets[0].keys())],
+                                      len(list(targets[0].keys()))],
                 'output_order': ['task', 'obj', 'targ'],
             },
             'value_network_params': {
@@ -369,8 +369,8 @@ class MultiProcessPretrainMain(object):
         self.config['dO'] = self.agent.dO
         self.config['dPrimObs'] = self.agent.dPrim
         self.config['dValObs'] = self.agent.dVal
-        self.config['dObj'] = self.config['algorithm'].values()[0]['dObj'] 
-        self.config['dTarg'] = self.config['algorithm'].values()[0]['dTarg'] 
+        self.config['dObj'] = list(self.config['algorithm'].values())[0]['dObj']
+        self.config['dTarg'] = list(self.config['algorithm'].values())[0]['dTarg']
         self.config['state_inds'] = self.state_inds
         self.config['action_inds'] = self.action_inds
         self.config['policy_out_coeff'] = self.policy_out_coeff
@@ -381,7 +381,7 @@ class MultiProcessPretrainMain(object):
         self.solver = NAMOPolicySolver(self.config)
         self.agent.solver = self.solver
 
-        self._train_idx = range(config['num_conds'])
+        self._train_idx = list(range(config['num_conds']))
         self.fail_value = config['fail_value']
         self.alg_map = {}
         policy_opt = None
@@ -432,7 +432,7 @@ class MultiProcessPretrainMain(object):
                 f.write('\n\nPretraining data for {0}:\n'.format(datetime.now()))
 
         for pretrain_step in range(self.config['pretrain_steps']):
-            print '\n\nPretrain step {0}\n\n'.format(pretrain_step)
+            print('\n\nPretrain step {0}\n\n'.format(pretrain_step))
             self.agent.replace_conditions(len(self.agent.x0), keep=(1., 1.))
             start_len = len(all_successful_samples)
 
@@ -453,8 +453,8 @@ class MultiProcessPretrainMain(object):
                 else:
                     break
             else:
-                print '\n\nTerminating pretrain step early.'
-                print 'Active processes: {0}\n\n'.format([p.pid for p in processes if p.is_alive()])
+                print('\n\nTerminating pretrain step early.')
+                print('Active processes: {0}\n\n'.format([p.pid for p in processes if p.is_alive()]))
                 for p in processes:
                     p.terminate()
                     p.join()
@@ -482,8 +482,8 @@ class MultiProcessPretrainMain(object):
                     else:
                         break
                 else:
-                    print '\n\nTerminating perturb step early.'
-                    print 'Active processes: {0}\n\n'.format([p.pid for p in processes if p.is_alive()])
+                    print('\n\nTerminating perturb step early.')
+                    print('Active processes: {0}\n\n'.format([p.pid for p in processes if p.is_alive()]))
                     for p in processes:
                         p.terminate()
                         p.join()
@@ -497,8 +497,8 @@ class MultiProcessPretrainMain(object):
                 f.write(str(np.average(cpu_times)))
                 f.write('\n')
 
-        print 'Collected pretraining data. Moving to supervised learning step.'
-        task_to_samples = {task: [] for task in self.task_list}       
+        print('Collected pretraining data. Moving to supervised learning step.')
+        task_to_samples = {task: [] for task in self.task_list}
         opt_samples = {task: [] for task in self.task_list}
         for sample in all_successful_samples:
             sample.agent = self.agent
@@ -509,10 +509,10 @@ class MultiProcessPretrainMain(object):
         for task in self.alg_map:
             for i in range(traj_opt_steps):
                 start_time = time.time()
-                print '\nIterating on initial samples (iter {0})'.format(i)
+                print('\nIterating on initial samples (iter {0})'.format(i))
                 policy = self.rollout_policies[task]
                 if policy.scale is None:
-                    print 'Using lin gauss'
+                    print('Using lin gauss')
                     policy = self.alg_map[task].cur[0].traj_distr
 
                 try:
@@ -559,8 +559,8 @@ class MultiProcessPretrainMain(object):
 
 
     def update_primitives(self, samples):
-        dP, dO = len(self.task_list), self.alg_map.values()[0].dPrimObs
-        dObj, dTarg = self.alg_map.values()[0].dObj, self.alg_map.values()[0].dTarg
+        dP, dO = len(self.task_list), list(self.alg_map.values())[0].dPrimObs
+        dObj, dTarg = list(self.alg_map.values())[0].dObj, list(self.alg_map.values())[0].dTarg
         dP += dObj + dTarg
         # Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
@@ -618,7 +618,7 @@ class MultiProcessPretrainMain(object):
         task = self.agent.task_list[task_ind]
         obj = self.agent.obj_list[obj_ind]
         targ = self.agent.targ_list[targ_ind]
-        print 'Executing {0} on {1} to {2}'.format(task, obj, targ)
+        print('Executing {0} on {1} to {2}'.format(task, obj, targ))
 
         policy = self.rollout_policies[task]
         sample = self.agent.sample_task(policy, cond, state, (task, obj, targ), noisy=False)

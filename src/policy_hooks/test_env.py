@@ -15,7 +15,7 @@ import policy_hooks.utils.transform_utils as trans_utils
 
 
 def print_diff(target, qpos):
-    print np.r_[target[:8] - qpos[1:9], target[8:] - qpos[10:18]]
+    print(np.r_[target[:8] - qpos[1:9], target[8:] - qpos[10:18]])
 
 def test_move():
     cloth = get_deformable_cloth(4, 3, (1., 0., 0.5))
@@ -176,8 +176,8 @@ def test_ee_ctrl_cloth_grasp():
     for t in range(plan.horizon):
         rGrip = 0 if baxter.rGripper[:, t] < 0.016 else 0.02
         lGrip = 0 if baxter.lGripper[:, t] < 0.016 else 0.02
-        ee_cmd = baxter.openrave_body.param_fwd_kinematics(param=baxter, 
-                                                           manip_names=['right_gripper', 'left_gripper'], 
+        ee_cmd = baxter.openrave_body.param_fwd_kinematics(param=baxter,
+                                                           manip_names=['right_gripper', 'left_gripper'],
                                                            t=t,
                                                            mat_result=False)
 
@@ -197,8 +197,8 @@ def test_ee_ctrl_cloth_grasp():
 
         env.step(act, debug=False)
         env.render(camera_id=1)
-        print env.get_left_ee_pos()
-        print env.get_cloth_points()
+        print(env.get_left_ee_pos())
+        print(env.get_cloth_points())
 
 def test_reward():
     c_wid = 5 # 7
@@ -215,8 +215,8 @@ def test_reward():
         env.physics.data.qpos[i] = np.pi
     env.physics.forward()
     env.render(camera_id=0)
-    print 'Cloth points:', env.get_cloth_points()
-    print 'State 1:', env.check_cloth_state()
+    print('Cloth points:', env.get_cloth_points())
+    print('State 1:', env.check_cloth_state())
     env.get_reward()
     time.sleep(20)
 
@@ -262,8 +262,8 @@ def test_pick_place():
     for t in range(plan.horizon):
         rGrip = 0 if baxter.rGripper[:, t] < 0.016 else 0.02
         lGrip = 0 if baxter.lGripper[:, t] < 0.016 else 0.02
-        ee_cmd = baxter.openrave_body.param_fwd_kinematics(param=baxter, 
-                                                           manip_names=['right_gripper', 'left_gripper'], 
+        ee_cmd = baxter.openrave_body.param_fwd_kinematics(param=baxter,
+                                                           manip_names=['right_gripper', 'left_gripper'],
                                                            t=t,
                                                            mat_result=False)
 
@@ -285,8 +285,8 @@ def test_pick_place():
 
         env.step(act, debug=False)
         env.render(camera_id=1)
-        print env.get_left_ee_pos()
-        print env.get_item_pos('cloth0')
+        print(env.get_left_ee_pos())
+        print(env.get_item_pos('cloth0'))
 
 # test_move()
 test_cloth_grasp()

@@ -22,10 +22,9 @@ env = BaxterMJCEnv.load_config(config)
 env.render(camera_id=1, view=True)
 env.render(camera_id=1, view=True)
 
-print(env.get_item_pos('block1'))
+print((env.get_item_pos('block1')))
 env.move_left_to_grasp([0.75, 0.7, -0.01], view=True)
 env.move_left_to_place([0.75, 0.35, 0.05], view=True)
 env.move_left_to_grasp([0.45, 0.6, -0.01], view=True)
 env.move_left_to_place([0.75, 0.35, 0.11], view=True)
 import ipdb; ipdb.set_trace()
-

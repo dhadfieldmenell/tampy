@@ -1,4 +1,4 @@
-from action import Action
+from .action import Action
 import numpy as np
 try:
     import tensorflow as tf
@@ -61,8 +61,8 @@ class Plan(object):
         return Plan(param_dict, [a], 1, env, determine_free=False)
 
     def _determine_free_attrs(self):
-        for p in self.params.itervalues():
-            for k, v in p.__dict__.items():
+        for p in self.params.values():
+            for k, v in list(p.__dict__.items()):
                 if type(v) == np.ndarray and k not in p._free_attrs:
                     ## free variables are indicated as numpy arrays of NaNs
                     arr = np.zeros(v.shape, dtype=np.int)
@@ -73,14 +73,14 @@ class Plan(object):
         if not active_ts:
             active_ts = (0, self.horizon-1)
 
-        for p in self.params.itervalues():
-            for k, v in p.__dict__.items():
+        for p in self.params.values():
+            for k, v in list(p.__dict__.items()):
                 if type(v) == np.ndarray:
                     if p.is_symbol() and np.any(np.isnan(v)):
-                        print 'Nan found in', p.name, k, v
+                        print('Nan found in', p.name, k, v)
                         return True
                     if not p.is_symbol() and np.any(np.isnan(v[:, active_ts[0]:active_ts[1]+1])):
-                        print 'Nan found in', p.name, k, v
+                        print('Nan found in', p.name, k, v)
                         return True
         return False
 
@@ -93,21 +93,21 @@ class Plan(object):
             self.params[p] = self.backup[p]
 
     def save_free_attrs(self):
-        for p in self.params.itervalues():
+        for p in self.params.values():
             p.save_free_attrs()
 
     def restore_free_attrs(self):
-        for p in self.params.itervalues():
+        for p in self.params.values():
             p.restore_free_attrs()
 
     def get_free_attrs(self):
         free_attrs = {}
-        for p in self.params.itervalues():
+        for p in self.params.values():
             free_attrs[p] = p.get_free_attrs()
         return free_attrs
 
     def store_free_attrs(self, attrs):
-        for p in self.params.itervalues():
+        for p in self.params.values():
             p.store_free_attrs(attrs[p])
 
     def freeze_actions(self, anum):
@@ -117,11 +117,11 @@ class Plan(object):
                 if param.is_symbol():
                     for attr in param._free_attrs:
                         param._free_attrs[attr][:,0] = 0.
-            for param in self.params.values():
+            for param in list(self.params.values()):
                 if param.is_symbol(): continue
                 for attr in param._free_attrs:
                     param._free_attrs[attr][:,st:et+1] = 0.
-        for param in self.params.values():
+        for param in list(self.params.values()):
             if param.is_symbol(): continue
             for attr in param._free_attrs:
                 param._free_attrs[attr][:,0] = 0.
@@ -143,7 +143,7 @@ class Plan(object):
         for p in self.get_preds(incl_negated = negated):
             has_partial_assignment = True
             if p.get_type() != pred_type: continue
-            for idx, v in partial_assignment.items():
+            for idx, v in list(partial_assignment.items()):
                 if p.params[idx] != v:
                     has_partial_assignment = False
                     break
@@ -237,7 +237,7 @@ class Plan(object):
             viol = np.max(pred.check_pred_violation(t, negated=negated, tol=tol))
             cnt_violations.append(viol)
             if np.isnan(viol):
-                print(negated, pred, t, 'NAN viol')
+                print((negated, pred, t, 'NAN viol'))
             # print ("{}-{}\n".format(pred.get_type(), t), cnt_violations[-1])
 
         return cnt_violations

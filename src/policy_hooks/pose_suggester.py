@@ -216,7 +216,7 @@ def obj_pose_suggester(plan, anum, resample_size=20):
 
             # TODO once we have the rotor_base we should resample pose
             robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
-        
+
         elif next_act != None and next_act.name == 'cloth_grasp_right':
             target = next_act.params[2]
             target_pos = target.value[:, 0]
@@ -241,7 +241,7 @@ def obj_pose_suggester(plan, anum, resample_size=20):
 
             # TODO once we have the rotor_base we should resample pose
             robot_pose.append({'lArmPose': old_l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
-        
+
         elif next_act != None and (next_act.name == 'cloth_putdown' or next_act.name == 'cloth_putdown_in_region_left'):
             target = next_act.params[2]
             target_pos = target.value[:, 0]
@@ -449,7 +449,7 @@ def obj_pose_suggester(plan, anum, resample_size=20):
             target_rot = act.params[3]
             init_pos = act.params[1]
             robot_pose.append({'lArmPose': init_pos.lArmPose.copy(), 'rArmPose': init_pos.rArmPose.copy(), 'lGripper': init_pos.lGripper.copy(), 'rGripper': init_pos.rGripper.copy(), 'value': target_rot.value.copy()})
-        
+
         elif next_act != None and next_act.name == "rotate":
             init_pos = act.params[1]
             robot_body.set_dof({'lArmPose': init_pos.lArmPose[:, 0], 'rArmPose': init_pos.rArmPose[:, 0]})
@@ -467,7 +467,7 @@ def obj_pose_suggester(plan, anum, resample_size=20):
             import ipdb; ipdb.set_trace()
             raise NotImplementedError
     if not robot_pose:
-        print "Unable to find IK"
+        print("Unable to find IK")
         # import ipdb; ipdb.set_trace()
 
     return robot_pose

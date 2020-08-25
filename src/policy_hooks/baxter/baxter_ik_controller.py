@@ -34,7 +34,7 @@ class BaxterIKController(object):
             bullet_data_path (str): base path to bullet data.
 
             robot_jpos_getter (function): function that returns the joint positions of
-                the robot to be controlled as a numpy array. 
+                the robot to be controlled as a numpy array.
         """
         # Set up inverse kinematics
         self.robot_jpos_getter = robot_jpos_getter
@@ -49,7 +49,7 @@ class BaxterIKController(object):
 
     def get_control(self, right, left):
         """
-        Returns joint velocities to control the robot after the target end effector 
+        Returns joint velocities to control the robot after the target end effector
         positions and orientations are updated from arguments @left and @right.
 
         Args:
@@ -120,7 +120,7 @@ class BaxterIKController(object):
         """
         This function is responsible for doing any setup for inverse kinematics.
         Inverse Kinematics maps end effector (EEF) poses to joint angles that
-        are necessary to achieve those poses. 
+        are necessary to achieve those poses.
         """
 
         # These indices come from the urdf file we're using
@@ -163,7 +163,7 @@ class BaxterIKController(object):
 
         Args:
             joint_positions (list): a list or flat numpy array of joint positions.
-            simulate (bool): If True, actually use physics simulation, else 
+            simulate (bool): If True, actually use physics simulation, else
                 write to physics state directly.
             sync_last (bool): If False, don't sync the last joint angle. This
                 is useful for directly controlling the roll at the end effector.
@@ -350,7 +350,7 @@ class BaxterIKController(object):
                 rest_poses=self.robot_jpos_getter(),
             )
             self.sync_ik_robot(arm_joint_pos, sync_last=True)
-        print self.ik_robot_eef_joint_cartesian_pose()
+        print(self.ik_robot_eef_joint_cartesian_pose())
 
         return arm_joint_pos
 

@@ -36,7 +36,7 @@ class PolicyServer(object):
         hyperparams['policy_opt']['scope'] = self.task
         if USE_ROS: rospy.init_node(self.task+'_update_server_{0}'.format(self.group_id))
         self.policy_opt = hyperparams['policy_opt']['type'](
-            hyperparams['policy_opt'], 
+            hyperparams['policy_opt'],
             hyperparams['dO'],
             hyperparams['dU'],
             hyperparams['dPrimObs'],
@@ -89,7 +89,7 @@ class PolicyServer(object):
         self.stopped = True
         # rospy.signal_shutdown('Received notice to terminate.')
 
-    
+
     def parse_data(self):
         q = self.queues['{0}_pol'.format(self.task)]
         i = 0
@@ -166,18 +166,18 @@ class PolicyServer(object):
                 msg.data = self.policy_opt.serialize_weights([self.task])
                 self.weight_publisher.publish(msg)
             self.update_t = time.time()
-            print('Updated weights for {0}'.format(self.task))
+            print(('Updated weights for {0}'.format(self.task)))
 
             incr = 10
             if len(self.policy_opt.average_losses) and len(self.policy_opt.average_val_losses):
                 losses = (self.policy_opt.average_losses[-1], self.policy_opt.average_val_losses[-1])
                 self.policy_loss.append((np.sum(losses[0]), np.sum(losses[1])))
                 self.policy_component_loss.append(losses)
-         
+
                 for net in self.policy_opt.mu:
                     if net not in self.policy_var:
                         self.policy_var[net] = []
-                    data = np.concatenate(self.policy_opt.mu[net].values(), axis=0)
+                    data = np.concatenate(list(self.policy_opt.mu[net].values()), axis=0)
                     self.policy_var[net].append(np.var(data))
 
                 with open(self.policy_opt_log, 'w+') as f:
@@ -262,7 +262,5 @@ class PolicyServer(object):
                 obs_data = np.concatenate((obs_data, obs))
                 prc = np.tile(np.eye(dP), (sample.T,1,1))
                 tgt_prc = np.concatenate((tgt_prc, prc))
-            
+
         return obs_data, tgt_mu, tgt_prc, tgt_wt
-
-
