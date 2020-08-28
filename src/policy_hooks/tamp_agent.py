@@ -45,7 +45,7 @@ from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.utils.tamp_eval_funcs import *
 from policy_hooks.utils.load_task_definitions import *
-
+from policy_hooks.agent_env_wrapper import AgentEnvWrapper
 
 MAX_SAMPLELISTS = 1000
 MAX_TASK_PATHS = 1000
@@ -137,6 +137,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.optimal_samples = {task: [] for task in self.task_list}
         self.optimal_state_traj = [[] for _ in range(len(self.plans_list))]
         self.optimal_act_traj = [[] for _ in range(len(self.plans_list))]
+        self.optimal_pol_cls = optimal_pol
 
         self.task_paths = []
 
@@ -173,6 +174,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
     def get_init_state(self, condition):
         return self.x0[condition][self._x_data_idx[STATE_ENUM]].copy()
+
+
+    def add_gym_env(self):
+        self.gymenv = AgentEnvWrapper(agent=self)
 
 
     def get_goal(self, condition):
@@ -392,7 +397,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
 
     @abstractmethod
-    def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None):
+    def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None):
         raise NotImplementedError
 
     def sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, skip_opt=False):
@@ -1114,7 +1119,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         print(('Plans run vs. success:', self.n_plans_run, self.n_plans_suc_run))
         return path
 
-    def run_pr_graph(self, state, targets=None, cond=None):
+    def run_pr_graph(self, state, targets=None, cond=None, reset=True):
         if targets is None:
             targets = self.target_vecs[cond]
         initial, goal = self.get_hl_info(state, targets=targets)
@@ -1137,7 +1142,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         if plan is None or type(plan) is str:
             self.n_hl_fail += 1
             return []
-        path = self.run_plan(plan, targets=targets)
+        path = self.run_plan(plan, targets=targets, reset=reset)
         return path
 
     def retime_traj(self, traj, vel=0.3, inds=None):
@@ -1234,3 +1239,12 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             cost += 1
 
         return cost
+
+
+    def plan_to_policy(self, plan=None, opt_traj=None):
+        if opt_traj is None:
+            opt_traj = plan_to_traj(plan, self.state_inds, self.dX)
+
+        pol = self.optimal_pol_cls(self.dU, self.action_inds, self.state_inds, opt_traj)
+        return pol
+

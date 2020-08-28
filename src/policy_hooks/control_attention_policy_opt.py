@@ -198,7 +198,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             wts = self.serialize_weights([scope])
             with self.buf_sizes[scope].get_lock():
                 self.buf_sizes[scope].value = len(wts)
-                self.buffers[scope][:len(wts)] = bytearray(wts, 'utf-8')
+                self.buffers[scope][:len(wts)] = wts
 
 
     def read_shared_weights(self, scopes=None):
@@ -209,7 +209,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             with self.buf_sizes[scope].get_lock():
                 wts = self.buffers[scope][:self.buf_sizes[scope].value]
 
-            wts = bytearray(wts).decode()
             try:
                 self.deserialize_weights(wts)
             except Exception as e:
@@ -234,10 +233,10 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         scales[''] = []
         biases[''] = []
         variances[''] = []
-        return json.dumps([scopes, var_to_val, scales, biases, variances])
+        return pickle.dumps([scopes, var_to_val, scales, biases, variances])
 
     def deserialize_weights(self, json_wts, save=True):
-        scopes, var_to_val, scales, biases, variances = json.loads(json_wts)
+        scopes, var_to_val, scales, biases, variances = pickle.loads(json_wts)
 
         for scope in scopes:
             variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
@@ -358,7 +357,9 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             #self.wt[net] = np.r_[self.wt[net], keep_wt]
         '''
         self.update_count += len(mu)
-        self.N += len(mu)
+        if not store_val:
+            self.N += len(mu)
+        if self.update_count > 1e1 and task == 'control': self.buf_sizes['n_data'].value = self.N
         return False
 
 

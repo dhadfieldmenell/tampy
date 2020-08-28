@@ -99,6 +99,7 @@ def main():
     parser.add_argument('-hl_retrain', '--hl_retrain', action='store_true', default=False)
     parser.add_argument('-seq', '--seq', action='store_true', default=False)
     parser.add_argument('-hl_only_retrain', '--hl_only_retrain', action='store_true', default=False)
+    parser.add_argument('-baseline', '--baseline', type=str, default='')
 
     # Old
     parser.add_argument('-p', '--pretrain', action='store_true', default=False)
@@ -133,6 +134,7 @@ def main():
     parser.add_argument('-vel', '--velocity', type=float, default=0.3)
     parser.add_argument('-nocol', '--check_col', action='store_false', default=True)
     parser.add_argument('-cond', '--conditional', action='store_true', default=False)
+    parser.add_argument('-save_exp', '--save_expert', action='store_true', default=False)
 
     # Previous policy directories
     parser.add_argument('-llpol', '--ll_policy', type=str, default='')

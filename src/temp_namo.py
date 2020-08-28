@@ -1,7 +1,8 @@
 import baxter_gym
 from baxter_gym.envs import MJCEnv
 
-import policy_hooks.namo.grip_prob as prob
+#import policy_hooks.namo.grip_prob as prob
+import policy_hooks.namo.prob as prob
 prob.NUM_OBJS = 2
 prob.FIX_TARGETS = True
 prob.NUM_TARGS = 8
@@ -9,7 +10,9 @@ prob.N_GRASPS = 4
 prob.n_aux = 0
 prob.END_TARGETS = prob.END_TARGETS[:8]
 prob.domain_file = "../domains/namo_domain/namo_current_grip.domain"
-from pma.namo_grip_solver import *
+prob.domain_file = "../domains/namo_domain/namo_current.domain"
+#from pma.namo_grip_solver import *
+from pma.namo_solver import *
 from pma.hl_solver import *
 from pma.pr_graph import *
 from pma import backtrack_ll_solver as bt_ll

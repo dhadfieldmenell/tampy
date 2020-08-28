@@ -20,6 +20,7 @@ from core.util_classes.items import Item, Box, Can, BlueCan, RedCan, Circle, Blu
 
 WALL_THICKNESS = 1
 CLOSET_POINTS = [[-6.0,-8.0],[-6.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[13.0,4.0],[13.0,-8.0],[-6.0,-8.0]]
+CLOSET_POINTS = [[-7.0,-9.0],[-7.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[14.0,4.0],[14.0,-9.0],[-7.0,-9.0]]
 
 class OpenRAVEBody(object):
     def __init__(self, env, name, geom, ik_solver=None):

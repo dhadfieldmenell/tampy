@@ -74,6 +74,7 @@ class NAMOSortingAgent(TAMPAgent):
     def __init__(self, hyperparams):
         super(NAMOSortingAgent, self).__init__(hyperparams)
 
+        self.optimal_pol_cls =  optimal_pol
         for plan in list(self.plans.values()):
             for t in range(plan.horizon):
                 plan.params['obs0'].pose[:,t] = plan.params['obs0'].pose[:,0]
@@ -133,7 +134,7 @@ class NAMOSortingAgent(TAMPAgent):
         self.target_vecs[condition]= target_vec
 
 
-    def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None):
+    def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None):
         assert not np.any(np.isnan(state))
         start_t = time.time()
         x0 = state[self._x_data_idx[STATE_ENUM]].copy()
@@ -152,7 +153,7 @@ class NAMOSortingAgent(TAMPAgent):
         else:
             self.in_gripper = plan.params[self._in_gripper]
         base_t = 0
-        self.T = plan.horizon
+        self.T = plan.horizon if hor is None else hor
         sample = Sample(self)
         sample.init_t = 0
         col_ts = np.zeros(self.T)

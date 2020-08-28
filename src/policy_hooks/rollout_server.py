@@ -24,6 +24,7 @@ if USE_ROS:
 
 from policy_hooks.utils.policy_solver_utils import *
 from policy_hooks.msg_classes import *
+from policy_hooks.agent_env_wrapper import AgentEnvWrapper
 
 MAX_SAVED_NODES = 1000
 MAX_BUFFER = 10
@@ -88,6 +89,7 @@ class RolloutServer(object):
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
         self.agent.process_id = '{0}_{1}'.format(self.id, self.group_id)
         self.agent.solver = self.solver
+        self.gymenv = AgentEnvWrapper(self.agent)
         #self.agent.replace_conditions(len(self.agent.x0))
         for mcts in self.mcts:
             mcts.agent = self.agent
@@ -119,6 +121,7 @@ class RolloutServer(object):
             mcts.num_samples = self.num_samples
         self.num_rollouts = hyperparams['num_rollouts']
         self.stopped = False
+        self.expert_demos = {'acs':[], 'obs':[], 'ep_rets':[], 'rews':[]}
 
         self.renew_publisher()
         self.last_log_t = time.time()
@@ -187,6 +190,7 @@ class RolloutServer(object):
         self.hl_test_log = 'tf_saved/'+hyperparams['weight_dir']+'/'+str(self.id)+'_'+'hl_test_{0}{1}log.npy'
         self.fail_log = 'tf_saved/'+hyperparams['weight_dir']+'/'+str(self.id)+'_'+'failure_{0}_log.txt'.format(self.id)
         self.fail_data_file = 'tf_saved/'+hyperparams['weight_dir']+'/'+str(self.id)+'_'+'failure_{0}_data.txt'.format(self.id)
+        self.expert_data_file = 'tf_saved/'+hyperparams['weight_dir']+'/'+str(self.id)+'_exp_data.npy'
         self.render = hyperparams.get('load_render', False)
         if self.render:
             self.cur_vid_id = 0
@@ -827,21 +831,21 @@ class RolloutServer(object):
         self.cur_step += 1
         val, path = 0, []
         for cond in range(len(self.agent.x0)):
-            val, path = self.mcts[cond].run_ff_solve(self.agent.x0[cond])
-            if val < 0.999:
-                success, _ = self.mcts[cond].eval_pr_graph(self.agent.x0[cond])
+            val, path, plan = self.mcts[cond].eval_pr_graph(self.agent.x0[cond])
             self.agent.replace_cond(cond)
         if not self.cur_step % 25:
             samples = []
             for path in self.agent.get_task_paths():
                 samples.extend(path)
+            if self.config.get('save_expert', False):
+                self.update_expert_demos(self.agent.get_task_paths())
             self.agent.clear_task_paths()
             if not len(samples):
                 return
 
             self.update_primitive(samples)
-            with open(self.ff_data_file.format(self.cur_step, self.id), 'wb+') as f:
-                pickle.dump(samples, f)
+            #with open(self.ff_data_file.format(self.cur_step, self.id), 'wb+') as f:
+            #    pickle.dump(samples, f)
 
 
     def set_policies(self):
@@ -1152,7 +1156,7 @@ class RolloutServer(object):
         ncols = np.mean([np.mean(sample.col_ts) for sample in path])
         plan_suc_rate = np.nan if self.agent.n_plans_run == 0 else float(self.agent.n_plans_suc_run) / float(self.agent.n_plans_run)
         if ckpt_ind is not None:
-            s.append((val, len(path), true_disp, time.time()-self.start_t, self.config['num_objs'], n, self.policy_opt.N, true_val, plan_suc_rate, ckpt_ind))
+            s.append((val, len(path), true_disp, time.time()-self.start_t, self.config['num_objs'], n, self.policy_opt.buf_sizes['n_data'].value, true_val, plan_suc_rate, ckpt_ind))
         else:
             s.append((val,
                       len(path), \
@@ -1160,7 +1164,7 @@ class RolloutServer(object):
                       time.time()-self.start_t, \
                       self.config['num_objs'], \
                       n, \
-                      self.policy_opt.N, \
+                      self.policy_opt.buf_sizes['n_data'].value, \
                       true_val, \
                       ncols, \
                       plan_suc_rate))
@@ -1488,7 +1492,7 @@ class RolloutServer(object):
         tgt_wt = tgt_wt[::self.check_prim_t]
         '''
         if len(tgt_mu):
-            print('Sending update to primitive net')
+            # print('Sending update to primitive net')
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', 1)
 
 
@@ -1584,3 +1588,16 @@ class RolloutServer(object):
         x = np.linspace(0, d, int(d / vel))
         out = interp(x)
         return out
+
+
+    def update_expert_demos(self, demos):
+        for path in demos:
+            for s in path:
+                for t in range(s.T):
+                    self.expert_demos['acs'].append(s.get(ACTION_ENUM, t=t))
+                    self.expert_demos['obs'].append(s.get_prim_obs(t=t))
+                    self.expert_demos['ep_rets'].append(0)
+                    self.expert_demos['rews'].append(0.)
+        if self.cur_step % 10:
+            np.save(self.expert_data_file, self.expert_demos)
+

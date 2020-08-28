@@ -588,3 +588,15 @@ def check_traj_cost(plan, solver, traj, task):
     plan_total_violation = np.sum(viols) / plan.horizon
     plan_failed_constrs = plan.get_failed_preds_by_type()
     return plan_total_violation, plan_failed_constrs
+
+
+def plan_to_traj(plan, inds, dX, ts=None, base_t=0):
+    if ts is None:
+        ts = (0, plan.horizon)
+    T = ts[1]-ts[0]
+    traj = np.zeros((T, dX))
+    for pname, aname in inds:
+        if plan.params[pname].is_symbol(): continue
+        traj[ts[0]:ts[1]][:, inds[pname, aname]] = getattr(plan.params[pname], aname)[:,ts[0]-base_t:ts[1]-base_t]
+    return traj
+

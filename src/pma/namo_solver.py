@@ -60,7 +60,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 target = next_act.params[2]
                 target_pos = target.value - [[0], [0.]]
                 robot_pose.append({'value': target_pos, 'gripper': np.array([[-1.]]) if next_act.name == 'putdown' else np.array([[1.]])})
-            elif act.name == 'new_quick_movetograsp' or act.name == 'quick_moveto':
+            elif act.name == 'moveto' or act.name == 'new_quick_movetograsp' or act.name == 'quick_moveto':
                 target = act.params[2]
                 grasp = act.params[5]
                 target_pos = target.value + grasp.value
@@ -87,7 +87,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 grasp = act.params[5]
                 target_pos = target.value + 2*grasp.value
                 robot_pose.append({'value': target_pos, 'gripper': np.array([[-1.]])})
-            elif act.name == 'new_quick_place_at':
+            elif act.name == 'transfer' or act.name == 'new_quick_place_at':
                 target = act.params[4]
                 grasp = act.params[5]
                 target_pos = target.value + grasp.value

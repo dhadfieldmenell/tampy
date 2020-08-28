@@ -80,7 +80,11 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False, tdelta=TDE
                     if len(info):
                         for fname in info:
                             print(('Loading data from', fname, full_dir))
-                            data.append(np.load(cur_dir+'/'+fname))
+                            try:
+                                data.append(np.load(cur_dir+'/'+fname))
+                            except:
+                                print('Skipping', fname, full_dir)
+                                continue
 
                         label = gen_label(cur_dir, label_vars)
                         all_data[k][full_exp][cur_dir] = {}
@@ -89,8 +93,8 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False, tdelta=TDE
                             for pts in buf:
                                 pt = pts[0]
                                 no, nt = int(pt[4]), int(pt[5])
-                                all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'N': pt[6], 'key': (no, nt), 'description': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9]})
-                                all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta+1)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'N': pt[6], 'key': (no, nt), 'description': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9]})
+                                all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'description': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9]})
+                                all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta+1)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'description': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9]})
 
                     i += 1
     return all_data
@@ -654,7 +658,7 @@ def gen_label(exp_dir, label_vars=[]):
     if not len(label_vars) or not os.path.isfile(exp_dir+'/args.pkl'):
         return exp_dir[:exp_dir.rfind('_')]
     label = ''
-    with open(exp_dir+'/args.pkl', 'r') as f:
+    with open(exp_dir+'/args.pkl', 'rb') as f:
         args = pickle.load(f)
     args = vars(args)
     for v in label_vars:
@@ -735,7 +739,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1., label_vars=
     # yvar_labs = np.concatenate([[v+'{0}'.format('_'+str(i) if inds_to_var.get(v, 0) > 1 else '') for i in range(inds_to_var.get(v, 1))] for v in yvars])
     plot(data, ['exp_name', 'key']+xvars+flat_yvar_labs, '{0}_vs_{1}'.format(xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind)
 
-keywords = ['objs3']
+keywords = ['objs5']
 include = [] # ['wed_nocol', 'sun']
 label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #get_hl_tests(['retrain_2by'], xvar='N', avg_time=False, tdelta=5000, wind=5000, pre=False, exclude=['0001', '10000'])

@@ -97,6 +97,7 @@ class NAMOGripAgent(NAMOSortingAgent):
     def __init__(self, hyperparams):
         super(NAMOSortingAgent, self).__init__(hyperparams)
 
+        self.optimal_pol_cls = optimal_pol
         for plan in list(self.plans.values()):
             for t in range(plan.horizon):
                 plan.params['obs0'].pose[:,t] = plan.params['obs0'].pose[:,0]
@@ -141,7 +142,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         self.targ_labels.update({i: self.targets[0]['aux_target_{0}'.format(i-no)] for i in range(no, no+self.prob.n_aux)})
 
 
-    def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None):
+    def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None):
         assert not np.any(np.isnan(state))
         start_t = time.time()
         # self.reset_to_state(state)
@@ -151,10 +152,13 @@ class NAMOGripAgent(NAMOSortingAgent):
             plan = self.plans[task]
         else:
             plan = self.plans[task[0]]
-        if task_f is None:
-            self.T = plan.horizon
+        if hor is None:
+            if task_f is None:
+                self.T = plan.horizon
+            else:
+                self.T = max([p.horizon for p in list(self.plans.values())])
         else:
-            self.T = max([p.horizon for p in list(self.plans.values())])
+            self.T = hor
         sample = Sample(self)
         sample.init_t = 0
         col_ts = np.zeros(self.T)
@@ -184,7 +188,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             if len(self._prev_U): self._prev_U = np.r_[self._prev_U[1:], [U_full]]
             sample.set(NOISE_ENUM, noise_full, t)
             # U_full = np.clip(U_full, -MAX_STEP, MAX_STEP)
-            suc, col = self.run_policy_step(U_full, cur_state, plan, t, None, grasp=grasp)
+            suc, col = self.run_policy_step(U_full, cur_state)
             col_ts[t] = col
 
             if self.master_config['local_retime']:
@@ -271,7 +275,8 @@ class NAMOGripAgent(NAMOSortingAgent):
         return dists
 
 
-    def run_policy_step(self, u, x, plan, t, obj, grasp=None):
+    #def run_policy_step(self, u, x, plan, t, obj, grasp=None):
+    def run_policy_step(self, u, x):
         cmd_theta = u[self.action_inds['pr2', 'theta']][0]
         if ('pr2', 'pose') not in self.action_inds:
             cmd_vel = u[self.action_inds['pr2', 'vel']]

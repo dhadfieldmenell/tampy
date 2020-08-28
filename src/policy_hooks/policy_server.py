@@ -62,7 +62,6 @@ class PolicyServer(object):
         self.policy_info_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_info.txt'.format(self.task)
         self.data_file = 'tf_saved/' + hyperparams['weight_dir'] + '/{0}_data.pkl'.format(self.task)
         self.n_updates = 0
-        self.full_N = 0
         self.update_t = time.time()
         self.n_data = []
         self.update_queue = []
@@ -144,8 +143,7 @@ class PolicyServer(object):
             else:
                 obs, mu, prc, wt, task_name, = self.update_queue.pop()
             start_time = time.time()
-            self.full_N += len(mu)
-            self.n_data.append(self.full_N)
+            self.n_data.append(self.policy_opt.N)
             if self.task == 'value':
                 update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)), acts=acts, ref_acts=ref_acts, done=done)
             else:
@@ -199,9 +197,9 @@ class PolicyServer(object):
                 'val_component_loss': self.policy_component_loss[-1][1],
                 'scope': self.task,
                 'n_updates': self.n_updates,
-                'n_data': self.full_N,
+                'n_data': self.policy_opt.N,
                 'tf_iter': self.policy_opt.tf_iter,
-                'N': self.full_N,
+                'N': self.policy_opt.N,
                 }
         self.log_infos.append(info)
         return self.log_infos

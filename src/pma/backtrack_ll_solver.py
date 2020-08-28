@@ -75,7 +75,7 @@ class BacktrackLLSolver(LLSolver):
             for attr in self.saved_params_free[plan][p]:
                 plan.params[p]._free_attrs[attr] = self.saved_params_free[plan][p][attr].copy()
 
-    def free_rs_param(self, act):
+    def freeze_rs_param(self, act):
         return True
 
     def backtrack_solve(self, plan, callback=None, verbose=False, n_resamples=5):
