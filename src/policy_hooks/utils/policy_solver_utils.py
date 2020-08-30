@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.stats as stats
 
 # Don't change these
 ACTION_ENUM = 0
@@ -599,4 +600,23 @@ def plan_to_traj(plan, inds, dX, ts=None, base_t=0):
         if plan.params[pname].is_symbol(): continue
         traj[ts[0]:ts[1]][:, inds[pname, aname]] = getattr(plan.params[pname], aname)[:,ts[0]-base_t:ts[1]-base_t]
     return traj
+
+
+def find_task_breaks(path, d=5, cont=False, tol=0):
+    breaks = []
+    tasks = path[0].get(FACTOREDTASK_ENUM)
+    cur_task = stats.mode(tasks[:d], axis=0)[0]
+    for i, s in enumerate(path):
+        if cont:
+            raise NotImplementedError
+        else:
+            tasks = s.get(FACTOREDTASK_ENUM)
+            for t in range(0, s.T, d):
+                next_task = stats.mode(tasks[t*d:(t+1)*d], axis=0)[0]
+                if np.any(cur_task != next_task):
+                    breaks.append((i, t))
+                    cur_task = next_task
+    return breaks
+
+
 

@@ -442,12 +442,6 @@ class MultiProcessMain(object):
         self.config['time_limit'] = time_limit
         self.config['start_t'] = time.time()
 
-        with open('memory_info.txt', 'w+') as f:
-            f.write('Process memory info:\n')
-
-        with open('tf_saved/'+self.config['weight_dir']+'/traj_init_log.txt', 'w+') as f:
-            f.write('Traj init info:\n')
-
         self.roscore = None
         self.processes = []
 
@@ -691,9 +685,6 @@ class MultiProcessMain(object):
 
     def start(self, kill_all=False):
         self.check_dirs()
-        if self.config.get('log_timing', False):
-            with open(self.config['time_log'], 'a+') as f:
-                f.write('\n\nTiming info for {0}:'.format(datetime.now()))
         self.start_ros()
         if self.config.get('share_buffer', True):
             self.allocate_shared_buffers(self.config)
@@ -745,8 +736,6 @@ class MultiProcessMain(object):
         # Sort list of dict by key vms i.e. memory usage
         listOfProcObjects = sorted(listOfProcObjects, key=lambda procObj: procObj['vms'], reverse=True)
 
-        with open('memory_info.txt', 'a+') as f:
-            f.write(str(listOfProcObjects))
         return listOfProcObjects
 
 

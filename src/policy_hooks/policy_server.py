@@ -61,6 +61,8 @@ class PolicyServer(object):
         self.policy_opt_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_log.txt'.format(self.task)
         self.policy_info_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_info.txt'.format(self.task)
         self.data_file = 'tf_saved/' + hyperparams['weight_dir'] + '/{0}_data.pkl'.format(self.task)
+        self.expert_demos = {'acs':[], 'obs':[], 'ep_rets':[], 'rews':[]}
+        self.expert_data_file = 'tf_saved/'+hyperparams['weight_dir']+'/'+str(self.task)+'_exp_data.npy'
         self.n_updates = 0
         self.update_t = time.time()
         self.n_data = []
@@ -148,6 +150,8 @@ class PolicyServer(object):
                 update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)), acts=acts, ref_acts=ref_acts, done=done)
             else:
                 update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)), val_ratio=0.1)
+                if self.config.get('save_expert', False):
+                    self.update_expert_demos(obs, mu)
             end_time = time.time()
 
 
@@ -262,3 +266,15 @@ class PolicyServer(object):
                 tgt_prc = np.concatenate((tgt_prc, prc))
 
         return obs_data, tgt_mu, tgt_prc, tgt_wt
+
+
+    def update_expert_demos(self, obs, acs, rew=None):
+        self.expert_demos['acs'].append(acs)
+        self.expert_demos['obs'].append(obs)
+        if rew is None:
+            rew = np.ones(len(obs))
+        self.expert_demos['ep_rets'].append(rew)
+        self.expert_demos['rews'].append(rew)
+        if self.n_updates % 200:
+            np.save(self.expert_data_file, self.expert_demos)
+

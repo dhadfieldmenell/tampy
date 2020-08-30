@@ -11,6 +11,10 @@ import time
 
 from policy_hooks.multiprocess_main import MultiProcessMain
 
+USE_BASELINES = True
+if USE_BASELINES:
+    from policy_hooks.baselines.argparse import argsparser as baseline_argsparser
+
 
 def get_dir_name(base, no, nt, ind, descr, args=None):
     dir_name = base + 'objs{0}_{1}/exp_id{2}_{3}'.format(no, nt, ind, descr)
@@ -43,6 +47,7 @@ def load_multi(exp_list, n_objs=None, n_targs=None, args=None):
             if args is not None:
                 next_config.update(vars(args))
             next_config['weight_dir'] = get_dir_name(next_config['base_weight_dir'], next_config['num_objs'], next_config['num_targs'], i, next_config['descr'], args)
+            next_config['base_dir'] = next_config['weight_dir']
             next_config['server_id'] = '{0}'.format(str(random.randint(0, 2**16)))
             next_config['mp_server'] = True
             next_config['pol_server'] = True
@@ -52,6 +57,7 @@ def load_multi(exp_list, n_objs=None, n_targs=None, args=None):
             next_config['view_server'] = False
             next_config['use_local'] = True
             next_config['log_timing'] = False
+            next_config['args'] = args
             configs.append((next_config, config_module))
 
         exps.append(configs)
@@ -87,6 +93,126 @@ def load_config(args, config=None, reload_module=None):
 
 
 def main():
+    args = argsparser()
+    exps = None
+    if args.file == "":
+        exps = [[args.config]]
+
+    if False:#args.file == "":
+        config, config_module = load_config(args)
+    else:
+        print(('LOADING {0}'.format(args.file)))
+        if exps is None:
+            exps = []
+            with open(args.file, 'r+') as f:
+                exps = eval(f.read())
+        exps_info = exps
+        n_objs = args.nobjs if args.nobjs > 0 else None
+        n_targs = args.ntargs if args.ntargs > 0 else None
+        if len(args.test):
+            sys.path.insert(1, 'tf_saved/'+args.test)
+            exps_info = [['hyp']]
+            old_args = args
+            with open('tf_saved/'+args.test+'/args.pkl', 'r') as f:
+                args = pickle.load(f)
+            args.soft_eval = old_args.soft_eval
+            args.test = old_args.test
+            args.load_render = old_args.load_render
+            args.eta = old_args.eta
+            args.descr = old_args.descr
+        if args.hl_retrain:
+            sys.path.insert(1, 'tf_saved/'+args.hl_data)
+            exps_info = [['hyp']]
+
+        exps = load_multi(exps_info, n_objs, n_targs, args)
+        for ind, exp in enumerate(exps):
+            mains = []
+            for ind2, (c, cm) in enumerate(exp):
+                if len(args.test):
+                    c['weight_dir'] = args.test
+                    m = MultiProcessMain(c)
+                    m.run_test(c)
+                    continue
+
+                print('\n\n\n\n\n\nLOADING NEXT EXPERIMENT\n\n\n\n\n\n')
+                current_id = 0 if c.get('index', -1) < 0 else c['index']
+                if c.get('index', -1) < 0:
+                    while os.path.isdir('tf_saved/'+c['weight_dir']+'_'+str(current_id)):
+                        current_id += 1
+                c['group_id'] = current_id
+                c['weight_dir'] = c['weight_dir']+'_{0}'.format(current_id)
+                dir_name = ''
+                sub_dirs = ['tf_saved'] + c['weight_dir'].split('/')
+
+                try:
+                    import mpi4py as MPI
+                    rank = MPI.COMMWORLD.Get_rank()
+                    print('MPI rank is', rank)
+                except:
+                    rank = 0
+
+                if rank == 0:
+                    for d_ind, d in enumerate(sub_dirs):
+                        dir_name += d + '/'
+                        if not os.path.isdir(dir_name):
+                            os.mkdir(dir_name)
+                    if args.hl_retrain:
+                        src = 'tf_saved/' + args.hl_data + '/hyp.py'
+                    else:
+                        src = exps_info[ind][ind2].replace('.', '/')+'.py'
+                    shutil.copyfile(src, 'tf_saved/'+c['weight_dir']+'/hyp.py')
+                    with open('tf_saved/'+c['weight_dir']+'/__init__.py', 'w+') as f:
+                        f.write('')
+                    with open('tf_saved/'+c['weight_dir']+'/args.pkl', 'wb+') as f:
+                        pickle.dump(args, f)
+                else:
+                    time.sleep(0.5) # Give others a chance to let base set up dirrs
+
+                m = MultiProcessMain(c)
+                m.monitor = False # If true, m will wait to finish before moving on
+                m.group_id = current_id
+                if args.hl_retrain:
+                    m.hl_retrain(c)
+                elif args.hl_only_retrain:
+                    m.hl_only_retrain(c)
+                else:
+                    m.start()
+                mains.append(m)
+                time.sleep(1)
+            active = True
+
+            start_t = time.time()
+            while active:
+                time.sleep(120.)
+                print('RUNNING...')
+                active = False
+                for m in mains:
+                    p_info = m.check_processes()
+                    print(('PINFO {0}'.format(p_info)))
+                    active = active or any([code is None for code in p_info])
+                    if active: m.expand_rollout_servers()
+
+                if not active:
+                    for m in mains:
+                        m.kill_processes()
+
+        print('\n\n\n\n\n\n\n\nEXITING')
+        sys.exit(0)
+
+    if not args.nofull:
+        main = MultiProcessMain(config)
+        main.start(kill_all=args.killall)
+
+
+def run_baseline(config, baseline):
+    if baseline.lower() is 'gail':
+        from policy_hooks.baselines.gail import run_train
+        run_train(config)
+    else:
+        raise NotImplementedError
+
+
+def argsparser():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', type=str, default='config')
     parser.add_argument('-test', '--test', type=str, default='')
@@ -99,7 +225,6 @@ def main():
     parser.add_argument('-hl_retrain', '--hl_retrain', action='store_true', default=False)
     parser.add_argument('-seq', '--seq', action='store_true', default=False)
     parser.add_argument('-hl_only_retrain', '--hl_only_retrain', action='store_true', default=False)
-    parser.add_argument('-baseline', '--baseline', type=str, default='')
 
     # Old
     parser.add_argument('-p', '--pretrain', action='store_true', default=False)
@@ -135,12 +260,14 @@ def main():
     parser.add_argument('-nocol', '--check_col', action='store_false', default=True)
     parser.add_argument('-cond', '--conditional', action='store_true', default=False)
     parser.add_argument('-save_exp', '--save_expert', action='store_true', default=False)
+    parser.add_argument('-ind', '--index', type=int, default=-1)
 
     # Previous policy directories
     parser.add_argument('-llpol', '--ll_policy', type=str, default='')
     parser.add_argument('-hlpol', '--hl_policy', type=str, default='')
     parser.add_argument('-hldata', '--hl_data', type=str, default='')
     parser.add_argument('-hlsamples', '--hl_samples', type=str, default='')
+    parser.add_argument('-ref_dir', '--reference_dir', type=str, default='')
 
     # Curric args
     parser.add_argument('-cur', '--curric_thresh', type=int, default=-1)
@@ -183,108 +310,27 @@ def main():
     parser.add_argument('-qimwt', '--q_imwt', type=float, default=0)
     parser.add_argument('-q', '--use_qfunc', action='store_true', default=False)
 
+    ## Baselines - these are passed through to other codebases
+    if USE_BASELINES:
+        parser.add_argument('-baseline', '--baseline', type=str, default='')
+        baseline_argsparser(parser)
+    #parser.add_argument('-expert_path', '--expert_path', type=str, default='')
+    #parser.add_argument('-n_expert', '--n_expert', type=int, default=-1)
+    #parser.add_argument('--adversary_hidden_size', type=int, default=100)
+    #parser.add_argument('--g_step', help='number of steps to train policy in each epoch', type=int, default=3)
+    #parser.add_argument('--d_step', help='number of steps to train discriminator in each epoch', type=int, default=1)
+    #parser.add_argument('--traj_limitation', type=int, default=-1)
+    #parser.add_argument('--num_timesteps', help='number of timesteps per episode', type=int, default=5e6)
+    #parser.add_argument('--save_per_iter', help='save model every xx iterations', type=int, default=100)
+    #parser.add_argument('--policy_entcoeff', help='entropy coefficiency of policy', type=float, default=0)
+    #parser.add_argument('--adversary_entcoeff', help='entropy coefficiency of discriminator', type=float, default=1e-3)
+    #parser.add_argument('--BC_max_iter', help='Max iteration for training BC', type=int, default=1e4)
+    #parser.add_argument('--algo', type=str, choices=['trpo', 'ppo'], default='trpo')
+    #parser.add_argument('--max_kl', type=float, default=0.01)
+
     args = parser.parse_args()
+    return args
 
-    exps = None
-    if args.file == "":
-        exps = [[args.config]]
-
-    if False:#args.file == "":
-        config, config_module = load_config(args)
-
-    else:
-        print(('LOADING {0}'.format(args.file)))
-        current_id = 0
-        if exps is None:
-            exps = []
-            with open(args.file, 'r+') as f:
-                exps = eval(f.read())
-        exps_info = exps
-        n_objs = args.nobjs if args.nobjs > 0 else None
-        n_targs = args.ntargs if args.ntargs > 0 else None
-        if len(args.test):
-            sys.path.insert(1, 'tf_saved/'+args.test)
-            exps_info = [['hyp']]
-            old_args = args
-            with open('tf_saved/'+args.test+'/args.pkl', 'r') as f:
-                args = pickle.load(f)
-            args.soft_eval = old_args.soft_eval
-            args.test = old_args.test
-            args.load_render = old_args.load_render
-            args.eta = old_args.eta
-            args.descr = old_args.descr
-        if args.hl_retrain:
-            sys.path.insert(1, 'tf_saved/'+args.hl_data)
-            exps_info = [['hyp']]
-
-        exps = load_multi(exps_info, n_objs, n_targs, args)
-        for ind, exp in enumerate(exps):
-            mains = []
-            for ind2, (c, cm) in enumerate(exp):
-                if len(args.test):
-                    c['weight_dir'] = args.test
-                    m = MultiProcessMain(c)
-                    m.run_test(c)
-                    continue
-
-                print('\n\n\n\n\n\nLOADING NEXT EXPERIMENT\n\n\n\n\n\n')
-                while os.path.isdir('tf_saved/'+c['weight_dir']+'_'+str(current_id)):
-                    current_id += 1
-                c['group_id'] = current_id
-                c['weight_dir'] = c['weight_dir']+'_{0}'.format(current_id)
-                dir_name = ''
-                sub_dirs = ['tf_saved'] + c['weight_dir'].split('/')
-                for d_ind, d in enumerate(sub_dirs):
-                    dir_name += d + '/'
-                    if not os.path.isdir(dir_name):
-                        os.mkdir(dir_name)
-                if args.hl_retrain:
-                    src = 'tf_saved/' + args.hl_data + '/hyp.py'
-                else:
-                    src = exps_info[ind][ind2].replace('.', '/')+'.py'
-                shutil.copyfile(src, 'tf_saved/'+c['weight_dir']+'/hyp.py')
-                with open('tf_saved/'+c['weight_dir']+'/__init__.py', 'w+') as f:
-                    f.write('')
-                with open('tf_saved/'+c['weight_dir']+'/args.pkl', 'wb+') as f:
-                    pickle.dump(args, f)
-
-                m = MultiProcessMain(c)
-                m.monitor = False # If true, m will wait to finish before moving on
-                m.group_id = current_id
-                with open('tf_saved/'+c['weight_dir']+'/exp_info.txt', 'w+') as f:
-                    f.write(str(cm))
-
-                if args.hl_retrain:
-                    m.hl_retrain(c)
-                elif args.hl_only_retrain:
-                    m.hl_only_retrain(c)
-                else:
-                    m.start()
-                mains.append(m)
-                time.sleep(1)
-            active = True
-
-            start_t = time.time()
-            while active:
-                time.sleep(120.)
-                print('RUNNING...')
-                active = False
-                for m in mains:
-                    p_info = m.check_processes()
-                    print(('PINFO {0}'.format(p_info)))
-                    active = active or any([code is None for code in p_info])
-                    if active: m.expand_rollout_servers()
-
-                if not active:
-                    for m in mains:
-                        m.kill_processes()
-
-        print('\n\n\n\n\n\n\n\nEXITING')
-        sys.exit(0)
-
-    if not args.nofull:
-        main = MultiProcessMain(config)
-        main.start(kill_all=args.killall)
 
 if __name__ == '__main__':
     main()

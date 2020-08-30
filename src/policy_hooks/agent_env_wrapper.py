@@ -6,6 +6,16 @@ from gym import spaces
 from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 
+
+
+def gen_agent_env(config):
+    config['weight_dir'] = config['base_weight_dir'] + '_{0}'.format(config['current_id'])
+    m = MultiProcessMain(config)
+    agent = m.agent
+    env = AgentEnvWrapper(agent=agent)
+    return env
+
+
 class AgentEnvWrapper(Env):
     metadata = {'render.modes': ['rgb_array', 'human']}
     def __init__(self, agent=None, env=None, use_solver=False, seed=1234):
@@ -168,6 +178,8 @@ class AgentEnvWrapper(Env):
     def close(self):
         if self.sub_env is not None:
             self.sub_env.close()
+        elif self.agent is not None:
+            self.agent.mjc_env.close()
 
 
     def seed(self, seed=None):

@@ -833,7 +833,7 @@ class RolloutServer(object):
         for cond in range(len(self.agent.x0)):
             val, path, plan = self.mcts[cond].eval_pr_graph(self.agent.x0[cond])
             self.agent.replace_cond(cond)
-        if not self.cur_step % 25:
+        if not self.cur_step % 5:
             samples = []
             for path in self.agent.get_task_paths():
                 samples.extend(path)
@@ -843,7 +843,6 @@ class RolloutServer(object):
             if not len(samples):
                 return
 
-            self.update_primitive(samples)
             #with open(self.ff_data_file.format(self.cur_step, self.id), 'wb+') as f:
             #    pickle.dump(samples, f)
 
@@ -994,8 +993,10 @@ class RolloutServer(object):
                 path_samples.extend(path)
                 ref_paths.append(path)
             self.agent.clear_task_paths()
-
+            
             self.update_primitive(path_samples)
+            #for path in ref_paths:
+            #    self.update_primitive(path)
             if self.config.get('use_qfunc', False):
                 self.update_qvalue(all_samples)
             # print('Time to finish all MCTS step:', time.time() - start_t)
@@ -1309,7 +1310,10 @@ class RolloutServer(object):
     def run(self):
         step = 0
         while not self.stopped:
-            if not self.run_hl_test and self._hyperparams.get('train_on_fail', False) and self.cur_step > 10:
+            if not self.run_hl_test and \
+               self._hyperparams.get('train_on_fail', False) and \
+               self.cur_step > 10 and \
+               not self._hyperparams.get('ff_only', False):
                 self.agent.replace_cond(0)
                 augment = self._hyperparams.get('augment_hl', False)
                 mode = self._hyperparams.get('fail_mode', 'start')
