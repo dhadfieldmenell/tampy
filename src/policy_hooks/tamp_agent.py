@@ -1218,7 +1218,11 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
     def cost_f(self, Xs, task, condition, active_ts=None, debug=False, targets=[]):
         if active_ts == None:
+            plan = self.plans[task]
             active_ts = (1, plan.horizon-1)
+        elif active_ts[0] == -1:
+            plan = self.plans[task]
+            active_ts = (plan.horizon-1, plan.horizon-1)
         failed_preds = self._failed_preds(Xs, task, condition, active_ts=active_ts, debug=debug, targets=targets)
         cost = 0
         for failed in failed_preds:

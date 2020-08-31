@@ -616,7 +616,17 @@ def find_task_breaks(path, d=5, cont=False, tol=0):
                 if np.any(cur_task != next_task):
                     breaks.append((i, t))
                     cur_task = next_task
+    breaks.append((len(path)-1, path[-1].T-1))
     return breaks
 
 
+def first_failed_state(cost_f, task_breaks, path, cont=False):
+    if cont:
+        raise NotImplementedError
+    else:
+        for ind, ts in task_breaks:
+            x = path[ind].get_X(t=ts)
+            cost = cost_f(x, tuple(path[i].get(FACTOREDTASK_ENUM, t=ts)))
+            if cost > 0: return (ind, ts)
+    return None
 

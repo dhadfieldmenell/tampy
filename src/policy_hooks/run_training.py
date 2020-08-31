@@ -109,6 +109,10 @@ def main():
         exps_info = exps
         n_objs = args.nobjs if args.nobjs > 0 else None
         n_targs = args.ntargs if args.ntargs > 0 else None
+        if USE_BASELINES and len(args.expert_path):
+            sys.path.insert(1, 'tf_saved/'+args.test)
+            exps_info = [['hyp']]
+
         if len(args.test):
             sys.path.insert(1, 'tf_saved/'+args.test)
             exps_info = [['hyp']]

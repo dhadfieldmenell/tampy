@@ -813,7 +813,11 @@ class RolloutServer(object):
                 wts /= np.sum(wts)
                 s = np.random.choice(list(range(len(path))), p=wts)
                 t = np.random.randint(path[s].T)
-
+            elif mode == 'task':
+                breaks = find_task_breaks(path)
+                cost_f = lambda x, task: self.agent.cost_f(x, task, condition=0, targets=path[s].targets, active_ts=(-1,-1))
+                (s, t) = first_failed_state(cost_f, breaks, path)
+                print('FIRST FAILED TASK:', s, t)
             else:
                 raise NotImplementedError
             x0 = path[s].get_X(t=t) # self.agent.x0[0]
@@ -998,6 +1002,7 @@ class RolloutServer(object):
             #self.update_primitive(path_samples)
             for path in ref_paths:
                 self.update_primitive(path)
+            if self._hyperparams.get('save_expert', False): self.update_expert_demos(ref_paths)
             if self.config.get('use_qfunc', False):
                 self.update_qvalue(all_samples)
             # print('Time to finish all MCTS step:', time.time() - start_t)
@@ -1597,12 +1602,13 @@ class RolloutServer(object):
 
     def update_expert_demos(self, demos):
         for path in demos:
+            for key in self.expert_demos:
+                self.expert_demos[key].append([])
             for s in path:
-                for t in range(s.T):
-                    self.expert_demos['acs'].append(s.get(ACTION_ENUM, t=t))
-                    self.expert_demos['obs'].append(s.get_prim_obs(t=t))
-                    self.expert_demos['ep_rets'].append(0)
-                    self.expert_demos['rews'].append(0.)
-        if self.cur_step % 10:
+                self.expert_demos['acs'][-1].extend(s.get(ACTION_ENUM))
+                self.expert_demos['obs'][-1].extend(s.get_prim_obs())
+                self.expert_demos['ep_rets'][-1].extend(np.ones(s.T))
+                self.expert_demos['rews'][-1].extend(np.ones(s.T))
+        if self.cur_step % 5:
             np.save(self.expert_data_file, self.expert_demos)
 

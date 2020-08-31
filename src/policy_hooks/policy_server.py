@@ -150,8 +150,8 @@ class PolicyServer(object):
                 update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)), acts=acts, ref_acts=ref_acts, done=done)
             else:
                 update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)), val_ratio=0.1)
-                if self.config.get('save_expert', False):
-                    self.update_expert_demos(obs, mu)
+                #if self.config.get('save_expert', False):
+                #    self.update_expert_demos(obs, mu)
             end_time = time.time()
 
 

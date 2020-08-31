@@ -17,8 +17,9 @@ from baselines.common import set_global_seeds, tf_util as U
 from baselines.common.misc_util import boolean_flag
 from baselines import bench
 from baselines import logger
-from baselines.gail.dataset.mujoco_dset import Mujoco_Dset
 from baselines.gail.adversary import TransitionClassifier
+
+from policy_hooks.baselines.mujoco_dset import Mujoco_Dset
 
 
 def run(config, mode='train'):
@@ -31,7 +32,13 @@ def run(config, mode='train'):
                                     reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2)
     env = bench.Monitor(env, logger.get_dir() and
                         osp.join(logger.get_dir(), "monitor.json"))
-    dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation)
+
+    exp_path = args.expert_path
+    if os.path.isdir(exp_path):
+        fnames = os.listdir(args.expert_path)
+        exp_path = list(filter(lambda f: f.find('exp_data.npy') > 0, fnames))
+    fnames = os.listdir(config['expert_path'])
+    dataset = Mujoco_Dset(expert_path=exp_path, traj_limitation=args.traj_limitation)
     reward_giver = TransitionClassifier(env, args.adversary_hidden_size, entcoeff=args.adversary_entcoeff)
     env.seed(args.seed)
     gym.logger.setLevel(logging.WARN)
