@@ -98,7 +98,7 @@ class Transfer(Action):
                 ('(forall (?obj - Can) (not (Near ?obj ?t)))', '0:0'),
                 # ('(not (GripperClosed ?robot))', '0:0'),
                 ('(GripperClosed ?robot)', '1:{0}'.format(et-1)),
-                ('(InGraspAngle ?robot ?c)', '1:{0}'.format(et-1)),
+                # ('(InGraspAngle ?robot ?c)', '1:{0}'.format(et-1)),
                 #('(InGraspAngle ?robot ?c)', '1:{0}'.format(1)),
                 #('(InGraspAngle ?robot ?c)', '{0}:{0}'.format(et-1)),
                 ('(NearGraspAngle ?robot ?c)', '{0}:{0}'.format(et)),

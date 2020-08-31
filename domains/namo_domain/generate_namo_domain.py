@@ -58,7 +58,6 @@ class MoveTo(Action):
         self.args = '(?robot - Robot ?can - Can ?target - Target ?sp - RobotPose ?gp - RobotPose ?g - Grasp ?end - Target)' 
         self.pre = [\
                 ('(At ?can ?target)', '0:0'),
-                ('(forall (?gr - Grasp) (forall (?obj - Can) (not (RobotAtGrasp ?robot ?obj ?gr))))', '0:0'),
                 ('(forall (?w - Obstacle) (not (CanGraspCollides ?can ?w ?g)))', '0:0'),
                 ('(not (GripperClosed ?robot))', '1:{0}'.format(et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '0:{0}'.format(et-1)),
@@ -94,7 +93,7 @@ class Transfer(Action):
                 # ('(not (GripperClosed ?robot))', '0:0'),
                 ('(GripperClosed ?robot)', '1:{0}'.format(et-1)),
                 ('(InGripper ?robot ?c ?g)', '{0}:{0}'.format(1, et-1)),
-                ('(RobotAtGrasp ?robot ?c ?g)', '{0}:{0}'.format(et)),
+                ('(RobotAtGrasp ?robot ?c ?g)', '{0}:{0}'.format(0)),
                 ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?init ?t ?obj ?c)))', '0:{0}'.format(0)),
                 ('(forall (?obj - Can) (not (WideObstructsHolding ?robot ?init ?t ?obj ?c)))', '1:{0}'.format(et-2)),
                 ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?init ?t ?obj ?c)))', '{0}:{0}'.format(et-1)),

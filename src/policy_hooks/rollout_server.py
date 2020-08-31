@@ -827,6 +827,7 @@ class RolloutServer(object):
 
 
     def run_ff(self):
+        raise Exception('This is deprecated')
         self.set_policies()
         self.cur_step += 1
         val, path = 0, []
@@ -994,9 +995,9 @@ class RolloutServer(object):
                 ref_paths.append(path)
             self.agent.clear_task_paths()
             
-            self.update_primitive(path_samples)
-            #for path in ref_paths:
-            #    self.update_primitive(path)
+            #self.update_primitive(path_samples)
+            for path in ref_paths:
+                self.update_primitive(path)
             if self.config.get('use_qfunc', False):
                 self.update_qvalue(all_samples)
             # print('Time to finish all MCTS step:', time.time() - start_t)

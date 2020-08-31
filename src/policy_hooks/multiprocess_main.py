@@ -463,6 +463,8 @@ class MultiProcessMain(object):
         buf_sizes['value'] = mp.Value('i')
         buf_sizes['n_data'] = mp.Value('i')
         buf_sizes['n_data'].value = 0
+        buf_sizes['n_plans'] = mp.Value('i')
+        buf_sizes['n_plans'].value = 0
         config['share_buffer'] = True
         config['policy_opt']['share_buffer'] = True
         config['policy_opt']['buffers'] = buffers

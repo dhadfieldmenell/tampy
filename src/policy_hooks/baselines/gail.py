@@ -4,6 +4,7 @@ Disclaimer: this code is highly based on trpo_mpi at @openai/baselines and @open
 
 import argparse
 import os.path as osp
+import os
 import logging
 from mpi4py import MPI
 from tqdm import tqdm
@@ -20,13 +21,8 @@ from baselines.gail.dataset.mujoco_dset import Mujoco_Dset
 from baselines.gail.adversary import TransitionClassifier
 
 
-N_EXP = [50, 100, 500, 1000]
-
-def run_train(config):
-    for n in N_EXP:
-        _run_train(config, n)
-
-def _run_train(config, num_expert):
+def run(config, mode='train'):
+    # os.environ['OPENAI_LOGDIR'] = config['weight_dir']
     args = config['args']
     U.make_session(num_cpu=1).__enter__()
     env = gen_agent_env(config)
@@ -35,33 +31,77 @@ def _run_train(config, num_expert):
                                     reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2)
     env = bench.Monitor(env, logger.get_dir() and
                         osp.join(logger.get_dir(), "monitor.json"))
-    dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=num_expert)
+    dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation)
     reward_giver = TransitionClassifier(env, args.adversary_hidden_size, entcoeff=args.adversary_entcoeff)
     env.seed(args.seed)
     gym.logger.setLevel(logging.WARN)
-    task_name = get_task_name(args)
+    task_name = args.descr 
     args.checkpoint_dir = config['weight_dir']
     args.log_dir = config['weight_dir']
     args.pretrained = False
 
-    train(env,
-          args.seed,
-          policy_fn,
-          reward_giver,
-          dataset,
-          args.algo,
-          args.g_step,
-          args.d_step,
-          args.policy_entcoeff,
-          args.num_timesteps,
-          args.save_per_iter,
-          args.checkpoint_dir,
-          args.log_dir,
-          args.pretrained,
-          args.BC_max_iter,
-          task_name
-          )
+    if mode == 'train':
+        train(env,
+              args.seed,
+              policy_fn,
+              reward_giver,
+              dataset,
+              args.algo,
+              args.g_step,
+              args.d_step,
+              args.policy_entcoeff,
+              args.num_timesteps,
+              args.save_per_iter,
+              args.checkpoint_dir,
+              args.log_dir,
+              args.pretrained,
+              args.BC_max_iter,
+              task_name
+              )
+    else:
+        avg_len, avg_ret = runner(env,
+                                  policy_fn,
+                                  model_path,
+                                  timesteps_per_batch=1024,
+                                  number_trajs=10,
+                                  stochastic_policy=args.stochastic_policy,
+                                  save=args.save_sample
+                                  )
     env.close()
+
+
+def eval(config, ckpt_dirs, ts=512, n_runs=20):
+    args = config['args']
+    U.make_session(num_cpu=1).__enter__()
+    def policy_fn(name, ob_space, ac_space, reuse=False):
+        return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
+                                    reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2)
+    dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation)
+    reward_giver = TransitionClassifier(env, args.adversary_hidden_size, entcoeff=args.adversary_entcoeff)
+    env.seed(args.seed)
+    gym.logger.setLevel(logging.WARN)
+    task_name = args.descr 
+    args.checkpoint_dir = config['weight_dir']
+    args.log_dir = config['weight_dir']
+    args.pretrained = False
+    data = []
+    for i, d in enumerate(ckpt_dirs):
+        env = gen_agent_env(config)
+        new_args = pickle.load(os.path.join(ckpt_dir, 'args.pkl'))
+        model_path = os.path.join(ckpt_dir, new_args.descr)
+        for t in range(n_runs):
+            avg_len, avg_ret = runner(env,
+                                      policy_fn,
+                                      model_path,
+                                      timesteps_per_batch=ts,
+                                      number_trajs=1,
+                                      stochastic_policy=args.stochastic_policy,
+                                      save=args.save_sample,
+                                      reuse=(i!=0)
+                                      )
+            data.append({'num_plans': new_args.traj_limitation, 'success at end': avg_ret, 'path length': avg_len})
+        env.close()
+    return data
 
 
 def train(env, seed, policy_fn, reward_giver, dataset, algo,

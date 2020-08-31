@@ -268,8 +268,8 @@ class CollisionPredicate(ExprPredicate):
         assert n_cols <= self.n_cols
         jac = np.zeros((1, 4))
 
-        p0 = filter(lambda p: p.name == name0, list(self._param_to_body.keys()))[0]
-        p1 = filter(lambda p: p.name == name1, list(self._param_to_body.keys()))[0]
+        p0 = next(filter(lambda p: p.name == name0, list(self._param_to_body.keys())))
+        p1 = next(filter(lambda p: p.name == name1, list(self._param_to_body.keys())))
 
         b0 = self._param_to_body[p0]
         b1 = self._param_to_body[p1]

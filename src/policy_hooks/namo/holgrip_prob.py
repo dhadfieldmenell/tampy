@@ -129,7 +129,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         # can_locs = copy.deepcopy(END_TARGETS)
         locs = []
         pr2_loc = None
-        spacing = 2
+        spacing = 2.5
         valid = [1 for _ in range(len(can_locs))]
         while len(locs) < config['num_objs'] + 1:
             locs = []

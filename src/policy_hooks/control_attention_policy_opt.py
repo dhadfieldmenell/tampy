@@ -151,6 +151,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.average_val_losses = []
         self.average_error = []
         self.N = 0
+        self.n_updates = 0
         self.buffer_size = MAX_QUEUE_SIZE
         self.lr_scale = 0.9975
         self.lr_policy = 'fixed'
@@ -356,10 +357,12 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             #self.prc[net] = np.r_[self.prc[net], keep_prc]
             #self.wt[net] = np.r_[self.wt[net], keep_wt]
         '''
-        self.update_count += len(mu)
+        self.update_count += len(data)
         if not store_val:
-            self.N += len(mu)
+            self.N += len(data)
+            self.n_updates += 1
         if self.update_count > 1e1 and task == 'control': self.buf_sizes['n_data'].value = self.N
+        if self.update_count > 1e1 and task == 'control': self.buf_sizes['n_plans'].value = self.n_updates
         return False
 
 
