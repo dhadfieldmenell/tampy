@@ -105,6 +105,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         self.check_col = hyperparams['master_config'].get('check_col', True)
         self.robot_height = 1
         self.use_mjc = hyperparams.get('use_mjc', False)
+        self.vel_rat = 0.05
         wall_dims = OpenRAVEBody.get_wall_dims('closet')
         config = {
             'obs_include': [],
@@ -136,6 +137,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             items.append({'name': 'wall{0}'.format(i), 'type': 'box', 'is_fixed': True, 'pos': pos, 'dimensions': next_dim, 'rgba': (0.2, 0.2, 0.2, 1)})
 
         config['load_render'] = hyperparams['master_config'].get('load_render', False)
+        config['xmlid'] = '{0}_{1}'.format(self.process_id, self.rank)
         self.mjc_env = MJCEnv.load_config(config)
         no = self._hyperparams['num_objs']
         self.targ_labels = {i: np.array(self.prob.END_TARGETS[i]) for i in range(len(self.prob.END_TARGETS))}
@@ -291,8 +293,8 @@ class NAMOGripAgent(NAMOSortingAgent):
             else:
                 cmd_x, cmd_y = rel_x, rel_y
 
-        vel = 0.05 # 0.10
-        nsteps = int(max(abs(cmd_x), abs(cmd_y)) / vel) + 1
+        nsteps = int(max(abs(cmd_x), abs(cmd_y)) / self.vel_rat) + 1
+        nsteps = min(nsteps, 10)
         gripper = u[self.action_inds['pr2', 'gripper']][0]
         if gripper < 0:
             gripper = -0.1

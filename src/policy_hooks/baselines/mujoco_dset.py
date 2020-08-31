@@ -47,7 +47,7 @@ class Mujoco_Dset(object):
         traj_data = traj_data[()]
         while len(expert_path) and (traj_limitation < 0 or len(traj_data['obs']) < traj_limitation):
             next_data = np.load(expert_path.pop(), allow_pickle=True)
-            next_data = traj_data[()]
+            next_data = next_data[()]
             for key in traj_data:
                 traj_data[key].extend(next_data[key])
         if traj_limitation < 0:
@@ -83,7 +83,6 @@ class Mujoco_Dset(object):
                             self.acs[int(self.num_transition*train_fraction):, :],
                             self.randomize)
         self.log_info()
-        import ipdb; ipdb.set_trace()
 
     def log_info(self):
         logger.log("Total trajectories: %d" % self.num_traj)

@@ -554,6 +554,7 @@ class MultiProcessMain(object):
                 new_hyperparams['id'] = hyperparams['server_id']+'_'+str(n)
                 self.create_server(RolloutServer, new_hyperparams)
 
+        hyperparams = copy.copy(hyperparams)
         hyperparams['run_mcts_rollouts'] = False
         hyperparams['run_alg_updates'] = False
         hyperparams['run_hl_test'] = True

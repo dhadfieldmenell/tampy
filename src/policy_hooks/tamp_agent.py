@@ -96,6 +96,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.target_inds = self._hyperparams['target_inds']
         self.target_vecs = []
         self.master_config = hyperparams['master_config']
+        self.rank = hyperparams['master_config'].get('rank', 0)
         self.process_id = self.master_config['id']
         self.retime = hyperparams['master_config'].get('retime', False)
         for condition in range(len(self.x0)):

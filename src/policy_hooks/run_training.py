@@ -110,8 +110,13 @@ def main():
         n_objs = args.nobjs if args.nobjs > 0 else None
         n_targs = args.ntargs if args.ntargs > 0 else None
         if USE_BASELINES and len(args.expert_path):
-            sys.path.insert(1, 'tf_saved/'+args.test)
+            sys.path.insert(1, args.expert_path)
             exps_info = [['hyp']]
+            with open(args.expert_path+'/args.pkl', 'rb') as f:
+                prev_args = pickle.load(f)
+            args.add_obs_delta = prev_args.add_obs_delta
+            args.hist_len = prev_args.hist_len
+            args.add_action_hist = prev_args.add_action_hist
 
         if len(args.test):
             sys.path.insert(1, 'tf_saved/'+args.test)
@@ -149,12 +154,14 @@ def main():
                 sub_dirs = ['tf_saved'] + c['weight_dir'].split('/')
 
                 try:
-                    import mpi4py as MPI
-                    rank = MPI.COMMWORLD.Get_rank()
-                    print('MPI rank is', rank)
-                except:
+                    from mpi4py import MPI
+                    rank = MPI.COMM_WORLD.Get_rank()
+                except Exception as e:
+                    print(e)
                     rank = 0
+                if rank < 0: rank == 0
 
+                c['rank'] = rank
                 if rank == 0:
                     for d_ind, d in enumerate(sub_dirs):
                         dir_name += d + '/'
@@ -162,6 +169,8 @@ def main():
                             os.mkdir(dir_name)
                     if args.hl_retrain:
                         src = 'tf_saved/' + args.hl_data + '/hyp.py'
+                    elif len(args.expert_path):
+                        src = args.expert_path+'/hyp.py'
                     else:
                         src = exps_info[ind][ind2].replace('.', '/')+'.py'
                     shutil.copyfile(src, 'tf_saved/'+c['weight_dir']+'/hyp.py')
@@ -179,6 +188,8 @@ def main():
                     m.hl_retrain(c)
                 elif args.hl_only_retrain:
                     m.hl_only_retrain(c)
+                elif len(args.baseline):
+                   run_baseline(c, m, args.baseline) 
                 else:
                     m.start()
                 mains.append(m)
@@ -208,10 +219,12 @@ def main():
         main.start(kill_all=args.killall)
 
 
-def run_baseline(config, baseline):
-    if baseline.lower() is 'gail':
-        from policy_hooks.baselines.gail import run_train
-        run_train(config)
+def run_baseline(config, m, baseline):
+    if baseline.lower() == 'gail':
+        from policy_hooks.baselines.gail import run
+        m.config['id'] = 0
+        run(m=m)
+        print('Finished GAIL train')
     else:
         raise NotImplementedError
 

@@ -20,31 +20,37 @@ from baselines import logger
 from baselines.gail.adversary import TransitionClassifier
 
 from policy_hooks.baselines.mujoco_dset import Mujoco_Dset
+from policy_hooks.agent_env_wrapper import *
 
 
-def run(config, mode='train'):
+DIR_PREFIX = 'tf_saved/'
+
+def run(config=None, m=None, mode='train'):
     # os.environ['OPENAI_LOGDIR'] = config['weight_dir']
+    if config is None:
+        config = m.config
     args = config['args']
     U.make_session(num_cpu=1).__enter__()
-    env = gen_agent_env(config)
+    env = gen_agent_env(m=m)
     def policy_fn(name, ob_space, ac_space, reuse=False):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
                                     reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2)
     env = bench.Monitor(env, logger.get_dir() and
-                        osp.join(logger.get_dir(), "monitor.json"))
+                        osp.join(logger.get_dir(), "monitor.json"), allow_early_resets=True)
 
     exp_path = args.expert_path
     if os.path.isdir(exp_path):
         fnames = os.listdir(args.expert_path)
         exp_path = list(filter(lambda f: f.find('exp_data.npy') > 0, fnames))
+        exp_path = list(map(lambda s: args.expert_path+'/'+s, exp_path))
     fnames = os.listdir(config['expert_path'])
     dataset = Mujoco_Dset(expert_path=exp_path, traj_limitation=args.traj_limitation)
     reward_giver = TransitionClassifier(env, args.adversary_hidden_size, entcoeff=args.adversary_entcoeff)
     env.seed(args.seed)
     gym.logger.setLevel(logging.WARN)
     task_name = args.descr 
-    args.checkpoint_dir = config['weight_dir']
-    args.log_dir = config['weight_dir']
+    args.checkpoint_dir = DIR_PREFIX+config['weight_dir']
+    args.log_dir = DIR_PREFIX+config['weight_dir']
     args.pretrained = False
 
     if mode == 'train':
@@ -58,6 +64,7 @@ def run(config, mode='train'):
               args.d_step,
               args.policy_entcoeff,
               args.num_timesteps,
+              args.episode_timesteps,
               args.save_per_iter,
               args.checkpoint_dir,
               args.log_dir,
@@ -69,7 +76,7 @@ def run(config, mode='train'):
         avg_len, avg_ret = runner(env,
                                   policy_fn,
                                   model_path,
-                                  timesteps_per_batch=1024,
+                                  timesteps_per_batch=args.num_timesteps,
                                   number_trajs=10,
                                   stochastic_policy=args.stochastic_policy,
                                   save=args.save_sample
@@ -77,7 +84,7 @@ def run(config, mode='train'):
     env.close()
 
 
-def eval(config, ckpt_dirs, ts=512, n_runs=20):
+def eval_ckpts(config, ckpt_dirs, ts=512, n_runs=20):
     args = config['args']
     U.make_session(num_cpu=1).__enter__()
     def policy_fn(name, ob_space, ac_space, reuse=False):
@@ -88,8 +95,8 @@ def eval(config, ckpt_dirs, ts=512, n_runs=20):
     env.seed(args.seed)
     gym.logger.setLevel(logging.WARN)
     task_name = args.descr 
-    args.checkpoint_dir = config['weight_dir']
-    args.log_dir = config['weight_dir']
+    args.checkpoint_dir = DIR_PREFIX+config['weight_dir']
+    args.log_dir = DIR_PREFIX+config['weight_dir']
     args.pretrained = False
     data = []
     for i, d in enumerate(ckpt_dirs):
@@ -106,13 +113,17 @@ def eval(config, ckpt_dirs, ts=512, n_runs=20):
                                       save=args.save_sample,
                                       reuse=(i!=0)
                                       )
-            data.append({'num_plans': new_args.traj_limitation, 'success at end': avg_ret, 'path length': avg_len})
+            data.append({'num_plans': new_args.traj_limitation,
+                         'success at end': avg_ret, 
+                         'path length': avg_len,
+                         'descr': new_args.descr,
+                         'dir': ckpt_dir})
         env.close()
     return data
 
 
 def train(env, seed, policy_fn, reward_giver, dataset, algo,
-          g_step, d_step, policy_entcoeff, num_timesteps, save_per_iter,
+          g_step, d_step, policy_entcoeff, num_timesteps, episode_timesteps, save_per_iter,
           checkpoint_dir, log_dir, pretrained, BC_max_iter, task_name=None):
 
     pretrained_weight = None
@@ -138,7 +149,7 @@ def train(env, seed, policy_fn, reward_giver, dataset, algo,
                        max_timesteps=num_timesteps,
                        ckpt_dir=checkpoint_dir, log_dir=log_dir,
                        save_per_iter=save_per_iter,
-                       timesteps_per_batch=1024,
+                       timesteps_per_batch=episode_timesteps,
                        max_kl=0.01, cg_iters=10, cg_damping=0.1,
                        gamma=0.995, lam=0.97,
                        vf_iters=5, vf_stepsize=1e-3,

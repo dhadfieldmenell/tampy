@@ -29,7 +29,6 @@ def traj_segment_generator(pi, env, reward_giver, horizon, stochastic):
     rew = 0.0
     true_rew = 0.0
     ob = env.reset()
-
     cur_ep_ret = 0
     cur_ep_len = 0
     cur_ep_true_ret = 0
@@ -242,9 +241,10 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
             return allmean(compute_fvp(p, *fvpargs)) + cg_damping * p
         # ------------------ Update G ------------------
         logger.log("Optimizing Policy...")
-        for _ in range(g_step):
+        for step_ind in range(g_step):
             with timed("sampling"):
                 seg = seg_gen.__next__()
+
             add_vtarg_and_adv(seg, gamma, lam)
             # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
             ob, ac, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
@@ -345,8 +345,8 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
         logger.record_tabular("EpisodesSoFar", episodes_so_far)
         logger.record_tabular("TimestepsSoFar", timesteps_so_far)
         logger.record_tabular("TimeElapsed", time.time() - tstart)
-        logger.record_tabular("ExpertTrajs", expert_data.num_traj)
-        logger.record_tabular("ExpertTransitions", expert_data.num_transitions)
+        logger.record_tabular("ExpertTrajs", expert_dataset.num_traj)
+        logger.record_tabular("ExpertTransitions", expert_dataset.num_transition)
 
         if rank == 0:
             logger.dump_tabular()

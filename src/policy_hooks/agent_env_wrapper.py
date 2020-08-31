@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 from gym import Env
 from gym import spaces
@@ -7,10 +8,11 @@ from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 
 
-
-def gen_agent_env(config):
-    config['weight_dir'] = config['base_weight_dir'] + '_{0}'.format(config['current_id'])
-    m = MultiProcessMain(config)
+def gen_agent_env(config=None, m=None):
+    if m is None:
+        from policy_hooks.multiprocess_main import MultiProcessMain
+        config['weight_dir'] = config['base_weight_dir'] + '_{0}'.format(config['group_id'])
+        m = MultiProcessMain(config)
     agent = m.agent
     env = AgentEnvWrapper(agent=agent)
     return env
@@ -18,12 +20,14 @@ def gen_agent_env(config):
 
 class AgentEnvWrapper(Env):
     metadata = {'render.modes': ['rgb_array', 'human']}
-    def __init__(self, agent=None, env=None, use_solver=False, seed=1234):
+    def __init__(self, agent=None, env=None, use_solver=False, seed=1234, max_ts=500):
         assert agent is not None or env is not None
         self.agent = agent
         self.use_solver = use_solver
-        self.seed = seed
+        self._seed = seed
         self.sub_env = agent.mjc_env if env is None else env
+        self._max_time = max_ts
+        self._cur_time = 0
 
         # VAE specific
         self.sub_env.im_height = 80
@@ -39,7 +43,7 @@ class AgentEnvWrapper(Env):
             self.observation_space = spaces.Box(0, 255, [self.sub_env.im_height, self.sub_env.im_wid, 3], dtype='uint8')
         else:
             self.action_space = spaces.Box(-10, 10, [self.agent.dU], dtype='float32')
-            self.observation_space = spaces.Box(-1e3, 1e3, [self.agent.dO], dtype='float32')
+            self.observation_space = spaces.Box(-1e3, 1e3, [self.agent.dPrim], dtype='float32')
         self.cur_state = env.physics.data.qpos.copy() if env is not None else self.agent.x0[0]
         if self.agent is None or self.agent.master_config['load_render']:
             self.render()
@@ -86,7 +90,8 @@ class AgentEnvWrapper(Env):
     def step(self, action, encoded=False):
         # if encoded:
         #     action = self.decode_action(action)
-
+       
+        self._cur_time += 1
         if self.use_solver:
             sample, _, success = self.agent.solve_sample_opt_traj(self.cur_state, action, condition=0)
             x = sample.get_X(sample.T-1) if success else sample.get_X(0)
@@ -98,7 +103,7 @@ class AgentEnvWrapper(Env):
             x = self.agent.get_state()
             s = Sample(self.agent)
             self.agent.fill_sample(0, s, x[self.agent._x_data_idx[STATE_ENUM]], 0, list(self.agent.plans.keys())[0], fill_obs=True)
-            obs = s.get_prim_obs()
+            obs = s.get_prim_obs().flatten()
         else:
             obs, _, _, _ = self.sub_env.step(action)
             x = self.sub_env.physics.data.qpos.copy()
@@ -107,7 +112,7 @@ class AgentEnvWrapper(Env):
         info = {'cur_state': x}
         self.cur_state = x
         reward = self.check_goal(x)
-        done = reward > 0.99
+        done = reward > 0.99 or self._cur_time >= self._max_time
         return obs, reward, done, info
 
 
@@ -125,16 +130,8 @@ class AgentEnvWrapper(Env):
 
     def check_goal(self, x):
         if self.agent is not None:
-            return self.agent.goal_f(0, x)
-        return 0.
-
-        state = self.sub_env.physics.data.qpos
-        success = True
-        for (name, attr) in self.goal:
-            if attr == 'pos':
-                cur_pos = self.sub_env.get_item_pos(name, mujoco_frame=False)
-                success = success and np.all(np.abs(cur_pos - self.goal[name, attr]) < self.tol)
-        return 1 if success else 0
+            return 1. - self.agent.goal_f(0, x)
+        raise NotImplementedError
 
 
     def reset(self):
@@ -149,7 +146,7 @@ class AgentEnvWrapper(Env):
             s = Sample(self.agent)
             self.agent.fill_sample(0, s, x[self.agent._x_data_idx[STATE_ENUM]], 0, list(self.agent.plans.keys())[0], fill_obs=True)
             obs = s.get_prim_obs()
-            return obs
+            return obs.flatten()
         else:
             return self.render()
 
@@ -185,7 +182,7 @@ class AgentEnvWrapper(Env):
     def seed(self, seed=None):
         if seed is None:
             seed = 1234
-        self.seed = seed
+        self._seed = seed
         return [seed]
 
 
