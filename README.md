@@ -5,7 +5,7 @@ This README assumes the installation is happenning in ubuntu >= 14 with python3.
 ## Setup
 
 In order to run this code, first run `source setup.sh`. If you wish to only use TAMP functionality and none of the in-development learning components, edit `setup.sh` so that `FULL_INSTALL=false`
-This will create a directory titled 'tamp_work' in your home directory and initialize a python virtual environment with the necessary dependencies. To activate this environment, you can simply run `tampenv`.
+This will create a directory titled `tamp_work` in your home directory and initialize a python virtual environment with the necessary dependencies. To activate this environment, you can simply run `tampenv`.
 
 
 ## Verify planning
@@ -20,6 +20,74 @@ This should take under a minute to run.
 ## The code
 
 ### Defining domains
+
+#### Domain files
+Specifications for all domains should be placed in the `domains` folder directly under the `tampy` directory
+For a concrete example, refer to `domains/namo_domain/generate_namo_domain.py`. This is script designed to generate a domain file (these files are cumbersome to write directly by hand)
+
+##### Types
+The first portion of the file will look like
+`Types: Can, Target, RobotPose, Robot, Grasp, Obstacle`
+Here, everything following `Types:` is a "type" parameters in the domain can be
+
+##### Import Paths
+The next portion specifies where to find various necessary code
+First:
+`Attribute Import Paths: RedCircle core.util_classes.items, Vector1d core.util_classes.matrix, Vector2d core.util_classes.matrix, Wall core.util_classes.items, NAMO core.util_classes.robots`
+Here, we tell the planner where to find the python classes parameter attributes can take on (used in Primitive Predicates)
+
+Second:
+`Predicates Import Path: core.util_classes.namo_predicates`
+Here, we tell the planner where to find the python classes defining predicates
+
+##### Listing predicates
+The next portion specifies primitive and derived predicates
+First:
+`Primitive Predicates: geom, Can, RedCircle; pose, Can, Vector2d` etc...
+This defines a list of 3-tuples of the form `(attribute_name, parameter_type, attribute_type)` and effectively tells the planner how to build parameters
+
+Second:
+`Derived Predicates: At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Robot, Can, Grasp; Obstructs, Robot, Target, Target, Can`
+This defines a list of tuples whose first element is a predicate class and the remaining are the type signatures for parameters of the predicate. In the above, the `At` predicate is defined to take both a `Can` object and a `Target` symbol
+
+##### Defining actions
+An action has five components: a name, a number of timesteps, a list of typed arguments, a "pre" list, and a "post" list
+In the generate file above, these are defined as attributes of an `Action` class
+
+Suppose we have a moveto action.
+For args:
+`args = '(?robot - Robot ?can - Can ?target - Target ?sp - RobotPose ?gp - RobotPose ?g - Grasp)'`
+Means the action takes in a robot, a can, a target, a start pose, a goal pose, and a grasp
+
+The `pre` list contains both precondition and midconditions for the action (originally, everything here was preconditions but that was impractical)
+Preconditions are identified by being active at `0:0` i.e. only the first timestep
+Items of this list are pairs of strings, the first describing the constraint and the second specifying what timesteps to enforce that constraint on
+`('(At ?can ?target)', '0:0')` specifies that a precondition should be enforced constraining `?can` to be at `?target`
+
+`('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '0:{0}'.format(end))` specifies that for all objects of type `Obstacle` (not just those in the action arguments), the action should include a constraint prohibiting collision between the object and the robot from time 0 to time `end`
+Note the syntax: `forall` allows ranging over the global space of parameters, not just those immediatley visible to the action, while `not` enforces the negation of a constraint (here, `RCollides` is a constraint to be in collision, so adding the `not` instead contrains to avoid collision)
+
+
+The `eff` list is similar, but everything in this list will be considered a postcondition by the task planner and is something that must be true when the action finishes.
+`('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(end, end-1))`
+Note in the above how the timesteps are `(end, end-1)`; this is special syntax telling the motion planner to ignore the constraint even though the task planner will include it, and allows adding extra information to guide the task planner that is uncessary for the motion planner
+
+#### Problem files
+Specifications for all problem files should be placed under the relevant domain directory 
+For a concrete example, refer to `domains/namo_domain/generate_namo_prob.py`. This is script designed to generate a problem file (these files are cumbersome to write directly by hand)
+A problem file will define a list of objects, initial attribute values for those objects, a goal, and a set of initial conditions
+
+The first part is of the form `Objects: ...`; everything on this line is of the form `ObjectType (name {insert name})` and will list EVERY object and symbol the planner will have access to. Semicolons delimit separate objects and the end of this line must be two new lines `\n\n`
+
+The next part is of the form `Init: ...`; everything on this line is of the form `(attribute objectname value)` and specifies the initial value of every attribute for every object.
+`(pose can0 [0,0])` for example specifies that the initial pose of `can0` will be at `[0,0]`
+`(pose can1 undefined)` on the other hand specifies that the initial pose of `can1` is not fixed and the planner will determine its value. Items here are delimited by commas and the end of this part must be a semicolon.
+
+The next part is then a list of predicates; these are constraints that ARE true at the initial timesteps. These must be satisfied by the initial values from the preceding part. This part is ended with two new lines `\n\n`
+
+Finally, the last line is of the form `GOAL: ...` and specifies what constraints you want to be true at the end of the planning process.
+
+During planning, the list of initial predicates will be converted to the initial state in PDDL while the goal will be converted likewise
 
 #### Predicates
 Predicates will define both constraints for the trajectory optimization problem as well as PDDL-style predicates for the task planner
