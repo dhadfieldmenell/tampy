@@ -54,6 +54,7 @@ from policy_hooks.policy_server import PolicyServer
 from policy_hooks.rollout_server import RolloutServer
 from policy_hooks.tf_models import tf_network, multi_modal_network_fp
 import policy_hooks.hl_retrain as hl_retrain
+from policy_hooks.utils.load_agent import *
 
 
 def spawn_server(cls, hyperparams):
@@ -93,13 +94,6 @@ class MultiProcessMain(object):
 
         x0, targets = prob.get_random_initial_state_vec(self.config, plans, self.dX, self.state_inds, conditions)
 
-        '''
-        targets = []
-        cur_targs = {pname: x0[self.state_inds[pname, 'pose']] for pname in self.state_inds if (pname, 'pose') in self.state_inds}
-        for _ in range(conditions):
-            targets.append(prob.get_end_targets())
-        '''
-
         for plan in list(plans.values()):
             plan.state_inds = self.state_inds
             plan.action_inds = self.action_inds
@@ -122,10 +116,6 @@ class MultiProcessMain(object):
         }
         for enum in self.config['sensor_dims']:
             sensor_dims[enum] = self.config['sensor_dims'][enum]
-        if self.config['add_action_hist']:
-            self.config['prim_obs_include'].append(utils.TRAJ_HIST_ENUM)
-        if self.config['add_obs_delta']:
-            self.config['prim_obs_include'].append(utils.STATE_DELTA_ENUM)
         self.prim_bounds = []
         self.prim_dims = OrderedDict({})
         self.config['prim_dims'] = self.prim_dims
@@ -155,9 +145,6 @@ class MultiProcessMain(object):
                 ind += self.prim_dims[enum]
         self.config['prim_bounds'] = self.prim_bounds
         self.config['prim_dims'] = self.prim_dims
-
-        # self.config['goal_f'] = prob.goal_f
-        # self.config['cost_f'] = prob.cost_f
         self.config['target_f'] = None # prob.get_next_target
         self.config['encode_f'] = None # prob.sorting_state_encode
 
@@ -165,60 +152,7 @@ class MultiProcessMain(object):
 
         self.policy_inf_coeff = self.config['algorithm']['policy_inf_coeff']
         self.policy_out_coeff = self.config['algorithm']['policy_out_coeff']
-        self.config['agent'] = {
-            'num_objs': self.config['num_objs'],
-            'num_targs': self.config['num_targs'],
-            'type': self.config['agent_type'],
-            'x0': x0,
-            'targets': targets,
-            'task_list': self.task_list,
-            'plans': plans,
-            'task_breaks': task_breaks,
-            'task_encoding': task_encoding,
-            'task_durations': self.task_durations,
-            'state_inds': self.state_inds,
-            'action_inds': self.action_inds,
-            'target_inds': self.target_inds,
-            'dU': self.dU,
-            'dX': self.symbolic_bound,
-            'symbolic_bound': self.symbolic_bound,
-            'target_dim': self.target_dim,
-            'get_plan': None, # prob.get_plan,
-            'sensor_dims': sensor_dims,
-            'state_include': self.config['state_include'],
-            'obs_include': self.config['obs_include'],
-            'prim_obs_include': self.config['prim_obs_include'],
-            'prim_out_include': self.config['prim_out_include'],
-            'val_obs_include': self.config['val_obs_include'],
-            'conditions': self.config['num_conds'],
-            'solver': None,
-            'num_objs': self.config['num_objs'],
-            'obj_list': [],
-            'stochastic_conditions': False,
-            'image_width': utils.IM_W,
-            'image_height': utils.IM_H,
-            'image_channels': utils.IM_C,
-            'hist_len': self.config['hist_len'],
-            'T': 1,
-            'viewer': config.get('viewer', False),
-            'model': None,
-            'get_hl_plan': None,
-            'env': env,
-            'openrave_bodies': openrave_bodies,
-            'n_dirs': self.config['n_dirs'],
-            'prob': prob,
-            'attr_map': self.config['attr_map'],
-            'image_width': self.config['image_width'],
-            'image_height': self.config['image_height'],
-            'image_channels': self.config['image_channels'],
-            'prim_dims': self.prim_dims,
-            'mp_solver_type': self.config['mp_solver_type'],
-            'robot_name': self.config['robot_name'],
-            'split_nets': self.config['split_nets'],
-            'policy_inf_coeff': self.config['policy_inf_coeff'],
-            'policy_out_coeff': self.config['policy_out_coeff'],
-            'master_config': self.config,
-        }
+        config['agent'] = load_agent(config)
 
         if 'cloth_width' in self.config:
             self.config['agent']['cloth_width'] = self.config['cloth_width']
@@ -673,8 +607,8 @@ class MultiProcessMain(object):
     def check_dirs(self):
         if not os.path.exists('tf_saved/'+self.config['weight_dir']):
             os.makedirs('tf_saved/'+self.config['weight_dir'])
-        if not os.path.exists('tf_saved/'+self.config['weight_dir']+'_trained'):
-            os.makedirs('tf_saved/'+self.config['weight_dir']+'_trained')
+        #if not os.path.exists('tf_saved/'+self.config['weight_dir']+'_trained'):
+        #    os.makedirs('tf_saved/'+self.config['weight_dir']+'_trained')
 
     def start_ros(self):
         if not USE_ROS or self.roscore is not None or rosgraph.is_master_online(): return

@@ -45,7 +45,6 @@ from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.utils.tamp_eval_funcs import *
 from policy_hooks.utils.load_task_definitions import *
-from policy_hooks.agent_env_wrapper import AgentEnvWrapper
 
 MAX_SAMPLELISTS = 1000
 MAX_TASK_PATHS = 1000
@@ -178,6 +177,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
 
     def add_gym_env(self):
+        from policy_hooks.agent_env_wrapper import AgentEnvWrapper
         self.gymenv = AgentEnvWrapper(agent=self)
 
 

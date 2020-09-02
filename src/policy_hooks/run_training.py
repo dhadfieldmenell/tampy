@@ -16,6 +16,8 @@ if USE_BASELINES:
     from policy_hooks.baselines.argparse import argsparser as baseline_argsparser
 
 
+DIR_KEY = 'tf_saved/'
+
 def get_dir_name(base, no, nt, ind, descr, args=None):
     dir_name = base + 'objs{0}_{1}/exp_id{2}_{3}'.format(no, nt, ind, descr)
     if args is not None and not len(descr):
@@ -119,10 +121,10 @@ def main():
             args.add_action_hist = prev_args.add_action_hist
 
         if len(args.test):
-            sys.path.insert(1, 'tf_saved/'+args.test)
+            sys.path.insert(1, DIR_KEY+args.test)
             exps_info = [['hyp']]
             old_args = args
-            with open('tf_saved/'+args.test+'/args.pkl', 'r') as f:
+            with open(DIR_KEY+args.test+'/args.pkl', 'r') as f:
                 args = pickle.load(f)
             args.soft_eval = old_args.soft_eval
             args.test = old_args.test
@@ -130,7 +132,7 @@ def main():
             args.eta = old_args.eta
             args.descr = old_args.descr
         if args.hl_retrain:
-            sys.path.insert(1, 'tf_saved/'+args.hl_data)
+            sys.path.insert(1, DIR_KEY+args.hl_data)
             exps_info = [['hyp']]
 
         exps = load_multi(exps_info, n_objs, n_targs, args)
@@ -146,12 +148,12 @@ def main():
                 print('\n\n\n\n\n\nLOADING NEXT EXPERIMENT\n\n\n\n\n\n')
                 current_id = 0 if c.get('index', -1) < 0 else c['index']
                 if c.get('index', -1) < 0:
-                    while os.path.isdir('tf_saved/'+c['weight_dir']+'_'+str(current_id)):
+                    while os.path.isdir(DIR_KEY+c['weight_dir']+'_'+str(current_id)):
                         current_id += 1
                 c['group_id'] = current_id
                 c['weight_dir'] = c['weight_dir']+'_{0}'.format(current_id)
                 dir_name = ''
-                sub_dirs = ['tf_saved'] + c['weight_dir'].split('/')
+                sub_dirs = [DIR_KEY] + c['weight_dir'].split('/')
 
                 try:
                     from mpi4py import MPI
@@ -168,18 +170,22 @@ def main():
                         if not os.path.isdir(dir_name):
                             os.mkdir(dir_name)
                     if args.hl_retrain:
-                        src = 'tf_saved/' + args.hl_data + '/hyp.py'
+                        src = DIR_KEY + args.hl_data + '/hyp.py'
                     elif len(args.expert_path):
                         src = args.expert_path+'/hyp.py'
                     else:
                         src = exps_info[ind][ind2].replace('.', '/')+'.py'
-                    shutil.copyfile(src, 'tf_saved/'+c['weight_dir']+'/hyp.py')
-                    with open('tf_saved/'+c['weight_dir']+'/__init__.py', 'w+') as f:
+                    shutil.copyfile(src, DIR_KEY+c['weight_dir']+'/hyp.py')
+                    with open(DIR_KEY+c['weight_dir']+'/__init__.py', 'w+') as f:
                         f.write('')
-                    with open('tf_saved/'+c['weight_dir']+'/args.pkl', 'wb+') as f:
+                    with open(DIR_KEY+c['weight_dir']+'/args.pkl', 'wb+') as f:
                         pickle.dump(args, f)
                 else:
                     time.sleep(0.5) # Give others a chance to let base set up dirrs
+
+
+                if len(args.baseline):
+                    run_baseline(c, args.baseline)
 
                 m = MultiProcessMain(c)
                 m.monitor = False # If true, m will wait to finish before moving on
@@ -188,8 +194,6 @@ def main():
                     m.hl_retrain(c)
                 elif args.hl_only_retrain:
                     m.hl_only_retrain(c)
-                elif len(args.baseline):
-                   run_baseline(c, m, args.baseline) 
                 else:
                     m.start()
                 mains.append(m)
@@ -219,14 +223,29 @@ def main():
         main.start(kill_all=args.killall)
 
 
-def run_baseline(config, m, baseline):
+def run_baseline(config, baseline):
+    dirs = None
+    if len(config['reference_keyword']):
+        k = config['reference_keyword']
+        dir_key = config['base_weight_dir'] + 'objs{0}_{1}'.format(config['num_objs'], config['num_targs'])
+        dirs = list(filter(lambda f: os.path.isdir(DIR_KEY+f), os.listdir(DIR_KEY)))
+        master_dir = list(filter(lambda f: f.find(dir_key) >= 0, dirs))[0] + '/'
+        dirs = list(filter(lambda f: os.path.isdir(DIR_KEY+master_dir+f), os.listdir(DIR_KEY+master_dir)))
+        sub_dirs = list(filter(lambda f: f.find(k) >= 0, dirs))
+        sub_dirs = list(map(lambda f: DIR_KEY+master_dir+f, sub_dirs))
     if baseline.lower() == 'gail':
-        from policy_hooks.baselines.gail import run
-        m.config['id'] = 0
-        run(m=m)
-        print('Finished GAIL train')
+        from policy_hooks.baselines.gail import run, eval_ckpts
+        config['id'] = 0
+        if config['task'] == 'evaluate':
+            args = config['args']
+            eval_ckpts(config, sub_dirs, args.episode_timesteps)
+        else:
+            run(config=config)
+            print('Finished GAIL train')
+
     else:
         raise NotImplementedError
+    sys.exit(0)
 
 
 def argsparser():
@@ -330,6 +349,8 @@ def argsparser():
     ## Baselines - these are passed through to other codebases
     if USE_BASELINES:
         parser.add_argument('-baseline', '--baseline', type=str, default='')
+        parser.add_argument('-ref_key', '--reference_keyword', type=str, default='')
+        parser.add_argument('-reward_type', '--reward_type', type=str, default='binary')
         baseline_argsparser(parser)
     #parser.add_argument('-expert_path', '--expert_path', type=str, default='')
     #parser.add_argument('-n_expert', '--n_expert', type=int, default=-1)

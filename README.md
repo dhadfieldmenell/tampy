@@ -10,7 +10,7 @@ This will create a directory titled `tamp_work` in your home directory and initi
 
 ## Verify planning
 
-Once installed, navigate to `cd ~/tamp_work/tampy/src` and run `python verify_namo.py`
+Once installed, navigate to `cd ~/tamp_work/tampy/src` and run `python3 verify_namo.py`
 This will solve a two-object placement problem in a two dimensional domain
 If everything works, the output should match: `PLAN FINISHED WITH FAILED PREDIATES:[]`
 
@@ -102,7 +102,7 @@ A problem file will define a list of objects, initial attribute values for those
 
 The first part is of the form `Objects: ...`; everything on this line is of the form `ObjectType (name {insert name})` and will list EVERY object and symbol the planner will have access to. Semicolons delimit separate objects and the end of this line must be two new lines `\n\n`
 
-The next part is of the form `Init: ...`; everything on this line is of the form `(attribute objectname value)` and specifies the initial value of every attribute for every object.
+The next part is of the form `Init: ...`; everything in this part is of the form `(attribute objectname value)` and specifies the initial value of every attribute for every object.
 
 `(pose can0 [0,0])` for example specifies that the initial pose of `can0` will be at `[0,0]`
 

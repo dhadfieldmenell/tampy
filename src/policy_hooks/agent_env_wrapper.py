@@ -3,25 +3,40 @@ import time
 
 from gym import Env
 from gym import spaces
+from gym.envs.registration import register
 
 from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
+from policy_hooks.utils.load_agent import *
+
+def register_env(config, name='TampGym-v0', max_ts=500):
+    register(
+            id=name,
+            entry_point='policy_hooks.agent_env_wrapper:AgentEnvWrapper',
+            config=config.copy(),
+            max_ts=max_ts
+            )
+    return name
 
 
-def gen_agent_env(config=None, m=None):
-    if m is None:
-        from policy_hooks.multiprocess_main import MultiProcessMain
-        config['weight_dir'] = config['base_weight_dir'] + '_{0}'.format(config['group_id'])
-        m = MultiProcessMain(config)
-    agent = m.agent
-    env = AgentEnvWrapper(agent=agent)
+def gen_agent_env(config=None, max_ts=500):
+    env = AgentEnvWrapper(config=config, max_ts=max_ts)
     return env
+
+
+def load_config(fname, no, nt):
+    import importlib
+    config_module = importlib.import_module(fname)
+    config = config_module.refresh_config(no, nt)
+    return config
 
 
 class AgentEnvWrapper(Env):
     metadata = {'render.modes': ['rgb_array', 'human']}
-    def __init__(self, agent=None, env=None, use_solver=False, seed=1234, max_ts=500):
-        assert agent is not None or env is not None
+    def __init__(self, agent=None, config=None, env=None, use_solver=False, seed=1234, max_ts=500):
+        assert agent is not None or env is not None or config is not None
+        if not config.get('agent_load', False): config = load_agent(config)
+        agent = build_agent(config)
         self.agent = agent
         self.use_solver = use_solver
         self._seed = seed
@@ -135,6 +150,7 @@ class AgentEnvWrapper(Env):
 
 
     def reset(self):
+        self._cur_time = 0
         if self.agent is not None:
             self.agent.replace_cond(0)
             self.agent.reset(0)

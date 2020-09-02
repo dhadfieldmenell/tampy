@@ -626,7 +626,7 @@ def first_failed_state(cost_f, task_breaks, path, cont=False):
     else:
         for ind, ts in task_breaks:
             x = path[ind].get_X(t=ts)
-            cost = cost_f(x, tuple(path[i].get(FACTOREDTASK_ENUM, t=ts)))
+            cost = cost_f(x, tuple(path[ind].get(FACTOREDTASK_ENUM, t=ts)))
             if cost > 0: return (ind, ts)
     return None
 

@@ -294,7 +294,7 @@ class NAMOGripAgent(NAMOSortingAgent):
                 cmd_x, cmd_y = rel_x, rel_y
 
         nsteps = int(max(abs(cmd_x), abs(cmd_y)) / self.vel_rat) + 1
-        nsteps = min(nsteps, 10)
+        # nsteps = min(nsteps, 10)
         gripper = u[self.action_inds['pr2', 'gripper']][0]
         if gripper < 0:
             gripper = -0.1

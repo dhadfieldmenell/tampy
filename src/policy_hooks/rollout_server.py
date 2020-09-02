@@ -24,7 +24,6 @@ if USE_ROS:
 
 from policy_hooks.utils.policy_solver_utils import *
 from policy_hooks.msg_classes import *
-from policy_hooks.agent_env_wrapper import AgentEnvWrapper
 
 MAX_SAVED_NODES = 1000
 MAX_BUFFER = 10
@@ -90,7 +89,6 @@ class RolloutServer(object):
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
         self.agent.process_id = '{0}_{1}'.format(self.id, self.group_id)
         self.agent.solver = self.solver
-        self.gymenv = AgentEnvWrapper(self.agent)
         #self.agent.replace_conditions(len(self.agent.x0))
         for mcts in self.mcts:
             mcts.agent = self.agent
@@ -816,8 +814,12 @@ class RolloutServer(object):
                 t = np.random.randint(path[s].T)
             elif mode == 'task':
                 breaks = find_task_breaks(path)
-                cost_f = lambda x, task: self.agent.cost_f(x, task, condition=0, targets=path[s].targets, active_ts=(-1,-1))
-                (s, t) = first_failed_state(cost_f, breaks, path)
+                cost_f = lambda x, task: self.agent.cost_f(x, task, condition=0, targets=path[0].targets, active_ts=(-1,-1))
+                fail_pt = first_failed_state(cost_f, breaks, path)
+                if fail_pt is None:
+                    (s, t) = len(path)-1, path[-1].T-1
+                else:
+                    (s, t) = fail_pt
                 print('FIRST FAILED TASK:', s, t)
             else:
                 raise NotImplementedError
@@ -1001,6 +1003,8 @@ class RolloutServer(object):
             self.agent.clear_task_paths()
             
             #self.update_primitive(path_samples)
+            n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
+            n_plans.value = n_plans.value + len(ref_paths)
             for path in ref_paths:
                 self.update_primitive(path)
             if self._hyperparams.get('save_expert', False): self.update_expert_demos(ref_paths)
@@ -1163,19 +1167,20 @@ class RolloutServer(object):
         true_val = np.max(np.max([[1-self.agent.goal_f(0, step.get(STATE_ENUM, t), targets) for t in range(step.T)] for step in path]))
         ncols = np.mean([np.mean(sample.col_ts) for sample in path])
         plan_suc_rate = np.nan if self.agent.n_plans_run == 0 else float(self.agent.n_plans_suc_run) / float(self.agent.n_plans_run)
+        n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans'].value
+        s.append((val,
+                  len(path), \
+                  true_disp, \
+                  time.time()-self.start_t, \
+                  self.config['num_objs'], \
+                  n, \
+                  self.policy_opt.buf_sizes['n_data'].value, \
+                  true_val, \
+                  ncols, \
+                  plan_suc_rate, \
+                  n_plans))
         if ckpt_ind is not None:
-            s.append((val, len(path), true_disp, time.time()-self.start_t, self.config['num_objs'], n, self.policy_opt.buf_sizes['n_data'].value, true_val, plan_suc_rate, ckpt_ind))
-        else:
-            s.append((val,
-                      len(path), \
-                      true_disp, \
-                      time.time()-self.start_t, \
-                      self.config['num_objs'], \
-                      n, \
-                      self.policy_opt.buf_sizes['n_data'].value, \
-                      true_val, \
-                      ncols, \
-                      plan_suc_rate))
+            s[0] = s[0] + (ckpt_ind,)
         # print('EXPLORED PATH: {0}'.format([sample.task for sample in path]))
         res.append(s[0])
         if all([s.opt_strength == 0 for s in path]): self.hl_data.append(res)
