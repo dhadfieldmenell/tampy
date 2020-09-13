@@ -15,11 +15,13 @@ from policy_hooks.algorithm_impgps import AlgorithmIMPGPS
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.traj_opt_pi2 import TrajOptPI2
-from core.util_classes.namo_predicates import ATTRMAP
-from pma.namo_solver import NAMOSolver
-from policy_hooks.namo.namo_agent import NAMOSortingAgent
-from policy_hooks.namo.namo_policy_solver import NAMOPolicySolver
-import policy_hooks.namo.sort_prob as prob
+from core.util_classes.namo_grip_predicates import ATTRMAP
+from pma.namo_grip_solver import NAMOSolver
+import policy_hooks.namo.grip_agent as grip_agent
+# grip_agent.LOCAL_FRAME = False
+from policy_hooks.namo.grip_agent import NAMOGripAgent
+from policy_hooks.namo.namo_grip_policy_solver import NAMOGripPolicySolver
+import policy_hooks.namo.sorting_prob_11 as prob
 prob.NUM_OBJS = NUM_OBJS
 prob.NUM_TARGS = NUM_TARGS
 from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer
@@ -37,7 +39,7 @@ N_SAMPLES = 10
 N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
 OPT_WT_MULT = 5e2
-N_ROLLOUT_SERVERS = 32
+N_ROLLOUT_SERVERS = 30
 N_ALG_SERVERS = 0
 N_OPTIMIZERS = 0
 N_DIRS = 16
@@ -170,8 +172,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.N_GRASPS = N_GRASPS
     prob.FIX_TARGETS = True
 
-    prob.domain_file = "../domains/namo_domain/current.domain"
-    prob.mapping_file = "policy_hooks/namo/sorting_task_mapping_8"
+    prob.domain_file = "../domains/namo_domain/namo_current_holgrip.domain"
     prob.END_TARGETS = prob.END_TARGETS[:8]
     prob.n_aux = 0
     config = {
@@ -235,9 +236,9 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'num_objs': no,
         'num_targs': nt,
         'attr_map': ATTRMAP,
-        'agent_type': NAMOSortingAgent,
+        'agent_type': NAMOGripAgent,
         'opt_server_type': NAMOMotionPlanServer,
-        'mp_solver_type': NAMOPolicySolver,
+        'mp_solver_type': NAMOGripPolicySolver,
         'll_solver_type': NAMOSolver,
         'update_size': 2000,
         'prim_update_size': 5000,
@@ -259,12 +260,15 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'split_mcts_alg': True,
 
         'state_include': [utils.STATE_ENUM],
-        'obs_include': [utils.LIDAR_ENUM,
+        'obs_include': [#utils.LIDAR_ENUM,
+                        utils.MJC_SENSOR_ENUM,
                         utils.TASK_ENUM,
                         #utils.OBJ_POSE_ENUM,
                         #utils.TARG_POSE_ENUM,
                         utils.END_POSE_ENUM,
-                        utils.GRASP_ENUM,
+                        utils.THETA_VEC_ENUM,
+                        # utils.GRASP_ENUM,
+                        #utils.TRAJ_HIST_ENUM,
                         # utils.DONE_ENUM,
                         ],
         'prim_obs_include': [
@@ -281,9 +285,13 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.OBJ_POSE_ENUM: 2,
                 utils.TARG_POSE_ENUM: 2,
                 utils.LIDAR_ENUM: N_DIRS,
+                utils.MJC_SENSOR_ENUM: 21,
                 utils.EE_ENUM: 2,
                 utils.END_POSE_ENUM: 2,
                 utils.GRIPPER_ENUM: 1,
+                utils.VEL_ENUM: 1,
+                utils.THETA_ENUM: 1,
+                utils.THETA_VEC_ENUM: 2,
                 utils.GRASP_ENUM: N_GRASPS,
                 utils.GOAL_ENUM: 2*no,
                 utils.ONEHOT_GOAL_ENUM: no*(prob.n_aux + len(prob.END_TARGETS)),
@@ -309,6 +317,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     }
 
     config['prim_obs_include'].append(utils.EE_ENUM)
+    # config['prim_obs_include'].append(utils.THETA_ENUM)
     config['val_obs_include'].append(utils.EE_ENUM)
     for o in range(no):
         config['sensor_dims'][utils.OBJ_ENUMS[o]] = 2

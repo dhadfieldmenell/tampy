@@ -87,7 +87,7 @@ class NAMOSortingAgent(TAMPAgent):
             'obs_include': ['overhead_camera'],
             'include_files': [],
             'include_items': [
-                {'name': 'pr2', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.6, 1.), 'rgba': (1, 1, 1, 1)},
+                {'name': 'pr2', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 1.), 'rgba': (1, 1, 1, 1)},
             ],
             'view': False,
             'image_dimensions': (hyperparams['image_width'], hyperparams['image_height'])
@@ -101,7 +101,9 @@ class NAMOSortingAgent(TAMPAgent):
         for name in prim_options[OBJ_ENUM]:
             if name =='pr2': continue
             cur_color = colors.pop(0)
-            items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.4, 1.), 'rgba': tuple(cur_color)})
+            items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 1.), 'rgba': tuple(cur_color)})
+            if name != 'pr2':
+                items.append({'name': '{0}_end_target'.format(name), 'type': 'cylinder', 'is_fixed': True, 'pos': (0, 0, 2.5), 'dimensions': (0.3, 0.05), 'rgba': tuple(cur_color), 'mass': 1.})
             # items.append({'name': '{0}_end_target'.format(name), 'type': 'cylinder', 'is_fixed': False, 'pos': (10, 10, 0.5), 'dimensions': (0.8, 0.2), 'rgba': tuple(cur_color)})
         for i in range(len(wall_dims)):
             dim, next_trans = wall_dims[i]
@@ -191,9 +193,10 @@ class NAMOSortingAgent(TAMPAgent):
                 cur_state[self.state_inds[pname, aname]] = aval
 
             self.fill_sample(condition, sample, cur_state, t, task, fill_obs=True)
+            prev_task = task
             if task_f is not None:
                 sample.task = task
-                task = task_f(sample, t)
+                task = task_f(sample, t, task)
                 if task not in self.plans:
                     task = self.task_to_onehot[task[0]]
                 self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
@@ -556,10 +559,10 @@ class NAMOSortingAgent(TAMPAgent):
         prim_choices = self.prob.get_prim_choices()
         act = plan.actions[anum]
         params = act.params
-        if task[0] == 0:
+        if self.task_list[task[0]].find('move') >= 0:
             params[3].value[:,0] = params[0].pose[:,st]
             params[2].value[:,0] = params[1].pose[:,st]
-        elif task[0] == 1:
+        elif self.task_list[task[0]].find('place') >= 0:
             params[1].value[:,0] = params[0].pose[:,st]
             params[6].value[:,0] = params[3].pose[:,st]
 
@@ -677,6 +680,7 @@ class NAMOSortingAgent(TAMPAgent):
 
         # self.optimal_samples[self.task_list[task[0]]].append(sample)
         # print(sample.get_X())
+        '''
         if not smoothing and self.debug:
             if not success:
                 sample.use_ts[:] = 0.
@@ -684,6 +688,7 @@ class NAMOSortingAgent(TAMPAgent):
                 print('FAILED PLAN')
             else:
                 print(('SUCCESSFUL PLAN for {0}'.format(task)))
+        '''
         # else:
         #     print('Plan success for {0} {1}'.format(task, state))
         return sample, failed_preds, success
@@ -776,10 +781,10 @@ class NAMOSortingAgent(TAMPAgent):
 
             obj_vec = np.zeros((len(prim_choices[OBJ_ENUM])), dtype='float32')
             targ_vec = np.zeros((len(prim_choices[TARG_ENUM])), dtype='float32')
-            if task[0] == 0:
+            if self.task_list[task[0]].find('move') >= 0:
                 obj_vec[task[1]] = 1.
                 targ_vec[:] = 1. / len(targ_vec)
-            elif task[0] == 1:
+            elif self.task_list[task[0]].find('place') >= 0:
                 obj_vec[:] = 1. / len(obj_vec)
                 targ_vec[task[2]] = 1.
             sample.obj_ind = task[1]
@@ -795,14 +800,8 @@ class NAMOSortingAgent(TAMPAgent):
         else:
             obj_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
             targ_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
-        # if task[0] == 1:
-        #     obj_pose = np.zeros_like(obj_pose)
         sample.set(OBJ_POSE_ENUM, obj_pose.copy(), t)
-
-        # if task[0] == 0:
-        #     targ_pose = np.zeros_like(targ_pose)
         sample.set(TARG_POSE_ENUM, targ_pose.copy(), t)
-
         sample.task = task
         sample.obj = task[1]
         sample.targ = task[2]
@@ -814,10 +813,10 @@ class NAMOSortingAgent(TAMPAgent):
             sample.set(ONEHOT_GOAL_ENUM, self.onehot_encode_goal(sample.get(GOAL_ENUM, t)), t)
         sample.targets = targets.copy()
 
-        if task[0] == 0:
+        if self.task_list[task[0]].find('move') >= 0:
             sample.set(END_POSE_ENUM, obj_pose + grasp, t)
             #sample.set(END_POSE_ENUM, obj_pose.copy(), t)
-        if task[0] == 1:
+        if self.task_list[task[0]].find('place') >= 0:
             sample.set(END_POSE_ENUM, targ_pose + grasp, t)
             #sample.set(END_POSE_ENUM, targ_pose.copy(), t)
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
@@ -924,13 +923,22 @@ class NAMOSortingAgent(TAMPAgent):
         cost = self.prob.NUM_OBJS
         alldisp = 0
         plan = list(self.plans.values())[0]
+        if len(np.shape(state)) < 2:
+            state = [state]
         for param in list(plan.params.values()):
             if param._type == 'Can':
                 val = targets[self.target_inds['{0}_end_target'.format(param.name), 'value']]
-                disp = state[self.state_inds[param.name, 'pose']] - val
+                dist = np.inf
+                disp = None
+                for x in state:
+                    curdisp = x[self.state_inds[param.name, 'pose']] - val
+                    curdist = np.linalg.norm(curdisp)
+                    if curdist < dist:
+                        disp = curdisp
+                        dist = curdist
                 # np.sum((state[self.state_inds[param.name, 'pose']] - self.targets[condition]['{0}_end_target'.format(param.name)])**2)
                 # cost -= 1 if dist < 0.3 else 0
-                alldisp += np.linalg.norm(disp)
+                alldisp += curdist # np.linalg.norm(disp)
                 cost -= 1 if np.all(np.abs(disp) < NEAR_TOL) else 0
 
         if cont: return alldisp
@@ -987,7 +995,7 @@ class NAMOSortingAgent(TAMPAgent):
             grasp = np.array([0, -0.601])
             if GRASP_ENUM in prim_choices:
                 grasp = self.set_grasp(grasp, task[3])
-            loc = Xs[0][self.state_inds[obj, 'pose']] if task[0] == 0 else targets[self.target_inds[targ, 'value']]
+            loc = Xs[0][self.state_inds[obj, 'pose']] if self.task_list[task[0]].find('move') >= 0 else targets[self.target_inds[targ, 'value']]
             plan.params['robot_end_pose'].value[:,0] = loc + grasp
         if active_ts[1] == plan.horizon-1:
             plan.params['robot_end_pose'].value[:,0] = Xs[-1][self.state_inds['pr2', 'pose']]
@@ -1128,6 +1136,9 @@ class NAMOSortingAgent(TAMPAgent):
             if attr == 'pose':
                 pos = mp_state[self.state_inds[param_name, 'pose']].copy()
                 self.mjc_env.set_item_pos(param_name, np.r_[pos, 0.5], mujoco_frame=False, forward=False)
+                if param_name != 'pr2':
+                    targ = self.target_vecs[0][self.target_inds['{0}_end_target'.format(param_name), 'value']]
+                    self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, 2.5], forward=False)
         self.mjc_env.physics.forward()
 
 
@@ -1153,7 +1164,7 @@ class NAMOSortingAgent(TAMPAgent):
 
 
     def get_image(self, x, depth=False):
-        # self.reset_to_state(x)
+        self.reset_to_state(x)
         # im = self.mjc_env.render(camera_id=0, depth=depth, view=False)
         im = self.mjc_env.render(camera_id=0, height=self.image_height, width=self.image_width, view=False)
         return im
@@ -1261,6 +1272,7 @@ class NAMOSortingAgent(TAMPAgent):
 
 
     def relabel_traj(self, sample):
+        raise Exception("this method is deprecated")
         task = sample.task
         attr_dict = {}
         plan = self.plans[task]

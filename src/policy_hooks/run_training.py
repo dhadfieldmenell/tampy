@@ -19,7 +19,7 @@ if USE_BASELINES:
 DIR_KEY = 'tf_saved/'
 
 def get_dir_name(base, no, nt, ind, descr, args=None):
-    dir_name = base + 'objs{0}_{1}/exp_id{2}_{3}'.format(no, nt, ind, descr)
+    dir_name = base + 'objs{0}_{1}/{2}'.format(no, nt, descr)
     if args is not None and not len(descr):
         useq = '_qfunc' if args.qfunc else ''
         useHer = '_her' if args.her else ''
@@ -124,10 +124,12 @@ def main():
             sys.path.insert(1, DIR_KEY+args.test)
             exps_info = [['hyp']]
             old_args = args
-            with open(DIR_KEY+args.test+'/args.pkl', 'r') as f:
+            with open(DIR_KEY+args.test+'/args.pkl', 'rb') as f:
                 args = pickle.load(f)
             args.soft_eval = old_args.soft_eval
             args.test = old_args.test
+            args.ll_policy = args.test
+            args.hl_policy = args.test
             args.load_render = old_args.load_render
             args.eta = old_args.eta
             args.descr = old_args.descr
@@ -140,7 +142,7 @@ def main():
             mains = []
             for ind2, (c, cm) in enumerate(exp):
                 if len(args.test):
-                    c['weight_dir'] = args.test
+                    # c['weight_dir'] = args.test
                     m = MultiProcessMain(c)
                     m.run_test(c)
                     continue
@@ -341,6 +343,7 @@ def argsparser():
     parser.add_argument('-softev', '--soft_eval', action='store_true', default=False)
     parser.add_argument('-pre', '--check_precond', action='store_true', default=False)
     parser.add_argument('-mask', '--hl_mask', action='store_false', default=True)
+    parser.add_argument('-rs', '--rollout_seed', action='store_true', default=False)
 
     # Q learn args
     parser.add_argument('-qimwt', '--q_imwt', type=float, default=0)

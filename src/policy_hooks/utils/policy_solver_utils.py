@@ -60,6 +60,7 @@ STATE_HIST_ENUM = 51
 VEL_ENUM = 52
 THETA_ENUM = 53
 THETA_VEC_ENUM = 54
+TASK_DONE_ENUM = 55
 
 OBJ_ENUMS = {}
 for i in range(100):
@@ -625,8 +626,10 @@ def first_failed_state(cost_f, task_breaks, path, cont=False):
         raise NotImplementedError
     else:
         for ind, ts in task_breaks:
-            x = path[ind].get_X(t=ts)
-            cost = cost_f(x, tuple(path[ind].get(FACTOREDTASK_ENUM, t=ts)))
-            if cost > 0: return (ind, ts)
+            ts_ran = range(max(0,ts-2), min(ts+3, path[ind].T))
+            cost = min([cost_f(path[ind].get_X(t=cur_ts), tuple(path[ind].get(FACTOREDTASK_ENUM, t=cur_ts))) for cur_ts in ts_ran])
+            if cost > 0:
+                print('First failed index:', ind, ts)
+                return (ind, ts)
     return None
 

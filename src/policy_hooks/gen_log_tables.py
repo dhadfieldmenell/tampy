@@ -93,8 +93,8 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False, tdelta=TDE
                             for pts in buf:
                                 pt = pts[0]
                                 no, nt = int(pt[4]), int(pt[5])
-                                all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'description': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9]})
-                                all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta+1)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'description': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9]})
+                                all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'description': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9], 'number of plans': pt[10], 'subgoals anywhere': pt[11], 'subgoals closest distance': pt[12]})
+                                # all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta+1)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'description': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9], 'number of plans': pt[10]})
 
                     i += 1
     return all_data
@@ -606,12 +606,13 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0):
                 if type(yv) not in (np.string_, str):
                     df = pd_frame.melt(id_vars=[xv, columns[0]], value_vars=yv, var_name='y_variable', value_name='value')
                     sns_plot = sns.relplot(x=xv, y='value', hue=columns[0], style="y_variable", kind='line', data=df, markers=True, dashes=False)
-                    sns_plot.savefig(SAVE_DIR+'/{0}_{1}_{2}_vs_{3}.png'.format(k, descr, xv, str(yv)[1:-1].replace(' ,', '_')))
+                    sns_plot.savefig(SAVE_DIR+'/{0}_{1}_{2}_vs_{3}.png'.format(k, descr.replace(' ', ''), xv, str(yv)[1:-1].replace(' ,', '')))
                     sns.set()
                 else:
                     sns_plot = sns.relplot(x=xv, y=yv, hue=columns[0], kind='line', data=pd_frame)
-                    sns_plot.savefig(SAVE_DIR+'/{0}_{1}_{2}_vs_{3}.png'.format(k, descr, xv, yv))
+                    sns_plot.savefig(SAVE_DIR+'/{0}_{1}_{2}_vs_{3}.png'.format(k, descr.replace(' ', ''), xv, yv))
                     sns.set()
+        print(('PLOTTED for', k, descr))
 
     else:
         for k in data:
@@ -650,20 +651,23 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0):
                     '''
             naxs = len(sns_plot.fig.get_axes())
             sns_plot.fig.get_axes()[0].legend(bbox_to_anchor=[-0.05, -0.15], loc='upper left', prop={'size': 12})
-            sns_plot.savefig(SAVE_DIR+'/{0}_{1}.png'.format(k, descr))
+            sns_plot.savefig(SAVE_DIR+'/{0}_{1}.png'.format(k, descr.replace(' ', '_')))
+            print(('PLOTTED for', k, descr))
             sns.set()
-    print(('PLOTTED for', descr))
+
 
 def gen_label(exp_dir, label_vars=[]):
-    if not len(label_vars) or not os.path.isfile(exp_dir+'/args.pkl'):
+    if not os.path.isfile(exp_dir+'/args.pkl'):
         return exp_dir[:exp_dir.rfind('_')]
     label = ''
     with open(exp_dir+'/args.pkl', 'rb') as f:
         args = pickle.load(f)
     args = vars(args)
+    if not len(label_vars):
+        return args['descr'].replace('_', ' ')
     for v in label_vars:
         if v not in args: continue
-        label += ' {0}_{1}'.format(v, args[v])
+        label += ' {0}_{1}'.format(v, args[v].replace('_', ' '))
     return label
 
 
@@ -739,7 +743,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1., label_vars=
     # yvar_labs = np.concatenate([[v+'{0}'.format('_'+str(i) if inds_to_var.get(v, 0) > 1 else '') for i in range(inds_to_var.get(v, 1))] for v in yvars])
     plot(data, ['exp_name', 'key']+xvars+flat_yvar_labs, '{0}_vs_{1}'.format(xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind)
 
-keywords = ['objs3']
+keywords = ['objs5']
 include = [] # ['wed_nocol', 'sun']
 label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #get_hl_tests(['retrain_2by'], xvar='N', avg_time=False, tdelta=5000, wind=5000, pre=False, exclude=['0001', '10000'])
@@ -752,6 +756,7 @@ label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] 
 #keywords = ['goalpureloss', 'grasppureloss', 'plainpureloss', 'taskpureloss']
 #label_vars = ['train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_comp_3', exclude=[])
-gen_data_plots(xvar='time', yvar=[['success at end', 'success anywhere', 'optimal_rollout_success'], 'path length', 'distance from goal'], keywords=keywords, lab='test', label_vars=label_vars, separate=True, keyind=5, ylabel='rollout_res_obj2', exclude=[])
+gen_data_plots(xvar='time', yvar=[['success at end', 'success anywhere', 'optimal_rollout_success'], 'subgoals anywhere', 'subgoals closest distance'], keywords=keywords, lab='test', label_vars=label_vars, separate=True, keyind=5, ylabel='rollout_res_objs5', exclude=[])
+gen_data_plots(xvar='number of plans', yvar=[['success at end', 'optimal_rollout_success']], keywords=keywords, lab='test', label_vars=label_vars, separate=True, keyind=5, ylabel='obj3_res_1', exclude=[], inter=100)
 gen_data_plots(xvar='time', yvar=[['val_component_loss', 'train_component_loss']], keywords=keywords, lab='control', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_control_net', exclude=[], inter=500)
 gen_data_plots(xvar='time', yvar=[['val_component_loss', 'train_component_loss']], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_primitive_net', exclude=[], inter=500)

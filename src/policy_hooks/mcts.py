@@ -417,7 +417,7 @@ class MCTS:
         self.n_runs += 1
         self.agent.n_hl_plan += 1
         success = 0
-        if plan is not None:
+        if plan is not None and type(plan) is not str:
             assert len(plan.get_failed_preds(tol=1e-3)) == 0
             path = self.agent.run_plan(plan, targets=targets, reset=reset)
             success = path[-1].success
@@ -627,7 +627,7 @@ class MCTS:
                 for n in range(num_samples):
                     task_f = None
                     if hl:
-                        task_f = lambda s, t: self.run_hl(s, t, s.targets, check_cost=hl_check)
+                        task_f = lambda s, t, curtask: self.run_hl(s, t, curtask, s.targets, check_cost=hl_check)
                         # task_f = lambda o, t, task: self.prob_func(o, self._soft, self.eta, t, task)
                     samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=(n > 0), task_f=task_f, skip_opt=skip_opt))
                     # samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=True))
@@ -887,10 +887,6 @@ class MCTS:
             if l is None: break
             plan = self.agent.plans[l]
             s, _ = self.sample(l, state, plan, 1, hl=hl, hl_check=check_cost, save=False, skip_opt=True)
-            if debug:
-                print(('Shiftd state {0} to {1}'.format(state, s.get_X(s.T-1))))
-                print(('Ran {0} at step {1} for targets {2}'.format(l, t, targets)))
-                print(('Distrs:', self.prob_func(s.get_prim_obs(s.T-1), False, eta=1.)))
             val = 1 - self.agent.goal_f(0, s.get_X(s.T-1), targets)
             t += 1
             state = s.end_state # s.get_X(s.T-1)
@@ -911,7 +907,7 @@ class MCTS:
         return bad
 
 
-    def run_hl(self, sample, t=0, targets=None, check_cost=False, debug=False):
+    def run_hl(self, sample, t=0, task=None, targets=None, check_cost=False, debug=False):
         next_label, distr = self.eval_hl(sample, t, targets, debug, True)
         # if t== 0:
             # distrs = self.prob_func(sample.get_prim_obs(t=t), False, eta=1.)

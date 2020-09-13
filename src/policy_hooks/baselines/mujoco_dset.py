@@ -40,16 +40,21 @@ class Dset(object):
 
 
 class Mujoco_Dset(object):
-    def __init__(self, expert_path, train_fraction=0.7, traj_limitation=-1, randomize=True):
+    def __init__(self, expert_path, gen_f, train_fraction=0.7, traj_limitation=-1, randomize=True):
         if type(expert_path) is str:
             expert_path = [expert_path]
+        self.gen_f = gen_f
         traj_data = np.load(expert_path.pop(), allow_pickle=True)
         traj_data = traj_data[()]
         while len(expert_path) and (traj_limitation < 0 or len(traj_data['obs']) < traj_limitation):
-            next_data = np.load(expert_path.pop(), allow_pickle=True)
-            next_data = next_data[()]
-            for key in traj_data:
-                traj_data[key].extend(next_data[key])
+            next_f = expert_path.pop()
+            try:
+                next_data = np.load(next_f, allow_pickle=True)
+                next_data = next_data[()]
+                for key in traj_data:
+                    traj_data[key].extend(next_data[key])
+            except Exception as e:
+                logger.log('Could not load pickled dataset from {0}'.format(next_f))
         if traj_limitation < 0:
             traj_limitation = len(traj_data['obs'])
         obs = np.array(traj_data['obs'][:traj_limitation])
@@ -66,8 +71,8 @@ class Mujoco_Dset(object):
             self.acs = np.vstack(acs)
 
         self.rets = traj_data['ep_rets'][:traj_limitation]
-        self.avg_ret = np.sum(self.rets)/len(self.rets)
-        self.std_ret = np.std(np.array(self.rets))
+        self.avg_ret = np.sum([np.sum(r) for r in self.rets])/len(self.rets)
+        self.std_ret = np.std(np.array([np.sum(r) for r in self.rets]))
         if len(self.acs) > 2:
             self.acs = np.squeeze(self.acs)
         assert len(self.obs) == len(self.acs)

@@ -66,7 +66,7 @@ MAX_Y = 25
 
 # possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-50, -10, 2))))
 #possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-40, 0, 2))))
-possible_can_locs.extend(list(itertools.product(list(range(-30, 30, 4)), list(range(-30, 0, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-50, 50, 4)), list(range(-50, 0, 2)))))
 # possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(6, 25, 4))))
 
 

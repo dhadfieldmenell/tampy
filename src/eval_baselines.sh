@@ -9,5 +9,5 @@ python3 -W ignore policy_hooks/run_training.py \
         --task evaluate \
         --num_timesteps 500000 \
         --episode_timesteps 200\
-        -descr eval_gail_baseline_1obj_trajectories
+        -descr gail_baseline_1obj_trajectories
 

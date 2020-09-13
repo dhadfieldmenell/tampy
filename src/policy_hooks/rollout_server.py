@@ -1104,7 +1104,7 @@ class RolloutServer(object):
         suc_flag = ''
         if success is not None:
             suc_flag = 'succeeded' if success else 'failed'
-        fname = self.video_dir + '/{0}_{1}{2}.npy'.format(self.id, self.cur_vid_id, suc_flag)
+        fname = self.video_dir + '/{0}{1}_{2}_{3}.npy'.format(self.id, self.group_id, self.cur_vid_id, suc_flag)
         self.cur_vid_id += 1
         buf = []
         for step in rollout:
@@ -1165,6 +1165,8 @@ class RolloutServer(object):
         val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], check_cost=self.check_precond)
         true_disp = np.min(np.min([[self.agent.goal_f(0, step.get(STATE_ENUM, t), targets, cont=True) for t in range(step.T)] for step in path]))
         true_val = np.max(np.max([[1-self.agent.goal_f(0, step.get(STATE_ENUM, t), targets) for t in range(step.T)] for step in path]))
+        subgoal_suc = 1-self.agent.goal_f(0, np.concatenate([s.get(STATE_ENUM) for s in path]), targets)
+        subgoal_dist = self.agent.goal_f(0, np.concatenate([s.get(STATE_ENUM) for s in path]), targets, cont=True)
         ncols = np.mean([np.mean(sample.col_ts) for sample in path])
         plan_suc_rate = np.nan if self.agent.n_plans_run == 0 else float(self.agent.n_plans_suc_run) / float(self.agent.n_plans_run)
         n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans'].value
@@ -1178,7 +1180,9 @@ class RolloutServer(object):
                   true_val, \
                   ncols, \
                   plan_suc_rate, \
-                  n_plans))
+                  n_plans,
+                  subgoal_suc,
+                  subgoal_dist))
         if ckpt_ind is not None:
             s[0] = s[0] + (ckpt_ind,)
         # print('EXPLORED PATH: {0}'.format([sample.task for sample in path]))
@@ -1223,7 +1227,9 @@ class RolloutServer(object):
             print(('n_true_success', len([d for d in self.hl_data if d[0][2] > 1-1e-3])))
             print(('n_runs', len(self.hl_data)))
         if self.render:
-            self.save_video(path, true_val > 0)
+            print('Saving video...', val)
+            self.save_video(path, val > 0)
+            print('Saved video. Rollout success was: ', val > 0)
         self.last_hl_test = time.time()
         self.agent.debug = True
         # print('TESTED HL')
@@ -1611,10 +1617,12 @@ class RolloutServer(object):
             for key in self.expert_demos:
                 self.expert_demos[key].append([])
             for s in path:
-                self.expert_demos['acs'][-1].extend(s.get(ACTION_ENUM))
-                self.expert_demos['obs'][-1].extend(s.get_prim_obs())
-                self.expert_demos['ep_rets'][-1].extend(np.ones(s.T))
-                self.expert_demos['rews'][-1].extend(np.ones(s.T))
+                for t in range(s.T):
+                    if not s.use_ts[t]: continue
+                    self.expert_demos['acs'][-1].extend(s.get(ACTION_ENUM))
+                    self.expert_demos['obs'][-1].extend(s.get_prim_obs())
+                    self.expert_demos['ep_rets'][-1].extend(np.ones(s.T))
+                    self.expert_demos['rews'][-1].extend(np.ones(s.T))
         if self.cur_step % 5:
             np.save(self.expert_data_file, self.expert_demos)
 

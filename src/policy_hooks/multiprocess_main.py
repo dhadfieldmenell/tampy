@@ -105,6 +105,7 @@ class MultiProcessMain(object):
 
         sensor_dims = {
             utils.DONE_ENUM: 1,
+            utils.TASK_DONE_ENUM: 1,
             utils.STATE_ENUM: self.symbolic_bound,
             utils.ACTION_ENUM: self.dU,
             utils.TRAJ_HIST_ENUM: int(self.dU*self.config['hist_len']),
@@ -550,6 +551,9 @@ class MultiProcessMain(object):
         hyperparams['run_hl_test'] = True
         hyperparams['check_precond'] = False
         hyperparams['share_buffers'] = False
+        hyperparams['load_render'] = True
+        hyperparams['agent']['image_height']  = 256
+        hyperparams['agent']['image_width']  = 256
         descr = hyperparams.get('descr', '')
         # hyperparams['weight_dir'] = hyperparams['weight_dir'].replace('exp_id0', 'rerun_{0}'.format(descr))
         hyperparams['id'] = 'test'
@@ -565,12 +569,19 @@ class MultiProcessMain(object):
         # server.hl_test_log = 'tf_saved/' + hyperparams['weight_dir'] + '_testruns/hl_test_rerun_log.npy'
         ind = 0
 
+        no = hyperparams['num_objs']
         for _ in range(20):
-            server.test_hl(15, save=False)
+            server.agent.replace_cond(0)
+            server.agent.reset(0)
+            server.test_hl(no*3, save=False)
+
+        '''
         while server.policy_opt.restore_ckpts(ind):
             for _ in range(50):
+                server.agent.replace_cond(0)
                 server.test_hl(5, save=True, ckpt_ind=ind)
             ind += 1
+        '''
 
 
     def kill_processes(self):

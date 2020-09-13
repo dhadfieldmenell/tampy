@@ -87,6 +87,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.dU = self._hyperparams['dU']
         self.symbolic_bound = self._hyperparams['symbolic_bound']
         self.solver = self._hyperparams['solver']
+        self.rollout_seed = self._hyperparams['rollout_seed']
         self.num_objs = self._hyperparams['num_objs']
         self.init_vecs = self._hyperparams['x0']
         self.x0 = [x[:self.symbolic_bound] for x in self.init_vecs]
@@ -965,19 +966,22 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         plan.action_inds = self.action_inds
         plan.dX = self.symbolic_bound
         plan.dU = self.dU
-        success = True
+        success = False
         for a in range(anum, len(plan.actions)):
             x0 = np.zeros_like(self.x0[0])
             st, et = plan.actions[a].active_timesteps
             fill_vector(plan.params, self.state_inds, x0, st)
             task = tuple(self.encode_action(plan.actions[a]))
 
-            '''
-            if self.rollout_seed:
-                sample = self.sample_task(self.policies[self.task_list[task[0]]], 0, x0.copy(), task)
+            traj = []
+            success = False
+            policy = self.policies[self.task_list[task[0]]]
+            if self.rollout_seed and policy.scale is not None:
+                sample = self.sample_task(policy, 0, x0.copy(), task)
                 traj = np.zeros((plan.horizon, self.symbolic_bound))
                 traj[st:et+1] = sample.get_X()
-                fill_trajectory_from_sample(sample, plan, active_ts=(st,et))
+                fill_trajectory_from_sample(sample, plan, active_ts=(st+1,et-1))
+                '''
                 self.set_symbols(plan, x0, task, anum=a)
                 free_attrs = plan.get_free_attrs()
                 for param in plan.actions[a].params:
@@ -991,21 +995,15 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                     print(e, 'Exception to solve on', anum, plan.actions, x0)
                     failed = ['Bad solve!']
                 plan.store_free_attrs(free_attrs)
-                # failed = filter(lambda p: not type(p[1].expr) is EqExpr, failed)
+                failed = list(filter(lambda p: not type(p[1].expr) is EqExpr, failed))
                 success = len(failed) == 0
-                # self.add_sample_batch([sample], task)
-            '''
+                '''
 
-            success = False
             if not success:
-                # initial = parse_state(plan, [], et)
-                #fill_vector(plan.params, self.state_inds, x0, et)
-                # self.store_hl_problem(x0.copy(), initial, plan.goal, keep_prob=0.05, max_len=50)
                 fill_vector(plan.params, self.state_inds, x0, st)
                 self.set_symbols(plan, x0, task, anum=a)
                 try:
-                    #success = self.solver._backtrack_solve(plan, anum=a, amax=a, traj_mean=traj, n_resamples=5)
-                    success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples)
+                    success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=traj)
                     if self.traj_smooth:
                         plan.backup_params()
                         suc = self.ll_solver.traj_smoother(plan)
@@ -1104,13 +1102,15 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 sample.use_ts[-1] = 1.
                 sample.prim_use_ts[-1] = 1.
             path[-1].task_end = True
+            path[-1].set(TASK_DONE_ENUM, np.ones(1), t=path[-1].T-1)
             zero_sample = self.sample_optimal_trajectory(path[-1].end_state, task, 0, opt_traj[-1:], targets=targets)
             zero_sample.use_ts[:] = 0.
             zero_sample.use_ts[:nzero] = 1.
             zero_sample.prim_use_ts[:] = 0.
             zero_sample.success = path[-1].success
+            zero_sample.set(TASK_DONE_ENUM, np.ones(zero_sample.T))
             path.append(zero_sample)
-            path[cur_len].set(DONE_ENUM, np.ones(1), t=0)
+            # path[cur_len].set(DONE_ENUM, np.ones(1), t=0)
             path[-1].task_end = True
         if path[-1].success > 0.99:
             self.add_task_paths([path])

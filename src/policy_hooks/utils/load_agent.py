@@ -54,6 +54,7 @@ def load_agent(config):
 
     sensor_dims = {
         utils.DONE_ENUM: 1,
+        utils.TASK_DONE_ENUM: 1,
         utils.STATE_ENUM: symbolic_bound,
         utils.ACTION_ENUM: dU,
         utils.TRAJ_HIST_ENUM: int(dU*config['hist_len']),
@@ -131,6 +132,7 @@ def load_agent(config):
         'val_obs_include': config['val_obs_include'],
         'conditions': config['num_conds'],
         'solver': None,
+        'rollout_seed': config.get('rollout_seed', False),
         'num_objs': config['num_objs'],
         'obj_list': [],
         'stochastic_conditions': False,

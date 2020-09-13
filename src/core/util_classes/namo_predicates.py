@@ -751,6 +751,14 @@ class TargetGraspCollides(Collides):
         self.n_cols = N_COLS
         # self.priority = 1
 
+
+class CanCollides(Collides):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
+        super(CanCollides, self).__init__(name, e, attr_inds, params,
+                                        expected_param_types, ind0=0, ind1=1)
+        self.dsafe = 0.1
+
+
 class RobotCanGraspCollides(Collides):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
@@ -924,6 +932,7 @@ class RCollides(CollisionPredicate):
         super(RCollides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1)
         self.n_cols = N_COLS
+        self.dsafe = 0.1
 
         # self.priority = 1
 

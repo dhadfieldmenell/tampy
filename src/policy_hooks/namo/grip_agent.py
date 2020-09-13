@@ -108,7 +108,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         self.vel_rat = 0.05
         wall_dims = OpenRAVEBody.get_wall_dims('closet')
         config = {
-            'obs_include': [],
+            'obs_include': ['can{0}'.format(i) for i in range(hyperparams['num_objs'])],
             'include_files': [NAMO_XML],
             'include_items': [],
             'view': False,
@@ -129,6 +129,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             cur_color = colors.pop(0)
             # items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.4), 'rgba': tuple(cur_color), 'mass': 10.})
             items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 10.})
+            items.append({'name': '{0}_end_target'.format(name), 'type': 'cylinder', 'is_fixed': True, 'pos': (0, 0, 2.5), 'dimensions': (0.4, 0.05), 'rgba': tuple(cur_color), 'mass': 1.})
         for i in range(len(wall_dims)):
             dim, next_trans = wall_dims[i]
             next_trans[0,3] -= 3.5
@@ -171,12 +172,13 @@ class NAMOGripAgent(NAMOSortingAgent):
         n_steps = 0
         end_state = None
         cur_state = self.get_state() # x0
+        sample.task = task
         for t in range(0, self.T):
             noise_full = np.zeros((self.dU,))
             self.fill_sample(condition, sample, cur_state, t, task, fill_obs=True)
             if task_f is not None:
-                sample.task = task
-                task = task_f(sample, t)
+                prev_task = task
+                task = task_f(sample, t, task)
                 if task not in self.plans:
                     task = self.task_to_onehot[task[0]]
                 self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
@@ -375,6 +377,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         sample.set(TASK_ENUM, task_vec, t)
 
         sample.set(DONE_ENUM, np.zeros(1), t)
+        # sample.set(DONE_ENUM, self.goal_f(cond, mp_state), t)
         grasp = np.array([0, -0.601])
         theta = mp_state[self.state_inds['pr2', 'theta']][0]
         if self.discrete_prim:
@@ -501,7 +504,9 @@ class NAMOGripAgent(NAMOSortingAgent):
             if param_name == 'pr2': continue
             if attr == 'pose':
                 pos = mp_state[self.state_inds[param_name, 'pose']].copy()
+                targ = self.target_vecs[0][self.target_inds['{0}_end_target'.format(param_name), 'value']]
                 self.mjc_env.set_item_pos(param_name, np.r_[pos, 0.5], forward=False)
+                self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, 2.5], forward=False)
         self.mjc_env.physics.forward()
 
 
@@ -776,6 +781,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         return new_traj
 
 
+    '''
     def goal_f(self, condition, state, targets=None, cont=False):
         if targets is None:
             targets = self.target_vecs[condition]
@@ -794,6 +800,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         if cont: return alldisp
         # return cost / float(self.prob.NUM_OBJS)
         return 1. if cost > 0 else 0.
+    '''
 
 
     def set_symbols(self, plan, state, task, anum=0, cond=0):

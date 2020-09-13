@@ -55,8 +55,6 @@ END_TARGETS.extend([(1.8, 2),
                    (3.0, 2),
                    (4.2, 2),
                    (-4.2, 2),
-                   (5.4, 2),
-                   (-5.4, 2),
                    ])
 
 n_aux = 4
@@ -136,8 +134,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         while len(locs) < config['num_objs'] + 1:
             locs = []
             random.shuffle(can_locs)
-            pr2_loc = [0,-5.5] # can_locs[0]
-            pr2_loc = [0,-6.5] # can_locs[0]
+            pr2_loc = can_locs[0]
             locs.append(pr2_loc)
             valid = [1 for _ in range(len(can_locs))]
             valid[0] = 0

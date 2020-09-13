@@ -9,7 +9,7 @@ import random
 import time
 
 from core.internal_repr.plan import Plan
-from core.util_classes.namo_predicates import dsafe
+from core.util_classes.namo_predicates import dsafe, GRIP_VAL
 from core.util_classes.openrave_body import *
 from pma.hl_solver import FFSolver
 from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
@@ -29,8 +29,8 @@ CONST_TARGETS = False
 CONST_ORDER = False
 
 # domain_file = "../domains/namo_domain/new_namo.domain"
-domain_file = "../domains/namo_domain/namo_current_holgripper.domain"
-mapping_file = "policy_hooks/namo/grip_task_mapping"
+domain_file = "../domains/namo_domain/nopose.domain"
+mapping_file = "policy_hooks/namo/sorting_task_mapping_7"
 pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
 
 descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.format(NUM_OBJS, SORT_CLOSET, USE_PERTURB, OPT_MCTS_FEEDBACK)
@@ -47,23 +47,27 @@ descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.for
 #            (-2., -2.)]
 
 END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
-END_TARGETS.extend([(1.8, 2),
-                   (-1.8, 2),
-                   (0.6, 2),
-                   (-0.6, 2),
-                   (-3.0, 2),
-                   (3.0, 2),
-                   (4.2, 2),
-                   (-4.2, 2),
-                   (5.4, 2),
-                   (-5.4, 2),
+END_TARGETS.extend([(0.8, 2.),
+                   (-0.8, 2.),
+                   (2., 2.),
+                   (-2., 2.),
+                   (-3.2, 2.),
+                   (3.2, 2.),
+                   (4.4, 2.),
+                   (-4.4, 2.),
+                   (5.6, 2.),
+                   (-5.6, 2.)
                    ])
 
 n_aux = 4
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25
-#possible_can_locs.extend(list(itertools.product(list(range(-45, 45, 4)), list(range(-40, -10, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-55, 55, 4)), list(range(-50, -10, 2)))))
+# possible_can_locs.extend(list(itertools.product(range(-45, 45, 2), range(-35, MAX_Y, 2))))
+
+# possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-50, -10, 2))))
+#possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-40, 0, 2))))
+possible_can_locs.extend(list(itertools.product(list(range(-50, 50, 4)), list(range(-50, 0, 2)))))
+# possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(6, 25, 4))))
 
 
 for i in range(len(possible_can_locs)):
@@ -75,7 +79,7 @@ for i in range(len(possible_can_locs)):
 
 def prob_file(descr=None):
     if descr is None:
-        descr = 'grip_prob_{0}_{1}end_{2}aux'.format(NUM_OBJS, len(END_TARGETS), n_aux)
+        descr = 'sort_closet_prob_{0}_{1}end_{2}aux'.format(NUM_OBJS, len(END_TARGETS), n_aux)
     return "../domains/namo_domain/namo_probs/{0}.prob".format(descr)
 
 
@@ -97,13 +101,13 @@ def get_prim_choices():
 
 def get_vector(config):
     state_vector_include = {
-        'pr2': ['pose', 'gripper', 'theta', 'vel']
+        'pr2': ['pose', 'gripper'] ,
     }
     for i in range(config['num_objs']):
         state_vector_include['can{0}'.format(i)] = ['pose']
 
     action_vector_include = {
-        'pr2': ['pose', 'gripper', 'theta']
+        'pr2': ['pose', 'gripper']
     }
 
     target_vector_include = {
@@ -114,6 +118,7 @@ def get_vector(config):
     if FIX_TARGETS:
         for i in range(len(END_TARGETS)):
             target_vector_include['end_target_{0}'.format(i)] = ['value']
+
 
     return state_vector_include, action_vector_include, target_vector_include
 
@@ -136,8 +141,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         while len(locs) < config['num_objs'] + 1:
             locs = []
             random.shuffle(can_locs)
-            pr2_loc = [0,-5.5] # can_locs[0]
-            pr2_loc = [0,-6.5] # can_locs[0]
+            pr2_loc = can_locs[0]
             locs.append(pr2_loc)
             valid = [1 for _ in range(len(can_locs))]
             valid[0] = 0
@@ -156,7 +160,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
                         break
             spacing -= 0.1
 
-        spacing = 2
+        spacing = 2.5
         targs = []
         can_targs = [can_locs[i] for i in range(len(can_locs)) if (valid[i] or not NO_COL)]
         old_valid = copy.copy(valid)
@@ -186,7 +190,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         x0[state_inds['pr2', 'pose']] = locs[0]
         for o in range(config['num_objs']):
             x0[state_inds['can{0}'.format(o), 'pose']] = locs[o+1]
-        x0[state_inds['pr2', 'gripper']] = -0.1
+        x0[state_inds['pr2', 'gripper']] = -1.
         x0s.append(x0)
         if FIX_TARGETS:
             targ_range = list(range(config['num_objs'] - config['num_targs']))
@@ -228,8 +232,6 @@ def get_plans(use_tf=False):
     openrave_bodies = {}
     env = None
     params = None
-    sess = None
-    st = time.time()
     for task in tasks:
         next_task_str = copy.deepcopy(tasks[task])
         for i in range(len(prim_options[utils.OBJ_ENUM])):
@@ -241,7 +243,8 @@ def get_plans(use_tf=False):
                     new_task_str = []
                     for step in next_task_str:
                         new_task_str.append(step.format(obj, targ, grasp))
-                    plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params, sess=sess, use_tf=use_tf)
+                    plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params)
+                    plan.params['pr2'].gripper[0,0] = -GRIP_VAL
                     params = plan.params
                     plans[(list(tasks.keys()).index(task), i, j, k)] = plan
                     if env is None:
@@ -251,7 +254,7 @@ def get_plans(use_tf=False):
                                 if not hasattr(param, 'openrave_body') or param.openrave_body is None:
                                     param.openrave_body = OpenRAVEBody(env, param.name, param.geom)
                                 openrave_bodies[param.name] = param.openrave_body
-                    sess = plan.sess
+
     return plans, openrave_bodies, env
 
 def get_end_targets(num_cans=NUM_OBJS, num_targs=NUM_OBJS, targs=None, randomize=False, possible_locs=END_TARGETS):

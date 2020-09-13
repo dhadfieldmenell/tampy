@@ -18,6 +18,7 @@ BASE_MOVE_COEFF = 1.
 TRAJOPT_COEFF=1e-1
 TRANSFER_COEFF = 1e-1
 FIXED_COEFF = 1e0
+INIT_TRAJ_COEFF = 1e-1
 RS_COEFF = 1e2
 SAMPLE_SIZE = 5
 BASE_SAMPLE_SIZE = 5
@@ -33,6 +34,7 @@ class BacktrackLLSolver(LLSolver):
         self.fixed_coeff = FIXED_COEFF
         self.rs_coeff = RS_COEFF
         self.trajopt_coeff = TRAJOPT_COEFF # 1e-3#1e0
+        self.init_traj_coeff = INIT_TRAJ_COEFF
         self.initial_trust_region_size = 1e-2 # 1e-2
         self.init_penalty_coeff = 1e0#4e3
         self.smooth_penalty_coeff = 1e2 # 1e0#7e4
@@ -85,7 +87,7 @@ class BacktrackLLSolver(LLSolver):
         return success
 
     #@profile
-    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None, n_resamples=5):
+    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None, n_resamples=5, init_traj=[]):
         if amax is None:
             amax = len(plan.actions) - 1
 
@@ -127,7 +129,7 @@ class BacktrackLLSolver(LLSolver):
                         p._free_attrs[attr][:, active_ts[1]] = 0
                         p._free_attrs[attr][:, active_ts[0]] = 0
             self.child_solver = self.__class__()
-            success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax, n_resamples=n_resamples)
+            success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax, n_resamples=n_resamples, init_traj=init_traj)
 
             # reset free_attrs
             for p in plan.params.values():
@@ -150,7 +152,8 @@ class BacktrackLLSolver(LLSolver):
                 callback_a = None
             self.child_solver = self.__class__()
             success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
-                                              active_ts = active_ts, verbose=verbose, force_init=True)
+                                              active_ts = active_ts, verbose=verbose, force_init=True,
+                                              init_traj=init_traj)
             if not success:
                 ## if planning fails we're done
                 return False
@@ -193,7 +196,7 @@ class BacktrackLLSolver(LLSolver):
             self.child_solver.fixed_objs.append((rs_param, rp))
             success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                               active_ts = active_ts, verbose=verbose,
-                                              force_init=True)
+                                              force_init=True, init_traj=init_traj)
             if success:
                 if recursive_solve():
                     break
@@ -205,13 +208,13 @@ class BacktrackLLSolver(LLSolver):
 
     #@profile
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
-              verbose=False, force_init=False):
+              verbose=False, force_init=False, init_traj=[]):
         success = False
         if callback is not None:
             viewer = callback()
         if force_init or not plan.initialized:
             self._solve_opt_prob(plan, priority=-2, callback=callback,
-                active_ts=active_ts, verbose=verbose)
+                active_ts=active_ts, verbose=verbose, init_traj=init_traj)
             # self._solve_opt_prob(plan, priority=-1, callback=callback,
             #     active_ts=active_ts, verbose=verbose)
             plan.initialized=True
@@ -223,7 +226,8 @@ class BacktrackLLSolver(LLSolver):
             for attempt in range(n_resamples):
                 ## refinement loop
                 success = self._solve_opt_prob(plan, priority=priority,
-                                callback=callback, active_ts=active_ts, verbose=verbose)
+                                callback=callback, active_ts=active_ts, verbose=verbose,
+                                init_traj=init_traj)
                 # success = len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) == 0
 
                 if success:
@@ -232,7 +236,9 @@ class BacktrackLLSolver(LLSolver):
                 # failed_preds = plan.get_failed_preds(active_ts=active_ts, tol=1e-3)
                 # if len(failed_preds): import ipdb; ipdb.set_trace()
 
-                success = self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
+                success = self._solve_opt_prob(plan, priority=priority, callback=callback, 
+                                               active_ts=active_ts, verbose=verbose, resample = True,
+                                               init_traj=init_traj)
 
                 if DEBUG:
                     print(("resample attempt: {} at priority {}".format(attempt, priority)))
@@ -249,7 +255,8 @@ class BacktrackLLSolver(LLSolver):
 
     #@profile
     def _solve_opt_prob(self, plan, priority, callback=None, init=True,
-                        active_ts=None, verbose=False, resample=False, smoothing = False):
+                        active_ts=None, verbose=False, resample=False, 
+                        smoothing = False, init_traj=[]):
         if callback is not None: viewer = callback()
         self.plan = plan
         if active_ts==None:
@@ -262,6 +269,8 @@ class BacktrackLLSolver(LLSolver):
         obj_bexprs = []
         for param, values in self.fixed_objs:
             obj_bexprs.extend(self._get_fixed_obj(param, values, 'min-vel', active_ts=(active_ts[1]-active_ts[0], active_ts[1]-active_ts[0])))
+
+        if len(init_traj): obj_bexprs.extend(self._get_fixed_transfer_obj(plan, 'min-vel', init_traj, active_ts=active_ts))
         model.update()
         initial_trust_region_size = self.initial_trust_region_size
         end_t = active_ts[1] - active_ts[0]
@@ -898,7 +907,7 @@ class BacktrackLLSolver(LLSolver):
             return []
 
         if coeff is None:
-            coeff = self.transfer_coeff
+            coeff = self.init_traj_coeff
 
         transfer_objs = []
         if norm == 'min-vel':
@@ -933,3 +942,6 @@ class BacktrackLLSolver(LLSolver):
                 sco_var = self.create_variable(param_ll_grb_vars, cur_val)
                 bexpr = BoundExpr(quad_expr, sco_var)
                 transfer_objs.append(bexpr)
+
+        return transfer_objs
+

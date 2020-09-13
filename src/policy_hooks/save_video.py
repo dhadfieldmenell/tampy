@@ -12,9 +12,11 @@ import imageio
 
 
 SAVEDIR = '/home/michaelmcdonald/Dropbox/videos/'
-def save_video(fname):
+def save_video(fname, dname=''):
     arr = np.load(fname)
-    vname = SAVEDIR+fname.split('/')[-1].split('.')[0]+'.gif'
+    if not os.path.isdir(SAVEDIR+dname):
+        os.mkdir(SAVEDIR+dname)
+    vname = SAVEDIR+dname+fname.split('/')[-1].split('.')[0]+'.gif'
     imageio.mimsave(vname, arr, duration=0.01)
     '''
     fig, ax = plt.subplots()
@@ -28,10 +30,12 @@ def save_video(fname):
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
+        dname = '' if len(sys.argv) <= 2 else '/{0}/'.format(sys.argv[2])
+            
         if os.path.isdir(sys.argv[1]):
-            pre = '' if 'videos' in sys.argv[1] else '/videos'
-            for f in os.listdir(sys.argv[1]):
+            pre = '' if 'videos' in sys.argv[1] else 'videos'
+            for f in os.listdir(os.path.join(sys.argv[1], pre)):
                 if not f.endswith('npy'): continue
-                save_video(sys.argv[1]+'{0}/'.format(pre)+f)
+                save_video(sys.argv[1]+'{0}/'.format(pre)+f, dname)
         else:
             save_video(sys.argv[1])
