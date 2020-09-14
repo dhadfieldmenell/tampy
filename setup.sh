@@ -32,7 +32,7 @@ pip install --upgrade numpy
 cd ~/tamp_work
 
 # Set env variables
-echo 'export GUROBI_HOME=/home/${USER}/gurobi702/linux64' >> ~/.bashrc
+echo 'export GUROBI_HOME=/home/${USER}/gurobi901/linux64' >> ~/.bashrc
 echo 'export PATH="${PATH}:${GUROBI_HOME}:${GUROBI_HOME}/bin":/home/${USER}/.local/bin' >> ~/.bashrc
 echo 'export LD_LIBRARY_PATH="${GUROBI_HOME}/lib:/home/${USER}/.mujoco/mujoco200/bin"' >> ~/.bashrc
 echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/sco:/home/${USER}/tamp_work/tampy/src' >> ~/.bashrc
@@ -40,9 +40,9 @@ echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/sco:/home/${USER}/ta
 # Setup gurobi (need to get license separately)
 # https://www.gurobi.com/downloads/end-user-license-agreement-academic/
 cd ~/tamp_work
-wget https://packages.gurobi.com/7.0/gurobi7.0.2_linux64.tar.gz
-tar xvfz gurobi7.0.2_linux64.tar.gz 
-cd gurobi702/linux64
+wget https://packages.gurobi.com/9.0/gurobi9.0.1_linux64.tar.gz
+tar xvfz gurobi9.0.1_linux64.tar.gz 
+cd gurobi901/linux64
 
 source ~/.bashrc
 python setup.py install
