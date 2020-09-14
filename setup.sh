@@ -15,6 +15,7 @@ echo 'alias tampenv="source ~/tamp_work/venv/bin/activate"' >> ~/.bashrc
 # Get python code
 pip install numpy==1.18.5
 pip install seaborn numba pandas pybullet dm_control numdifftools ipdb
+pip install --force-reinstall numpy==1.18.5
 
 
 

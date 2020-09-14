@@ -754,8 +754,8 @@ class TargetGraspCollides(Collides):
 
 class CanCollides(Collides):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
-        super(CanCollides, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=1)
+        super(CanCollides, self).__init__(name, params,
+                                        expected_param_types, env=env, debug=debug)
         self.dsafe = 0.2
 
 
