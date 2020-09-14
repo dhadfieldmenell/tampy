@@ -1160,7 +1160,7 @@ class RolloutServer(object):
             if self.agent.retime:
                 rlen = 4 + 4*n
             else:
-                rlen = 2 + 2*n
+                rlen = 3*n
         self.agent.T = self.config['task_durations'][self.task_list[0]]
         val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], check_cost=self.check_precond)
         true_disp = np.min(np.min([[self.agent.goal_f(0, step.get(STATE_ENUM, t), targets, cont=True) for t in range(step.T)] for step in path]))
@@ -1469,6 +1469,29 @@ class RolloutServer(object):
                 tgt_prc = np.concatenate((tgt_prc, prc))
 
         return obs_data, tgt_mu, tgt_prc, tgt_wt
+
+
+    def update_switch(self, samples):
+        dP, dO = 1, self.dO
+        ### Compute target mean, cov, and weight for each sample.
+        obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
+        tgt_prc, tgt_wt = np.zeros((0, 1, 1)), np.zeros((0))
+        for sample in samples:
+            mu = sample.get(TASK_DONE_ENUM)
+            tgt_mu = np.concatenate((tgt_mu, mu))
+            st, et = 0, sample.T # st, et = sample.step * sample.T, (sample.step + 1) * sample.T
+            wt = np.ones(st-et)
+            wt[np.where(mu >= 0.99)] =  len(samples)*sample.T
+            tgt_wt = np.concatenate((tgt_wt, wt))
+            obs = sample.get_obs()
+            obs_data = np.concatenate((obs_data, obs))
+            if not self.config['hl_mask']:
+                prc[:] = 1.
+            prc = np.tile(np.eye(1), (sample.T,1,1))
+            tgt_prc = np.concatenate((tgt_prc, prc))
+ 
+        if len(tgt_mu):
+            self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'switch', 1)
 
 
     def update_primitive(self, samples):

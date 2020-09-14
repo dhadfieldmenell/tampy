@@ -571,11 +571,11 @@ class NAMOGripAgent(NAMOSortingAgent):
                     self.fill_sample(condition, sample, opt_traj[-1], j, task, fill_obs=True, targets=targets)
             sample.use_ts[-1] = 0.
             sample.prim_use_ts[-1] = 0.
+            sample.prim_use_ts[len(opt_traj)-1:] = 0.
+            sample.use_ts[len(opt_traj)-1:] = 0.
             sample.end_state = opt_traj[-1].copy()
             sample.set(NOISE_ENUM, np.zeros((sample.T, self.dU)))
             sample.task_cost = self.goal_f(condition, sample.end_state)
-            sample.prim_use_ts[len(opt_traj)-1:] = 0.
-            sample.use_ts[len(opt_traj)-1:] = 0.
             sample.col_ts = np.zeros(sample.T)
         sample.set_ref_X(sample.get_X())
         sample.set_ref_U(sample.get_U())

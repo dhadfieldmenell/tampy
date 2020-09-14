@@ -25,7 +25,9 @@ def get_colors(n_colors):
     return cm.rainbow(np.linspace(0, 1, n_colors))
 
 
-def get_test_data(keywords, include, exclude, pre=False, rerun=False, tdelta=TDELTA, wind=TWINDOW, lab='', lenthresh=0.99):
+def get_test_data(keywords, include, exclude, pre=False, rerun=False, 
+                  tdelta=TDELTA, wind=TWINDOW, lab='', lenthresh=0.99,
+                  split_runs=False):
     exp_probs = os.listdir(LOG_DIR)
     all_data = {}
     for k in keywords:
@@ -86,14 +88,14 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False, tdelta=TDE
                                 print('Skipping', fname, full_dir)
                                 continue
 
-                        label = gen_label(cur_dir, label_vars)
+                        label = gen_label(cur_dir, label_vars, split_runs, i)
                         all_data[k][full_exp][cur_dir] = {}
                         all_data[k][full_exp][cur_dir][cur_dir] = []
                         for buf in data:
                             for pts in buf:
                                 pt = pts[0]
                                 no, nt = int(pt[4]), int(pt[5])
-                                all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'description': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9], 'number of plans': pt[10], 'subgoals anywhere': pt[11], 'subgoals closest distance': pt[12]})
+                                all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'label': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9], 'number of plans': pt[10], 'subgoals anywhere': pt[11], 'subgoals closest distance': pt[12]})
                                 # all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta+1)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'description': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9], 'number of plans': pt[10]})
 
                     i += 1
@@ -656,7 +658,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0):
             sns.set()
 
 
-def gen_label(exp_dir, label_vars=[]):
+def gen_label(exp_dir, label_vars=[], split_runs=False, run_ind=0):
     if not os.path.isfile(exp_dir+'/args.pkl'):
         return exp_dir[:exp_dir.rfind('_')]
     label = ''
@@ -664,18 +666,23 @@ def gen_label(exp_dir, label_vars=[]):
         args = pickle.load(f)
     args = vars(args)
     if not len(label_vars):
-        return args['descr'].replace('_', ' ')
+        label = args['descr'].replace('_', ' ')
+
     for v in label_vars:
         if v not in args: continue
-        label += ' {0}_{1}'.format(v, args[v].replace('_', ' '))
+        label += ' {0}: {1}'.format(v, args[v].replace('_', ' '))
+
+    if split_runs: label += ' - run {0}'.format(run_ind)
     return label
 
 
-def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1., label_vars=[], ylabel='value', separate=True, keyind=3, exclude=[]):
+def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1., 
+                   label_vars=[], ylabel='value', separate=True, keyind=3, 
+                   exclude=[], split_runs=False):
     if lab == 'rollout':
         rd = get_rollout_data(keywords, exclude=exclude)
     elif lab == 'test':
-        rd = get_test_data(keywords, include=include, exclude=exclude)
+        rd = get_test_data(keywords, include=include, exclude=exclude, split_runs=split_runs)
     else:
         rd = get_policy_data(lab, keywords, exclude=exclude)
     data = {}
@@ -690,7 +697,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1., label_vars=
         for fullexp in rd[keyword]:
             e = new_data[fullexp]
             for ename in e:
-                label = gen_label(ename, label_vars)
+                base_label = gen_label(ename, label_vars)
                 curexp = e[ename]
                 inds_to_var = {}
                 for rname in curexp:
@@ -698,6 +705,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1., label_vars=
                     if not len(r): continue
                     if any(xvar not in r[0] for xvar in xvars) or any([v not in r[0] for v in flat_yvars]): continue
                     for pt in r:
+                        label = pt.get('label', base_label)
                         xvals = []
                         for xvar in xvars:
                             xvals.append(pt[xvar]//inter*inter)
@@ -741,9 +749,9 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1., label_vars=
             flat_yvar_labs.extend([v+'{0}'.format('_'+str(i) if inds_to_var.get(v,0) > 1 else '') for i in range(inds_to_var.get(v,1))])
 
     # yvar_labs = np.concatenate([[v+'{0}'.format('_'+str(i) if inds_to_var.get(v, 0) > 1 else '') for i in range(inds_to_var.get(v, 1))] for v in yvars])
-    plot(data, ['exp_name', 'key']+xvars+flat_yvar_labs, '{0}_vs_{1}'.format(xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind)
+    plot(data, ['description', 'key']+xvars+flat_yvar_labs, '{0}_vs_{1}'.format(xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind)
 
-keywords = ['objs5']
+keywords = ['base_namo_train']
 include = [] # ['wed_nocol', 'sun']
 label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #get_hl_tests(['retrain_2by'], xvar='N', avg_time=False, tdelta=5000, wind=5000, pre=False, exclude=['0001', '10000'])
@@ -756,7 +764,7 @@ label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] 
 #keywords = ['goalpureloss', 'grasppureloss', 'plainpureloss', 'taskpureloss']
 #label_vars = ['train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_comp_3', exclude=[])
-gen_data_plots(xvar='time', yvar=[['success at end', 'success anywhere', 'optimal_rollout_success'], 'subgoals anywhere', 'subgoals closest distance'], keywords=keywords, lab='test', label_vars=label_vars, separate=True, keyind=5, ylabel='rollout_res_objs5', exclude=[])
+gen_data_plots(xvar='time', yvar=[['success at end', 'success anywhere', 'optimal_rollout_success'], 'subgoals anywhere', 'subgoals closest distance'], keywords=keywords, lab='test', label_vars=label_vars, separate=True, keyind=5, ylabel='plot1', exclude=[], split_runs=False)
 gen_data_plots(xvar='number of plans', yvar=[['success at end', 'optimal_rollout_success']], keywords=keywords, lab='test', label_vars=label_vars, separate=True, keyind=5, ylabel='obj3_res_1', exclude=[], inter=100)
 gen_data_plots(xvar='time', yvar=[['val_component_loss', 'train_component_loss']], keywords=keywords, lab='control', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_control_net', exclude=[], inter=500)
 gen_data_plots(xvar='time', yvar=[['val_component_loss', 'train_component_loss']], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_primitive_net', exclude=[], inter=500)

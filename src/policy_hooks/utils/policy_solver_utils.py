@@ -604,7 +604,7 @@ def plan_to_traj(plan, inds, dX, ts=None, base_t=0):
 
 
 def find_task_breaks(path, d=5, cont=False, tol=0):
-    breaks = []
+    breaks = [(0,0)]
     tasks = path[0].get(FACTOREDTASK_ENUM)
     cur_task = stats.mode(tasks[:d], axis=0)[0]
     for i, s in enumerate(path):
@@ -612,8 +612,8 @@ def find_task_breaks(path, d=5, cont=False, tol=0):
             raise NotImplementedError
         else:
             tasks = s.get(FACTOREDTASK_ENUM)
-            for t in range(0, s.T, d):
-                next_task = stats.mode(tasks[t*d:(t+1)*d], axis=0)[0]
+            for t in range(0, s.T-d, d):
+                next_task = stats.mode(tasks[t:t+d], axis=0)[0]
                 if np.any(cur_task != next_task):
                     breaks.append((i, t))
                     cur_task = next_task
@@ -625,11 +625,15 @@ def first_failed_state(cost_f, task_breaks, path, cont=False):
     if cont:
         raise NotImplementedError
     else:
-        for ind, ts in task_breaks:
-            ts_ran = range(max(0,ts-2), min(ts+3, path[ind].T))
-            cost = min([cost_f(path[ind].get_X(t=cur_ts), tuple(path[ind].get(FACTOREDTASK_ENUM, t=cur_ts))) for cur_ts in ts_ran])
+        for i, (ind, ts) in enumerate(task_breaks):
+            if i < len(task_breaks) - 1:
+                next_ind, next_ts = task_breaks[i+1]
+            else:
+                next_ind, next_ts = len(path)-1, path[-1].T-1
+            ts_ran = range(max(0,next_ts-2), min(next_ts+3, path[next_ind].T))
+            cost = min([cost_f(path[ind].get_X(t=cur_ts), tuple(path[next_ind].get(FACTOREDTASK_ENUM, t=cur_ts))) for cur_ts in ts_ran])
             if cost > 0:
-                print('First failed index:', ind, ts)
+                print('First failed index:', ind, ts, task_breaks)
                 return (ind, ts)
     return None
 

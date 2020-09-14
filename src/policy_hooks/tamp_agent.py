@@ -124,6 +124,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         else:
             self.viewer = None
 
+        self._done = 0.
+        self._task_done = 0.
         self.current_cond = 0
         self.cond_global_pol_sample = [None for _ in  range(len(self.x0))] # Samples from the current global policy for each condition
         self.initial_opt = True
@@ -470,6 +472,14 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
     @abstractmethod
     def reset(self, m):
         raise NotImplementedError
+
+
+    def _reset_to_state(self, x):
+        self._done = 0.
+        self._prev_U = np.zeros((self.hist_len, self.dU))
+        self._x_delta = np.zeros((self.hist_len+1, self.dX))
+        self._x_delta[:] = x.reshape((1,-1))
+        self.mjc_env.reset()
 
 
     @abstractmethod

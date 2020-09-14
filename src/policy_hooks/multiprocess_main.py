@@ -262,6 +262,7 @@ class MultiProcessMain(object):
             'distilled_network_model': tf_network,
             'primitive_network_model': tf_classification_network if self.config.get('discrete_prim', True) else tf_network,
             'value_network_model': tf_value_network,
+            'switch_network_model': tf_value_network,
             'image_network_model': multi_modal_network_fp if 'image' in self.config['agent']['obs_include'] else None,
             'iterations': self.config['train_iterations'],
             'batch_size': self.config['batch_size'],
@@ -393,9 +394,11 @@ class MultiProcessMain(object):
         buffers['image'] = mp.Array(ctypes.c_char, 20 * (2**20))
         buffers['primitive'] = mp.Array(ctypes.c_char, 20 * (2**20))
         buffers['value'] = mp.Array(ctypes.c_char, 20 * (2**20))
+        buffers['switch'] = mp.Array(ctypes.c_char, 20 * (2**20))
         buf_sizes['image'] = mp.Value('i')
         buf_sizes['primitive'] = mp.Value('i')
         buf_sizes['value'] = mp.Value('i')
+        buf_sizes['switch'] = mp.Value('i')
         buf_sizes['n_data'] = mp.Value('i')
         buf_sizes['n_data'].value = 0
         buf_sizes['n_plans'] = mp.Value('i')
@@ -456,7 +459,7 @@ class MultiProcessMain(object):
             self.create_server(new_hyperparams['opt_server_type'], new_hyperparams)
 
     def create_pol_servers(self, hyperparams):
-        for task in self.pol_list+('value', 'primitive'):
+        for task in self.pol_list+('value', 'primitive', 'switch'):
             # print task
             new_hyperparams = copy.copy(hyperparams)
             new_hyperparams['scope'] = task
@@ -690,7 +693,7 @@ class MultiProcessMain(object):
     def allocate_queues(self, config):
         queue_size = 20
         queues = {}
-        for task in self.pol_list+('value', 'primitive'):
+        for task in self.pol_list+('value', 'primitive', 'switch'):
             queues['{0}_pol'.format(task)] = Queue(queue_size)
 
         for i in range(config['n_rollout_servers']):

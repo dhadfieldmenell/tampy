@@ -18,6 +18,8 @@ from gps.algorithm.policy_opt.policy_opt import PolicyOpt
 from gps.algorithm.policy_opt.tf_utils import TfSolver
 
 MAX_QUEUE_SIZE = 50000
+SCOPE_LIST = ['primitive', 'value', 'image', 'switch']
+
 
 class ControlAttentionPolicyOpt(PolicyOpt):
     """ Policy optimization using tensor flow for DAG computations/nonlinear function approximation. """
@@ -82,7 +84,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.init_policies(dU)
         llpol = hyperparams.get('ll_policy', '')
         hlpol = hyperparams.get('hl_policy', '')
-        scopes = self.valid_scopes + ['value', 'primitive', 'image'] if self.scope is None else [self.scope]
+        scopes = self.valid_scopes + SCOPE_LIST if self.scope is None else [self.scope]
         for scope in scopes:
             if len(llpol) and scope in self.valid_scopes:
                 self.restore_ckpt(scope, dirname=llpol)
@@ -159,7 +161,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
     def restore_ckpts(self, label=None):
         success = False
-        for scope in self.valid_scopes + ['value', 'primitive', 'image']:
+        for scope in self.valid_scopes + SCOPE_LIST:
             success = success or self.restore_ckpt(scope, label)
         return success
 
@@ -193,7 +195,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
     def write_shared_weights(self, scopes=None):
         if scopes is None:
-            scopes = self.valid_scopes + ['primitive','image','value']
+            scopes = self.valid_scopes + SCOPE_LIST
 
         for scope in scopes:
             wts = self.serialize_weights([scope])
@@ -204,7 +206,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
     def read_shared_weights(self, scopes=None):
         if scopes is None:
-            scopes = self.valid_scopes + ['primitive','image','value']
+            scopes = self.valid_scopes + SCOPE_LIST
 
         for scope in scopes:
             with self.buf_sizes[scope].get_lock():
@@ -220,7 +222,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
     def serialize_weights(self, scopes=None):
         if scopes is None:
-            scopes = self.valid_scopes + ['value', 'primitive', 'image']
+            scopes = self.valid_scopes + SCOPE_LIST
 
         var_to_val = {}
         for scope in scopes:
@@ -280,7 +282,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
     def store_weights(self, weight_dir=None):
         if self.scope is None:
-            self.store_scope_weights(self.valid_scopes+['value', 'primitive', 'image'], weight_dir)
+            self.store_scope_weights(self.valid_scopes+SCOPE_LIST, weight_dir)
         else:
             self.store_scope_weights([self.scope], weight_dir)
 
@@ -464,6 +466,23 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 # Setup the gradients
                 self.primitive_grads = [tf.gradients(self.primitive_act_op[:,u], self.primitive_obs_tensor)[0] for u in range(self._dPrim)]
 
+
+        if self.scope is None or 'switch' == self.scope:
+            with tf.variable_scope('switch'):
+                self.switch_eta = tf.placeholder_with_default(1., shape=())
+                tf_map_generator = self._hyperparams['switch_network_model']
+                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=1, batch_size=self.batch_size,
+                                          network_config=self._hyperparams['network_params'], input_layer=input_tensor)
+                self.switch_obs_tensor = tf_map.get_input_tensor()
+                self.switch_precision_tensor = tf_map.get_precision_tensor()
+                self.switch_action_tensor = tf_map.get_target_output_tensor()
+                self.switch_act_op = tf_map.get_output_op()
+                self.switch_feat_op = tf_map.get_feature_op()
+                self.switch_loss_scalar = tf_map.get_loss_op()
+                self.switch_fc_vars = fc_vars
+                self.switch_last_conv_vars = last_conv_vars
+
+
         if self.scope is None or 'value' == self.scope:
             dValObs = self._dValObs
             dAct = self._nacts
@@ -551,6 +570,19 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                                fc_vars=self.primitive_fc_vars,
                                                last_conv_vars=self.primitive_last_conv_vars,
                                                vars_to_opt=vars_to_opt)
+
+        if self.scope is None or 'switch' == self.scope:
+            vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='switch')
+            self.switch_solver = TfSolver(loss_scalar=self.switch_loss_scalar,
+                                           solver_name=self._hyperparams['solver_type'],
+                                           base_lr=self._hyperparams['lr'],
+                                           lr_policy=self._hyperparams['lr_policy'],
+                                           momentum=self._hyperparams['momentum'],
+                                           weight_decay=self._hyperparams['val_weight_decay'],
+                                           fc_vars=self.switch_fc_vars,
+                                           last_conv_vars=self.switch_last_conv_vars,
+                                           vars_to_opt=vars_to_opt)
+
 
         if self.scope is None or 'value' == self.scope:
             vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='value')

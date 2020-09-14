@@ -627,7 +627,8 @@ class MCTS:
                 for n in range(num_samples):
                     task_f = None
                     if hl:
-                        task_f = lambda s, t, curtask: self.run_hl(s, t, curtask, s.targets, check_cost=hl_check)
+                        def task_f(s, t, curtask):
+                            return self.run_hl(s, t, curtask, s.targets, check_cost=hl_check)
                         # task_f = lambda o, t, task: self.prob_func(o, self._soft, self.eta, t, task)
                     samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=(n > 0), task_f=task_f, skip_opt=skip_opt))
                     # samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=True))

@@ -7,13 +7,14 @@ cd ~/tamp_work
 
 ### SETUP VIRTENV ###
 # Setup virtual env
-virtualenv venv
-export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3.5
+export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3.6
+virtualenv -p /usr/bin/python3.6 venv
 source venv/bin/activate
 echo 'alias tampenv="source ~/tamp_work/venv/bin/activate"' >> ~/.bashrc
 
 # Get python code
-pip install numpy seaborn numba pandas pybullet dm_control numdifftools ipdb
+pip install numpy==1.18.5
+pip install seaborn numba pandas pybullet dm_control numdifftools ipdb
 
 
 
@@ -27,7 +28,7 @@ cd ../sco
 git checkout python3
 pip install h5py psutil
 pip install --upgrade numpy
-cd ~
+cd ~/tamp_work
 
 # Set env variables
 echo 'export GUROBI_HOME=/home/${USER}/gurobi901/linux64' >> ~/.bashrc
@@ -37,7 +38,7 @@ echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/sco:/home/${USER}/ta
 
 # Setup gurobi (need to get license separately)
 # https://www.gurobi.com/downloads/end-user-license-agreement-academic/
-cd ~
+cd ~/tamp_work
 wget https://packages.gurobi.com/9.0/gurobi9.0.1_linux64.tar.gz
 tar xvfz gurobi9.0.1_linux64.tar.gz 
 cd gurobi901/linux64
@@ -48,7 +49,7 @@ python setup.py install
 
 
 ### SETUP POLICY TRAINING CODE ###
-cd ~
+cd ~/tamp_work
 # Setup mujoco
 # Place your mujoco key in your home directory
 mkdir .mujoco

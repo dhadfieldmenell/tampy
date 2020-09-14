@@ -47,16 +47,16 @@ descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.for
 #            (-2., -2.)]
 
 END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
-END_TARGETS.extend([(0.8, 2.),
-                   (-0.8, 2.),
-                   (2., 2.),
-                   (-2., 2.),
-                   (-3.2, 2.),
-                   (3.2, 2.),
-                   (4.4, 2.),
-                   (-4.4, 2.),
-                   (5.6, 2.),
-                   (-5.6, 2.)
+END_TARGETS.extend([(1., 2.),
+                   (-1., 2.),
+                   (2.4, 2.),
+                   (-2.4, 2.),
+                   (-3.6, 2.),
+                   (3.6, 2.),
+                   (4.8, 2.),
+                   (-4.8, 2.),
+                   (6., 2.),
+                   (-6., 2.)
                    ])
 
 n_aux = 4
@@ -66,7 +66,7 @@ MAX_Y = 25
 
 # possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-50, -10, 2))))
 #possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-40, 0, 2))))
-possible_can_locs.extend(list(itertools.product(list(range(-50, 50, 4)), list(range(-50, 0, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-60, 60, 4)), list(range(-50, 0, 2)))))
 # possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(6, 25, 4))))
 
 
@@ -79,7 +79,7 @@ for i in range(len(possible_can_locs)):
 
 def prob_file(descr=None):
     if descr is None:
-        descr = 'sort_closet_prob_{0}_{1}end_{2}aux'.format(NUM_OBJS, len(END_TARGETS), n_aux)
+        descr = 'sort_closet_prob_{0}_{1}end_{2}_{3}aux'.format(NUM_OBJS, len(END_TARGETS), n_aux, N_GRASPS)
     return "../domains/namo_domain/namo_probs/{0}.prob".format(descr)
 
 

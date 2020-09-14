@@ -219,8 +219,13 @@ def tf_cond_classification_network(dim_input=27, dim_output=2, batch_size=25, ne
 
 def tf_value_network(dim_input=27, dim_output=1, batch_size=25, network_config=None, input_layer=None, target=None, done=None, imwt=0.):
     n_layers = 2 if 'n_layers' not in network_config else network_config['n_layers'] + 1
-    dim_hidden = (n_layers - 1) * [40] if 'dim_hidden' not in network_config else copy(network_config['dim_hidden'])
+    dim_hidden = network_config.get('dim_hidden', 40)
+    if type(dim_hidden) is int:
+        dim_hidden = (n_layers - 1) * [dim_hidden]
+    else:
+        dim_hidden = copy(dim_hidden)
     dim_hidden.append(dim_output)
+
 
     nn_input, action, precision = get_input_layer(dim_input, dim_output)
     fc_input = nn_input
