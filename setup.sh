@@ -69,5 +69,5 @@ echo 'export MUJOCO_KEY_PATH=/home/${USER}/.mujoco/mjkey.txt' >> ~/.bashrc
 echo 'export MUJOCO_GL=egl' >> ~/.bashrc
 echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/gps/python' >> ~/.bashrc
 
-
+pip install baselines
 pip install --force-reinstall numpy==1.18.5
