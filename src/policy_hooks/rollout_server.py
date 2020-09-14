@@ -45,6 +45,7 @@ class DummyPolicy:
             U = np.zeros_like(U)
         if np.any(np.isnan(obs)):
             # raise Exception('Nans in policy call obs.')
+            print(obs)
             print('Nans in policy call obs.')
             U = np.zeros_like(U)
         if np.any(np.isnan(U)):
