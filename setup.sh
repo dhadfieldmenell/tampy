@@ -34,7 +34,7 @@ cd ~/tamp_work
 # Set env variables
 echo 'export GUROBI_HOME=/home/${USER}/gurobi901/linux64' >> ~/.bashrc
 echo 'export PATH="${PATH}:${GUROBI_HOME}:${GUROBI_HOME}/bin":/home/${USER}/.local/bin' >> ~/.bashrc
-echo 'export LD_LIBRARY_PATH="${GUROBI_HOME}/lib:/home/${USER}/.mujoco/mujoco200_linux/bin"' >> ~/.bashrc
+echo 'export LD_LIBRARY_PATH="${GUROBI_HOME}/lib:/home/${USER}/.mujoco/mujoco200/bin"' >> ~/.bashrc
 echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/sco:/home/${USER}/tamp_work/tampy/src' >> ~/.bashrc
 
 # Setup gurobi (need to get license separately)
@@ -50,13 +50,13 @@ python setup.py install
 
 
 ### SETUP POLICY TRAINING CODE ###
-cd ~/tamp_work
+cd ~
 # Setup mujoco
 # Place your mujoco key in your home directory
 mkdir .mujoco
 cd .mujoco
-wget https://www.roboti.us/download/mujoco200_linux.zip -O mujoco.zip
-unzip mujoco.zip
+wget https://www.roboti.us/download/mujoco200_linux.zip -O mujoco200.zip
+unzip mujoco200.zip
 cp ~/mjkey.txt .
 
 # Setup additional codebases
@@ -70,3 +70,4 @@ echo 'export MUJOCO_GL=egl' >> ~/.bashrc
 echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/gps/python' >> ~/.bashrc
 
 
+pip install --force-reinstall numpy==1.18.5
