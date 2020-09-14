@@ -178,6 +178,7 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False):
         res = []
         for t in range(pts):
             coeff = float(pts - t) / pts
+            if not len(xs[0]) or not len(xs[1]): import ipdb; ipdb.set_trace()
             if len(xs) == 2:
                 next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
             else:
@@ -653,9 +654,11 @@ class Collides(CollisionPredicate):
                                self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
 
         def f(x):
+            if self.c is self.w: return np.zeros((COL_TS*8,1))
             return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
 
         def grad(x):
+            if self.c is self.w: return np.zeros((COL_TS*8, 4))
             return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
 
         def f_neg(x):
