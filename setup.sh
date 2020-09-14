@@ -60,6 +60,7 @@ unzip mujoco.zip
 cp ~/mjkey.txt .
 
 # Setup additional codebases
+cd ~/tamp_work
 git clone https://github.com/m-j-mcdonald/BaxterGym.git
 git clone https://github.com/m-j-mcdonald/gps.git
 pip install tensorflow==1.10.0
