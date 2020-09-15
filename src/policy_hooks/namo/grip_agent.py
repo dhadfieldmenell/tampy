@@ -129,7 +129,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             cur_color = colors.pop(0)
             # items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.4), 'rgba': tuple(cur_color), 'mass': 10.})
             items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 10.})
-            items.append({'name': '{0}_end_target'.format(name), 'type': 'cylinder', 'is_fixed': True, 'pos': (0, 0, 2.5), 'dimensions': (0.4, 0.05), 'rgba': tuple(cur_color), 'mass': 1.})
+            items.append({'name': '{0}_end_target'.format(name), 'type': 'cylinder', 'is_fixed': True, 'pos': (0, 0, 2.5), 'dimensions': (NEAR_TOL, 0.05), 'rgba': tuple(cur_color), 'mass': 1.})
         for i in range(len(wall_dims)):
             dim, next_trans = wall_dims[i]
             next_trans[0,3] -= 3.5
@@ -518,13 +518,6 @@ class NAMOGripAgent(NAMOSortingAgent):
         self.mjc_env.physics.forward()
 
 
-    def get_image(self, x, depth=False):
-        self.reset_to_state(x)
-        # im = self.mjc_env.render(camera_id=0, depth=depth, view=False)
-        im = self.mjc_env.render(camera_id=0, height=self.image_height, width=self.image_width, view=False)
-        return im
-
-
     def get_mjc_obs(self, x):
         self.reset_to_state(x)
         # return self.mjc_env.get_obs(view=False)
@@ -781,28 +774,6 @@ class NAMOGripAgent(NAMOSortingAgent):
         return new_traj
 
 
-    '''
-    def goal_f(self, condition, state, targets=None, cont=False):
-        if targets is None:
-            targets = self.target_vecs[condition]
-        cost = self.prob.NUM_OBJS
-        alldisp = 0
-        plan = list(self.plans.values())[0]
-        for param in list(plan.params.values()):
-            if param._type == 'Can':
-                val = targets[self.target_inds['{0}_end_target'.format(param.name), 'value']]
-                disp = state[self.state_inds[param.name, 'pose']] - val
-                # np.sum((state[self.state_inds[param.name, 'pose']] - self.targets[condition]['{0}_end_target'.format(param.name)])**2)
-                # cost -= 1 if dist < 0.3 else 0
-                alldisp += np.linalg.norm(disp)
-                cost -= 1 if np.all(np.abs(disp) < NEAR_TOL) else 0
-
-        if cont: return alldisp
-        # return cost / float(self.prob.NUM_OBJS)
-        return 1. if cost > 0 else 0.
-    '''
-
-
     def set_symbols(self, plan, state, task, anum=0, cond=0):
         st, et = plan.actions[anum].active_timesteps
         targets = self.target_vecs[cond].copy()
@@ -821,6 +792,10 @@ class NAMOGripAgent(NAMOSortingAgent):
 
         for tname, attr in self.target_inds:
             getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
+
+        for pname in plan.params:
+            if '{0}_init_target'.format(pname) in plan.params:
+                plan.params['{0}_init_target'.format(pname)].value[:,0] = plan.params[pname].pose[:,0]
 
 
     def encode_action(self, action):

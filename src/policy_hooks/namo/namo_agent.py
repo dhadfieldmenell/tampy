@@ -103,7 +103,7 @@ class NAMOSortingAgent(TAMPAgent):
             cur_color = colors.pop(0)
             items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 1.), 'rgba': tuple(cur_color)})
             if name != 'pr2':
-                items.append({'name': '{0}_end_target'.format(name), 'type': 'cylinder', 'is_fixed': True, 'pos': (0, 0, 2.5), 'dimensions': (0.3, 0.05), 'rgba': tuple(cur_color), 'mass': 1.})
+                items.append({'name': '{0}_end_target'.format(name), 'type': 'cylinder', 'is_fixed': True, 'pos': (0, 0, 2.5), 'dimensions': (NEAR_TOL, 0.05), 'rgba': tuple(cur_color), 'mass': 1.})
             # items.append({'name': '{0}_end_target'.format(name), 'type': 'cylinder', 'is_fixed': False, 'pos': (10, 10, 0.5), 'dimensions': (0.8, 0.2), 'rgba': tuple(cur_color)})
         for i in range(len(wall_dims)):
             dim, next_trans = wall_dims[i]
@@ -569,6 +569,10 @@ class NAMOSortingAgent(TAMPAgent):
         for tname, attr in self.target_inds:
             getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
 
+        for pname in plan.params:
+            if '{0}_init_target'.format(pname) in plan.params:
+                plan.params['{0}_init_target'.format(pname)].value[:,0] = plan.params[pname].pose[:,0]
+
 
     def solve_sample_opt_traj(self, state, task, condition, traj_mean=[], inf_f=None, mp_var=0, targets=[], x_only=False, t_limit=60, n_resamples=10, out_coeff=None, smoothing=False, attr_dict=None):
         success = False
@@ -923,6 +927,7 @@ class NAMOSortingAgent(TAMPAgent):
         cost = self.prob.NUM_OBJS
         alldisp = 0
         plan = list(self.plans.values())[0]
+        no = self._hyperparams['num_objs']
         if len(np.shape(state)) < 2:
             state = [state]
         for param in list(plan.params.values()):
@@ -941,7 +946,7 @@ class NAMOSortingAgent(TAMPAgent):
                 alldisp += curdist # np.linalg.norm(disp)
                 cost -= 1 if np.all(np.abs(disp) < NEAR_TOL) else 0
 
-        if cont: return alldisp
+        if cont: return alldisp / float(no)
         # return cost / float(self.prob.NUM_OBJS)
         return 1. if cost > 0 else 0.
 
@@ -1161,13 +1166,6 @@ class NAMOSortingAgent(TAMPAgent):
             if np.linalg.norm(obj_pos - target) < 0.6:
                 correct += 1
         return correct
-
-
-    def get_image(self, x, depth=False):
-        self.reset_to_state(x)
-        # im = self.mjc_env.render(camera_id=0, depth=depth, view=False)
-        im = self.mjc_env.render(camera_id=0, height=self.image_height, width=self.image_width, view=False)
-        return im
 
 
     def get_mjc_obs(self, x):

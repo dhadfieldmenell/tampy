@@ -1,6 +1,7 @@
 from core.internal_repr.predicate import Predicate
 from core.internal_repr.plan import Plan
 from core.util_classes.common_predicates import ExprPredicate
+from core.util_classes.namo_predicates import NEAR_TOL
 from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import PredicateException
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
@@ -34,7 +35,6 @@ RS_SCALE = 0.5
 N_DIGS = 5
 GRIP_VAL = 0.1
 COL_TS = 5 # 3
-NEAR_TOL = 0.4
 N_COLS = 8
 RETREAT_DIST = 1.2
 

@@ -73,6 +73,7 @@ class MoveTo(Action):
         self.eff = [\
                 ('(RobotAtGrasp ?robot ?can ?g)', '{0}:{0}'.format(et)),
                 ('(forall (?obj - Can / ?can) (forall (?gr - Grasp) (not (RobotAtGrasp ?robot ?obj ?gr))))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Can) (forall (?gr - Grasp / ?g) (not (RobotAtGrasp ?robot ?obj ?gr))))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
                 ('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
         ]
@@ -88,7 +89,6 @@ class Transfer(Action):
                 #('(At ?c ?init)', '1:1'),
                 ('(RobotStationary ?robot)', '0:0'),
                 ('(forall (?obj - Can) (not (TargetCanGraspCollides ?t ?obj ?g)))', '0:0'),
-                ('(forall (?obj - Can) (not (CanCollides ?c ?obj)))', '1:{0}'.format(et-1)),
                 ('(forall (?w - Obstacle) (not (TargetGraspCollides ?t ?w ?g)))', '0:0'),
                 ('(forall (?obj - Can) (not (Near ?obj ?t)))', '0:0'),
                 # ('(not (GripperClosed ?robot))', '0:0'),

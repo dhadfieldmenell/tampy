@@ -217,6 +217,7 @@ class MultiProcessMain(object):
                 'sensor_dims': sensor_dims,
                 'n_layers': self.config['n_layers'],
                 'num_filters': [5,10],
+                'q_imwt': 1,
                 'dim_hidden': self.config['dim_hidden'],
             },
             # 'image_network_params': {

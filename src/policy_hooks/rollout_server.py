@@ -1110,7 +1110,7 @@ class RolloutServer(object):
         buf = []
         for step in rollout:
             for t in range(step.T):
-                im = self.agent.get_image(step.get_X(t=t))
+                im = self.agent.get_annotated_image(step, t)
                 buf.append(im)
         np.save(fname, np.array(buf))
 

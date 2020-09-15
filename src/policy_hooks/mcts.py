@@ -626,8 +626,13 @@ class MCTS:
             if fixed_path is None:
                 for n in range(num_samples):
                     task_f = None
+                    self.switch_f = None
                     if hl:
                         def task_f(s, t, curtask):
+                            if self.switch_f is not None:
+                                p = self.switch_f(s.get_obs(t=t))
+                                if np.random.uniform() > p:
+                                    return curtask
                             return self.run_hl(s, t, curtask, s.targets, check_cost=hl_check)
                         # task_f = lambda o, t, task: self.prob_func(o, self._soft, self.eta, t, task)
                     samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=(n > 0), task_f=task_f, skip_opt=skip_opt))

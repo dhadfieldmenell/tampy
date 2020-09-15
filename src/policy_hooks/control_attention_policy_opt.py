@@ -471,8 +471,10 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             with tf.variable_scope('switch'):
                 self.switch_eta = tf.placeholder_with_default(1., shape=())
                 tf_map_generator = self._hyperparams['switch_network_model']
-                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=1, batch_size=self.batch_size,
-                                          network_config=self._hyperparams['network_params'], input_layer=input_tensor)
+                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=1, 
+                                                                   batch_size=self.batch_size,
+                                                                   network_config=self._hyperparams['network_params'], 
+                                                                   input_layer=input_tensor, imwt=1.)
                 self.switch_obs_tensor = tf_map.get_input_tensor()
                 self.switch_precision_tensor = tf_map.get_precision_tensor()
                 self.switch_action_tensor = tf_map.get_target_output_tensor()
@@ -956,6 +958,48 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         # print('Time to run policy update:', time.time() - start_t)
 
         return policy
+
+
+    def update_switch(self, obs, tgt_mu, tgt_prc, tgt_wt, check_val=False):
+        N = obs.shape[0]
+        dP, dO = 1, self._dO
+        obs = np.reshape(obs, (N, dO))
+        tgt_mu = np.reshape(tgt_mu, (N, dP))
+        tgt_prc = np.reshape(tgt_prc, (NT, 1, 1))
+        tgt_wt = np.reshape(tgt_wt, (NT, 1, 1))
+        tgt_prc = tgt_prc * tgt_wt
+
+        # Assuming that N*T >= self.batch_size.
+        batch_size = np.minimum(self.batch_size, N)
+        batches_per_epoch = np.maximum(np.floor(N / batch_size), 1)
+        idx = list(range(N))
+        average_loss = 0
+        np.random.shuffle(idx)
+        # actual training.
+        for i in range(self._hyperparams['iterations']):
+            # Load in data for this batch.
+            self.train_iters += 1
+            start_idx = int(i * self.batch_size %
+                            (batches_per_epoch * self.batch_size))
+            idx_i = idx[start_idx:start_idx+self.batch_size]
+            feed_dict = {self.switch_obs_tensor: obs[idx_i],
+                         self.switch_action_tensor: tgt_mu[idx_i],
+                         self.switch_precision_tensor: tgt_prc[idx_i],
+                         self.hllr_tensor: self.cur_hllr}
+            train_loss = self.switch_solver(feed_dict, self.sess, device_string=self.device_string, train=(not check_val))
+
+            average_loss += train_loss
+
+        self.tf_iter += self._hyperparams['iterations']
+        if check_val:
+            self.average_val_losses.append(average_loss / self._hyperparams['iterations'])
+        else:
+            self.average_losses.append(average_loss / self._hyperparams['iterations'])
+        feed_dict = {self.obs_tensor: obs}
+        num_values = obs.shape[0]
+        if self.switch_feat_op is not None:
+            self.switch_feat_vals = self.switch_solver.get_var_values(self.sess, self.switch_feat_op, feed_dict, num_values, self.batch_size)
+
 
     def update_primitive_filter(self, obs, tgt_mu, tgt_prc, tgt_wt, check_val=False):
         """

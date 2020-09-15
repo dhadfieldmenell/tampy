@@ -134,6 +134,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         opts = self._hyperparams['prob'].get_prim_choices()
         self.label_options = list(itertools.product(*[list(range(len(opts[e]))) for e in opts])) # range(self.num_tasks), *[range(n) for n in self.num_prims]))
         self.hist_len = self._hyperparams['hist_len']
+        self.task_hist_len = self._hyperparams.get('task_hist_len', 1)
         self.traj_hist = None
         self.reset_hist()
 
@@ -267,6 +268,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
     def store_act_hist(self, u):
         self._prev_U = u.reshape((self.hist_len, self.dU))
+
+
+    def store_task_hist(self, task):
+        self._prev_task = task.reshape((self.task_hist_len, self.dPrimOut))
 
 
     def reset_sample_refs(self):
@@ -1262,4 +1267,21 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
         pol = self.optimal_pol_cls(self.dU, self.action_inds, self.state_inds, opt_traj)
         return pol
+
+
+    def get_annotated_image(self, s, t):
+        x = s.get_X(t=t)
+        task = s.get(FACTOREDTASK_ENUM, t=t)
+        u = s.get(ACTION_ENUM, t=t)
+        textover = self.mjc_env.get_text_overlay(body='Task: {0}'.format(task))
+        self.reset_to_state(x)
+        im = self.mjc_env.render(camera_id=0, height=self.image_height, width=self.image_width, view=False, overlays=(textover,))
+        return im
+
+
+    def get_image(self, x, depth=False):
+        self.reset_to_state(x)
+        im = self.mjc_env.render(camera_id=0, height=self.image_height, width=self.image_width, view=False, depth=depth)
+        return im
+
 

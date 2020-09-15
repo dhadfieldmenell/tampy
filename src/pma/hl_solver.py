@@ -4,6 +4,9 @@ import os
 from core.internal_repr.action import Action
 from core.internal_repr.plan import Plan
 
+
+CLEANUP = False
+
 class HLSolver(object):
     """
     HLSolver provides an interface to the chosen task planner.
@@ -455,10 +458,11 @@ class FFSolver(HLSolver):
                 print(('Error in filter for', s, fprefix))
                 plan = Plan.IMPOSSIBLE
 
-        subprocess.call(["rm", "-f", "%sdom.pddl"%fprefix,
-                         "%sprob.pddl"%fprefix,
-                         "%sprob.pddl.soln"%fprefix,
-                         "%sprob.output"%fprefix])
+        if CLEANUP: 
+            subprocess.call(["rm", "-f", "%sdom.pddl"%fprefix,
+                             "%sprob.pddl"%fprefix,
+                             "%sprob.pddl.soln"%fprefix,
+                             "%sprob.output"%fprefix])
         if plan != Plan.IMPOSSIBLE:
             plan = self._patch_redundancy(plan)
         return plan
