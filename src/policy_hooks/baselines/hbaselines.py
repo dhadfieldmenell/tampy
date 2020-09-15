@@ -22,8 +22,7 @@ def run(config, mode='train'):
     args = config['args']
     envname = 'baselineEnv'
     agent = build_agent(load_agent(config))
-    objs = ['pr2'] + ['can{0}'.format(i) for i in range(config['num_objs'])]
-    inds = np.concatenate([agent._prim_obs_idx[obj] for obj in objs])
+    inds = np.concatenate([agent._prim_obs_idx[obj] for obj in config['prim_obs_include']])
 
     register_env(config, name=envname, max_ts=args.episode_timesteps)
 
