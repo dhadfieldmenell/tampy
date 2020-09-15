@@ -49,7 +49,7 @@ python setup.py install
 pip install --force-reinstall numpy==1.18.5
 
 
-if ! FULL_INSTALL; then
+if ! $FULL_INSTALL; then
     exit 0
 fi
 
