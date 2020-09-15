@@ -69,5 +69,13 @@ echo 'export MUJOCO_KEY_PATH=/home/${USER}/.mujoco/mjkey.txt' >> ~/.bashrc
 echo 'export MUJOCO_GL=egl' >> ~/.bashrc
 echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/gps/python' >> ~/.bashrc
 
-pip install baselines
+cd ~/tamp_work
+git clone https://github.com/AboudyKreidieh/h-baselines.git
+git clone https://github.com/openai/baselines.git
+cd baselines
+pip install -e .
+cd ../h-baselines
+pip install -e .
+cd ~/tamp_work
+
 pip install --force-reinstall numpy==1.18.5

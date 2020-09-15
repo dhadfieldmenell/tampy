@@ -657,6 +657,13 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         #                                  self.device_string,
         #                                  copy_param_scope=None)
 
+    def switch_call(self, obs):
+        if len(obs.shape) < 2:
+            obs = obs.reshape(1, -1)
+        distr = self.sess.run(self.switch_act_op, feed_dict={self.switch_obs_tensor:obs}).flatten()
+        return distr
+
+
     def task_distr(self, obs, eta=1.):
         if len(obs.shape) < 2:
             obs = obs.reshape(1, -1)

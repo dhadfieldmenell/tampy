@@ -363,6 +363,10 @@ class RolloutServer(object):
         return np.array(resp.value)
 
 
+    def switch_call(self, obs):
+        return self.policy_opt.switch_val(obs).flatten()[0]
+ 
+
     def primitive_call(self, prim_obs, soft=False, eta=1., t=-1, task=None):
         # print 'Entering primitive call:', datetime.now()
         if self.use_local:

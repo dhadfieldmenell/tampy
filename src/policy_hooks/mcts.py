@@ -170,6 +170,7 @@ class MCTS:
         self._simulate_from_next = self._default_simulate_from_next if sim_from_next is None else sim_from_next
         self._value_f = value_f
         self._prob_f = prob_f
+        self._switch_f = None
         # self.node_check_f = lambda n: n.value/n.n_explored+self.C*np.sqrt(np.log(n.parent.n_explored)/n.n_explored) if n != None else -np.inf
         self.start_t = time.time()
         self.opt_strength = opt_strength
@@ -626,11 +627,11 @@ class MCTS:
             if fixed_path is None:
                 for n in range(num_samples):
                     task_f = None
-                    self.switch_f = None
+                    self._switch_f = None
                     if hl:
                         def task_f(s, t, curtask):
-                            if self.switch_f is not None:
-                                p = self.switch_f(s.get_obs(t=t))
+                            if self._switch_f is not None:
+                                p = self._switch_f(s.get_obs(t=t))
                                 if np.random.uniform() > p:
                                     return curtask
                             return self.run_hl(s, t, curtask, s.targets, check_cost=hl_check)
