@@ -54,14 +54,15 @@ if ! $FULL_INSTALL; then
 fi
 
 ### SETUP POLICY TRAINING CODE ###
-cd ~
 # Setup mujoco
 # Place your mujoco key in your home directory
+cd ~
 mkdir .mujoco
 cd .mujoco
 wget https://www.roboti.us/download/mujoco200_linux.zip -O mujoco200.zip
 unzip mujoco200.zip
 cp ~/mjkey.txt .
+ln -s mujoco200 mujoco200_linux
 
 # Setup additional codebases
 cd ~/tamp_work
@@ -69,8 +70,10 @@ git clone https://github.com/m-j-mcdonald/BaxterGym.git
 git clone https://github.com/m-j-mcdonald/gps.git
 pip install tensorflow==1.10.0
 pip install -e BaxterGym
+cd BaxterGym/baxter_gym
+mkdir local
 echo 'export MUJOCO_KEY_PATH=/home/${USER}/.mujoco/mjkey.txt' >> ~/.bashrc
-echo 'export MUJOCO_GL=egl' >> ~/.bashrc
+echo 'export MUJOCO_GL=osmesa' >> ~/.bashrc
 echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/gps/python' >> ~/.bashrc
 
 cd ~/tamp_work

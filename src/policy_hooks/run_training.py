@@ -248,6 +248,7 @@ def run_baseline(config, baseline):
 
     elif baseline.lower() == 'hiro':
         from policy_hooks.baselines.hbaselines import run
+        config['id'] = 0
         run(config=config)
 
     else:
