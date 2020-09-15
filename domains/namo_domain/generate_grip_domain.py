@@ -152,7 +152,7 @@ class Place(Action):
                 ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '0:{0}'.format(et-1)),
                 # ('(LinearRetreat ?robot)', '0:{0}'.format(et-1)),
                 ('(StationaryRot ?robot)', '0:{0}'.format(et-1)),
-                ('(RevThetaDirValid ?robot)', '0:{0}'.format(et-1)),
+                # ('(RevThetaDirValid ?robot)', '0:{0}'.format(et-1)),
                 ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
                 ('(RobotStationary ?robot)', '{0}:{0}'.format(0)),
                 ('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
