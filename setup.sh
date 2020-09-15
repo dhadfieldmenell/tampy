@@ -31,7 +31,7 @@ pip install --upgrade numpy
 cd ~/tamp_work
 
 # Set env variables
-echo 'export GUROBI_HOME=/home/${USER}/gurobi901/linux64' >> ~/.bashrc
+echo 'export GUROBI_HOME=/home/${USER}/tamp_work/gurobi901/linux64' >> ~/.bashrc
 echo 'export PATH="${PATH}:${GUROBI_HOME}:${GUROBI_HOME}/bin":/home/${USER}/.local/bin' >> ~/.bashrc
 echo 'export LD_LIBRARY_PATH="${GUROBI_HOME}/lib:/home/${USER}/.mujoco/mujoco200/bin"' >> ~/.bashrc
 echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/sco:/home/${USER}/tamp_work/tampy/src' >> ~/.bashrc
