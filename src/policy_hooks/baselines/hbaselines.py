@@ -27,8 +27,8 @@ def run(config, mode='train'):
     register_env(config, name=envname, max_ts=args.episode_timesteps)
 
     acspace = lambda relative_goals: Box(
-            low=np.concatenate([[-5, -5] for _ in objs]),
-            high=np.concatenate([[5, 2] for _ in objs]),
+            low=np.concatenate([[-6, -5] for _ in objs]),
+            high=np.concatenate([[6, 3] for _ in objs]),
             dtype=np.float32
             )
     add_env(envname, inds, acspace)

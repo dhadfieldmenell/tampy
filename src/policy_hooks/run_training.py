@@ -235,6 +235,7 @@ def run_baseline(config, baseline):
         dirs = list(filter(lambda f: os.path.isdir(DIR_KEY+master_dir+f), os.listdir(DIR_KEY+master_dir)))
         sub_dirs = list(filter(lambda f: f.find(k) >= 0, dirs))
         sub_dirs = list(map(lambda f: DIR_KEY+master_dir+f, sub_dirs))
+
     if baseline.lower() == 'gail':
         from policy_hooks.baselines.gail import run, eval_ckpts
         config['id'] = 0
@@ -245,8 +246,13 @@ def run_baseline(config, baseline):
             run(config=config)
             print('Finished GAIL train')
 
+    elif baseline.lower() == 'hiro':
+        from policy_hooks.baselines.hbaselines import run
+        run(config=config)
+
     else:
         raise NotImplementedError
+
     sys.exit(0)
 
 
