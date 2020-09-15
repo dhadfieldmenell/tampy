@@ -14,9 +14,8 @@ echo 'alias tampenv="source ~/tamp_work/venv/bin/activate"' >> ~/.bashrc
 
 # Get python code
 pip install numpy==1.18.5
-pip install seaborn numba pandas pybullet dm_control numdifftools ipdb
-pip install --force-reinstall numpy==1.18.5
-
+pip install numba pandas pybullet dm_control numdifftools ipdb
+pip install seaborn==0.9.0
 
 
 ### SETUP TAMP CODE ###
@@ -47,7 +46,12 @@ cd gurobi901/linux64
 source ~/.bashrc
 python setup.py install
 
+pip install --force-reinstall numpy==1.18.5
 
+
+if ! FULL_INSTALL; then
+    exit 0
+fi
 
 ### SETUP POLICY TRAINING CODE ###
 cd ~

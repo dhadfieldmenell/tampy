@@ -8,7 +8,7 @@ cd ~/tamp_work
 ### SETUP VIRTENV ###
 # Setup virtual env
 virtualenv venv
-export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3.5
+export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3.6
 source venv/bin/activate
 echo 'alias tampenv="source ~/tamp_work/venv/bin/activate"' >> ~/.bashrc
 
