@@ -10,8 +10,8 @@ import sys
 from matplotlib.animation import FuncAnimation
 import imageio
 
-
-SAVEDIR = '/home/michaelmcdonald/Dropbox/videos/'
+prefix = os.path.expanduser('~')
+SAVEDIR = prefix+'/Dropbox/videos/'
 def save_video(fname, dname=''):
     arr = np.load(fname)
     if not os.path.isdir(SAVEDIR+dname):
