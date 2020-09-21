@@ -98,6 +98,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.master_config = hyperparams['master_config']
         self.rank = hyperparams['master_config'].get('rank', 0)
         self.process_id = self.master_config['id']
+        self.goal_type = self.master_config.get('goal_type', 'default')
         self.retime = hyperparams['master_config'].get('retime', False)
         for condition in range(len(self.x0)):
             target_vec = np.zeros((self.target_dim,))
@@ -138,6 +139,9 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.traj_hist = None
         self.reset_hist()
 
+        self._prev_U = np.zeros((self.hist_len, self.dU))
+        self._x_delta = np.zeros((self.hist_len+1, self.dX))
+        self._prev_task = np.zeros((self.hist_len, self.dPrimOut))
         self.optimal_samples = {task: [] for task in self.task_list}
         self.optimal_state_traj = [[] for _ in range(len(self.plans_list))]
         self.optimal_act_traj = [[] for _ in range(len(self.plans_list))]
@@ -461,7 +465,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
 
     @abstractmethod
-    def set_symbols(self, plan, state, task, anum=0, cond=0):
+    def set_symbols(self, plan, task, anum=0, cond=0):
         raise NotImplementedError
 
 
@@ -831,12 +835,15 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return info
 
 
-    def postcond_cost(self, sample):
-        return self.cost_f(sample.get_X(sample.T-1), sample.task, sample.condition, active_ts=(sample.T-1, sample.T-1), targets=sample.targets)
+    def postcond_cost(self, sample, task=None, t=None):
+        if t is None: t = sample.T-1
+        if task is None: task = tuple(sample.get(FACTOREDTASK_ENUM, t=t))
+        return self.cost_f(sample.get_X(t), task, sample.condition, active_ts=(-1, -1), targets=sample.targets)
 
 
-    def precond_cost(self, sample):
-        return self.cost_f(sample.get_X(0), sample.task, sample.condition, active_ts=(0, 0), targets=sample.targets)
+    def precond_cost(self, sample, task=None, t=0):
+        if task is None: task = tuple(sample.get(FACTOREDTASK_ENUM, t=t))
+        return self.cost_f(sample.get_X(t), task, sample.condition, active_ts=(0, 0), targets=sample.targets)
 
 
     def relabel_path(self, path):
@@ -1016,7 +1023,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
             if not success:
                 fill_vector(plan.params, self.state_inds, x0, st)
-                self.set_symbols(plan, x0, task, anum=a)
+                self.set_symbols(plan, task, anum=a)
                 try:
                     success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=traj)
                     if self.traj_smooth:
@@ -1117,13 +1124,13 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 sample.use_ts[-1] = 1.
                 sample.prim_use_ts[-1] = 1.
             path[-1].task_end = True
-            path[-1].set(TASK_DONE_ENUM, np.ones(1), t=path[-1].T-1)
+            path[-1].set(TASK_DONE_ENUM, np.array([0, 1]), t=path[-1].T-1)
             zero_sample = self.sample_optimal_trajectory(path[-1].end_state, task, 0, opt_traj[-1:], targets=targets)
             zero_sample.use_ts[:] = 0.
             zero_sample.use_ts[:nzero] = 1.
             zero_sample.prim_use_ts[:] = 0.
             zero_sample.success = path[-1].success
-            zero_sample.set(TASK_DONE_ENUM, np.ones(zero_sample.T))
+            zero_sample.set(TASK_DONE_ENUM, np.tile([0,1], (zero_sample.T, 1)))
             path.append(zero_sample)
             # path[cur_len].set(DONE_ENUM, np.ones(1), t=0)
             path[-1].task_end = True
@@ -1227,12 +1234,37 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return x0s
 
 
-    @abstractmethod
+    #def _failed_preds(self, Xs, task, condition, active_ts=None, debug=False, targets=[]):
+    #    raise NotImplementedError
+
+
     def _failed_preds(self, Xs, task, condition, active_ts=None, debug=False, targets=[]):
-        raise NotImplementedError
+        if len(np.shape(Xs)) == 1:
+            Xs = Xs.reshape(1, Xs.shape[0])
+        Xs = Xs[:, self._x_data_idx[STATE_ENUM]]
+        plan = self.plans[task]
+        if targets is None or not len(targets):
+            targets = self.target_vecs[condition]
+        for tname, attr in self.target_inds:
+            getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
+        tol = 1e-3
+        for t in range(active_ts[0], active_ts[1]+1):
+            set_params_attrs(plan.params, self.state_inds, Xs[t-active_ts[0]], t)
+        self.set_symbols(plan, task, condition)
+
+        if len(Xs.shape) == 1:
+            Xs = Xs.reshape(1, -1)
+
+        if active_ts == None:
+            active_ts = (1, plan.horizon-1)
+
+        failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
+        failed_preds = [p for p in failed_preds if not type(p[1].expr) is EqExpr]
+        return failed_preds
 
 
     def cost_f(self, Xs, task, condition, active_ts=None, debug=False, targets=[]):
+        task = tuple(task)
         if active_ts == None:
             plan = self.plans[task]
             active_ts = (1, plan.horizon-1)

@@ -209,7 +209,6 @@ class MultiProcessMain(object):
             'type': ControlAttentionPolicyOpt,
             'network_params': {
                 'obs_include': self.config['agent']['obs_include'],
-                # 'obs_vector_data': [utils.STATE_ENUM],
                 'obs_image_data': [IM_ENUM, OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
                 'image_width': self.config['image_width'],
                 'image_height': self.config['image_height'],
@@ -263,7 +262,7 @@ class MultiProcessMain(object):
             'distilled_network_model': tf_network,
             'primitive_network_model': tf_classification_network if self.config.get('discrete_prim', True) else tf_network,
             'value_network_model': tf_value_network,
-            'switch_network_model': tf_value_network,
+            'switch_network_model': tf_classification_network,
             'image_network_model': multi_modal_network_fp if 'image' in self.config['agent']['obs_include'] else None,
             'iterations': self.config['train_iterations'],
             'batch_size': self.config['batch_size'],
@@ -500,7 +499,8 @@ class MultiProcessMain(object):
         hyperparams['id'] = 'test'
         hyperparams['check_precond'] = False
         self.create_server(RolloutServer, copy.copy(hyperparams))
-        hyperparams['id'] = 'moretest'
+        hyperparams['id'] = 'hl_test'
+        hyperparams['check_precond'] = True
         self.create_server(RolloutServer, copy.copy(hyperparams))
         hyperparams['run_hl_test'] = False
 

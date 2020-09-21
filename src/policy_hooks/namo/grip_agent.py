@@ -206,6 +206,8 @@ class NAMOGripAgent(NAMOSortingAgent):
 
             new_state = self.get_state()
             if len(self._x_delta)-1: self._x_delta = np.r_[self._x_delta[1:], [new_state]]
+            if len(self._prev_task)-1:
+                self._prev_task = np.r_[self._prev_task[1:], [sample.get_prim_out(t=t)]]
 
             if np.all(np.abs(cur_state - new_state) < 1e-3):
                 sample.use_ts[t] = 0
@@ -362,6 +364,8 @@ class NAMOGripAgent(NAMOSortingAgent):
             x_delta = self._x_delta[1:] - self._x_delta[:1]
             sample.set(STATE_DELTA_ENUM, x_delta.flatten(), t)
             sample.set(STATE_HIST_ENUM, self._x_delta.flatten(), t)
+        if self.task_hist_len > 0:
+            sample.set(TASK_HIST_ENUM, self._prev_task.flatten(), t)
         onehot_task = np.zeros(self.sensor_dims[ONEHOT_TASK_ENUM])
         onehot_task[self.task_to_onehot[task]] = 1.
         sample.set(ONEHOT_TASK_ENUM, onehot_task, t)
@@ -377,6 +381,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         sample.set(TASK_ENUM, task_vec, t)
 
         sample.set(DONE_ENUM, np.zeros(1), t)
+        sample.set(TASK_DONE_ENUM, np.array([1, 0]), t)
         # sample.set(DONE_ENUM, self.goal_f(cond, mp_state), t)
         grasp = np.array([0, -0.601])
         theta = mp_state[self.state_inds['pr2', 'theta']][0]
@@ -774,7 +779,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         return new_traj
 
 
-    def set_symbols(self, plan, state, task, anum=0, cond=0):
+    def set_symbols(self, plan, task, anum=0, cond=0):
         st, et = plan.actions[anum].active_timesteps
         targets = self.target_vecs[cond].copy()
         prim_choices = self.prob.get_prim_choices()
@@ -829,3 +834,22 @@ class NAMOGripAgent(NAMOSortingAgent):
                 l[2] = encoded[i+1][2]
         encoded = [tuple(l) for l in encoded]
         return encoded
+
+
+    def goal(self, cond, targets=None):
+        if self.goal_type == 'moveto':
+            assert ('can1', 'pose') not in self.state_inds
+            return '(NearGraspAngle  pr2 can0) '
+        if targets is None:
+            targets = self.target_vecs[cond]
+        prim_choices = self.prob.get_prim_choices()
+        goal = ''
+        for i, obj in enumerate(prim_choices[OBJ_ENUM]):
+            targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
+            for ind in self.targ_labels:
+                if np.all(np.abs(targ - self.targ_labels[ind]) < NEAR_TOL):
+                    goal += '(Near {0} end_target_{1}) '.format(obj, ind)
+                    break
+        return goal
+
+

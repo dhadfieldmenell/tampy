@@ -471,10 +471,10 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             with tf.variable_scope('switch'):
                 self.switch_eta = tf.placeholder_with_default(1., shape=())
                 tf_map_generator = self._hyperparams['switch_network_model']
-                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=1, 
+                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=2, 
                                                                    batch_size=self.batch_size,
                                                                    network_config=self._hyperparams['network_params'], 
-                                                                   input_layer=input_tensor, imwt=1.)
+                                                                   input_layer=input_tensor)
                 self.switch_obs_tensor = tf_map.get_input_tensor()
                 self.switch_precision_tensor = tf_map.get_precision_tensor()
                 self.switch_action_tensor = tf_map.get_target_output_tensor()
@@ -661,6 +661,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         if len(obs.shape) < 2:
             obs = obs.reshape(1, -1)
         distr = self.sess.run(self.switch_act_op, feed_dict={self.switch_obs_tensor:obs}).flatten()
+        if len(distr) > 1: distr = [distr[1]]
+        distr[0] = np.clip(distr[0], 0, 1)
         return distr
 
 
@@ -823,6 +825,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         """
         if task == 'primitive':
             return self.update_primitive_filter(obs, tgt_mu, tgt_prc, tgt_wt, check_val=check_val)
+        if task == 'switch':
+            return self.update_switch(obs, tgt_mu, tgt_prc, tgt_wt, check_val=check_val)
         if task == 'value':
             return self.update_value(obs, tgt_mu, tgt_prc, tgt_wt)
         if task == 'image':
@@ -969,11 +973,11 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
     def update_switch(self, obs, tgt_mu, tgt_prc, tgt_wt, check_val=False):
         N = obs.shape[0]
-        dP, dO = 1, self._dO
+        dP, dO = 2, self._dO
         obs = np.reshape(obs, (N, dO))
         tgt_mu = np.reshape(tgt_mu, (N, dP))
-        tgt_prc = np.reshape(tgt_prc, (NT, 1, 1))
-        tgt_wt = np.reshape(tgt_wt, (NT, 1, 1))
+        tgt_prc = np.reshape(tgt_prc, (N, 1))
+        tgt_wt = np.reshape(tgt_wt, (N, 1))
         tgt_prc = tgt_prc * tgt_wt
 
         # Assuming that N*T >= self.batch_size.
@@ -992,7 +996,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             feed_dict = {self.switch_obs_tensor: obs[idx_i],
                          self.switch_action_tensor: tgt_mu[idx_i],
                          self.switch_precision_tensor: tgt_prc[idx_i],
-                         self.hllr_tensor: self.cur_hllr}
+                         }
             train_loss = self.switch_solver(feed_dict, self.sess, device_string=self.device_string, train=(not check_val))
 
             average_loss += train_loss

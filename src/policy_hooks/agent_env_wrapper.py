@@ -13,8 +13,10 @@ def register_env(config, name='TampGym-v0', max_ts=500):
     register(
             id=name,
             entry_point='policy_hooks.agent_env_wrapper:AgentEnvWrapper',
-            config=config.copy(),
-            max_ts=max_ts
+            kwargs={
+                'config':config.copy(),
+                'max_ts':max_ts
+                }
             )
     return name
 
@@ -43,6 +45,7 @@ class AgentEnvWrapper(Env):
         self.sub_env = agent.mjc_env if env is None else env
         self._max_time = max_ts
         self._cur_time = 0
+        self.horizon = max_ts
 
         # VAE specific
         self.sub_env.im_height = 80

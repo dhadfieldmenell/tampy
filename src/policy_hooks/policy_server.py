@@ -119,6 +119,8 @@ class PolicyServer(object):
         prc = np.array(msg.prc)
         if msg.task == "primitive":
             prc_dims = (msg.n, msg.dOpts) # Use prc as the masking
+        elif msg.task == "switch" or msg.task == "value":
+            prc_dims = (msg.n, 1)
         else:
             prc_dims = (msg.n, msg.rollout_len, msg.dU, msg.dU)
         prc = prc.reshape(prc_dims)

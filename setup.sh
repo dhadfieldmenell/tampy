@@ -83,6 +83,7 @@ cd baselines
 pip install -e .
 cd ../h-baselines
 pip install -e .
+pip install mpi4py
 cd ~/tamp_work
 
 pip install --force-reinstall numpy==1.18.5

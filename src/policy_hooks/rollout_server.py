@@ -104,6 +104,9 @@ class RolloutServer(object):
             m.discrete_prim = self.config.get('discrete_prim', True)
             m.value_func = self.value_call
             m.prob_func = self.primitive_call
+            if hyperparams.get('use_switch', False):
+                self.use_switch = True
+                m._switch_f = self.switch_call
             m.add_log_file('tf_saved/'+hyperparams['weight_dir']+'/mcts_{0}_{1}'.format(i, self.id))
             # m.log_file = 'tf_saved/'+hyperparams['weight_dir']+'/mcts_log_{0}_cond{1}.txt'.format(self.id, m.condition)
             # with open(m.log_file, 'w+') as f: f.write('')
@@ -327,7 +330,7 @@ class RolloutServer(object):
 
     def policy_call(self, x, obs, t, noise, task, opt_s=None):
         # print 'Entering policy call:', datetime.now()
-        if noise is None: noise = np.zeros(self.dU)
+        if noise is None: noise = np.zeros(self.agent.dU)
         if self.use_local:
             if 'control' in self.policy_opt.task_map:
                 alg_key = 'control'
@@ -364,7 +367,7 @@ class RolloutServer(object):
 
 
     def switch_call(self, obs):
-        return self.policy_opt.switch_val(obs).flatten()[0]
+        return self.policy_opt.switch_call(obs).flatten()[0]
  
 
     def primitive_call(self, prim_obs, soft=False, eta=1., t=-1, task=None):
@@ -826,6 +829,20 @@ class RolloutServer(object):
                 else:
                     (s, t) = fail_pt
                 print('FIRST FAILED TASK:', s, t)
+            elif mode == 'switch':
+                cur_task = path[0].get(FACTOREDTASK_ENUM, t=0)
+                s, t = 0, 0
+                delta = 2
+                post_cost = 0
+                for s, sample in enumerate(path):
+                    for t in range(sample.T):
+                        if post_cost > 0: break
+                        if np.any(cur_task != sample.get(FACTOREDTASK_ENUM, t=t)):
+                            post_cost = min([self.agent.postcond_cost(sample, 
+                                                                      task=tuple(cur_task.astype(int)),
+                                                                      t=i) 
+                                                for i in range(max(0,t-delta), min(sample.T-1,t+delta))])
+                            cur_task = sample.get(FACTOREDTASK_ENUM, t=t)
             else:
                 raise NotImplementedError
             x0 = path[s].get_X(t=t) # self.agent.x0[0]
@@ -1038,6 +1055,8 @@ class RolloutServer(object):
                     # task_costs[task].append(viol)
                     # print('Server {0} in group {1} updating policy'.format(self.id, self.group_id))
                     self.alg_map[task].iteration(self.rollout_opt_pairs[task], reset=True)
+                    if self.use_switch:
+                        self.update_switch([s for s, _ in self.rollout_opt_pairs[task]])
 
             # if time.time() - start_t > 1:
             #     print('Time to finish alg iteration', time.time() - start_t)
@@ -1335,7 +1354,7 @@ class RolloutServer(object):
         while not self.stopped:
             if not self.run_hl_test and \
                self._hyperparams.get('train_on_fail', False) and \
-               self.cur_step > 10 and \
+               self.cur_step > 1 and \
                not self._hyperparams.get('ff_only', False):
                 self.agent.replace_cond(0)
                 augment = self._hyperparams.get('augment_hl', False)
@@ -1357,6 +1376,7 @@ class RolloutServer(object):
                     data = self.agent.get_opt_samples(task, clear=True)
                     if len(data):
                         self.alg_map[task]._update_policy_no_cost(data)
+                    if self.use_switch: self.update_switch(data)
 
             step += 1
             if time.time() - self.start_t > self._hyperparams['time_limit']:
@@ -1477,22 +1497,20 @@ class RolloutServer(object):
 
 
     def update_switch(self, samples):
-        dP, dO = 1, self.dO
+        dP, dO = 2, self.agent.dO
         ### Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
-        tgt_prc, tgt_wt = np.zeros((0, 1, 1)), np.zeros((0))
+        tgt_prc, tgt_wt = np.zeros((0, 1)), np.zeros((0))
         for sample in samples:
             mu = sample.get(TASK_DONE_ENUM)
             tgt_mu = np.concatenate((tgt_mu, mu))
             st, et = 0, sample.T # st, et = sample.step * sample.T, (sample.step + 1) * sample.T
-            wt = np.ones(st-et)
-            wt[np.where(mu >= 0.99)] =  len(samples)*sample.T
+            wt = np.ones(et-st)
+            # wt[np.where(mu[:,1].flatten() >= 0.99)] = len(samples)*sample.T
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs = sample.get_obs()
             obs_data = np.concatenate((obs_data, obs))
-            if not self.config['hl_mask']:
-                prc[:] = 1.
-            prc = np.tile(np.eye(1), (sample.T,1,1))
+            prc = np.tile(np.eye(1), (sample.T,1))
             tgt_prc = np.concatenate((tgt_prc, prc))
  
         if len(tgt_mu):
