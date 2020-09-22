@@ -104,6 +104,7 @@ class RolloutServer(object):
             m.discrete_prim = self.config.get('discrete_prim', True)
             m.value_func = self.value_call
             m.prob_func = self.primitive_call
+            self.use_switch = False
             if hyperparams.get('use_switch', False):
                 self.use_switch = True
                 m._switch_f = self.switch_call
@@ -124,7 +125,7 @@ class RolloutServer(object):
             mcts.num_samples = self.num_samples
         self.num_rollouts = hyperparams['num_rollouts']
         self.stopped = False
-        self.expert_demos = {'acs':[], 'obs':[], 'ep_rets':[], 'rews':[]}
+        self.expert_demos = {'acs':[], 'obs':[], 'ep_rets':[], 'rews':[], 'tasks':[], 'use_mask':[]}
 
         self.renew_publisher()
         self.last_log_t = time.time()
@@ -1663,12 +1664,12 @@ class RolloutServer(object):
             for key in self.expert_demos:
                 self.expert_demos[key].append([])
             for s in path:
-                for t in range(s.T):
-                    if not s.use_ts[t]: continue
-                    self.expert_demos['acs'][-1].extend(s.get(ACTION_ENUM))
-                    self.expert_demos['obs'][-1].extend(s.get_prim_obs())
-                    self.expert_demos['ep_rets'][-1].extend(np.ones(s.T))
-                    self.expert_demos['rews'][-1].extend(np.ones(s.T))
+                self.expert_demos['acs'][-1].extend(s.get(ACTION_ENUM))
+                self.expert_demos['obs'][-1].extend(s.get_prim_obs())
+                self.expert_demos['ep_rets'][-1].extend(np.ones(s.T))
+                self.expert_demos['rews'][-1].extend(np.ones(s.T))
+                self.expert_demos['tasks'][-1].extend(s.get(FACTOREDTASK_ENUM))
+                self.expert_demos['use_mask'][-1].extend(s.use_ts)
         if self.cur_step % 5:
             np.save(self.expert_data_file, self.expert_demos)
 
