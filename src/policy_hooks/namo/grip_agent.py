@@ -803,39 +803,6 @@ class NAMOGripAgent(NAMOSortingAgent):
                 plan.params['{0}_init_target'.format(pname)].value[:,0] = plan.params[pname].pose[:,0]
 
 
-    def encode_action(self, action):
-        prim_choices = self.prob.get_prim_choices()
-        astr = str(action).lower()
-        l = [0]
-        for i, task in enumerate(self.task_list):
-            if action.name.lower().find(task) >= 0:
-                l[0] = i
-                break
-        for enum in prim_choices:
-            if enum is TASK_ENUM: continue
-            l.append(0)
-            for i, opt in enumerate(prim_choices[enum]):
-                if opt in [p.name for p in action.params]:
-                    l[-1] = i
-                    break
-        if self.task_list[l[0]].find('moveto') >= 0:
-            l[2] = np.random.randint(len(prim_choices[TARG_ENUM]))
-        return l # tuple(l)
-
-
-    def encode_plan(self, plan):
-        encoded = []
-        prim_choices = self.prob.get_prim_choices()
-        for a in plan.actions:
-            encoded.append(self.encode_action(a))
-
-        for i, l in enumerate(encoded[:-1]):
-            if self.task_list[l[0]] == 'moveto' and self.task_list[encoded[i+1][0]] == 'transfer':
-                l[2] = encoded[i+1][2]
-        encoded = [tuple(l) for l in encoded]
-        return encoded
-
-
     def goal(self, cond, targets=None):
         if self.goal_type == 'moveto':
             assert ('can1', 'pose') not in self.state_inds

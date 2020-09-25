@@ -171,6 +171,7 @@ class MCTS:
         self._value_f = value_f
         self._prob_f = prob_f
         self._switch_f = None
+        self._permute = 0
         # self.node_check_f = lambda n: n.value/n.n_explored+self.C*np.sqrt(np.log(n.parent.n_explored)/n.n_explored) if n != None else -np.inf
         self.start_t = time.time()
         self.opt_strength = opt_strength
@@ -424,6 +425,8 @@ class MCTS:
             success = path[-1].success
             self.hl_suc += 1
             self.log_path(path, 10)
+            for _ in range(self._permute):
+                self.agent.run_plan(plan, targets=targets, reset=True, permute=True)
         else:
             self.agent.n_hl_fail += 1
             self.hl_fail += 1
@@ -627,7 +630,6 @@ class MCTS:
             if fixed_path is None:
                 for n in range(num_samples):
                     task_f = None
-                    self._switch_f = None
                     if hl:
                         def task_f(s, t, curtask):
                             if self._switch_f is not None:

@@ -108,6 +108,7 @@ class RolloutServer(object):
             if hyperparams.get('use_switch', False):
                 self.use_switch = True
                 m._switch_f = self.switch_call
+            m._permute = hyperparams.get('permute_hl', 0)
             m.add_log_file('tf_saved/'+hyperparams['weight_dir']+'/mcts_{0}_{1}'.format(i, self.id))
             # m.log_file = 'tf_saved/'+hyperparams['weight_dir']+'/mcts_log_{0}_cond{1}.txt'.format(self.id, m.condition)
             # with open(m.log_file, 'w+') as f: f.write('')
@@ -368,7 +369,7 @@ class RolloutServer(object):
 
 
     def switch_call(self, obs):
-        return self.policy_opt.switch_call(obs).flatten()[0]
+        return self.policy_opt.switch_call(obs)[0]
  
 
     def primitive_call(self, prim_obs, soft=False, eta=1., t=-1, task=None):
@@ -833,17 +834,21 @@ class RolloutServer(object):
             elif mode == 'switch':
                 cur_task = path[0].get(FACTOREDTASK_ENUM, t=0)
                 s, t = 0, 0
+                cur_s, cur_t = 0, 0
                 delta = 2
                 post_cost = 0
                 for s, sample in enumerate(path):
                     for t in range(sample.T):
                         if post_cost > 0: break
-                        if np.any(cur_task != sample.get(FACTOREDTASK_ENUM, t=t)):
+                        if not self.agent.compare_tasks(cur_task, sample.get(FACTOREDTASK_ENUM, t=t)):
                             post_cost = min([self.agent.postcond_cost(sample, 
                                                                       task=tuple(cur_task.astype(int)),
                                                                       t=i) 
                                                 for i in range(max(0,t-delta), min(sample.T-1,t+delta))])
                             cur_task = sample.get(FACTOREDTASK_ENUM, t=t)
+                            if post_cost == 0:
+                                cur_s, cur_t = s, t
+                s, t = cur_s, cur_t
             else:
                 raise NotImplementedError
             x0 = path[s].get_X(t=t) # self.agent.x0[0]
@@ -851,6 +856,10 @@ class RolloutServer(object):
             self.agent.reset_to_state(x0)
             self.agent.store_x_hist(path[s].get(STATE_HIST_ENUM, t=t))
             val, path, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=False)
+            if plan is not None and type(plan) is not str:
+                for _ in range(self.permute_hl):
+                    self.run_plan(plan, targets, permute=True, rest=True)
+
             print(('Plan from fail?', plan, val, len(path), self.id))
             if augment and type(plan) is Plan:
                 self.agent.resample_hl_plan(plan, targets)
@@ -1355,7 +1364,7 @@ class RolloutServer(object):
         while not self.stopped:
             if not self.run_hl_test and \
                self._hyperparams.get('train_on_fail', False) and \
-               self.cur_step > 1 and \
+               self.cur_step > 10 and \
                not self._hyperparams.get('ff_only', False):
                 self.agent.replace_cond(0)
                 augment = self._hyperparams.get('augment_hl', False)
@@ -1507,7 +1516,7 @@ class RolloutServer(object):
             tgt_mu = np.concatenate((tgt_mu, mu))
             st, et = 0, sample.T # st, et = sample.step * sample.T, (sample.step + 1) * sample.T
             wt = np.ones(et-st)
-            # wt[np.where(mu[:,1].flatten() >= 0.99)] = len(samples)*sample.T
+            wt[np.where(mu[:,1].flatten() >= 0.99)] = len(samples)*sample.T
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs = sample.get_obs()
             obs_data = np.concatenate((obs_data, obs))

@@ -937,13 +937,12 @@ class NAMOSortingAgent(TAMPAgent):
             state = [state]
         for param in list(plan.params.values()):
             if param._type == 'Can':
-                if self.goal_type == 'moveto':
-                    val = x[self.state_inds['pr2', 'pose']]
-                else:
-                    val = targets[self.target_inds['{0}_end_target'.format(param.name), 'value']]
+                val = targets[self.target_inds['{0}_end_target'.format(param.name), 'value']]
                 dist = np.inf
                 disp = None
                 for x in state:
+                    if self.goal_type == 'moveto':
+                        val = x[self.state_inds['pr2', 'pose']]
                     curdisp = x[self.state_inds[param.name, 'pose']] - val
                     curdist = np.linalg.norm(curdisp)
                     if curdist < dist:
@@ -1145,6 +1144,7 @@ class NAMOSortingAgent(TAMPAgent):
         self._done = 0.
         self._prev_U = np.zeros((self.hist_len, self.dU))
         self._x_delta = np.zeros((self.hist_len+1, self.dX))
+        self._x_delta[:] = x.reshape((1,-1))
         self._prev_task = np.zeros((self.hist_len, self.dPrimOut))
         for param_name, attr in self.state_inds:
             if attr == 'pose':
@@ -1399,29 +1399,44 @@ class NAMOSortingAgent(TAMPAgent):
         return np.concatenate(vecs)
 
 
-    def encode_plan(self, plan):
-        encoded = []
-        prim_choices = self.prob.get_prim_choices()
-        for a in plan.actions:
-            encoded.append(self.encode_action(a))
-
-        #for i, l in enumerate(encoded[:-1]):
-        #    if l[0] == 0 and encoded[i+1][0] == 1:
-        #        l[2] = encoded[i+1][2]
-        encoded = [tuple(l) for l in encoded]
-        return encoded
-
-
     def get_mask(self, sample, enum):
         mask = np.ones((sample.T, 1))
         ind1 = self.task_list.index('moveto')
         ind2  = self.task_list.index('transfer')
         for t in range(sample.T):
-            if enum == OBJ_ENUM and sample.get(TASK_ENUM, t)[ind1] < 0.5:
+            if enum == TARG_ENUM and sample.get(TASK_ENUM, t)[ind2] < 0.5:
                 mask[t, :] = 0.
-            elif enum == TARG_ENUM and sample.get(TASK_ENUM, t)[ind2] < 0.5:
+            elif enum == OBJ_ENUM and sample.get(TASK_ENUM, t)[ind1] < 0.5:
                 mask[t, :] = 0.
         return mask
+
+
+    def permute_tasks(self, tasks, targets):
+        encoded = [list(l) for l in tasks]
+        no = self._hyperparams['num_objs']
+        perm = np.random.permutation(range(no))
+        for l in encoded:
+            l[1] = perm[l[1]]
+        encoded = [tuple(l) for l in encoded]
+        target_vec = targets.copy()
+        for n in range(no):
+            inds = self.target_inds['can{0}_end_target'.format(n), 'value']
+            inds2 = self.target_inds['can{0}_end_target'.format(perm[n]), 'value']
+            target_vec[inds2] = targets[inds]
+        return encoded, target_vec
+
+
+    def encode_plan(self, plan, permute=False):
+        encoded = []
+        prim_choices = self.prob.get_prim_choices()
+        for a in plan.actions:
+            encoded.append(self.encode_action(a))
+
+        for i, l in enumerate(encoded[:-1]):
+            if self.task_list[l[0]].find( 'moveto') >= 0 and self.task_list[encoded[i+1][0]].find('transfer') >= 0:
+                l[2] = encoded[i+1][2]
+        encoded = [tuple(l) for l in encoded]
+        return encoded
 
 
     def encode_action(self, action):
@@ -1509,3 +1524,8 @@ class NAMOSortingAgent(TAMPAgent):
                 new_traj = out
             if np.any(np.isnan(out)): print(('NAN in out', out, x))
         return new_traj
+
+
+    def compare_tasks(self, t1, t2):
+        return t1[0] == t2[0] and t1[1] == t2[1]
+

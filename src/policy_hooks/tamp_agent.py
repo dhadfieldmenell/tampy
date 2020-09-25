@@ -162,6 +162,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.seed = 1234
         self.prim_dims = self._hyperparams['prim_dims']
         self.prim_dims_keys = list(self.prim_dims.keys())
+        self.permute_hl = self.master_config.get('permute_hl', False)
 
         self.solver = self._hyperparams['mp_solver_type'](self._hyperparams)
         if 'll_solver_type' in self._hyperparams['master_config']:
@@ -473,10 +474,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
     def encode_action(self, action):
         raise NotImplementedError
 
-
-    @abstractmethod
-    def encode_plan(self, plan):
-        raise NotImplementedError
 
     @abstractmethod
     def reset(self, m):
@@ -951,11 +948,12 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return l # tuple(l)
 
 
-    def encode_plan(self, plan):
+    def encode_plan(self, plan, permute=False):
         encoded = []
         prim_choices = self.prob.get_prim_choices()
         for a in plan.actions:
             encoded.append(self.encode_action(a))
+        encoded = [tuple(l) for l in encoded]
         return encoded
 
 
@@ -1049,7 +1047,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return success
 
 
-    def run_plan(self, plan, targets, tasks=None, reset=True):
+    def run_plan(self, plan, targets, tasks=None, reset=True, permute=False):
         self.n_plans_run += 1
         path = []
         x0 = np.zeros_like(self.x0[0])
@@ -1057,14 +1055,15 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         if reset:
             self.reset_to_state(x0)
         nzero = self.master_config.get('add_noop', 0)
+        if tasks is None:
+            tasks = self.encode_plan(plan)
+        if permute:
+            tasks, targets = self.permute_tasks(tasks, targets)
         for a in range(len(plan.actions)):
             # x0 = np.zeros_like(self.x0[0])
             st, et = plan.actions[a].active_timesteps
             # fill_vector(plan.params, self.state_inds, x0, st)
-            if tasks is None:
-                task = self.encode_plan(plan)[a]
-            else:
-                task = tasks[a]
+            task = tasks[a]
             opt_traj = np.zeros((et-st+1, self.symbolic_bound))
             for pname, attr in self.state_inds:
                 if plan.params[pname].is_symbol(): continue
@@ -1316,4 +1315,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         im = self.mjc_env.render(camera_id=0, height=self.image_height, width=self.image_width, view=False, depth=depth)
         return im
 
+    
+    def compare_tasks(self, t1, t2):
+        return np.all(np.array(t1) == np.array(t2))
 

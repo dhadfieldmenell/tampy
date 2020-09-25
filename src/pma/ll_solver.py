@@ -1,6 +1,6 @@
 from sco.prob import Prob
 from sco.variable import Variable
-from sco.expr import BoundExpr, QuadExpr, AffExpr
+from sco.expr import BoundExpr, QuadExpr, AffExpr, EqExpr
 from sco.solver import Solver
 
 from core.util_classes import common_predicates

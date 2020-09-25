@@ -77,8 +77,8 @@ def main():
                     s += "(geom %s %s); "%("obs0", "closet")
 
                     for i in range(NUM_CANS):
-                        s += "(At can{} can{}_init_target), ".format(i, i)
-                        s += "(Near can{} can{}_init_target), ".format(i, i)
+                        # s += "(At can{} can{}_init_target), ".format(i, i)
+                        # s += "(Near can{} can{}_init_target), ".format(i, i)
                         s += "(Stationary can{}), ".format(i)
                         for j in range(NUM_CANS):
                             s += "(StationaryNEq can{} can{}), ".format(i, j)

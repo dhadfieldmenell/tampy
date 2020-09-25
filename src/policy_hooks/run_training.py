@@ -128,6 +128,7 @@ def main():
                 args = pickle.load(f)
             args.soft_eval = old_args.soft_eval
             args.test = old_args.test
+            args.use_switch = old_args.use_switch
             args.ll_policy = args.test
             args.hl_policy = args.test
             args.load_render = old_args.load_render
@@ -267,7 +268,7 @@ def argsparser():
     parser.add_argument('-task_hist_len', '--task_hist_len', type=int, default=1)
     parser.add_argument('-obs_del', '--add_obs_delta', action='store_true', default=False)
     parser.add_argument('-act_hist', '--add_action_hist', action='store_true', default=False)
-    parser.add_argument('--task_hist', '--add_task_hist', action='store_true', default=False)
+    parser.add_argument('-task_hist', '--add_task_hist', action='store_true', default=False)
     parser.add_argument('-smooth', '--traj_smooth', action='store_true', default=False)
     parser.add_argument('-hl_retrain', '--hl_retrain', action='store_true', default=False)
     parser.add_argument('-seq', '--seq', action='store_true', default=False)
@@ -355,6 +356,7 @@ def argsparser():
     parser.add_argument('-mask', '--hl_mask', action='store_false', default=True)
     parser.add_argument('-rs', '--rollout_seed', action='store_true', default=False)
     parser.add_argument('-switch', '--use_switch', action='store_true', default=False)
+    parser.add_argument('-permute', '--permute_hl', type=int, default=0)
 
     # Q learn args
     parser.add_argument('-qimwt', '--q_imwt', type=float, default=0)
