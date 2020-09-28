@@ -137,10 +137,11 @@ class NAMOGripAgent(NAMOSortingAgent):
             pos = next_trans[:3,3] # [next_trans[1,3], next_trans[0,3], next_trans[2,3]]
             items.append({'name': 'wall{0}'.format(i), 'type': 'box', 'is_fixed': True, 'pos': pos, 'dimensions': next_dim, 'rgba': (0.2, 0.2, 0.2, 1)})
 
-        config['load_render'] = hyperparams['master_config'].get('load_render', False)
-        config['xmlid'] = '{0}_{1}'.format(self.process_id, self.rank)
-        self.mjc_env = MJCEnv.load_config(config)
         no = self._hyperparams['num_objs']
+        nt = self._hyperparams['num_targs']
+        config['load_render'] = hyperparams['master_config'].get('load_render', False)
+        config['xmlid'] = '{0}_{1}_{2}_{3}'.format(self.process_id, self.rank, no, nt)
+        self.mjc_env = MJCEnv.load_config(config)
         self.targ_labels = {i: np.array(self.prob.END_TARGETS[i]) for i in range(len(self.prob.END_TARGETS))}
         self.targ_labels.update({i: self.targets[0]['aux_target_{0}'.format(i-no)] for i in range(no, no+self.prob.n_aux)})
 

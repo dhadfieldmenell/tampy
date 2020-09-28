@@ -1050,15 +1050,19 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
     def run_plan(self, plan, targets, tasks=None, reset=True, permute=False):
         self.n_plans_run += 1
         path = []
-        x0 = np.zeros_like(self.x0[0])
-        fill_vector(plan.params, self.state_inds, x0, 0)
-        if reset:
-            self.reset_to_state(x0)
         nzero = self.master_config.get('add_noop', 0)
         if tasks is None:
             tasks = self.encode_plan(plan)
+        x0 = np.zeros_like(self.x0[0])
+        fill_vector(plan.params, self.state_inds, x0, 0)
+        perm = {}
         if permute:
-            tasks, targets = self.permute_tasks(tasks, targets)
+            tasks, targets, perm = self.permute_tasks(tasks, targets, plan)
+            for pname, aname in self.state_inds:
+                if pname in perm:
+                    x0[self.state_inds[perm[pname], aname]] = getattr(plan.params[pname], aname)[:,0]
+        if reset:
+            self.reset_to_state(x0)
         for a in range(len(plan.actions)):
             # x0 = np.zeros_like(self.x0[0])
             st, et = plan.actions[a].active_timesteps
@@ -1067,7 +1071,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             opt_traj = np.zeros((et-st+1, self.symbolic_bound))
             for pname, attr in self.state_inds:
                 if plan.params[pname].is_symbol(): continue
-                opt_traj[:,self.state_inds[pname, attr]] = getattr(plan.params[pname], attr)[:,st:et+1].T
+                opt_traj[:,self.state_inds[perm.get(pname, pname), attr]] = getattr(plan.params[pname], attr)[:,st:et+1].T
 
             # self.reset_hist()
             cur_len = len(path)
@@ -1138,7 +1142,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             for s in path:
                 self.optimal_samples[self.task_list[s.task[0]]].append(s)
             self.n_plans_suc_run += 1
-        print(('Plans run vs. success:', self.n_plans_run, self.n_plans_suc_run))
+        print(('Plans run vs. success:', self.n_plans_run, self.n_plans_suc_run, self.process_id))
         return path
 
     def run_pr_graph(self, state, targets=None, cond=None, reset=True):

@@ -77,11 +77,15 @@ class PolicyServer(object):
 
     def run(self):
         while not self.stopped:
+            start_t = time.time()
             if not USE_ROS: self.parse_data()
+            if self.task == 'primitive': print('T1', time.time() - start_t)
             self.parse_update_queue()
+            if self.task == 'primitive': print('T2', time.time() - start_t)
             self.update_network()
-            if time.time() - self.start_t > self.config['time_limit']:
-                break
+            if self.task == 'primitive': print('T3', time.time() - start_t)
+            #if time.time() - self.start_t > self.config['time_limit']:
+            #    break
         self.policy_opt.sess.close()
 
 
@@ -94,12 +98,25 @@ class PolicyServer(object):
     def parse_data(self):
         q = self.queues['{0}_pol'.format(self.task)]
         i = 0
+        retrieved = False
         while i < q._maxsize and not q.empty():
+            i += 1
             try:
                 msg = q.get_nowait()
                 self.update(msg)
+                retrieved = True
             except queue.Empty:
                 break
+
+        if not retrieved:
+            try:
+                msg = q.get(block=True, timeout=0.1)
+                self.update(msg)
+                retrieved = True
+            except queue.Empty:
+                pass
+
+        if retrieved and self.task == 'primitive': print('Retrieved from HL queue')
 
 
     def update(self, msg):

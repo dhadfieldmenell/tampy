@@ -43,6 +43,13 @@ def load_agent(config):
     target_dim, target_inds = utils.get_target_inds(list(plans.values())[0], config['attr_map'], target_vector_include)
     x0, targets = prob.get_random_initial_state_vec(config, plans, dX, state_inds, conditions)
 
+
+    im_h = config.get('image_height', utils.IM_H)
+    im_w = config.get('image_width', utils.IM_W)
+    im_c = config.get('image_channels', utils.IM_C)
+    config['image_height'] = im_h
+    config['image_width'] = im_w
+    config['image_channels'] = im_c
     for plan in list(plans.values()):
         plan.state_inds = state_inds
         plan.action_inds = action_inds
@@ -63,6 +70,7 @@ def load_agent(config):
         utils.TASK_ENUM: len(task_list),
         utils.TARGETS_ENUM: target_dim,
         utils.ONEHOT_TASK_ENUM: len(list(plans.keys())),
+        utils.IM_ENUM: im_h * im_w * im_c
     }
     for enum in config['sensor_dims']:
         sensor_dims[enum] = config['sensor_dims'][enum]
@@ -70,6 +78,12 @@ def load_agent(config):
         config['prim_obs_include'].append(utils.TRAJ_HIST_ENUM)
     if config['add_obs_delta']:
         config['prim_obs_include'].append(utils.STATE_DELTA_ENUM)
+    if config.get('add_hl_image', False):
+        config['prim_obs_include'].append(utils.IM_ENUM)
+        config['load_render'] = True
+    if config.get('add_image', False):
+        config['obs_include'].append(utils.IM_ENUM)
+        config['load_render'] = True
     prim_bounds = []
     prim_dims = OrderedDict({})
     config['prim_dims'] = prim_dims
@@ -136,9 +150,9 @@ def load_agent(config):
         'num_objs': config['num_objs'],
         'obj_list': [],
         'stochastic_conditions': False,
-        'image_width': utils.IM_W,
-        'image_height': utils.IM_H,
-        'image_channels': utils.IM_C,
+        'image_width': im_w,
+        'image_height': im_h,
+        'image_channels': im_c,
         'hist_len': config['hist_len'],
         'T': 1,
         'viewer': config.get('viewer', False),
@@ -149,9 +163,6 @@ def load_agent(config):
         'n_dirs': config['n_dirs'],
         'prob': prob,
         'attr_map': config['attr_map'],
-        'image_width': config['image_width'],
-        'image_height': config['image_height'],
-        'image_channels': config['image_channels'],
         'prim_dims': prim_dims,
         'mp_solver_type': config['mp_solver_type'],
         'robot_name': config['robot_name'],

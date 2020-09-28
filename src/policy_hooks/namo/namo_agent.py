@@ -87,21 +87,21 @@ class NAMOSortingAgent(TAMPAgent):
             'obs_include': ['overhead_camera'],
             'include_files': [],
             'include_items': [
-                {'name': 'pr2', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 1.), 'rgba': (1, 1, 1, 1)},
+                {'name': 'pr2', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.4, 1.), 'rgba': (1, 1, 1, 1)},
             ],
             'view': False,
             'image_dimensions': (hyperparams['image_width'], hyperparams['image_height'])
         }
 
         self.main_camera_id = 0
-        colors = [[1, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1, 1], [1, 1, 0, 1], [1, 0, 1, 1], [0.5, 0.75, 0.25, 1], [0.75, 0.5, 0, 1], [0.25, 0.25, 0.5, 1], [0.5, 0, 0.25, 1], [0, 0.5, 0.75, 1], [0, 0, 0.5, 1]]
+        colors = [[1, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1, 1], [1, 1, 0, 1], [0.5, 0, 1, 1], [0.5, 0.75, 0.25, 1], [0.75, 0.5, 0, 1], [0.25, 0.25, 0.5, 1], [0.5, 0, 0.25, 1], [0, 0.5, 0.75, 1], [0, 0, 0.5, 1]]
 
         items = config['include_items']
         prim_options = self.prob.get_prim_choices()
         for name in prim_options[OBJ_ENUM]:
             if name =='pr2': continue
             cur_color = colors.pop(0)
-            items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 1.), 'rgba': tuple(cur_color)})
+            items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.4, 1.), 'rgba': tuple(cur_color)})
             if name != 'pr2':
                 items.append({'name': '{0}_end_target'.format(name), 'type': 'cylinder', 'is_fixed': True, 'pos': (0, 0, 2.5), 'dimensions': (NEAR_TOL, 0.05), 'rgba': tuple(cur_color), 'mass': 1.})
             # items.append({'name': '{0}_end_target'.format(name), 'type': 'cylinder', 'is_fixed': False, 'pos': (10, 10, 0.5), 'dimensions': (0.8, 0.2), 'rgba': tuple(cur_color)})
@@ -852,8 +852,9 @@ class NAMOSortingAgent(TAMPAgent):
                 lidar = self.dist_obs(plan, t)
                 sample.set(LIDAR_ENUM, lidar.flatten(), t)
 
-            if IM_ENUM in self._hyperparams['obs_include']:
-                # self.reset_to_state(sample.get_X(t=t))
+            if IM_ENUM in self._hyperparams['obs_include'] or \
+               IM_ENUM in self._hyperparams['prim_obs_include']:
+                self.reset_mjc_env(sample.get_X(t=t))
                 im = self.mjc_env.render(height=self.image_height, width=self.image_width)
                 sample.set(IM_ENUM, im.flatten(), t)
 
@@ -1146,6 +1147,11 @@ class NAMOSortingAgent(TAMPAgent):
         self._x_delta = np.zeros((self.hist_len+1, self.dX))
         self._x_delta[:] = x.reshape((1,-1))
         self._prev_task = np.zeros((self.hist_len, self.dPrimOut))
+        self.reset_mjc_env(mp_state)
+
+
+    def reset_mjc_env(self, x):
+        mp_state = x[self._x_data_idx[STATE_ENUM]]
         for param_name, attr in self.state_inds:
             if attr == 'pose':
                 pos = mp_state[self.state_inds[param_name, 'pose']].copy()
@@ -1411,7 +1417,7 @@ class NAMOSortingAgent(TAMPAgent):
         return mask
 
 
-    def permute_tasks(self, tasks, targets):
+    def permute_tasks(self, tasks, targets, plan):
         encoded = [list(l) for l in tasks]
         no = self._hyperparams['num_objs']
         perm = np.random.permutation(range(no))
@@ -1419,11 +1425,17 @@ class NAMOSortingAgent(TAMPAgent):
             l[1] = perm[l[1]]
         encoded = [tuple(l) for l in encoded]
         target_vec = targets.copy()
+        param_map = {}
+        old_values = {}
         for n in range(no):
             inds = self.target_inds['can{0}_end_target'.format(n), 'value']
             inds2 = self.target_inds['can{0}_end_target'.format(perm[n]), 'value']
             target_vec[inds2] = targets[inds]
-        return encoded, target_vec
+            old_values['can{0}'.format(n)] = plan.params['can{0}'.format(n)].pose.copy()
+        perm_map = {}
+        for n in range(no):
+            perm_map['can{0}'.format(n)] = 'can{0}'.format(perm[n])
+        return encoded, target_vec, perm_map
 
 
     def encode_plan(self, plan, permute=False):

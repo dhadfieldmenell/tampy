@@ -304,7 +304,7 @@ def argsparser():
     parser.add_argument('-render', '--load_render', action='store_true', default=False)
     parser.add_argument('-retime', '--retime', action='store_true', default=False)
     parser.add_argument('-local_retime', '--local_retime', action='store_true', default=False)
-    parser.add_argument('-vel', '--velocity', type=float, default=0.3)
+    parser.add_argument('-vel', '--velocity', type=float, default=0.4)
     parser.add_argument('-nocol', '--check_col', action='store_false', default=True)
     parser.add_argument('-cond', '--conditional', action='store_true', default=False)
     parser.add_argument('-save_exp', '--save_expert', action='store_true', default=False)
@@ -356,6 +356,8 @@ def argsparser():
     parser.add_argument('-mask', '--hl_mask', action='store_false', default=True)
     parser.add_argument('-rs', '--rollout_seed', action='store_true', default=False)
     parser.add_argument('-switch', '--use_switch', action='store_true', default=False)
+    parser.add_argument('-image', '--add_image', action='store_true', default=False)
+    parser.add_argument('-hl_image', '--add_hl_image', action='store_true', default=False)
     parser.add_argument('-permute', '--permute_hl', type=int, default=0)
 
     # Q learn args

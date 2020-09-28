@@ -112,6 +112,7 @@ class RolloutServer(object):
             m.add_log_file('tf_saved/'+hyperparams['weight_dir']+'/mcts_{0}_{1}'.format(i, self.id))
             # m.log_file = 'tf_saved/'+hyperparams['weight_dir']+'/mcts_log_{0}_cond{1}.txt'.format(self.id, m.condition)
             # with open(m.log_file, 'w+') as f: f.write('')
+        self.permute_hl = hyperparams.get('permute_hl', 0)
         self.steps_to_replace = hyperparams.get('steps_to_replace', 1000)
         self.success_to_replace = hyperparams.get('success_to_replace', 1)
         self.alg_map = hyperparams['alg_map']
@@ -309,10 +310,30 @@ class RolloutServer(object):
                     q.get_nowait()
                 except queue.Empty:
                     pass
+
+            placed = False
             try:
                 q.put_nowait(msg)
+                placed = True
             except queue.Full:
-                pass
+                placed = False
+            
+            if not placed:
+                for _ in range(10):
+                    if q.full():
+                        try:
+                            q.get_nowait()
+                        except queue.Empty:
+                            pass
+
+                    try:
+                        q.put(msg, block=True, timeout=0.1)
+                        placed = True
+                        break
+                    except queue.Full:
+                        continue
+            if placed and task == 'primitive': print('Placed in HL queue')
+            if not placed and task == 'primitive': print('Failed to place in HL queue')
 
 
     def store_weights(self, msg):
@@ -858,7 +879,7 @@ class RolloutServer(object):
             val, path, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=False)
             if plan is not None and type(plan) is not str:
                 for _ in range(self.permute_hl):
-                    self.run_plan(plan, targets, permute=True, rest=True)
+                    self.agent.run_plan(plan, targets, permute=True, reset=True)
 
             print(('Plan from fail?', plan, val, len(path), self.id))
             if augment and type(plan) is Plan:
@@ -1067,6 +1088,7 @@ class RolloutServer(object):
                     self.alg_map[task].iteration(self.rollout_opt_pairs[task], reset=True)
                     if self.use_switch:
                         self.update_switch([s for s, _ in self.rollout_opt_pairs[task]])
+                    self.rollout_opt_pairs[task] = []
 
             # if time.time() - start_t > 1:
             #     print('Time to finish alg iteration', time.time() - start_t)
@@ -1148,7 +1170,9 @@ class RolloutServer(object):
         np.save(fname, np.array(buf))
 
 
-    def test_hl(self, rlen=None, save=True, ckpt_ind=None, restore=False, debug=False, save_fail=False):
+    def test_hl(self, rlen=None, save=True, ckpt_ind=None,
+                restore=False, debug=False, save_fail=False,
+                save_video=False):
         if ckpt_ind is not None:
             print(('Rolling out for index', ckpt_ind))
 
@@ -1192,7 +1216,7 @@ class RolloutServer(object):
             targets[self.agent.target_inds['{0}_end_target'.format(obj_name), 'value']] = x0[self.agent.state_inds[obj_name, 'pose']]
         if rlen is None:
             if self.agent.retime:
-                rlen = 4 + 4*n
+                rlen = 5 + 6*n
             else:
                 rlen = 3*n
         self.agent.T = self.config['task_durations'][self.task_list[0]]
@@ -1260,7 +1284,7 @@ class RolloutServer(object):
             print(('n_success', len([d for d in self.hl_data if d[0][0] > 1-1e-3])))
             print(('n_true_success', len([d for d in self.hl_data if d[0][2] > 1-1e-3])))
             print(('n_runs', len(self.hl_data)))
-        if self.render:
+        if self.render and save_video:
             print('Saving video...', val)
             self.save_video(path, val > 0)
             print('Saved video. Rollout success was: ', val > 0)
@@ -1389,8 +1413,8 @@ class RolloutServer(object):
                     if self.use_switch: self.update_switch(data)
 
             step += 1
-            if time.time() - self.start_t > self._hyperparams['time_limit']:
-                break
+            #if time.time() - self.start_t > self._hyperparams['time_limit']:
+            #    break
         self.policy_opt.sess.close()
 
 

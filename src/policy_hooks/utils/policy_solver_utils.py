@@ -76,7 +76,7 @@ GOAL_ENUMS = {}
 for i in range(100):
     GOAL_ENUMS[i] = 300 + i
 
-IM_H = 96
+IM_H = 64
 IM_W = 64
 IM_C = 3
 

@@ -1,2 +1,2 @@
-pkill  -f "policy\_hooks\/run" -9
+pkill  -f "policy\_hooks\/run\_training" -9
 

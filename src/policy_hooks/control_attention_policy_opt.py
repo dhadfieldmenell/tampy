@@ -18,6 +18,7 @@ from gps.algorithm.policy_opt.policy_opt import PolicyOpt
 from gps.algorithm.policy_opt.tf_utils import TfSolver
 
 MAX_QUEUE_SIZE = 50000
+MAX_UPDATE_SIZE = 5000
 SCOPE_LIST = ['primitive', 'value', 'image', 'switch']
 
 
@@ -128,6 +129,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             self.update_size = self._hyperparams['val_update_size']
         else:
             self.update_size = self._hyperparams['update_size']
+
+        self.update_size *= (1 + self._hyperparams.get('permute_hl', 0))
 
         self.mu = {}
         self.obs = {}
@@ -308,9 +311,10 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                     dct[net][task] = np.r_[dct[net][task], data]
                 s = MAX_QUEUE_SIZE
                 if len(dct[net][task]) > s:
-                    if keep_inds is None:
-                        keep_inds = np.random.choice(list(range(len(dct[net][task]))), s, replace=False)
-                    dct[net][task] = dct[net][task][keep_inds]
+                    #if keep_inds is None:
+                    #    keep_inds = np.random.choice(list(range(len(dct[net][task]))), s, replace=False)
+                    #dct[net][task] = dct[net][task][keep_inds]
+                    dct[net][task] = dct[net][task][-s:]
 
         for dct1, dct2, data in zip([self.mu, self.obs, self.prc, self.wt], [self.val_mu, self.val_obs, self.val_prc, self.val_wt], [mu, obs, prc, wt]):
             if store_val:
@@ -322,43 +326,19 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 data = data.reshape([data.shape[0]*data.shape[1]] + list(data.shape[2:]))
             data = np.delete(data, inds[0], axis=0)
             if net not in dct:
-                dct[net] = {task: np.array(data)}
+                dct[net] = {task: data.tolist()}
             elif task not in dct[net]:
-                dct[net][task] = np.array(data)
+                dct[net][task] = data.tolist()
             else:
-                dct[net][task] = np.r_[dct[net][task], data]
+                dct[net][task].extend(data.tolist())
+                # dct[net][task] = np.r_[dct[net][task], data]
 
             s = MAX_QUEUE_SIZE
-            if task != 'primitive' and len(dct[net][task]) > s:
-                if keep_inds is None:
-                    keep_inds = np.random.choice(list(range(len(dct[net][task]))), s, replace=False)
-                dct[net][task] = dct[net][task][keep_inds]
-        '''
-        if net not in self.mu or net not in self.obs or net not in self.prc or net not in self.wt:
-            self.mu[net] = np.array(mu)
-            self.obs[net] = np.array(obs)
-            self.prc[net] = np.array(prc)
-            self.wt[net] = np.array(wt)
-        else:
-            #keep_inds = np.where(self.wt[net][:-MAX_QUEUE_SIZE] > 1e0)
-            #keep_mu = self.mu[net][keep_inds]
-            #keep_obs = self.obs[net][keep_inds]
-            #keep_prc = self.prc[net][keep_inds]
-            #keep_wt = self.wt[net][keep_inds]
-            self.mu[net] = np.r_[self.mu[net], np.array(mu)]
-            self.mu[net] = self.mu[net][-MAX_QUEUE_SIZE:]
-            self.obs[net] = np.r_[self.obs[net], np.array(obs)]
-            self.obs[net] = self.obs[net][-MAX_QUEUE_SIZE:]
-            self.prc[net] = np.r_[self.prc[net], np.array(prc)]
-            self.prc[net] = self.prc[net][-MAX_QUEUE_SIZE:]
-            self.wt[net] = np.r_[self.wt[net], np.array(wt)]
-            self.wt[net] = self.wt[net][-MAX_QUEUE_SIZE:]
-
-            #self.mu[net] = np.r_[self.mu[net], keep_mu]
-            #self.obs[net] = np.r_[self.obs[net], keep_obs]
-            #self.prc[net] = np.r_[self.prc[net], keep_prc]
-            #self.wt[net] = np.r_[self.wt[net], keep_wt]
-        '''
+            if len(dct[net][task]) > s:
+                #if keep_inds is None:
+                #    keep_inds = np.random.choice(list(range(len(dct[net][task]))), s, replace=False)
+                #dct[net][task] = dct[net][task][keep_inds]
+                dct[net][task] = dct[net][task][-s:]
         self.update_count += len(data)
         if not store_val:
             self.N += len(data)
@@ -386,18 +366,32 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         for net in nets:
             if net not in self.mu:
                 continue
-            obs = np.concatenate(list(self.obs[net].values()), axis=0)
-            mu = np.concatenate(list(self.mu[net].values()), axis=0)
-            prc = np.concatenate(list(self.prc[net].values()), axis=0)
-            wt = np.concatenate(list(self.wt[net].values()), axis=0)
+            
+            obs, mu, prc, wt = [], [], [], []
+            for task in self.obs[net]:
+                n_update = min(self.update_size+10, len(self.obs[net][task]))
+                inds_to_use = np.random.choice(range(len(self.obs[net][task])), n_update, replace=False)
+                for ind in inds_to_use:
+                    obs.append(self.obs[net][task][ind])
+                    mu.append(self.mu[net][task][ind])
+                    prc.append(self.prc[net][task][ind])
+                    wt.append(self.wt[net][task][ind])
+            obs = np.array(obs)
+            mu = np.array(mu)
+            prc = np.array(prc)
+            wt = np.array(wt)
+            #obs = np.concatenate(list(self.obs[net].values()), axis=0)
+            #mu = np.concatenate(list(self.mu[net].values()), axis=0)
+            #prc = np.concatenate(list(self.prc[net].values()), axis=0)
+            #wt = np.concatenate(list(self.wt[net].values()), axis=0)
             if net == 'value':
                 next_obs = np.concatenate(list(self.next_obs[net].values()), axis=0)
                 acts = np.concatenate(list(self.acts[net].values()), axis=0)
                 done = np.concatenate(list(self.done[net].values()), axis=0)
                 ref_acts = np.concatenate(list(self.ref_acts[net].values()), axis=0)
 
-            if np.all(np.abs(mu - mu[0]) < 1e-3):
-                continue
+            #if np.all(np.abs(mu - mu[0]) < 1e-3):
+            #    continue
 
             if len(mu) > self.update_size:
                 print(('TF updating on data for', net))
@@ -414,12 +408,25 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 self.update_count = 0
                 updated = True
             if net in self.val_obs:
-                val_obs = np.concatenate(list(self.val_obs[net].values()), axis=0)
-                val_mu = np.concatenate(list(self.val_mu[net].values()), axis=0)
-                val_prc = np.concatenate(list(self.val_prc[net].values()), axis=0)
-                val_wt = np.concatenate(list(self.val_wt[net].values()), axis=0)
-                if len(val_mu) > 500:
-                    self.update(val_obs, val_mu, val_prc, val_wt, net, check_val=True)
+                obs, mu, prc, wt = [], [], [], []
+                for task in self.val_obs[net]:
+                    n_update = min(200, len(self.val_obs[net][task]))
+                    inds_to_use = np.random.choice(range(len(self.val_obs[net][task])), n_update, replace=False)
+                    for ind in inds_to_use:
+                        obs.append(self.val_obs[net][task][ind])
+                        mu.append(self.val_mu[net][task][ind])
+                        prc.append(self.val_prc[net][task][ind])
+                        wt.append(self.val_wt[net][task][ind])
+                #val_obs = np.concatenate(list(self.val_obs[net].values()), axis=0)
+                #val_mu = np.concatenate(list(self.val_mu[net].values()), axis=0)
+                #val_prc = np.concatenate(list(self.val_prc[net].values()), axis=0)
+                #val_wt = np.concatenate(list(self.val_wt[net].values()), axis=0)
+                obs = np.array(obs)
+                mu = np.array(mu)
+                prc = np.array(prc)
+                wt = np.array(wt)
+                if len(mu) >= 200:
+                    self.update(obs, mu, prc, wt, net, check_val=True)
 
         return updated
 
@@ -1045,6 +1052,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         # Fold weights into tgt_prc.
         tgt_prc = tgt_wt * tgt_prc
         '''
+        start_t = time.time()
         tgt_prc = tgt_prc * tgt_wt.reshape((N, 1)) #tgt_wt.flatten()
 
         # Assuming that N*T >= self.batch_size.
@@ -1064,14 +1072,9 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 idx_i = idx[start_idx:start_idx+batch_size]
                 feed_dict = {self.primitive_last_conv_vars: conv_values[idx_i],
                              self.primitive_action_tensor: tgt_mu[idx_i],
-                             self.primitive_precision_tensor: tgt_prc[idx_i]}
-                train_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, use_fc_solver=True)
-                average_loss += train_loss
-
-                # if (i+1) % 500 == 0:
-                #     LOGGER.info('tensorflow iteration %d, average loss %f',
-                #                     i+1, average_loss / 500)
-                #     average_loss = 0
+                             self.primitive_precision_tensor: tgt_prc[idx_i],
+                             self.hllr_tensor: self.cur_hllr}
+                train_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, train=(not check_val), use_fc_solver=True)
             average_loss = 0
 
         # actual training.
@@ -1096,8 +1099,10 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             self.average_losses.append(average_loss / self._hyperparams['iterations'])
         feed_dict = {self.obs_tensor: obs}
         num_values = obs.shape[0]
-        if self.primitive_feat_op is not None:
-            self.primitive_feat_vals = self.primitive_solver.get_var_values(self.sess, self.primitive_feat_op, feed_dict, num_values, self.batch_size)
+        #if self.primitive_feat_op is not None:
+        #    self.primitive_feat_vals = self.primitive_solver.get_var_values(self.sess, self.primitive_feat_op, feed_dict, num_values, self.batch_size)
+
+        print('TIME TO UPDATE PRIMITIVE:', time.time()-start_t)
 
 
     def update_value(self, obs, next_obs, tgt_mu, tgt_prc, tgt_wt, tgt_acts, ref_acts, done, val_ratio=0.2):

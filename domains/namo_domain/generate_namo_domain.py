@@ -87,8 +87,8 @@ class Transfer(Action):
         et = self.timesteps - 1
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can ?t - Target ?g - Grasp ?init - Target)'
         self.pre = [\
-                #('(At ?c ?init)', '0:0'),
-                #('(At ?c ?init)', '1:1'),
+                ('(At ?c ?init)', '0:0'),
+                # ('(At ?c ?init)', '1:1'),
                 ('(RobotStationary ?robot)', '0:0'),
                 ('(forall (?obj - Can) (not (TargetCanGraspCollides ?t ?obj ?g)))', '0:0'),
                 ('(forall (?w - Obstacle) (not (TargetGraspCollides ?t ?w ?g)))', '0:0'),

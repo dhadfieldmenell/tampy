@@ -37,7 +37,7 @@ N_SAMPLES = 10
 N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
 OPT_WT_MULT = 5e2
-N_ROLLOUT_SERVERS = 32
+N_ROLLOUT_SERVERS = 28
 N_ALG_SERVERS = 0
 N_OPTIMIZERS = 0
 N_DIRS = 16
@@ -249,9 +249,6 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'mcts_early_stop_prob': 0.5,
         'hl_timeout': HL_TIMEOUT,
         'multi_policy': False,
-        'image_width': 107,
-        'image_height': 80,
-        'image_channels': 3,
         'opt_prob': 1.,
         'opt_smooth': False,
         'share_buffer': True,

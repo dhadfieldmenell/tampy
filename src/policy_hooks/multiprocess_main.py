@@ -41,7 +41,7 @@ from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 import policy_hooks.utils.policy_solver_utils as utils
-from policy_hooks.task_net import tf_value_network, tf_binary_network, tf_classification_network, tf_cond_classification_network
+from policy_hooks.task_net import tf_value_network, tf_binary_network, tf_classification_network, tf_cond_classification_network, multi_modal_class_network
 from policy_hooks.mcts import MCTS
 from policy_hooks.state_traj_cost import StateTrajCost
 from policy_hooks.action_traj_cost import ActionTrajCost
@@ -102,21 +102,6 @@ class MultiProcessMain(object):
             plan.symbolic_bound = self.symbolic_bound
             plan.target_dim = self.target_dim
             plan.target_inds = self.target_inds
-
-        sensor_dims = {
-            utils.DONE_ENUM: 1,
-            utils.TASK_DONE_ENUM: 1,
-            utils.STATE_ENUM: self.symbolic_bound,
-            utils.ACTION_ENUM: self.dU,
-            utils.TRAJ_HIST_ENUM: int(self.dU*self.config['hist_len']),
-            utils.STATE_DELTA_ENUM: int(self.symbolic_bound*self.config['hist_len']),
-            utils.STATE_HIST_ENUM: int((1+self.symbolic_bound)*self.config['hist_len']),
-            utils.TASK_ENUM: len(self.task_list),
-            utils.TARGETS_ENUM: self.target_dim,
-            utils.ONEHOT_TASK_ENUM: len(list(plans.keys())),
-        }
-        for enum in self.config['sensor_dims']:
-            sensor_dims[enum] = self.config['sensor_dims'][enum]
         self.prim_bounds = []
         self.prim_dims = OrderedDict({})
         self.config['prim_dims'] = self.prim_dims
@@ -130,8 +115,6 @@ class MultiProcessMain(object):
             next_ind = ind+n_options
             self.prim_dims[enum] = n_options
             ind = next_ind
-        for enum in self.prim_dims:
-            sensor_dims[enum] = self.prim_dims[enum]
         ind = 0
         self.prim_bounds = []
         if self.config.get('onehot_task', False):
@@ -154,6 +137,7 @@ class MultiProcessMain(object):
         self.policy_inf_coeff = self.config['algorithm']['policy_inf_coeff']
         self.policy_out_coeff = self.config['algorithm']['policy_out_coeff']
         config['agent'] = load_agent(config)
+        sensor_dims = config['agent']['sensor_dims']
 
         if 'cloth_width' in self.config:
             self.config['agent']['cloth_width'] = self.config['cloth_width']
@@ -201,6 +185,11 @@ class MultiProcessMain(object):
         self.config['algorithm']['init_traj_distr']['dQ'] = self.dU
         self.config['algorithm']['init_traj_distr']['dt'] = 1.0
 
+        if self.config.get('add_hl_image', False):
+            primitive_network_model = multi_modal_class_network
+        else:
+            primitive_network_model = tf_classification_network if self.config.get('discrete_prim', True) else tf_network
+
         self.config['algorithm']['policy_opt'] = {
             'q_imwt': self.config.get('q_imwt', 0),
             'nacts': nacts,
@@ -232,17 +221,15 @@ class MultiProcessMain(object):
             # },
             'primitive_network_params': {
                 'obs_include': self.config['agent']['prim_obs_include'],
-                # 'obs_vector_data': [utils.STATE_ENUM],
                 'obs_image_data': [IM_ENUM, OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
                 'image_width': self.config['image_width'],
                 'image_height': self.config['image_height'],
                 'image_channels': self.config['image_channels'],
                 'sensor_dims': sensor_dims,
                 'n_layers': self.config['prim_n_layers'],
-                'num_filters': [5,10],
+                'num_filters': [8, 16, 16],
                 'dim_hidden': self.config['prim_dim_hidden'],
                 'output_boundaries': self.prim_bounds,
-                'output_order': ['task', 'obj', 'targ'],
             },
             'value_network_params': {
                 'obs_include': self.config['agent']['val_obs_include'],
@@ -260,7 +247,7 @@ class MultiProcessMain(object):
             'hllr': self.config['hllr'],
             'network_model': tf_network,
             'distilled_network_model': tf_network,
-            'primitive_network_model': tf_classification_network if self.config.get('discrete_prim', True) else tf_network,
+            'primitive_network_model': primitive_network_model,
             'value_network_model': tf_value_network,
             'switch_network_model': tf_classification_network,
             'image_network_model': multi_modal_network_fp if 'image' in self.config['agent']['obs_include'] else None,
@@ -499,8 +486,8 @@ class MultiProcessMain(object):
         hyperparams['id'] = 'test'
         hyperparams['check_precond'] = False
         self.create_server(RolloutServer, copy.copy(hyperparams))
-        hyperparams['id'] = 'hl_test'
-        hyperparams['check_precond'] = True
+        hyperparams['id'] = 'moretest'
+        # hyperparams['check_precond'] = True
         self.create_server(RolloutServer, copy.copy(hyperparams))
         hyperparams['run_hl_test'] = False
 
@@ -556,8 +543,8 @@ class MultiProcessMain(object):
         hyperparams['check_precond'] = False
         hyperparams['share_buffers'] = False
         hyperparams['load_render'] = True
-        hyperparams['agent']['image_height']  = 256
-        hyperparams['agent']['image_width']  = 256
+        hyperparams['agent']['image_height']  = 128
+        hyperparams['agent']['image_width']  = 128
         descr = hyperparams.get('descr', '')
         # hyperparams['weight_dir'] = hyperparams['weight_dir'].replace('exp_id0', 'rerun_{0}'.format(descr))
         hyperparams['id'] = 'test'
@@ -574,10 +561,11 @@ class MultiProcessMain(object):
         ind = 0
 
         no = hyperparams['num_objs']
+        print(server.agent.task_list, server.task_list)
         for _ in range(20):
             server.agent.replace_cond(0)
-            server.agent.reset(0)
-            server.test_hl(no*3, save=False)
+            # server.agent.reset(0)
+            server.test_hl(save=False, save_video=True)
 
         '''
         while server.policy_opt.restore_ckpts(ind):
@@ -692,7 +680,7 @@ class MultiProcessMain(object):
 
 
     def allocate_queues(self, config):
-        queue_size = 20
+        queue_size = 100
         queues = {}
         for task in self.pol_list+('value', 'primitive', 'switch'):
             queues['{0}_pol'.format(task)] = Queue(queue_size)

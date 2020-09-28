@@ -27,7 +27,7 @@ def get_colors(n_colors):
 
 def get_test_data(keywords, include, exclude, pre=False, rerun=False, 
                   tdelta=TDELTA, wind=TWINDOW, lab='', lenthresh=0.99,
-                  split_runs=False):
+                  split_runs=False, label_vars=[]):
     exp_probs = os.listdir(LOG_DIR)
     all_data = {}
     for k in keywords:
@@ -670,7 +670,7 @@ def gen_label(exp_dir, label_vars=[], split_runs=False, run_ind=0):
 
     for v in label_vars:
         if v not in args: continue
-        label += ' {0}: {1}'.format(v, args[v].replace('_', ' '))
+        label += ' {0}: {1}'.format(v, str(args[v]).replace('_', ' '))
 
     if split_runs: label += ' - run {0}'.format(run_ind)
     return label
@@ -683,7 +683,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
     if lab == 'rollout':
         rd = get_rollout_data(keywords, exclude=exclude)
     elif lab == 'test':
-        rd = get_test_data(keywords, include=include, exclude=exclude, split_runs=split_runs, pre=pre)
+        rd = get_test_data(keywords, include=include, exclude=exclude, split_runs=split_runs, pre=pre, label_vars=label_vars)
     else:
         rd = get_policy_data(lab, keywords, exclude=exclude)
     data = {}
@@ -752,9 +752,9 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
     # yvar_labs = np.concatenate([[v+'{0}'.format('_'+str(i) if inds_to_var.get(v, 0) > 1 else '') for i in range(inds_to_var.get(v, 1))] for v in yvars])
     plot(data, ['description', 'key']+xvars+flat_yvar_labs, '{0}_vs_{1}'.format(xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind)
 
-keywords = ['namo_switch_first']
+keywords = ['retime']
 include = [] # ['switch', 'base_namo_random_train'] # ['wed_nocol', 'sun']
-label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
+label_vars = ['permute_hl', 'retime'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #get_hl_tests(['retrain_2by'], xvar='N', avg_time=False, tdelta=5000, wind=5000, pre=False, exclude=['0001', '10000'])
 # get_hl_tests(keywords, xvar='time', pre=False, label_vars=label_vars, lenthresh=0.9, exclude=[], include=include)
 #get_fail_info(keywords, xvar='time', pre=False, label_vars=label_vars, lenthresh=0.9, exclude=['nocol_det', 'nocol_nohist'], include=include, max_t=5000)
@@ -765,7 +765,10 @@ label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] 
 #keywords = ['goalpureloss', 'grasppureloss', 'plainpureloss', 'taskpureloss']
 #label_vars = ['train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_comp_3', exclude=[])
-gen_data_plots(xvar='time', yvar=[['success at end', 'success anywhere', 'optimal_rollout_success'], 'subgoals anywhere'], keywords=keywords, lab='test', label_vars=label_vars, separate=True, keyind=5, ylabel='mostrecent', exclude=[], split_runs=False, include=include, pre=True)
+#gen_data_plots(xvar='time', yvar=[['success at end', 'success anywhere', 'optimal_rollout_success'], 'subgoals anywhere'], keywords=keywords, lab='test', label_vars=label_vars, separate=True, keyind=5, ylabel='mostrecent', exclude=[], split_runs=False, include=include, pre=True)
+gen_data_plots(xvar='time', yvar=[['success at end', 'success anywhere'], 'subgoals anywhere'], keywords=['image'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_image', exclude=[], split_runs=False, include=[])
+gen_data_plots(xvar='time', yvar=[['success at end', 'success anywhere'], 'subgoals anywhere'], keywords=keywords, lab='test', label_vars=label_vars, separate=True, keyind=5, ylabel='time_mostrecent_3', exclude=[], split_runs=False, include=include)
+gen_data_plots(xvar='number of plans', yvar=[['success at end', 'success anywhere'], 'subgoals anywhere'], keywords=keywords, lab='test', label_vars=label_vars, separate=True, keyind=5, ylabel='mostrecent_2', exclude=[], split_runs=False, include=include, inter=50)
 #gen_data_plots(xvar='number of plans', yvar=[['success at end', 'optimal_rollout_success']], keywords=keywords, lab='test', label_vars=label_vars, separate=True, keyind=5, ylabel='obj3_res_1', exclude=[], inter=100, include=include)
 gen_data_plots(xvar='number of plans', yvar=['subgoals closest distance'], keywords=keywords, lab='test', label_vars=label_vars, separate=True, keyind=5, ylabel='obj3_res_1', exclude=[], inter=100, include=include)
 gen_data_plots(xvar='time', yvar=[['val_component_loss', 'train_component_loss']], keywords=keywords, lab='control', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_control_net', exclude=[], inter=500)

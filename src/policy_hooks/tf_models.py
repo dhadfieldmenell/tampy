@@ -186,12 +186,16 @@ def multi_modal_network_fp(dim_input=27, dim_output=7, batch_size=25, network_co
     Returns:
         A tfMap object that stores inputs, outputs, and scalar loss.
     """
-    n_layers = network_config['n_fc_layers']
-    layer_size = network_config['fc_layer_size']
-    dim_hidden = (n_layers - 1)*[layer_size]
-    dim_hidden.append(dim_output)
     pool_size = 2
     filter_size = 5
+    n_layers = 2 if 'n_layers' not in network_config else network_config['n_layers'] + 1
+    dim_hidden = network_config.get('dim_hidden', 40)
+    if type(dim_hidden) is int:
+        dim_hidden = (n_layers - 1) * [dim_hidden]
+    else:
+        dim_hidden = copy(dim_hidden)
+    dim_hidden.append(dim_output)
+
 
     # List of indices for state (vector) data and image (tensor) data in observation.
     x_idx, img_idx, i = [], [], 0

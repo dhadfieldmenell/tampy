@@ -421,12 +421,13 @@ class MCTS:
         success = 0
         if plan is not None and type(plan) is not str:
             assert len(plan.get_failed_preds(tol=1e-3)) == 0
-            path = self.agent.run_plan(plan, targets=targets, reset=reset)
+            path = self.agent.run_plan(plan, targets=targets, reset=reset, permute=self._permute>0)
             success = path[-1].success
             self.hl_suc += 1
             self.log_path(path, 10)
-            for _ in range(self._permute):
-                self.agent.run_plan(plan, targets=targets, reset=True, permute=True)
+            for _ in range(self._permute-1):
+                new_path = self.agent.run_plan(plan, targets=targets, reset=True, permute=True)
+                self.log_path(new_path, 10)
         else:
             self.agent.n_hl_fail += 1
             self.hl_fail += 1
@@ -893,6 +894,7 @@ class MCTS:
         debug = np.random.uniform() < 0.1
         while t < max_t and val < 1-1e-2 and l is not None:
             l = self.iter_labels(state, l, targets=targets, debug=debug, check_cost=check_cost)
+            if t == 0: print(l)
             if l is None: break
             plan = self.agent.plans[l]
             s, _ = self.sample(l, state, plan, 1, hl=hl, hl_check=check_cost, save=False, skip_opt=True)
@@ -1133,7 +1135,7 @@ class MCTS:
             info = {'X': X, 'task': sample.task, 'time_from_start': time.time() - self.start_t, 'n_runs': self.n_runs, 'n_resets': self.n_resets, 'value': 1.-sample.task_cost, 'fixed_samples': n_fixed, 'root_state': self.agent.x0[self.condition], 'opt_strength': sample.opt_strength if hasattr(sample, 'opt_strength') else 'N/A'}
             if verbose:
                 info['obs'] = sample.get_obs().round(3)
-                info['prim_obs'] = sample.get_prim_obs().round(3)
+                # info['prim_obs'] = sample.get_prim_obs().round(3)
                 info['targets'] = {tname: sample.targets[self.agent.target_inds[tname, attr]] for tname, attr in self.agent.target_inds}
                 info['cur_curric'] = self.cur_curric
                 info['opt_success'] = sample.opt_suc
