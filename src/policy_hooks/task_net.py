@@ -309,6 +309,7 @@ def multi_modal_class_network(dim_input=27, dim_output=2, batch_size=25, network
 
     # image goes through 3 convnet layers
     num_filters = network_config['num_filters']
+    n_conv = len(num_filters)
 
     im_height = network_config['image_height']
     im_width = network_config['image_width']
@@ -317,27 +318,26 @@ def multi_modal_class_network(dim_input=27, dim_output=2, batch_size=25, network
     image_input = tf.transpose(image_input, perm=[0,3,2,1])
 
     # we pool twice, each time reducing the image size by a factor of 2.
-    conv_out_size = int(im_width/(2.0*pool_size)*im_height/(2.0*pool_size)*num_filters[1])
-    first_dense_size = conv_out_size + len(x_idx)
+    #conv_out_size = int(im_width/(2.0*pool_size)*im_height/(2.0*pool_size)*num_filters[1])
+    #first_dense_size = conv_out_size + len(x_idx)
 
     # Store layers weight & bias
-    weights = {
-        'conv_wc1': init_weights([filter_size, filter_size, num_channels, num_filters[0]], name='conv_wc1'), # 5x5 conv, 1 input, 32 outputs
-        'conv_wc2': init_weights([filter_size, filter_size, num_filters[0], num_filters[1]], name='conv_wc2'), # 5x5 conv, 32 inputs, 64 outputs
-        'conv_wc3': init_weights([filter_size, filter_size, num_filters[1], num_filters[2]], name='conv_wc3'), # 5x5 conv, 32 inputs, 64 outputs
-    }
+    weights = {}
+    biases = {}
+    conv_layers = []
+    cur_in = num_channels
+    cur_in_layer = image_input
+    for i in range(n_conv):
+        weights['conv_wc{0}'.format(i)] = init_weights([filter_size, filter_size, cur_in, num_filters[i]], name='conv_wc{0}'.format(i)) # 5x5 conv, 1 input, 32 outputs
+        biases['conv_bc{0}'.format(i)] = init_bias([num_filters[i]], name='conv_bc{0}'.format(i))
+        cur_in = num_filters[i]
+        if i == 0:
+            conv_layers.append(conv2d(img=cur_in_layer, w=weights['conv_wc{0}'.format(i)], b=biases['conv_bc{0}'.format(i)], strides=[1,2,2,1]))
+        else:
+            conv_layers.append(conv2d(img=cur_in_layer, w=weights['conv_wc{0}'.format(i)], b=biases['conv_bc{0}'.format(i)]))
+        cur_in_layer = conv_layers[-1]
 
-    biases = {
-        'conv_bc1': init_bias([num_filters[0]], name='conv_bc1'),
-        'conv_bc2': init_bias([num_filters[1]], name='conv_bc2'),
-        'conv_bc3': init_bias([num_filters[2]], name='conv_bc3'),
-    }
-
-    conv_layer_0 = conv2d(img=image_input, w=weights['conv_wc1'], b=biases['conv_bc1'], strides=[1,2,2,1])
-    conv_layer_1 = conv2d(img=conv_layer_0, w=weights['conv_wc2'], b=biases['conv_bc2'])
-    conv_layer_2 = conv2d(img=conv_layer_1, w=weights['conv_wc3'], b=biases['conv_bc3'])
-
-    _, num_rows, num_cols, num_fp = conv_layer_2.get_shape()
+    _, num_rows, num_cols, num_fp = conv_layers[-1].get_shape()
     num_rows, num_cols, num_fp = [int(x) for x in [num_rows, num_cols, num_fp]]
     x_map = np.empty([num_rows, num_cols], np.float32)
     y_map = np.empty([num_rows, num_cols], np.float32)
@@ -354,7 +354,7 @@ def multi_modal_class_network(dim_input=27, dim_output=2, batch_size=25, network
     y_map = tf.reshape(y_map, [num_rows * num_cols])
 
     # rearrange features to be [batch_size, num_fp, num_rows, num_cols]
-    features = tf.reshape(tf.transpose(conv_layer_2, [0,3,1,2]),
+    features = tf.reshape(tf.transpose(conv_layers[-1], [0,3,1,2]),
                           [-1, num_rows*num_cols])
     softmax = tf.nn.softmax(features)
 

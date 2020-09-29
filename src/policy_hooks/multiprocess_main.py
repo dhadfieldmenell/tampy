@@ -227,7 +227,7 @@ class MultiProcessMain(object):
                 'image_channels': self.config['image_channels'],
                 'sensor_dims': sensor_dims,
                 'n_layers': self.config['prim_n_layers'],
-                'num_filters': [8, 16, 16],
+                'num_filters': [32, 16, 8],
                 'dim_hidden': self.config['prim_dim_hidden'],
                 'output_boundaries': self.prim_bounds,
             },

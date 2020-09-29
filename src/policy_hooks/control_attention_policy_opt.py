@@ -315,9 +315,9 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                     if keep_inds is None:
                         keep_inds = np.random.choice(list(range(len(dct[net][task]))), s, replace=False)
                         del_inds = np.random.choice(list(range(len(dct[net][task]))), len(dct[net][task])-s, replace=False)
-                    dct[net][task] = np.delete(dct[net][task], del_inds, axis=0)
+                    #dct[net][task] = np.delete(dct[net][task], del_inds, axis=0)
                     #dct[net][task] = dct[net][task][keep_inds]
-                    # dct[net][task] = dct[net][task][-s:]
+                    dct[net][task] = dct[net][task][-s:]
 
         for dct1, dct2, data in zip([self.mu, self.obs, self.prc, self.wt], [self.val_mu, self.val_obs, self.val_prc, self.val_wt], [mu, obs, prc, wt]):
             if store_val:
@@ -342,8 +342,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                     keep_inds = np.random.choice(list(range(len(dct[net][task]))), s, replace=False)
                     del_inds = np.random.choice(list(range(len(dct[net][task]))), len(dct[net][task])-s, replace=False)
                 #dct[net][task] = dct[net][task][keep_inds]
-                dct[net][task] = np.delete(dct[net][task], del_inds, axis=0)
-                #dct[net][task] = dct[net][task][-s:]
+                #dct[net][task] = np.delete(dct[net][task], del_inds, axis=0)
+                dct[net][task] = dct[net][task][-s:]
         self.update_count += len(data)
         if not store_val:
             self.N += len(data)
@@ -1115,8 +1115,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         num_values = obs.shape[0]
         #if self.primitive_feat_op is not None:
         #    self.primitive_feat_vals = self.primitive_solver.get_var_values(self.sess, self.primitive_feat_op, feed_dict, num_values, self.batch_size)
-
-        print('TIME TO UPDATE PRIMITIVE:', time.time()-start_t)
 
 
     def update_value(self, obs, next_obs, tgt_mu, tgt_prc, tgt_wt, tgt_acts, ref_acts, done, val_ratio=0.2):

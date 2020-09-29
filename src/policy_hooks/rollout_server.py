@@ -825,6 +825,8 @@ class RolloutServer(object):
         val = 1.
         i = 0
         while val >= 1. and i < 10:
+            self.agent.replace_cond(0)
+            self.agent.reset(0)
             val, path = self.test_hl()
             i += 1
 
@@ -990,6 +992,8 @@ class RolloutServer(object):
                 self.n_success += 1 if val > 1 - 1e-2 else 0
 
                 if time.time() - self.last_hl_test > 120:
+                    self.agent.replace_cond(0)
+                    self.agent.reset(0)
                     self.test_hl()
                 # print('MCTS step time:', time.time() - start_t)
                 ### Collect observed samples from MCTS
@@ -1397,6 +1401,7 @@ class RolloutServer(object):
 
             if self.run_hl_test:
                 self.agent.replace_cond(0)
+                self.agent.reset(0)
                 self.test_hl(save_fail=False)
             elif self._hyperparams.get('ff_only', False):
                 self.run_ff()

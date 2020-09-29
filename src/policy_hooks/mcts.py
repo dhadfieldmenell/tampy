@@ -270,6 +270,7 @@ class MCTS:
         self.n_runs = 0
         self.val_per_run = []
         self.agent.replace_cond(self.condition, curric_step=self.cur_curric)
+        self.agent.reset(self.condition)
 
 
     def get_new_problem(self):
