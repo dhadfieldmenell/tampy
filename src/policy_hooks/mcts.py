@@ -894,7 +894,6 @@ class MCTS:
         debug = np.random.uniform() < 0.1
         while t < max_t and val < 1-1e-2 and l is not None:
             l = self.iter_labels(state, l, targets=targets, debug=debug, check_cost=check_cost)
-            if t == 0: print(l)
             if l is None: break
             plan = self.agent.plans[l]
             s, _ = self.sample(l, state, plan, 1, hl=hl, hl_check=check_cost, save=False, skip_opt=True)
@@ -931,7 +930,7 @@ class MCTS:
         labels = [l for l in self.label_options]
         if self.use_q:
             obs = sample.get_val_obs(t=t)
-            opts = self.agent.prob.get_prim_choices()
+            opts = self.agent.prob.get_prim_choices(self.agent.task_list)
             distr = np.zeros(len(labels))
             dact = np.sum([len(opts[e]) for e in opts])
             for i in range(len(labels)):

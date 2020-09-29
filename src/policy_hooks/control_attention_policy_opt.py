@@ -17,7 +17,7 @@ from gps.algorithm.policy.tf_policy import TfPolicy
 from gps.algorithm.policy_opt.policy_opt import PolicyOpt
 from gps.algorithm.policy_opt.tf_utils import TfSolver
 
-MAX_QUEUE_SIZE = 50000
+MAX_QUEUE_SIZE = 500000
 MAX_UPDATE_SIZE = 5000
 SCOPE_LIST = ['primitive', 'value', 'image', 'switch']
 
@@ -160,6 +160,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.buffer_size = MAX_QUEUE_SIZE
         self.lr_scale = 0.9975
         self.lr_policy = 'fixed'
+        self._hyperparams['iterations'] = self.update_size // self.batch_size + 1
 
 
     def restore_ckpts(self, label=None):
@@ -311,10 +312,12 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                     dct[net][task] = np.r_[dct[net][task], data]
                 s = MAX_QUEUE_SIZE
                 if len(dct[net][task]) > s:
-                    #if keep_inds is None:
-                    #    keep_inds = np.random.choice(list(range(len(dct[net][task]))), s, replace=False)
+                    if keep_inds is None:
+                        keep_inds = np.random.choice(list(range(len(dct[net][task]))), s, replace=False)
+                        del_inds = np.random.choice(list(range(len(dct[net][task]))), len(dct[net][task])-s, replace=False)
+                    dct[net][task] = np.delete(dct[net][task], del_inds, axis=0)
                     #dct[net][task] = dct[net][task][keep_inds]
-                    dct[net][task] = dct[net][task][-s:]
+                    # dct[net][task] = dct[net][task][-s:]
 
         for dct1, dct2, data in zip([self.mu, self.obs, self.prc, self.wt], [self.val_mu, self.val_obs, self.val_prc, self.val_wt], [mu, obs, prc, wt]):
             if store_val:
@@ -335,10 +338,12 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
             s = MAX_QUEUE_SIZE
             if len(dct[net][task]) > s:
-                #if keep_inds is None:
-                #    keep_inds = np.random.choice(list(range(len(dct[net][task]))), s, replace=False)
+                if keep_inds is None:
+                    keep_inds = np.random.choice(list(range(len(dct[net][task]))), s, replace=False)
+                    del_inds = np.random.choice(list(range(len(dct[net][task]))), len(dct[net][task])-s, replace=False)
                 #dct[net][task] = dct[net][task][keep_inds]
-                dct[net][task] = dct[net][task][-s:]
+                dct[net][task] = np.delete(dct[net][task], del_inds, axis=0)
+                #dct[net][task] = dct[net][task][-s:]
         self.update_count += len(data)
         if not store_val:
             self.N += len(data)
@@ -370,12 +375,17 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             obs, mu, prc, wt = [], [], [], []
             for task in self.obs[net]:
                 n_update = min(self.update_size+10, len(self.obs[net][task]))
-                inds_to_use = np.random.choice(range(len(self.obs[net][task])), n_update, replace=False)
-                for ind in inds_to_use:
-                    obs.append(self.obs[net][task][ind])
-                    mu.append(self.mu[net][task][ind])
-                    prc.append(self.prc[net][task][ind])
-                    wt.append(self.wt[net][task][ind])
+                idx = np.random.choice(range(len(self.obs[net][task]) - n_update), replace=False)
+                obs.extend(self.obs[net][task][idx:idx+n_update])
+                mu.extend(self.mu[net][task][idx:idx+n_update])
+                wt.extend(self.wt[net][task][idx:idx+n_update])
+                prc.extend(self.prc[net][task][idx:idx+n_update])
+                #inds_to_use = np.random.choice(range(len(self.obs[net][task])), n_update, replace=False)
+                #for ind in inds_to_use:
+                #    obs.append(self.obs[net][task][ind])
+                #    mu.append(self.mu[net][task][ind])
+                #    prc.append(self.prc[net][task][ind])
+                #    wt.append(self.wt[net][task][ind])
             obs = np.array(obs)
             mu = np.array(mu)
             prc = np.array(prc)
@@ -921,7 +931,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             average_loss = 0
 
         # actual training.
-        for i in range(self._hyperparams['iterations']):
+        for i in range(self.update_size // self.batch_size + 1): # i in range(self._hyperparams['iterations']):
             self.train_iters += 1
             # Load in data for this batch.
             start_idx = int(i * batch_size %
@@ -1078,7 +1088,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             average_loss = 0
 
         # actual training.
-        for i in range(self._hyperparams['iterations']):
+        # for i in range(self._hyperparams['iterations']):
+        for i in range(self.update_size // self.batch_size + 1): # i in range(self._hyperparams['iterations']):
             # Load in data for this batch.
             self.train_iters += 1
             start_idx = int(i * self.batch_size %

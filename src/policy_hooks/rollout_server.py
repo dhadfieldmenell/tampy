@@ -332,8 +332,6 @@ class RolloutServer(object):
                         break
                     except queue.Full:
                         continue
-            if placed and task == 'primitive': print('Placed in HL queue')
-            if not placed and task == 'primitive': print('Failed to place in HL queue')
 
 
     def store_weights(self, msg):

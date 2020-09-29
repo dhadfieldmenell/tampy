@@ -132,7 +132,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.initial_opt = True
         self.stochastic_conditions = self._hyperparams['stochastic_conditions']
 
-        opts = self._hyperparams['prob'].get_prim_choices()
+        opts = self._hyperparams['prob'].get_prim_choices(self.task_list)
         self.label_options = list(itertools.product(*[list(range(len(opts[e]))) for e in opts])) # range(self.num_tasks), *[range(n) for n in self.num_prims]))
         self.hist_len = self._hyperparams['hist_len']
         self.task_hist_len = self._hyperparams.get('task_hist_len', 1)
@@ -662,7 +662,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.init_vecs[cond], self.targets[cond] = self.init_vecs[cond][0], self.targets[cond][0]
         self.x0[cond] = self.init_vecs[cond][:self.symbolic_bound]
         self.target_vecs[cond] = np.zeros((self.target_dim,))
-        prim_choices = self.prob.get_prim_choices()
+        prim_choices = self.prob.get_prim_choices(self.task_list)
         if OBJ_ENUM in prim_choices and curric_step > 0:
             i = 0
             inds = np.random.permutation(list(range(len(prim_choices[OBJ_ENUM]))))
@@ -703,7 +703,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         mp_state = state[self._x_data_idx[STATE_ENUM]]
         out = {}
         out[TASK_ENUM] = copy.copy(self.task_list)
-        options = self.prob.get_prim_choices()
+        options = self.prob.get_prim_choices(self.task_list)
         plan = self.plans_list[0]
         for enum in self.prim_dims:
             if enum == TASK_ENUM: continue
@@ -730,7 +730,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         out = {}
         out[TASK_ENUM] = self.task_list[task[0]]
         plan = self.plans[task]
-        options = self.prob.get_prim_choices()
+        options = self.prob.get_prim_choices(self.task_list)
         for i in range(1, len(task)):
             enum = self.prim_dims_keys()[i-1]
             item = options[enum][task[i]]
@@ -750,7 +750,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
 
     def get_prim_index(self, enum, name):
-        prim_options = self.prob.get_prim_choices()
+        prim_options = self.prob.get_prim_choices(self.task_list)
         return prim_options[enum].index(name)
 
 
@@ -920,14 +920,14 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
 
     def check_curric(self, buf, n_thresh, curr_thresh, cur_curr):
-        prim_choices = self.prob.get_prim_choices()
+        prim_choices = self.prob.get_prim_choices(self.task_list)
         curr_thresh *= cur_curr
         if len(buf) < n_thresh: return False
         return np.mean(buf[-n_thresh:]) < curr_thresh
 
 
     def encode_action(self, action, next_act=None):
-        prim_choices = self.prob.get_prim_choices()
+        prim_choices = self.prob.get_prim_choices(self.task_list)
         astr = str(action).lower()
         l = [0]
         for i, task in enumerate(self.task_list):
@@ -950,7 +950,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
     def encode_plan(self, plan, permute=False):
         encoded = []
-        prim_choices = self.prob.get_prim_choices()
+        prim_choices = self.prob.get_prim_choices(self.task_list)
         for a in plan.actions:
             encoded.append(self.encode_action(a))
         encoded = [tuple(l) for l in encoded]
@@ -960,7 +960,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
     def get_encoded_tasks(self):
         if hasattr(self, '_cached_encoded_tasks'):
             return self._cached_encoded_tasks
-        opts = self.prob.get_prim_choices()
+        opts = self.prob.get_prim_choices(self.task_list)
         nacts = np.prod([len(opts[e]) for e in opts])
         dact = np.sum([len(opts[e]) for e in opts])
         out = np.zeros((len(self.label_options), dact))

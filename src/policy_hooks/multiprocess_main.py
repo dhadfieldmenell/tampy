@@ -72,7 +72,7 @@ class MultiProcessMain(object):
         time_limit = config.get('time_limit', 14400)
 
         conditions = self.config['num_conds']
-        self.task_list = tuple(get_tasks(self.config['task_map_file']).keys())
+        self.task_list = tuple(sorted(list(get_tasks(self.config['task_map_file']).keys())))
         self.cur_n_rollout = 0
         if 'multi_policy' not in self.config: self.config['multi_policy'] = False
         self.pol_list = self.task_list if self.config.get('split_nets', False) else ('control',)
@@ -564,7 +564,7 @@ class MultiProcessMain(object):
         print(server.agent.task_list, server.task_list)
         for _ in range(20):
             server.agent.replace_cond(0)
-            # server.agent.reset(0)
+            server.agent.reset(0)
             server.test_hl(save=False, save_video=True)
 
         '''

@@ -77,9 +77,12 @@ def prob_file(descr=None):
     return "../domains/namo_domain/namo_probs/{0}.prob".format(descr)
 
 
-def get_prim_choices():
+def get_prim_choices(task_list=None):
     out = OrderedDict({})
-    out[utils.TASK_ENUM] = list(get_tasks(mapping_file).keys())
+    if task_list is None:
+        out[utils.TASK_ENUM] = sorted(list(get_tasks(mapping_file).keys()))
+    else:
+        out[utils.TASK_ENUM] = sorted(list(task_list))
     out[utils.OBJ_ENUM] = ['can{0}'.format(i) for i in range(NUM_OBJS)]
     out[utils.TARG_ENUM] = []
     for i in range(n_aux):
