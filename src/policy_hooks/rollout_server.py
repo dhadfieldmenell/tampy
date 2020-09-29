@@ -1222,8 +1222,9 @@ class RolloutServer(object):
         true_disp = np.min(np.min([[self.agent.goal_f(0, step.get(STATE_ENUM, t), targets, cont=True) for t in range(step.T)] for step in path]))
         true_val = np.max(np.max([[1-self.agent.goal_f(0, step.get(STATE_ENUM, t), targets) for t in range(step.T)] for step in path]))
         subgoal_suc = 1-self.agent.goal_f(0, np.concatenate([s.get(STATE_ENUM) for s in path]), targets)
+        anygoal_suc = 1-self.agent.goal_f(0, np.concatenate([s.get(STATE_ENUM) for s in path]), targets, anywhere=True)
         subgoal_dist = self.agent.goal_f(0, np.concatenate([s.get(STATE_ENUM) for s in path]), targets, cont=True)
-        ncols = np.mean([np.mean(sample.col_ts) for sample in path])
+        ncols = np.max([np.max(sample.col_ts) for sample in path])
         plan_suc_rate = np.nan if self.agent.n_plans_run == 0 else float(self.agent.n_plans_suc_run) / float(self.agent.n_plans_run)
         n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans'].value
         s.append((val,
@@ -1238,7 +1239,8 @@ class RolloutServer(object):
                   plan_suc_rate, \
                   n_plans,
                   subgoal_suc,
-                  subgoal_dist))
+                  subgoal_dist,
+                  anygoal_suc))
         if ckpt_ind is not None:
             s[0] = s[0] + (ckpt_ind,)
         # print('EXPLORED PATH: {0}'.format([sample.task for sample in path]))

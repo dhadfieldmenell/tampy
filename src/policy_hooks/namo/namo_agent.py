@@ -939,7 +939,7 @@ class NAMOSortingAgent(TAMPAgent):
         return tuple(task)
 
 
-    def goal_f(self, condition, state, targets=None, cont=False):
+    def goal_f(self, condition, state, targets=None, cont=False, anywhere=False):
         if targets is None:
             targets = self.target_vecs[condition]
         cost = self.prob.NUM_OBJS
@@ -950,17 +950,21 @@ class NAMOSortingAgent(TAMPAgent):
             state = [state]
         for param in list(plan.params.values()):
             if param._type == 'Can':
-                val = targets[self.target_inds['{0}_end_target'.format(param.name), 'value']]
+                if anywhere:
+                    vals = [targets[self.target_inds[key, 'value']] for key, _ in self.target_inds if key.find('end_target') >= 0]
+                else:
+                    vals = [targets[self.target_inds['{0}_end_target'.format(param.name), 'value']]]
                 dist = np.inf
                 disp = None
                 for x in state:
                     if self.goal_type == 'moveto':
-                        val = x[self.state_inds['pr2', 'pose']]
-                    curdisp = x[self.state_inds[param.name, 'pose']] - val
-                    curdist = np.linalg.norm(curdisp)
-                    if curdist < dist:
-                        disp = curdisp
-                        dist = curdist
+                        vals = [x[self.state_inds['pr2', 'pose']]]
+                    for val in vals:
+                        curdisp = x[self.state_inds[param.name, 'pose']] - val
+                        curdist = np.linalg.norm(curdisp)
+                        if curdist < dist:
+                            disp = curdisp
+                            dist = curdist
                 # np.sum((state[self.state_inds[param.name, 'pose']] - self.targets[condition]['{0}_end_target'.format(param.name)])**2)
                 # cost -= 1 if dist < 0.3 else 0
                 alldisp += curdist # np.linalg.norm(disp)
