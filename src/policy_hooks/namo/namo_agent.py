@@ -110,7 +110,7 @@ class NAMOSortingAgent(TAMPAgent):
             next_trans[0,3] -= 3.5
             next_dim = dim # [dim[1], dim[0], dim[2]]
             pos = next_trans[:3,3] # [next_trans[1,3], next_trans[0,3], next_trans[2,3]]
-            items.append({'name': 'wall{0}'.format(i), 'type': 'box', 'is_fixed': True, 'pos': pos, 'dimensions': next_dim, 'rgba': (0.2, 0.2, 0.2, 1)})
+            items.append({'name': 'wall{0}'.format(i), 'type': 'box', 'is_fixed': True, 'pos': pos, 'dimensions': next_dim, 'rgba': (0.5, 0.5, 0.5, 1)})
 
         config['load_render'] = hyperparams['master_config'].get('load_render', False)
         self.mjc_env = MJCEnv.load_config(config)

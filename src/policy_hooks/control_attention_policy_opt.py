@@ -375,20 +375,20 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             obs, mu, prc, wt = [], [], [], []
             for task in self.obs[net]:
                 n_update = min(self.update_size+10, len(self.obs[net][task]))
-                if n_update <= len(self.obs[net][task]):
-                    idx = 0
-                else:
-                    idx = np.random.choice(range(len(self.obs[net][task]) - n_update), replace=False)
-                obs.extend(self.obs[net][task][idx:idx+n_update])
-                mu.extend(self.mu[net][task][idx:idx+n_update])
-                wt.extend(self.wt[net][task][idx:idx+n_update])
-                prc.extend(self.prc[net][task][idx:idx+n_update])
-                #inds_to_use = np.random.choice(range(len(self.obs[net][task])), n_update, replace=False)
-                #for ind in inds_to_use:
-                #    obs.append(self.obs[net][task][ind])
-                #    mu.append(self.mu[net][task][ind])
-                #    prc.append(self.prc[net][task][ind])
-                #    wt.append(self.wt[net][task][ind])
+                #if n_update <= len(self.obs[net][task]):
+                #    idx = 0
+                #else:
+                #    idx = np.random.choice(range(len(self.obs[net][task]) - n_update), replace=False)
+                #obs.extend(self.obs[net][task][idx:idx+n_update])
+                #mu.extend(self.mu[net][task][idx:idx+n_update])
+                #wt.extend(self.wt[net][task][idx:idx+n_update])
+                #prc.extend(self.prc[net][task][idx:idx+n_update])
+                inds_to_use = np.random.choice(range(len(self.obs[net][task])), n_update, replace=False)
+                for ind in inds_to_use:
+                    obs.append(self.obs[net][task][ind])
+                    mu.append(self.mu[net][task][ind])
+                    prc.append(self.prc[net][task][ind])
+                    wt.append(self.wt[net][task][ind])
             obs = np.array(obs)
             mu = np.array(mu)
             prc = np.array(prc)
@@ -406,7 +406,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             #if np.all(np.abs(mu - mu[0]) < 1e-3):
             #    continue
 
-            if len(mu) > self.update_size:
+            if len(mu) >= self.update_size:
                 print(('TF updating on data for', net))
                 if net == 'value':
                     self.update_value(obs, next_obs, mu, prc, wt, acts, ref_acts, done)
