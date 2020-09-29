@@ -375,7 +375,10 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             obs, mu, prc, wt = [], [], [], []
             for task in self.obs[net]:
                 n_update = min(self.update_size+10, len(self.obs[net][task]))
-                idx = np.random.choice(range(len(self.obs[net][task]) - n_update), replace=False)
+                if n_update <= len(self.obs[net][task]):
+                    idx = 0
+                else:
+                    idx = np.random.choice(range(len(self.obs[net][task]) - n_update), replace=False)
                 obs.extend(self.obs[net][task][idx:idx+n_update])
                 mu.extend(self.mu[net][task][idx:idx+n_update])
                 wt.extend(self.wt[net][task][idx:idx+n_update])
