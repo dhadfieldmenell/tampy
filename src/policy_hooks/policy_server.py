@@ -168,8 +168,9 @@ class PolicyServer(object):
             end_time = time.time()
 
 
-    def update_network(self):
-        update = self.policy_opt.run_update([self.task])
+    def update_network(self, n_updates=20):
+        for _ in range(n_updates):
+            update = self.policy_opt.run_update([self.task])
         # print('Weights updated:', update, self.task)
         if update:
             self.n_updates += 1

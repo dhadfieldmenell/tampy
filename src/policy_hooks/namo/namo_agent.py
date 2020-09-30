@@ -222,7 +222,8 @@ class NAMOSortingAgent(TAMPAgent):
             U_full = np.clip(U_full, -MAX_STEP, MAX_STEP)
             assert not np.any(np.isnan(U_full))
             sample.set(ACTION_ENUM, U_full, t)
-            suc, col = self.run_policy_step(U_full, cur_state, plan, t, None, grasp=grasp)
+            obj = self.prob.get_prim_choices(self.task_list)[OBJ_ENUM][task[1]]
+            suc, col = self.run_policy_step(U_full, cur_state, plan, t, obj, grasp=grasp)
             col_ts[t] = col
 
             new_state = np.zeros((plan.symbolic_bound))
@@ -270,7 +271,7 @@ class NAMOSortingAgent(TAMPAgent):
         return sample
 
 
-    def dist_obs(self, plan, t, n_dirs=-1, ignore=[], return_rays=False, extra_rays=[]):
+    def dist_obs(self, plan, t, n_dirs=-1, objects=[], ignore=[], return_rays=False, extra_rays=[]):
         if n_dirs <= 0:
             n_dirs = self.n_dirs
         pr2 = plan.params['pr2']
@@ -296,10 +297,11 @@ class NAMOSortingAgent(TAMPAgent):
                 if p.is_symbol():
                     if hasattr(p, 'openrave_body') and p.openrave_body is not None:
                         p.openrave_body.set_pose([0, 0, -5])
-                elif (p_name, 'pose') in self.state_inds:
-                    p.openrave_body.set_pose(np.r_[plan.params[p_name].pose[:,t], 5])
-                else:
-                    p.openrave_body.set_pose(np.r_[plan.params[p_name].pose[:,0], 5])
+                elif not len(objects) or p_name in objects:
+                    if(p_name, 'pose') in self.state_inds:
+                        p.openrave_body.set_pose(np.r_[plan.params[p_name].pose[:,t], 5])
+                    else:
+                        p.openrave_body.set_pose(np.r_[plan.params[p_name].pose[:,0], 5])
 
         pr2.openrave_body.set_pose([0, 0, -5]) # Get this out of the way
         for name in ignore:
@@ -383,7 +385,7 @@ class NAMOSortingAgent(TAMPAgent):
         return obs
 
 
-    def run_policy_step(self, u, x, plan, t, obj, grasp=None):
+    def run_policy_step(self, u, x, plan, t, obj=None, grasp=None):
         u_inds = self.action_inds
         x_inds = self.state_inds
 
@@ -443,7 +445,7 @@ class NAMOSortingAgent(TAMPAgent):
                         elastic = 1e-3 # max(1e-2, 2e-1 * np.linalg.norm(pr2_disp))
                         if param.name != self._in_gripper and np.linalg.norm(new_disp) < radius1 + radius2 - dtol:
                         # if param is not self.in_gripper and np.linalg.norm(new_disp) < radius1 + radius2 + elastic:
-                            col = 1.
+                            col = 1. if obj is None or param.name != obj else 0.
                             dx, dy = -1e1 * pr2_disp
                             zx, zy = param.pose[:,t]
                             x1, y1 = plan.params['pr2'].pose[:,t] - [0.5*dx, 0.5*dy] - [zx, zy]
@@ -542,7 +544,7 @@ class NAMOSortingAgent(TAMPAgent):
             ignore = []
             if self.in_gripper is not None:
                 ignore = [self.in_gripper.name]
-            dist, rays = self.dist_obs(plan, t, 8, ignore=ignore, return_rays=True)
+            dist, rays = self.dist_obs(plan, t, 8, objects=['obs0'], ignore=ignore, return_rays=True)
             if self.check_col and np.any(np.abs(dist) < plan.params['pr2'].geom.radius - dtol):
             # if self.check_col and np.any(np.abs(dist) < plan.params['pr2'].geom.radius):
                 col = 1.
