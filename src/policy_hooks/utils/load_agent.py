@@ -78,6 +78,8 @@ def load_agent(config):
         config['prim_obs_include'].append(utils.TRAJ_HIST_ENUM)
     if config['add_obs_delta']:
         config['prim_obs_include'].append(utils.STATE_DELTA_ENUM)
+    if config['add_task_hist']:
+        config['prim_obs_include'].append(utils.TASK_HIST_ENUM)
     if config.get('add_hl_image', False):
         config['prim_obs_include'].append(utils.IM_ENUM)
         config['load_render'] = True
@@ -104,6 +106,7 @@ def load_agent(config):
     if config.get('onehot_task', False):
         config['prim_out_include'] = [utils.ONEHOT_TASK_ENUM]
         prim_bounds.append((0, len(list(plans.keys()))))
+        ind = prim_bounds[0][1]
     else:
         prim_bounds.append((0, len(task_list)))
         ind = len(task_list)
@@ -111,6 +114,7 @@ def load_agent(config):
             if enum == utils.TASK_ENUM: continue
             prim_bounds.append((ind, ind+prim_dims[enum]))
             ind += prim_dims[enum]
+    config['sensor_dims']['TASK_HIST_ENUM'] = int(config['task_hist_len'] * ind)
     config['prim_bounds'] = prim_bounds
     config['prim_dims'] = prim_dims
 
