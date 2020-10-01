@@ -169,7 +169,8 @@ class PolicyServer(object):
 
 
     def update_network(self):
-        update = self.policy_opt.run_update([self.task])
+        for _ in range(10):
+            update = self.policy_opt.run_update([self.task])
         # print('Weights updated:', update, self.task)
         if update:
             self.n_updates += 1

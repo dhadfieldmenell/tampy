@@ -982,6 +982,7 @@ class RolloutServer(object):
 
                 start_t = time.time()
                 x0 = self.select_state(mcts.condition)
+                self.agent.reset(mcts.condition)
                 mcts.opt_strength = 0.0 # if np.all([self.policy_opt.task_map[task]['policy'].scale is not None for task in self.policy_opt.valid_scopes]) else 1.0
                 val, paths = mcts.run(x0, 1, use_distilled=False, new_policies=rollout_policies, debug=False)
                 tree_data.append(mcts.get_data)

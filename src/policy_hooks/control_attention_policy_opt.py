@@ -17,8 +17,8 @@ from gps.algorithm.policy.tf_policy import TfPolicy
 from gps.algorithm.policy_opt.policy_opt import PolicyOpt
 from gps.algorithm.policy_opt.tf_utils import TfSolver
 
-MAX_QUEUE_SIZE = 500000
-MAX_UPDATE_SIZE = 5000
+MAX_QUEUE_SIZE = 50000
+MAX_UPDATE_SIZE = 20000
 SCOPE_LIST = ['primitive', 'value', 'image', 'switch']
 
 
@@ -160,7 +160,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.buffer_size = MAX_QUEUE_SIZE
         self.lr_scale = 0.9975
         self.lr_policy = 'fixed'
-        self._hyperparams['iterations'] = self.update_size // self.batch_size + 1
+        self._hyperparams['iterations'] = MAX_UPDATE_SIZE // self.batch_size + 1
 
 
     def restore_ckpts(self, label=None):
@@ -315,9 +315,9 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                     if keep_inds is None:
                         keep_inds = np.random.choice(list(range(len(dct[net][task]))), s, replace=False)
                         del_inds = np.random.choice(list(range(len(dct[net][task]))), len(dct[net][task])-s, replace=False)
-                    #dct[net][task] = np.delete(dct[net][task], del_inds, axis=0)
+                    dct[net][task] = np.delete(dct[net][task], del_inds, axis=0)
                     #dct[net][task] = dct[net][task][keep_inds]
-                    dct[net][task] = dct[net][task][-s:]
+                    #dct[net][task] = dct[net][task][-s:]
 
         for dct1, dct2, data in zip([self.mu, self.obs, self.prc, self.wt], [self.val_mu, self.val_obs, self.val_prc, self.val_wt], [mu, obs, prc, wt]):
             if store_val:
@@ -342,8 +342,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                     keep_inds = np.random.choice(list(range(len(dct[net][task]))), s, replace=False)
                     del_inds = np.random.choice(list(range(len(dct[net][task]))), len(dct[net][task])-s, replace=False)
                 #dct[net][task] = dct[net][task][keep_inds]
-                #dct[net][task] = np.delete(dct[net][task], del_inds, axis=0)
-                dct[net][task] = dct[net][task][-s:]
+                dct[net][task] = np.delete(dct[net][task], del_inds, axis=0)
+                #dct[net][task] = dct[net][task][-s:]
         self.update_count += len(data)
         if not store_val:
             self.N += len(data)
@@ -374,7 +374,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             
             obs, mu, prc, wt = [], [], [], []
             for task in self.obs[net]:
-                n_update = min(self.update_size+10, len(self.obs[net][task]))
+                n_update = min(max(MAX_UPDATE_SIZE, self.update_size+1), len(self.obs[net][task]))
                 #if n_update <= len(self.obs[net][task]):
                 #    idx = 0
                 #else:
@@ -413,7 +413,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 else:
                     self.update(obs, mu, prc, wt, net)
                 self.store_scope_weights(scopes=[net])
-                if time.time() - self.last_pkl_t > 300:
+                if time.time() - self.last_pkl_t > 180:
                     self.store_scope_weights(scopes=[net], lab='_{0}'.format(self.cur_pkl))
                     self.cur_pkl += 1
                     self.last_pkl_t = time.time()
@@ -934,7 +934,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             average_loss = 0
 
         # actual training.
-        for i in range(self.update_size // self.batch_size + 1): # i in range(self._hyperparams['iterations']):
+        for i in range(self._hyperparams['iterations']):
             self.train_iters += 1
             # Load in data for this batch.
             start_idx = int(i * batch_size %
@@ -1092,7 +1092,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
         # actual training.
         # for i in range(self._hyperparams['iterations']):
-        for i in range(self.update_size // self.batch_size + 1): # i in range(self._hyperparams['iterations']):
+        for i in range(self._hyperparams['iterations']):
             # Load in data for this batch.
             self.train_iters += 1
             start_idx = int(i * self.batch_size %

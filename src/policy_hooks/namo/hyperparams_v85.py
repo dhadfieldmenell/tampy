@@ -203,7 +203,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'weight_decay': 1e-3,
         'prim_weight_decay': 1e-3,
         'val_weight_decay': 1e-3,
-        'batch_size': 500,
+        'batch_size': 100,
         'n_layers': 2,
         'prim_n_layers': 1,
         'val_n_layers': 1,

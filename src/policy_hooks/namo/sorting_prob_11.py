@@ -47,14 +47,14 @@ descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.for
 #            (-2., -2.)]
 
 END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
-END_TARGETS.extend([(1.8, 2),
-                   (-1.8, 2),
-                   (0.6, 2),
-                   (-0.6, 2),
-                   (-3.0, 2),
-                   (3.0, 2),
-                   (4.2, 2),
-                   (-4.2, 2),
+END_TARGETS.extend([(0.8, 2),
+                   (-0.8, 2),
+                   (2.2, 2),
+                   (-2.2, 2),
+                   (-3.6, 2),
+                   (3.6, 2),
+                   (5.0, 2),
+                   (-5.0, 2),
                    ])
 
 n_aux = 4
