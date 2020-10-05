@@ -34,6 +34,7 @@ class PolicyServer(object):
         self.start_t = hyperparams['start_t']
         self.config = hyperparams
         hyperparams['policy_opt']['scope'] = self.task
+        hyperparams['policy_opt']['split_hl_loss'] = hyperparams['split_hl_loss']
         if USE_ROS: rospy.init_node(self.task+'_update_server_{0}'.format(self.group_id))
         self.policy_opt = hyperparams['policy_opt']['type'](
             hyperparams['policy_opt'],
@@ -138,15 +139,16 @@ class PolicyServer(object):
 
         wt_dims = (msg.n, msg.rollout_len, 1) if msg.rollout_len > 1 else (msg.n,1)
         wt = np.array(msg.wt).reshape(wt_dims)
+        aux = msg.aux if hasattr(msg, 'aux') and len(msg.aux) else None
         if msg.task == 'value':
             act_dims = (msg.n, msg.rollout_len, msg.dAct)
             acts = np.reshape(msg.acts, act_dims)
             ref_act_dims = (msg.n, msg.rollout_len, msg.nActs, msg.dAct)
             ref_acts = np.reshape(msg.ref_acts, ref_act_dims)
             done = np.reshape(msg.terminal, (msg.n,1))
-            self.update_queue.append((obs, mu, prc, wt, msg.task, acts, ref_acts, done))
+            self.update_queue.append((obs, mu, prc, wt, msg.task, aux, acts, ref_acts, done))
         else:
-            self.update_queue.append((obs, mu, prc, wt, msg.task))
+            self.update_queue.append((obs, mu, prc, wt, msg.task, aux))
         self.update_queue = self.update_queue[-MAX_QUEUE_SIZE:]
 
 
@@ -154,15 +156,15 @@ class PolicyServer(object):
         queue_len = len(self.update_queue)
         for i in range(queue_len):
             if self.task == 'value':
-                obs, mu, prc, wt, task_name, acts, ref_acts, done = self.update_queue.pop()
+                obs, mu, prc, wt, task_name, aux, acts, ref_acts, done = self.update_queue.pop()
             else:
-                obs, mu, prc, wt, task_name, = self.update_queue.pop()
+                obs, mu, prc, wt, task_name, aux = self.update_queue.pop()
             start_time = time.time()
             self.n_data.append(self.policy_opt.N)
             if self.task == 'value':
-                update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)), acts=acts, ref_acts=ref_acts, done=done)
+                update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)), acts=acts, ref_acts=ref_acts, done=done, aux=aux)
             else:
-                update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)), val_ratio=0.1)
+                update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)), val_ratio=0.1, aux=aux)
                 #if self.config.get('save_expert', False):
                 #    self.update_expert_demos(obs, mu)
             end_time = time.time()

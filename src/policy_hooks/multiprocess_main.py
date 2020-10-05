@@ -41,7 +41,7 @@ from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 import policy_hooks.utils.policy_solver_utils as utils
-from policy_hooks.task_net import tf_value_network, tf_binary_network, tf_classification_network, tf_cond_classification_network, multi_modal_class_network
+from policy_hooks.task_net import tf_value_network, tf_binary_network, tf_classification_network, tf_cond_classification_network, multi_modal_class_network, tf_balanced_classification_network
 from policy_hooks.mcts import MCTS
 from policy_hooks.state_traj_cost import StateTrajCost
 from policy_hooks.action_traj_cost import ActionTrajCost
@@ -187,6 +187,10 @@ class MultiProcessMain(object):
 
         if self.config.get('add_hl_image', False):
             primitive_network_model = multi_modal_class_network
+        elif self.config.get('split_hl_loss', False):
+            primitive_network_model = tf_balanced_classification_network
+        elif self.config.get('conditional', False):
+            primitive_network_model = tf_cond_classification_network
         else:
             primitive_network_model = tf_classification_network if self.config.get('discrete_prim', True) else tf_network
 

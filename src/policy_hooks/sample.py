@@ -45,6 +45,7 @@ class Sample(object):
         self._ref_X = np.zeros((self.T, self.agent.symbolic_bound), dtype='float32')
 
         self.task_cost = np.nan
+        self.task_start = False
         self.removable = True
         self.use_ts = np.ones(self.T)
         self.prim_use_ts = np.ones(self.T)

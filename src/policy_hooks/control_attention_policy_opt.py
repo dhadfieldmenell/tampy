@@ -140,6 +140,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.acts = {}
         self.ref_acts = {}
         self.done = {}
+        self.aux = {}
 
         self.val_mu = {}
         self.val_obs = {}
@@ -290,7 +291,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         else:
             self.store_scope_weights([self.scope], weight_dir)
 
-    def store(self, obs, mu, prc, wt, net, task, update=False, val_ratio=0.2, acts=None, ref_acts=None, done=None):
+    def store(self, obs, mu, prc, wt, net, task, update=False, val_ratio=0.2, acts=None, ref_acts=None, done=None, aux=None):
         # print('TF got data for', task, 'will update?', update)
         keep_inds = None
         store_val = np.random.uniform() < val_ratio
@@ -298,9 +299,12 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             next_obs = np.r_[obs[1:], obs[-1:]]
         inds = np.where(np.abs(np.reshape(wt, [wt.shape[0]*wt.shape[1]])) < 1e-5)
         if acts is not None:
-            for dct1, dct2, data in zip([self.acts, self.ref_acts, self.done, self.next_obs], \
-                                        [self.val_acts, self.val_ref_acts, self.val_done, self.val_next_obs], \
-                                        [acts, ref_acts, done, next_obs]):
+            opts1 = [self.acts, self.ref_acts, self.done, self.next_obs]
+            opts2 = [self.val_acts, self.val_ref_acts, self.val_done, self.val_next_obs]
+            opts3 = [acts, ref_acts, done, next_obs]
+            for dct1, dct2, data in zip(opts1, \
+                                        opts2, \
+                                        opts3):
                 dct = dct2 if store_val else dct1
                 data = data.reshape([data.shape[0]*data.shape[1]] + list(data.shape[2:]))
                 data = np.delete(data, inds[0], axis=0)
@@ -319,7 +323,14 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                     #dct[net][task] = dct[net][task][keep_inds]
                     dct[net][task] = dct[net][task][-s:]
 
-        for dct1, dct2, data in zip([self.mu, self.obs, self.prc, self.wt], [self.val_mu, self.val_obs, self.val_prc, self.val_wt], [mu, obs, prc, wt]):
+        opts1 = [self.mu, self.obs, self.prc, self.wt]
+        opts2 = [self.val_mu, self.val_obs, self.val_prc, self.val_wt]
+        opts3 = [mu, obs, prc, wt]
+        if aux is not None:
+            opts1.append(self.aux)
+            opts2.append(self.val_aux)
+            opts3.append(aux)
+        for dct1, dct2, data in zip(opts1, opts2, opts3):
             if store_val:
                 dct = dct2
             else:
@@ -373,6 +384,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 continue
             
             obs, mu, prc, wt = [], [], [], []
+            aux = []
             for task in self.obs[net]:
                 n_update = min(max(MAX_UPDATE_SIZE, self.update_size+1), len(self.obs[net][task]))
                 #if n_update <= len(self.obs[net][task]):
@@ -389,10 +401,13 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                     mu.append(self.mu[net][task][ind])
                     prc.append(self.prc[net][task][ind])
                     wt.append(self.wt[net][task][ind])
+                    if net in self.aux and task in self.aux[task]:
+                        aux.append(self.aux[net][task][ind])
             obs = np.array(obs)
             mu = np.array(mu)
             prc = np.array(prc)
             wt = np.array(wt)
+            aux = np.array(aux)
             #obs = np.concatenate(list(self.obs[net].values()), axis=0)
             #mu = np.concatenate(list(self.mu[net].values()), axis=0)
             #prc = np.concatenate(list(self.prc[net].values()), axis=0)
@@ -411,7 +426,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 if net == 'value':
                     self.update_value(obs, next_obs, mu, prc, wt, acts, ref_acts, done)
                 else:
-                    self.update(obs, mu, prc, wt, net)
+                    self.update(obs, mu, prc, wt, net, aux=aux)
                 self.store_scope_weights(scopes=[net])
                 if time.time() - self.last_pkl_t > 180:
                     self.store_scope_weights(scopes=[net], lab='_{0}'.format(self.cur_pkl))
@@ -422,6 +437,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 updated = True
             if net in self.val_obs:
                 obs, mu, prc, wt = [], [], [], []
+                aux = []
                 for task in self.val_obs[net]:
                     n_update = min(200, len(self.val_obs[net][task]))
                     inds_to_use = np.random.choice(range(len(self.val_obs[net][task])), n_update, replace=False)
@@ -430,6 +446,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                         mu.append(self.val_mu[net][task][ind])
                         prc.append(self.val_prc[net][task][ind])
                         wt.append(self.val_wt[net][task][ind])
+                        if net in self.aux and task in self.aux[task]:
+                            aux.append(self.aux[net][task][ind])
                 #val_obs = np.concatenate(list(self.val_obs[net].values()), axis=0)
                 #val_mu = np.concatenate(list(self.val_mu[net].values()), axis=0)
                 #val_prc = np.concatenate(list(self.val_prc[net].values()), axis=0)
@@ -438,8 +456,9 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 mu = np.array(mu)
                 prc = np.array(prc)
                 wt = np.array(wt)
+                aux = np.array(aux)
                 if len(mu) >= 200:
-                    self.update(obs, mu, prc, wt, net, check_val=True)
+                    self.update(obs, mu, prc, wt, net, check_val=True, aux=aux)
 
         return updated
 
@@ -472,8 +491,11 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             with tf.variable_scope('primitive'):
                 self.primitive_eta = tf.placeholder_with_default(1., shape=())
                 tf_map_generator = self._hyperparams['primitive_network_model']
-                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dPrim, batch_size=self.batch_size,
-                                          network_config=self._hyperparams['primitive_network_params'], input_layer=input_tensor, eta=self.primitive_eta)
+                if self._hyperparams['split_hl_loss']:
+                    self.primitive_class_tensor = tf.placeholder_with_default(1., shape=[None])
+                    tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dPrim, batch_size=self.batch_size, network_config=self._hyperparams['primitive_network_params'], input_layer=input_tensor, eta=self.primitive_eta, class_tensor=self.primitive_class_tensor)
+                else:
+                    tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dPrim, batch_size=self.batch_size, network_config=self._hyperparams['primitive_network_params'], input_layer=input_tensor, eta=self.primitive_eta)
                 self.primitive_obs_tensor = tf_map.get_input_tensor()
                 self.primitive_precision_tensor = tf_map.get_precision_tensor()
                 self.primitive_action_tensor = tf_map.get_target_output_tensor()
@@ -832,7 +854,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         '''
 
 
-    def update(self, obs, tgt_mu, tgt_prc, tgt_wt, task="control", check_val=False):
+    def update(self, obs, tgt_mu, tgt_prc, tgt_wt, task="control", check_val=False, aux=[]):
         """
         Update policy.
         Args:
@@ -844,7 +866,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             A tensorflow object with updated weights.
         """
         if task == 'primitive':
-            return self.update_primitive_filter(obs, tgt_mu, tgt_prc, tgt_wt, check_val=check_val)
+            return self.update_primitive_filter(obs, tgt_mu, tgt_prc, tgt_wt, check_val=check_val, aux=[])
         if task == 'switch':
             return self.update_switch(obs, tgt_mu, tgt_prc, tgt_wt, check_val=check_val)
         if task == 'value':
@@ -1032,7 +1054,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             self.switch_feat_vals = self.switch_solver.get_var_values(self.sess, self.switch_feat_op, feed_dict, num_values, self.batch_size)
 
 
-    def update_primitive_filter(self, obs, tgt_mu, tgt_prc, tgt_wt, check_val=False):
+    def update_primitive_filter(self, obs, tgt_mu, tgt_prc, tgt_wt, check_val=False, aux=[]):
         """
         Update policy.
         Args:
@@ -1075,6 +1097,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         average_loss = 0
         np.random.shuffle(idx)
 
+        '''
         if self._hyperparams['fc_only_iterations'] > 0:
             feed_dict = {self.obs_tensor: obs}
             num_values = obs.shape[0]
@@ -1089,6 +1112,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                              self.hllr_tensor: self.cur_hllr}
                 train_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, train=(not check_val), use_fc_solver=True)
             average_loss = 0
+        '''
 
         # actual training.
         # for i in range(self._hyperparams['iterations']):
@@ -1102,6 +1126,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                          self.primitive_action_tensor: tgt_mu[idx_i],
                          self.primitive_precision_tensor: tgt_prc[idx_i],
                          self.hllr_tensor: self.cur_hllr}
+            if len(aux) and self.primitive_class_tensor is not None:
+                feed_dict[self.primitive_class_tensor] = aux[idx_i]
             train_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, train=(not check_val))
 
             average_loss += train_loss

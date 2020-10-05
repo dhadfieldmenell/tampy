@@ -161,6 +161,7 @@ class RolloutServer(object):
 
         self.use_local = hyperparams['use_local']
         if self.use_local:
+            hyperparams['policy_opt']['split_hl_loss'] = hyperparams['split_hl_loss']
             hyperparams['policy_opt']['weight_dir'] = hyperparams['weight_dir'] # + '_trained'
             hyperparams['policy_opt']['scope'] = None
             hyperparams['policy_opt']['gpu_fraction'] = 1./32.
@@ -259,7 +260,7 @@ class RolloutServer(object):
         #self.test_publisher = rospy.Publisher('is_alive', String, queue_size=2)
 
 
-    def update(self, obs, mu, prc, wt, task, rollout_len=0, acts=[], ref_acts=[], terminal=[]):
+    def update(self, obs, mu, prc, wt, task, rollout_len=0, acts=[], ref_acts=[], terminal=[], aux=[]):
         assert(len(mu) == len(obs))
 
         prc[np.where(prc > 1e10)] = 1e10
@@ -283,6 +284,8 @@ class RolloutServer(object):
             msg.acts = acts.flatten().tolist()
             msg.ref_acts = ref_acts.flatten().tolist()
             msg.terminal = terminal
+        if len(aux):
+            msg.aux = list(aux)
         msg.dO = self.agent.dO
         msg.dPrimObs = self.agent.dPrim
         msg.dOpts = len(list(self.agent.prob.get_prim_choices().keys()))
@@ -828,7 +831,7 @@ class RolloutServer(object):
         while val >= 1. and i < 10:
             self.agent.replace_cond(0)
             self.agent.reset(0)
-            val, path = self.test_hl()
+            val, path = self.test_hl(save=False)
             i += 1
 
         if val < 1:
@@ -840,7 +843,7 @@ class RolloutServer(object):
                 s = np.random.randint(len(path))
                 t = np.random.randint(path[s].T)
             elif mode == 'collision':
-                s, t = -1, -1
+                opts = []
                 for cur_s, sample in enumerate(path):
                     if 1 in sample.col_ts:
                         s = cur_s
@@ -851,8 +854,11 @@ class RolloutServer(object):
                             else:
                                 s -= 1
                                 t = path[s].T + t
-                        break
-                if s < 0:
+                        opts.append((s,t))
+                if len(opts):
+                    ind = np.random.randint(len(opts))
+                    s, t = opts[ind]
+                else:
                     s = np.random.randint(len(path))
                     t = np.random.randint(path[s].T)
             elif mode == 'tail':
@@ -1587,12 +1593,16 @@ class RolloutServer(object):
         ### Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dOpts)), np.zeros((0))
+        tgt_aux = np.zeros((0))
         for sample in samples:
             mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
             tgt_mu = np.concatenate((tgt_mu, mu))
             st, et = 0, sample.T # st, et = sample.step * sample.T, (sample.step + 1) * sample.T
             wt = np.array([self.prim_decay**t for t in range(st, et)])
             if sample.step == 0: wt[0] *= self.prim_first_wt
+            aux = np.ones(sample.T)
+            if sample.task_start: aux[0] = 0.
+            tgt_aux = np.concatenate((tgt_aux, aux))
             wt = np.array([sample.prim_use_ts[t] * self.prim_decay**t for t in range(sample.T)])
             wt[0] *= self.prim_first_wt
             tgt_wt = np.concatenate((tgt_wt, wt))
