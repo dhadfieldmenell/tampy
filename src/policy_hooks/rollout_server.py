@@ -1253,8 +1253,8 @@ class RolloutServer(object):
         true_val = np.max(np.max([[1-self.agent.goal_f(0, step.get(STATE_ENUM, t), targets) for t in range(step.T)] for step in path]))
         smallest_tol = 2.
         for tol in range(1, 20):
-            val = self.agent.goal_f(0, path[-1].get(STATE_ENUM, path[-1].T-1), path[-1].targets, tol=tol/10.)
-            if val < 0.1:
+            next_val = self.agent.goal_f(0, path[-1].get(STATE_ENUM, path[-1].T-1), path[-1].targets, tol=tol/10.)
+            if next_val < 0.1:
                 smallest_tol = tol/10.
                 break
         subgoal_suc = 1-self.agent.goal_f(0, np.concatenate([s.get(STATE_ENUM) for s in path]), targets)
