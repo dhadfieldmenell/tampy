@@ -1251,6 +1251,12 @@ class RolloutServer(object):
         val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], check_cost=self.check_precond)
         true_disp = np.min(np.min([[self.agent.goal_f(0, step.get(STATE_ENUM, t), targets, cont=True) for t in range(step.T)] for step in path]))
         true_val = np.max(np.max([[1-self.agent.goal_f(0, step.get(STATE_ENUM, t), targets) for t in range(step.T)] for step in path]))
+        smallest_tol = 2.
+        for tol in range(1, 20):
+            val = self.agent.goal_f(0, path[-1].get(STATE_ENUM, path[-1].T-1), path[-1].targets, tol=tol/10.)
+            if val < 0.1:
+                smallest_tol = tol/10.
+                break
         subgoal_suc = 1-self.agent.goal_f(0, np.concatenate([s.get(STATE_ENUM) for s in path]), targets)
         anygoal_suc = 1-self.agent.goal_f(0, np.concatenate([s.get(STATE_ENUM) for s in path]), targets, anywhere=True)
         subgoal_dist = self.agent.goal_f(0, np.concatenate([s.get(STATE_ENUM) for s in path]), targets, cont=True)
@@ -1270,7 +1276,8 @@ class RolloutServer(object):
                   n_plans,
                   subgoal_suc,
                   subgoal_dist,
-                  anygoal_suc))
+                  anygoal_suc,
+                  smallest_tol))
         if ckpt_ind is not None:
             s[0] = s[0] + (ckpt_ind,)
         # print('EXPLORED PATH: {0}'.format([sample.task for sample in path]))

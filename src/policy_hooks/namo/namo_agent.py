@@ -941,7 +941,7 @@ class NAMOSortingAgent(TAMPAgent):
         return tuple(task)
 
 
-    def goal_f(self, condition, state, targets=None, cont=False, anywhere=False):
+    def goal_f(self, condition, state, targets=None, cont=False, anywhere=False, tol=NEAR_TOL):
         if targets is None:
             targets = self.target_vecs[condition]
         cost = self.prob.NUM_OBJS
@@ -970,7 +970,7 @@ class NAMOSortingAgent(TAMPAgent):
                 # np.sum((state[self.state_inds[param.name, 'pose']] - self.targets[condition]['{0}_end_target'.format(param.name)])**2)
                 # cost -= 1 if dist < 0.3 else 0
                 alldisp += curdist # np.linalg.norm(disp)
-                cost -= 1 if np.all(np.abs(disp) < NEAR_TOL) else 0
+                cost -= 1 if np.all(np.abs(disp) < tol) else 0
 
         if cont: return alldisp / float(no)
         # return cost / float(self.prob.NUM_OBJS)
