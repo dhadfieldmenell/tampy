@@ -12,6 +12,7 @@ from policy_hooks.utils.policy_solver_utils import *
 
 
 MAX_OPT_DEPTH = 30 # TODO: Make this more versatile
+MCTS_WEIGHT = 10
 
 
 class ixedPolicy:
@@ -760,7 +761,7 @@ class MCTS:
         terminated = False
         iteration = 0
         exclude_hl = []
-        path_value = None
+        path_value = 0. # None
         next_sample = None
         self.agent.reset_to_state(state)
         if np.random.uniform() < self.ff_thresh:
@@ -787,7 +788,6 @@ class MCTS:
             path_value = np.maximum(value, path_value)
             self.node_history[tuple(cur_state)] = current_node
 
-            # print('Got nodes:', next_node, next_sample, 'n_fixed:', len(fixed_paths))
             if next_node is None or next_sample is None or next_node.depth > self.max_depth:
                 break
 
@@ -805,7 +805,7 @@ class MCTS:
             # if np.random.uniform() < early_stop_prob:
             #     break
 
-        if path_value is None:
+        if path_value is 0:
             path_value = 1 - self.agent.goal_f(self.condition, cur_state)
 
         end_sample = next_sample
@@ -843,7 +843,9 @@ class MCTS:
             self.n_success += 1
             self.first_success = np.minimum(self.first_success, self.n_runs)
             end = path[-1]
-            print(('\nSUCCESS! Tree {0} {1} using fixed: {2}\n'.format(self.log_file, state, len(fixed_paths) != 0)))
+            print(('\nSUCCESS! Tree {0} {1} using fixed: {2} {3}\n'.format(self.log_file, state, len(fixed_paths) != 0, self.n_runs)))
+            for s in path:
+                s.prim_use_ts *= MCTS_WEIGHT
             self.agent.add_task_paths([path])
         elif len(path) and self.her:
             old_nodes = [path[i].node for i in range(len(path))]

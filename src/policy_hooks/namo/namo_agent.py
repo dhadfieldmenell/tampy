@@ -50,7 +50,7 @@ MAX_SAMPLELISTS = 1000
 MAX_TASK_PATHS = 100
 GRIP_TOL = 0.
 MIN_STEP = 1e-2
-LIDAR_DIST = 3.
+LIDAR_DIST = 2.
 # LIDAR_DIST = 1.5
 DSAFE = 5e-1
 MAX_STEP = max(1.5*dmove, 1)
@@ -238,7 +238,7 @@ class NAMOSortingAgent(TAMPAgent):
                 new_state[self.state_inds[pname, aname]] = aval
             if len(self._prev_U): self._prev_U = np.r_[self._prev_U[1:], [U_nogrip]]
             if len(self._x_delta)-1: self._x_delta = np.r_[self._x_delta[1:], [new_state]]
-            if len(self._prev_task)-1: self._prev_task = np.r_[self._prev_task[1:], [sample.get_prim_out(t=t)]]
+            if len(self._prev_task): self._prev_task = np.r_[self._prev_task[1:], [sample.get_prim_out(t=t)]]
 
 
             if np.all(np.abs(cur_state - new_state) < 1e-3):
@@ -1164,7 +1164,7 @@ class NAMOSortingAgent(TAMPAgent):
         self._prev_U = np.zeros((self.hist_len, self.dU))
         self._x_delta = np.zeros((self.hist_len+1, self.dX))
         self._x_delta[:] = x.reshape((1,-1))
-        self._prev_task = np.zeros((self.hist_len, self.dPrimOut))
+        self._prev_task = np.zeros((self.task_hist_len, self.dPrimOut))
         self.reset_mjc_env(mp_state)
 
 
@@ -1436,6 +1436,7 @@ class NAMOSortingAgent(TAMPAgent):
 
 
     def permute_tasks(self, tasks, targets, plan):
+        raise Exception('This should not call')
         encoded = [list(l) for l in tasks]
         no = self._hyperparams['num_objs']
         perm = np.random.permutation(range(no))

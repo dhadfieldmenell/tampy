@@ -9,6 +9,7 @@ import sys
 import time
 from software_constants import *
 
+from PIL import Image
 from scipy.cluster.vq import kmeans2 as kmeans
 import tensorflow as tf
 
@@ -838,6 +839,22 @@ class RolloutServer(object):
             elif mode == 'random':
                 s = np.random.randint(len(path))
                 t = np.random.randint(path[s].T)
+            elif mode == 'collision':
+                s, t = -1, -1
+                for cur_s, sample in enumerate(path):
+                    if 1 in sample.col_ts:
+                        s = cur_s
+                        t = list(sample.col_ts).index(1) - 5
+                        if t < 0:
+                            if s == 0:
+                                s, t = 0, 0
+                            else:
+                                s -= 1
+                                t = path[s].T + t
+                        break
+                if s < 0:
+                    s = np.random.randint(len(path))
+                    t = np.random.randint(path[s].T)
             elif mode == 'tail':
                 wts = np.exp(np.arange(len(path)) / 5.)
                 wts /= np.sum(wts)
@@ -877,11 +894,8 @@ class RolloutServer(object):
             self.agent.reset_to_state(x0)
             self.agent.store_x_hist(path[s].get(STATE_HIST_ENUM, t=t))
             val, path, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=False)
-            if plan is not None and type(plan) is not str:
-                for _ in range(self.permute_hl):
-                    self.agent.run_plan(plan, targets, permute=True, reset=True)
 
-            print(('Plan from fail?', plan, val, len(path), self.id))
+            print(('Plan from fail?', plan, val, len(path), s, t, self.id))
             if augment and type(plan) is Plan:
                 self.agent.resample_hl_plan(plan, targets)
 
@@ -934,7 +948,6 @@ class RolloutServer(object):
 
 
     def step(self):
-        # print '\n\nTaking tree search step.\n\n'
         if self.policy_opt.share_buffers:
             self.policy_opt.read_shared_weights()
 
@@ -963,7 +976,6 @@ class RolloutServer(object):
         tree_data = []
 
         # if 'rollout_server_'+str(self.id) not in os.popen("rosnode list").read():
-        #     print "\n\nRestarting dead ros node: rollout server\n\n", self.id
         #     rospy.init_node('rollout_server_'+str(self.id))
 
         # self.renew_publisher()
@@ -973,7 +985,6 @@ class RolloutServer(object):
             ### If rospy hangs, don't want it to always be for the same trees
             # random.shuffle(self.mcts)
 
-            # print('Running MCTS for server', self.id)
             start_t = time.time()
             self.update_weights()
             for mcts in self.mcts:
@@ -981,7 +992,7 @@ class RolloutServer(object):
                     self.policy_opt.read_shared_weights()
 
                 start_t = time.time()
-                x0 = self.select_state(mcts.condition)
+                x0 = self.agent.x0[mcts.condition] # self.select_state(mcts.condition)
                 self.agent.reset(mcts.condition)
                 mcts.opt_strength = 0.0 # if np.all([self.policy_opt.task_map[task]['policy'].scale is not None for task in self.policy_opt.valid_scopes]) else 1.0
                 val, paths = mcts.run(x0, 1, use_distilled=False, new_policies=rollout_policies, debug=False)
@@ -992,11 +1003,6 @@ class RolloutServer(object):
                 self.n_steps += 1
                 self.n_success += 1 if val > 1 - 1e-2 else 0
 
-                if time.time() - self.last_hl_test > 120:
-                    self.agent.replace_cond(0)
-                    self.agent.reset(0)
-                    self.test_hl()
-                # print('MCTS step time:', time.time() - start_t)
                 ### Collect observed samples from MCTS
                 sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
                 self.agent.clear_samples(keep_prob=0.0, keep_opt_prob=1.0)
@@ -1004,7 +1010,6 @@ class RolloutServer(object):
 
                 ### Check to see if ros node is dead; restart if so
                 # if 'rollout_server_'+str(self.id) not in os.popen("rosnode list").read():
-                #     print "\n\nRestarting dead ros node:", 'rollout_server_'+str(self.id), '\n\n'
                 #     rospy.init_node('rollout_server_'+str(self.id))
 
                 ### Stochastically choose subset of observed init states/problems to solve the motion planning problem for
@@ -1035,8 +1040,14 @@ class RolloutServer(object):
                                 self.send_prob(*p)
                             #     self.send_mp_problem(*p)
 
-                if mcts.n_runs >= self.steps_to_replace or mcts.n_success >= self.success_to_replace:
+                if mcts.n_runs >= self.steps_to_replace or \
+                   mcts.n_success >= self.success_to_replace or \
+                   mcts.ff_thresh > 0.99:
                     mcts.reset()
+                    if time.time() - self.last_hl_test > 120:
+                        self.agent.replace_cond(0)
+                        self.agent.reset(0)
+                        self.test_hl()
 
             ### Run an update step of the algorithm if there are any waiting rollouts that already have an optimized result from the MP server
             # self.run_opt_queue()
@@ -1049,7 +1060,6 @@ class RolloutServer(object):
 
             ### Publisher might be dead
             # self.renew_publisher()
-            # print('Ran through MCTS, for server', self.id)
 
             ### Look for saved successful HL rollout paths and send them to update the HL options policy
             path_samples = []
@@ -1066,14 +1076,12 @@ class RolloutServer(object):
             if self._hyperparams.get('save_expert', False): self.update_expert_demos(ref_paths)
             if self.config.get('use_qfunc', False):
                 self.update_qvalue(all_samples)
-            # print('Time to finish all MCTS step:', time.time() - start_t)
 
         self.run_opt_queue()
         costs = {}
         if self.run_alg_updates:
             ### Run an update step of the algorithm if there are any waiting rollouts that already have an optimized result from the MP server
             self.send_all_mp_problems()
-            # print('Time to finish opt queue', time.time() - start_t)
             start_t = time.time()
 
             for task in self.agent.task_list:
@@ -1087,14 +1095,11 @@ class RolloutServer(object):
                         costs[task].append(viol)
                     '''
                     # task_costs[task].append(viol)
-                    # print('Server {0} in group {1} updating policy'.format(self.id, self.group_id))
                     self.alg_map[task].iteration(self.rollout_opt_pairs[task], reset=True)
                     if self.use_switch:
                         self.update_switch([s for s, _ in self.rollout_opt_pairs[task]])
                     self.rollout_opt_pairs[task] = []
 
-            # if time.time() - start_t > 1:
-            #     print('Time to finish alg iteration', time.time() - start_t)
 
             if len(list(costs.keys())):
                 self.latest_traj_costs.clear()
@@ -1155,19 +1160,33 @@ class RolloutServer(object):
                 with open(self.rollout_log, 'w+') as f:
                     f.write(str(self.log_updates))
 
-            print('Finished tree search step.')
 
-
-    def save_video(self, rollout, success=None):
+    def save_image(self, rollout, success=None, ts=0):
         if not self.render: return
         suc_flag = ''
         if success is not None:
             suc_flag = 'succeeded' if success else 'failed'
-        fname = self.video_dir + '/{0}{1}_{2}_{3}.npy'.format(self.id, self.group_id, self.cur_vid_id, suc_flag)
+        fname = '/home/michaelmcdonald/Dropbox/videos/{0}_{1}_{2}_{3}.png'.format(self.id, self.group_id, self.cur_vid_id, suc_flag)
+        self.cur_vid_id += 1
+        im = self.agent.get_annotated_image(rollout, ts)
+        im = Image.fromarray(im)
+        im.save(fname)
+
+
+    def save_video(self, rollout, success=None, ts=None):
+        if not self.render: return
+        suc_flag = ''
+        if success is not None:
+            suc_flag = 'succeeded' if success else 'failed'
+        fname = self.video_dir + '/{0}_{1}_{2}_{3}.npy'.format(self.id, self.group_id, self.cur_vid_id, suc_flag)
         self.cur_vid_id += 1
         buf = []
         for step in rollout:
-            for t in range(step.T):
+            if ts is None: 
+                ts_range = range(step.T)
+            else:
+                ts_range = range(ts[0], ts[1])
+            for t in ts_range:
                 im = self.agent.get_annotated_image(step, t)
                 buf.append(im)
         np.save(fname, np.array(buf))
@@ -1222,7 +1241,7 @@ class RolloutServer(object):
                 rlen = 5 + 6*n
             else:
                 rlen = 3*n
-        self.agent.T = self.config['task_durations'][self.task_list[0]]
+        self.agent.T = 20 # self.config['task_durations'][self.task_list[0]]
         val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], check_cost=self.check_precond)
         true_disp = np.min(np.min([[self.agent.goal_f(0, step.get(STATE_ENUM, t), targets, cont=True) for t in range(step.T)] for step in path]))
         true_val = np.max(np.max([[1-self.agent.goal_f(0, step.get(STATE_ENUM, t), targets) for t in range(step.T)] for step in path]))
@@ -1390,11 +1409,16 @@ class RolloutServer(object):
 
     def run(self):
         step = 0
+        ff_iters = 10
         while not self.stopped:
+            if self.cur_step == ff_iters:
+                for mcts in self.mcts:
+                    mcts.ff_thresh = 1. if np.random.uniform() < self.config['ff_thresh'] else 0.
             if not self.run_hl_test and \
                self._hyperparams.get('train_on_fail', False) and \
-               self.cur_step > 10 and \
-               not self._hyperparams.get('ff_only', False):
+               self.cur_step > ff_iters and \
+               not self._hyperparams.get('ff_only', False) and \
+               self.mcts[0].ff_thresh > 0:
                 self.agent.replace_cond(0)
                 augment = self._hyperparams.get('augment_hl', False)
                 mode = self._hyperparams.get('fail_mode', 'start')

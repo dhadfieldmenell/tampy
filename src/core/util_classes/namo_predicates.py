@@ -164,8 +164,8 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False):
         res = []
         jac = np.zeros((0, 2 * dim))
         for t in range(pts):
-            coeff = float(pts - t) / pts
             if len(xs) == 2:
+                coeff = float(pts - t) / pts
                 next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
             else:
                 next_pos = xs[0]
@@ -177,9 +177,8 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False):
     else:
         res = []
         for t in range(pts):
-            coeff = float(pts - t) / pts
-            if not len(xs[0]) or not len(xs[1]): import ipdb; ipdb.set_trace()
             if len(xs) == 2:
+                coeff = float(pts - t) / pts
                 next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
             else:
                 next_pos = xs[0]
@@ -985,13 +984,66 @@ class RCollides(CollisionPredicate):
         else:
             return None
 
+class ColObjPred(CollisionPredicate):
+
+    # Obstructs, Robot, RobotPose, RobotPose, Can;
+
+    def __init__(self, name, params, expected_param_types, env=None, coeff=1e3, debug=False):
+        self._env = env
+        self.hl_ignore = True
+        self.r, self.c = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]),
+                                 (self.c, [("pose", np.array([0, 1], dtype=np.int))])])
+        self._param_to_body = {self.r: self.lazy_spawn_or_body(self.r, self.r.name, self.r.geom),
+                               self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom)}
+
+        self.rs_scale = RS_SCALE
+
+        #f = lambda x: -self.distance_from_obj(x)[0]
+        #grad = lambda x: -self.distance_from_obj(x)[1]
+
+        neg_coeff = coeff
+        neg_grad_coeff = 1e-1 # 1e-3
+
+        def f(x):
+            col_vals = self.distance_from_obj(x)[0]
+            col_vals = np.clip(col_vals, 0., 4)
+            return -col_vals
+            #return -self.distance_from_obj(x)[0] # twostep_f([x[:4]], self.distance_from_obj, 2, pts=1)
+
+        def grad(x):
+            return -coeff*self.distance_from_obj(x)[1] # twostep_f([x[:4]], self.distance_from_obj, 2, pts=1, grad=True)
+
+        def f_neg(x):
+            return -neg_coeff * f(x)
+
+        def grad_neg(x):
+            return -neg_grad_coeff * grad(x)
+
+        def hess_neg(x):
+            j = grad(x)
+            return j.T.dot(j)
+
+        col_expr = Expr(f, grad)
+        val = np.zeros((1,1))
+        e = LEqExpr(col_expr, val)
+
+        col_expr_neg = Expr(lambda x: -coeff*f(x), lambda x: grad(x), lambda x: hess_neg(x))
+        self.neg_expr = LEqExpr(col_expr_neg, -val)
+
+        super(ColObjPred, self).__init__(name, e, attr_inds, params,
+                                        expected_param_types, ind0=0, ind1=1, active_range=(0,0))
+        # self.priority=1
+        self.dsafe = 2.
+
+
 class Obstructs(CollisionPredicate):
 
     # Obstructs, Robot, RobotPose, RobotPose, Can;
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
-        self.hl_ignore = True
+        # self.hl_ignore = True
         self.r, self.startp, self.endp, self.c = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]),
                                  (self.c, [("pose", np.array([0, 1], dtype=np.int))])])
@@ -1024,7 +1076,6 @@ class Obstructs(CollisionPredicate):
 
         def grad_neg(x):
             return -neg_grad_coeff * grad(x)
-
 
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
@@ -1124,8 +1175,8 @@ class Obstructs(CollisionPredicate):
 
 class WideObstructs(Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.2
+        super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug=debug)
+        self.dsafe = 0.3
 
 def sample_pose(plan, pose, robot, rs_scale):
     targets  = plan.get_param('InContact', 2, {0: robot, 1:pose})
@@ -1390,7 +1441,7 @@ class ObstructsHolding(CollisionPredicate):
 class WideObstructsHolding(ObstructsHolding):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(WideObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.3
+        self.dsafe = 0.25
 
 
 class InGripper(ExprPredicate):

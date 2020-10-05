@@ -18,6 +18,7 @@ import xml.etree.ElementTree as xml
 from sco.expr import *
 
 import core.util_classes.common_constants as common_const
+import pma.backtrack_ll_solver as bt_ll
 from pma.pr_graph import *
 if common_const.USE_OPENRAVE:
     import openravepy
@@ -135,13 +136,13 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         opts = self._hyperparams['prob'].get_prim_choices(self.task_list)
         self.label_options = list(itertools.product(*[list(range(len(opts[e]))) for e in opts])) # range(self.num_tasks), *[range(n) for n in self.num_prims]))
         self.hist_len = self._hyperparams['hist_len']
-        self.task_hist_len = self._hyperparams.get('task_hist_len', 1)
+        self.task_hist_len = self._hyperparams['master_config'].get('task_hist_len', 0)
         self.traj_hist = None
         self.reset_hist()
 
         self._prev_U = np.zeros((self.hist_len, self.dU))
         self._x_delta = np.zeros((self.hist_len+1, self.dX))
-        self._prev_task = np.zeros((self.hist_len, self.dPrimOut))
+        self._prev_task = np.zeros((self.task_hist_len, self.dPrimOut))
         self.optimal_samples = {task: [] for task in self.task_list}
         self.optimal_state_traj = [[] for _ in range(len(self.plans_list))]
         self.optimal_act_traj = [[] for _ in range(len(self.plans_list))]
@@ -164,6 +165,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.prim_dims_keys = list(self.prim_dims.keys())
         self.permute_hl = self.master_config.get('permute_hl', False)
 
+        bt_ll.COL_COEFF = self.master_config['col_coeff']
         self.solver = self._hyperparams['mp_solver_type'](self._hyperparams)
         if 'll_solver_type' in self._hyperparams['master_config']:
             self.ll_solver = self._hyperparams['master_config']['ll_solver_type'](self._hyperparams)
@@ -1122,10 +1124,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 sample.opt_strength = 1.
                 sample.opt_suc = True
                 x0 = sample.end_state # sample.get_X(sample.T-1)
-                sample.success = 1. - self.goal_f(0, x0, sample.targets)
+                sample.success = 1. - self.goal_f(0, x0, targets)
                 # zero_sample.success = sample.success
-                sample.use_ts[-1] = 1.
-                sample.prim_use_ts[-1] = 1.
+                #sample.use_ts[-1] = 1.
+                #sample.prim_use_ts[-1] = 1.
             path[-1].task_end = True
             path[-1].set(TASK_DONE_ENUM, np.array([0, 1]), t=path[-1].T-1)
             zero_sample = self.sample_optimal_trajectory(path[-1].end_state, task, 0, opt_traj[-1:], targets=targets)

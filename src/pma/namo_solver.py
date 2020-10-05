@@ -1,6 +1,10 @@
 import numpy as np
 
+from sco.expr import BoundExpr, QuadExpr, AffExpr
+
+from core.util_classes.namo_predicates import ColObjPred
 from pma import backtrack_ll_solver
+
 
 class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
@@ -136,7 +140,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         return robot_pose
 
-    def _get_col_obj(self, plan, norm, mean, coeff=None, active_ts=None):
+    def _add_col_obj(self, plan, norm='min-vel', coeff=None, active_ts=None):
         """
             This function returns the expression e(x) = P|x - cur|^2
             Which says the optimized trajectory should be close to the
@@ -148,62 +152,19 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         start, end = active_ts
         if coeff is None:
-            coeff = self.transfer_coeff
+            coeff = self.col_coeff
 
         objs = []
         robot = plan.params['pr2']
-        ll_robot = self._param_to_ll[robot]
-        ll_robot_attr_val = getattr(ll_robot, 'pose')
-        robot_ll_grb_vars = ll_robot_attr_val.reshape((KT, 1), order='F')
-        attr_robot_val = getattr(robot, 'pose')
-        init_robot_val = attr_val[:, start:end+1].reshape((KT, 1), order='F')
-        for robot in self._robot_to_ll:
-            param_ll = self._param_to_ll[param]
+        for param in plan.params.values():
             if param._type != 'Can': continue
-            attr_type = param.get_attr_type('pose')
-            attr_val = getattr(param, 'pose')
-            init_val = attr_val[:, start:end+1].reshape((KT, 1), order='F')
-            K = attr_type.dim
-            T = param_ll._horizon
-            KT = K*T
-            P = np.c_[np.eye(KT), -np.eye(KT)]
-            Q = P.T.dot(P)
-            quad_expr = QuadExpr(-2*transfer_coeff*Q,
-                                 np.zeros((KT)), np.zeros((1,1)))
-            ll_attr_val = getattr(param_ll, 'pose')
-            param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
-            all_vars = np.r_[param_ll_grb_vars, robot_ll_grb_vars]
-            sco_var = self.create_variable(all_vars, np.r_[init_val, init_robot_val])
-            bexpr = BoundExpr(quad_expr, sco_var)
+            expected_param_types = ['Robot', 'Can']
+            params = [robot, param]
+            pred = ColObjPred('obstr', params, expected_param_types, plan.env, coeff=coeff)
+            for t in range(active_ts[0], active_ts[1]):
+                var = self._spawn_sco_var_for_pred(pred, t)
+                bexpr = BoundExpr(pred.neg_expr.expr, var)
+                objs.append(bexpr)
+                self._prob.add_obj_expr(bexpr)
+        return objs
 
-        for p_name, attr_name in self.state_inds:
-            param = plan.params[p_name]
-            if param.is_symbol(): continue
-            attr_type = param.get_attr_type(attr_name)
-            param_ll = self._param_to_ll[param]
-            attr_val = mean[param_ll.active_ts[0]:param_ll.active_ts[1]+1][:, self.state_inds[p_name, attr_name]]
-            K = attr_type.dim
-            T = param_ll._horizon
-
-            if DEBUG: assert (K, T) == attr_val.shape
-            KT = K*T
-            v = -1 * np.ones((KT - K, 1))
-            d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
-            # [:,0] allows numpy to see v and d as one-dimensional so
-            # that numpy will create a diagonal matrix with v and d as a diagonal
-            P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
-            # P = np.eye(KT)
-            Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
-            cur_val = attr_val.reshape((KT, 1), order='F')
-            A = -2*cur_val.T.dot(Q)
-            b = cur_val.T.dot(Q.dot(cur_val))
-            transfer_coeff = coeff/float(plan.horizon)
-
-            # QuadExpr is 0.5*x^Tx + Ax + b
-            quad_expr = QuadExpr(2*transfer_coeff*Q,
-                                 transfer_coeff*A, transfer_coeff*b)
-            ll_attr_val = getattr(param_ll, attr_name)
-            param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
-            sco_var = self.create_variable(param_ll_grb_vars, cur_val)
-            bexpr = BoundExpr(quad_expr, sco_var)
-            transfer_objs.append(bexpr)

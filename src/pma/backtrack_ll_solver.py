@@ -15,11 +15,12 @@ from core.util_classes.viewer import OpenRAVEViewer
 
 MAX_PRIORITY=3
 BASE_MOVE_COEFF = 1.
-TRAJOPT_COEFF=1e-1
+TRAJOPT_COEFF=1e-2
 TRANSFER_COEFF = 1e-1
 FIXED_COEFF = 1e0
 INIT_TRAJ_COEFF = 1e-1
-RS_COEFF = 1e2
+RS_COEFF = 1e0 # 1e2
+COL_COEFF = 0
 SAMPLE_SIZE = 5
 BASE_SAMPLE_SIZE = 5
 DEBUG = False
@@ -35,6 +36,7 @@ class BacktrackLLSolver(LLSolver):
         self.rs_coeff = RS_COEFF
         self.trajopt_coeff = TRAJOPT_COEFF # 1e-3#1e0
         self.init_traj_coeff = INIT_TRAJ_COEFF
+        self.col_coeff = COL_COEFF
         self.initial_trust_region_size = 1e-2 # 1e-2
         self.init_penalty_coeff = 1e0#4e3
         self.smooth_penalty_coeff = 1e2 # 1e0#7e4
@@ -93,7 +95,6 @@ class BacktrackLLSolver(LLSolver):
 
         if anum > amax:
             return True
-
         a = plan.actions[anum]
         if DEBUG: print(("backtracking Solve on {}".format(a.name)))
         active_ts = a.active_timesteps
@@ -299,6 +300,7 @@ class BacktrackLLSolver(LLSolver):
             # import ipdb; ipdb.set_trace()
         else:
             self._bexpr_to_pred = {}
+            if self.col_coeff > 0: self._add_col_obj(plan, active_ts=active_ts)
             if priority == -2:
                 """
                 Initialize an linear trajectory while enforceing the linear constraints in the intermediate step.
@@ -338,10 +340,11 @@ class BacktrackLLSolver(LLSolver):
 
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
         if priority >= 0 or priority == MAX_PRIORITY:
+            self._update_ll_params()
             success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
-            if not success:
-                self._update_ll_params()
-                success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
+            #if not success:
+            #    self._update_ll_params()
+            #    success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
         else:
             self._update_ll_params()
 
@@ -944,4 +947,8 @@ class BacktrackLLSolver(LLSolver):
                 transfer_objs.append(bexpr)
 
         return transfer_objs
+
+
+    def _add_col_obj(self, plan, norm='min-vel', coeff=None, active_ts=None):
+        return []
 

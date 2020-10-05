@@ -359,6 +359,7 @@ def argsparser():
     parser.add_argument('-image', '--add_image', action='store_true', default=False)
     parser.add_argument('-hl_image', '--add_hl_image', action='store_true', default=False)
     parser.add_argument('-permute', '--permute_hl', type=int, default=0)
+    parser.add_argument('-col_coeff', '--col_coeff', type=float, default=0.)
 
     # Q learn args
     parser.add_argument('-qimwt', '--q_imwt', type=float, default=0)

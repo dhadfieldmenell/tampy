@@ -17,7 +17,7 @@ from gps.algorithm.policy.tf_policy import TfPolicy
 from gps.algorithm.policy_opt.policy_opt import PolicyOpt
 from gps.algorithm.policy_opt.tf_utils import TfSolver
 
-MAX_QUEUE_SIZE = 50000
+MAX_QUEUE_SIZE = 500000
 MAX_UPDATE_SIZE = 20000
 SCOPE_LIST = ['primitive', 'value', 'image', 'switch']
 
@@ -315,9 +315,9 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                     if keep_inds is None:
                         keep_inds = np.random.choice(list(range(len(dct[net][task]))), s, replace=False)
                         del_inds = np.random.choice(list(range(len(dct[net][task]))), len(dct[net][task])-s, replace=False)
-                    dct[net][task] = np.delete(dct[net][task], del_inds, axis=0)
+                    #dct[net][task] = np.delete(dct[net][task], del_inds, axis=0).tolist()
                     #dct[net][task] = dct[net][task][keep_inds]
-                    #dct[net][task] = dct[net][task][-s:]
+                    dct[net][task] = dct[net][task][-s:]
 
         for dct1, dct2, data in zip([self.mu, self.obs, self.prc, self.wt], [self.val_mu, self.val_obs, self.val_prc, self.val_wt], [mu, obs, prc, wt]):
             if store_val:
@@ -342,8 +342,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                     keep_inds = np.random.choice(list(range(len(dct[net][task]))), s, replace=False)
                     del_inds = np.random.choice(list(range(len(dct[net][task]))), len(dct[net][task])-s, replace=False)
                 #dct[net][task] = dct[net][task][keep_inds]
-                dct[net][task] = np.delete(dct[net][task], del_inds, axis=0)
-                #dct[net][task] = dct[net][task][-s:]
+                #dct[net][task] = np.delete(dct[net][task], del_inds, axis=0).tolist()
+                dct[net][task] = dct[net][task][-s:]
         self.update_count += len(data)
         if not store_val:
             self.N += len(data)

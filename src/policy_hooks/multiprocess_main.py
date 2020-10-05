@@ -340,7 +340,7 @@ class MultiProcessMain(object):
                                   her=self.config.get('her', False),
                                   onehot_task=self.config.get('onehot_task', False),
                                   soft=self.config.get('soft', False),
-                                  ff_thresh=self.config.get('ff_thresh', 0),
+                                  ff_thresh=1.,#self.config.get('ff_thresh', 0),
                                   eta=self.config.get('eta', 1.),
                                   ))
 
@@ -390,6 +390,10 @@ class MultiProcessMain(object):
         buf_sizes['n_data'].value = 0
         buf_sizes['n_plans'] = mp.Value('i')
         buf_sizes['n_plans'].value = 0
+        buf_sizes['n_mcts'] = mp.Value('i')
+        buf_sizes['n_mcts'].value = 0
+        buf_sizes['n_ff'] = mp.Value('i')
+        buf_sizes['n_ff'].value = 0
         config['share_buffer'] = True
         config['policy_opt']['share_buffer'] = True
         config['policy_opt']['buffers'] = buffers
@@ -543,8 +547,8 @@ class MultiProcessMain(object):
         hyperparams['check_precond'] = False
         hyperparams['share_buffers'] = False
         hyperparams['load_render'] = True
-        hyperparams['agent']['image_height']  = 128
-        hyperparams['agent']['image_width']  = 128
+        hyperparams['agent']['image_height']  = 256
+        hyperparams['agent']['image_width']  = 256
         descr = hyperparams.get('descr', '')
         # hyperparams['weight_dir'] = hyperparams['weight_dir'].replace('exp_id0', 'rerun_{0}'.format(descr))
         hyperparams['id'] = 'test'

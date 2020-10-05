@@ -295,7 +295,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'visual': False,
         'time_limit': TIME_LIMIT,
         'success_to_replace': 1,
-        'steps_to_replace': no * 50,
+        'steps_to_replace': no * 10,
         'curric_thresh': -1,
         'n_thresh': -1,
         'expand_process': False,

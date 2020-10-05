@@ -16,6 +16,7 @@ import traceback
 
 import numpy as np
 
+import pma.backtrack_ll_solver as bt_ll
 from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
@@ -26,9 +27,10 @@ from policy_hooks.utils.load_task_definitions import *
 
 def load_agent(config):
     prob = config['prob']
+    bt_ll.COL_COEFF = config['col_coeff']
     time_limit = config.get('time_limit', 14400)
     conditions = config['num_conds']
-    task_list = tuple(get_tasks(config['task_map_file']).keys())
+    task_list = tuple(sorted(list(get_tasks(config['task_map_file']).keys())))
     cur_n_rollout = 0
     task_durations = get_task_durations(config['task_map_file'])
     config['task_list'] = task_list
@@ -114,7 +116,7 @@ def load_agent(config):
             if enum == utils.TASK_ENUM: continue
             prim_bounds.append((ind, ind+prim_dims[enum]))
             ind += prim_dims[enum]
-    config['sensor_dims']['TASK_HIST_ENUM'] = int(config['task_hist_len'] * ind)
+    sensor_dims[utils.TASK_HIST_ENUM] = int(config['task_hist_len'] * ind)
     config['prim_bounds'] = prim_bounds
     config['prim_dims'] = prim_dims
 
