@@ -1436,7 +1436,6 @@ class NAMOSortingAgent(TAMPAgent):
 
 
     def permute_tasks(self, tasks, targets, plan):
-        raise Exception('This should not call')
         encoded = [list(l) for l in tasks]
         no = self._hyperparams['num_objs']
         perm = np.random.permutation(range(no))

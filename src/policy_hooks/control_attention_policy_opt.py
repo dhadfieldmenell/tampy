@@ -492,7 +492,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 self.primitive_eta = tf.placeholder_with_default(1., shape=())
                 tf_map_generator = self._hyperparams['primitive_network_model']
                 if self._hyperparams['split_hl_loss']:
-                    self.primitive_class_tensor = tf.placeholder_with_default(1., shape=[None])
+                    self.primitive_class_tensor = tf.placeholder(shape=[None], dtype='float32')
                     tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dPrim, batch_size=self.batch_size, network_config=self._hyperparams['primitive_network_params'], input_layer=input_tensor, eta=self.primitive_eta, class_tensor=self.primitive_class_tensor)
                 else:
                     tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dPrim, batch_size=self.batch_size, network_config=self._hyperparams['primitive_network_params'], input_layer=input_tensor, eta=self.primitive_eta)

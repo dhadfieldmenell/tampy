@@ -135,9 +135,9 @@ def get_sigmoid_loss_layer(mlp_out, labels):
     return tf.nn.sigmoid_cross_entropy_with_logits(labels=labels, logits=mlp_out, name='sigmoid_loss')
 
 
-def get_loss_layer(mlp_out, task, boundaries, precision=None, scalar=True):
+def get_loss_layer(mlp_out, task, boundaries, precision=None, scalar=True, scope=''):
     """The loss layer used for the MLP network is obtained through this class."""
-    return multi_softmax_loss_layer(labels=task, logits=mlp_out, boundaries=boundaries, precision=precision, scalar=scalar)
+    return multi_softmax_loss_layer(labels=task, logits=mlp_out, boundaries=boundaries, precision=precision, scalar=scalar, scope=scope)
 
 
 def tf_classification_network(dim_input=27, dim_output=2, batch_size=25, network_config=None, input_layer=None, eta=None):
@@ -187,9 +187,9 @@ def tf_balanced_classification_network(dim_input=27, dim_output=2, batch_size=25
     if class_tensor is None:
         loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, precision=precision)
     else:
-        loss_out = multi_softmax_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, precision=precision, scalar=False, scope='_1')
-        loss_out_2 = multi_softmax_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, precision=precision, scalar=False, scope='_2')
-        loss_out = class1_wt * class_tensor * loss_out.T + class2_wt * (1 - class_tensor) * loss_out_2.T
+        loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, precision=precision, scalar=False, scope='_1')
+        loss_out_2 = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, precision=precision, scalar=False, scope='_2')
+        loss_out = class1_wt * class_tensor * tf.transpose(loss_out) + class2_wt * (1 - class_tensor) * tf.transpose(loss_out_2)
         loss_out = tf.reduce_mean(loss_out, axis=0)
     return TfMap.init_from_lists([fc_input, action, precision], [prediction], [loss_out]), fc_vars, []
 

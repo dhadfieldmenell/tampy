@@ -223,7 +223,7 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False, isrobot=False):
         res = []
         jac = np.zeros((0, 2 * dim))
         for t in range(pts):
-            coeff = float(pts - t) / pts
+            coeff = float((pts-1) - t) / (pts-1)
             if len(xs) == 2:
                 next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
                 if isrobot:
@@ -242,7 +242,7 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False, isrobot=False):
     else:
         res = []
         for t in range(pts):
-            coeff = float(pts - t) / pts
+            coeff = float((pts-1) - t) / (pts-1)
             if len(xs) == 2:
                 next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
                 if isrobot:
