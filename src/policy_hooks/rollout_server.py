@@ -881,7 +881,7 @@ class RolloutServer(object):
                 for _ in range(self.permute_hl):
                     self.agent.run_plan(plan, targets, permute=True, reset=True)
 
-            print(('Plan from fail?', plan, val, len(path), self.id))
+            print(('Plan from fail?', plan, val, len(path), s, t, self.id))
             if augment and type(plan) is Plan:
                 self.agent.resample_hl_plan(plan, targets)
 
@@ -1163,7 +1163,7 @@ class RolloutServer(object):
         suc_flag = ''
         if success is not None:
             suc_flag = 'succeeded' if success else 'failed'
-        fname = self.video_dir + '/{0}{1}_{2}_{3}.npy'.format(self.id, self.group_id, self.cur_vid_id, suc_flag)
+        fname = self.video_dir + '/{0}_{1}_{2}_{3}.npy'.format(self.id, self.group_id, self.cur_vid_id, suc_flag)
         self.cur_vid_id += 1
         buf = []
         for step in rollout:

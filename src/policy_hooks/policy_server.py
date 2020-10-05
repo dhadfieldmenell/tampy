@@ -173,7 +173,7 @@ class PolicyServer(object):
             update = self.policy_opt.run_update([self.task])
         # print('Weights updated:', update, self.task)
         if update:
-            self.n_updates += 1
+            self.n_updates += n_updates
             if not USE_ROS or self.policy_opt.share_buffers:
                 self.policy_opt.write_shared_weights([self.task])
             else:

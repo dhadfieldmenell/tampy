@@ -422,7 +422,7 @@ class MCTS:
         success = 0
         if plan is not None and type(plan) is not str:
             assert len(plan.get_failed_preds(tol=1e-3)) == 0
-            path = self.agent.run_plan(plan, targets=targets, reset=reset, permute=self._permute>0)
+            path = self.agent.run_plan(plan, targets=targets, reset=reset, permute=(self._permute>0))
             success = path[-1].success
             self.hl_suc += 1
             self.log_path(path, 10)

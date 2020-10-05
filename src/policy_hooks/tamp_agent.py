@@ -1124,8 +1124,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 x0 = sample.end_state # sample.get_X(sample.T-1)
                 sample.success = 1. - self.goal_f(0, x0, sample.targets)
                 # zero_sample.success = sample.success
-                sample.use_ts[-1] = 1.
-                sample.prim_use_ts[-1] = 1.
+                #sample.use_ts[-1] = 1.
+                #sample.prim_use_ts[-1] = 1.
             path[-1].task_end = True
             path[-1].set(TASK_DONE_ENUM, np.array([0, 1]), t=path[-1].T-1)
             zero_sample = self.sample_optimal_trajectory(path[-1].end_state, task, 0, opt_traj[-1:], targets=targets)

@@ -37,7 +37,7 @@ def load_agent(config):
     task_breaks = []
     goal_states = []
 
-    plans, openrave_bodies, env = prob.get_plans()
+    plans, openrave_bodies, env = prob.get_plans(use_tf=False)
     state_vector_include, action_vector_include, target_vector_include = config['get_vector'](config)
     dX, state_inds, dU, action_inds, symbolic_bound = utils.get_state_action_inds(list(plans.values())[0], config['robot_name'], config['attr_map'], state_vector_include, action_vector_include)
     target_dim, target_inds = utils.get_target_inds(list(plans.values())[0], config['attr_map'], target_vector_include)

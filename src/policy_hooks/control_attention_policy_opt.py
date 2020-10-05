@@ -17,7 +17,7 @@ from gps.algorithm.policy.tf_policy import TfPolicy
 from gps.algorithm.policy_opt.policy_opt import PolicyOpt
 from gps.algorithm.policy_opt.tf_utils import TfSolver
 
-MAX_QUEUE_SIZE = 50000
+MAX_QUEUE_SIZE = 100000
 MAX_UPDATE_SIZE = 20000
 SCOPE_LIST = ['primitive', 'value', 'image', 'switch']
 
@@ -298,6 +298,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             next_obs = np.r_[obs[1:], obs[-1:]]
         inds = np.where(np.abs(np.reshape(wt, [wt.shape[0]*wt.shape[1]])) < 1e-5)
         if acts is not None:
+            raise Exception()
             for dct1, dct2, data in zip([self.acts, self.ref_acts, self.done, self.next_obs], \
                                         [self.val_acts, self.val_ref_acts, self.val_done, self.val_next_obs], \
                                         [acts, ref_acts, done, next_obs]):
@@ -315,9 +316,9 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                     if keep_inds is None:
                         keep_inds = np.random.choice(list(range(len(dct[net][task]))), s, replace=False)
                         del_inds = np.random.choice(list(range(len(dct[net][task]))), len(dct[net][task])-s, replace=False)
-                    dct[net][task] = np.delete(dct[net][task], del_inds, axis=0)
+                    #dct[net][task] = np.delete(dct[net][task], del_inds, axis=0)
                     #dct[net][task] = dct[net][task][keep_inds]
-                    #dct[net][task] = dct[net][task][-s:]
+                    dct[net][task] = dct[net][task][-s:]
 
         for dct1, dct2, data in zip([self.mu, self.obs, self.prc, self.wt], [self.val_mu, self.val_obs, self.val_prc, self.val_wt], [mu, obs, prc, wt]):
             if store_val:
@@ -342,7 +343,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                     keep_inds = np.random.choice(list(range(len(dct[net][task]))), s, replace=False)
                     del_inds = np.random.choice(list(range(len(dct[net][task]))), len(dct[net][task])-s, replace=False)
                 #dct[net][task] = dct[net][task][keep_inds]
-                dct[net][task] = np.delete(dct[net][task], del_inds, axis=0)
+                dct[net][task] = np.delete(dct[net][task], del_inds, axis=0).tolist()
                 #dct[net][task] = dct[net][task][-s:]
         self.update_count += len(data)
         if not store_val:
@@ -373,6 +374,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 continue
             
             obs, mu, prc, wt = [], [], [], []
+            start_t = time.time()
             for task in self.obs[net]:
                 n_update = min(max(MAX_UPDATE_SIZE, self.update_size+1), len(self.obs[net][task]))
                 #if n_update <= len(self.obs[net][task]):
@@ -413,7 +415,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 else:
                     self.update(obs, mu, prc, wt, net)
                 self.store_scope_weights(scopes=[net])
-                if time.time() - self.last_pkl_t > 180:
+                if time.time() - self.last_pkl_t > 600:
                     self.store_scope_weights(scopes=[net], lab='_{0}'.format(self.cur_pkl))
                     self.cur_pkl += 1
                     self.last_pkl_t = time.time()

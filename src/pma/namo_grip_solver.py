@@ -89,7 +89,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 grasp = act.params[5]
                 target_rot = old_rot
                 dist = -gripdist - dsafe - 1.
-                dist = -gripdist - dsafe - 1.2
+                dist = -gripdist - dsafe - 1.4
                 target_pos = target.value + [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
                 robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[target_rot]])})
             else:

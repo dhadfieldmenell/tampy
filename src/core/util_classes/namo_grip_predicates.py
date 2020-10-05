@@ -29,7 +29,7 @@ dsafe = 1e-1
 # dmove = 1.1e0 # 5e-1
 dmove = 1.5e0 # 5e-1
 contact_dist = 2e-1 # dsafe
-gripdist = 0.61 # 75
+gripdist = 0.62 # 75
 
 RS_SCALE = 0.5
 N_DIGS = 5
@@ -223,7 +223,7 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False, isrobot=False):
         res = []
         jac = np.zeros((0, 2 * dim))
         for t in range(pts):
-            coeff = float(pts - t) / pts
+            coeff = float((pts-1) - t) / (pts-1)
             if len(xs) == 2:
                 next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
                 if isrobot:
@@ -242,7 +242,7 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False, isrobot=False):
     else:
         res = []
         for t in range(pts):
-            coeff = float(pts - t) / pts
+            coeff = float((pts-1) - t) / (pts-1)
             if len(xs) == 2:
                 next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
                 if isrobot:
@@ -1135,7 +1135,7 @@ class Obstructs(CollisionPredicate):
 
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self._env = env
-        self.hl_ignore = True
+        # self.hl_ignore = True
         self.r, self.startp, self.endp, self.c = params
 
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int)),
@@ -1590,7 +1590,7 @@ class ObstructsHolding(CollisionPredicate):
 class WideObstructsHolding(ObstructsHolding):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(WideObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.3
+        self.dsafe = 0.25
         self.check_aabb = False # True
 
 

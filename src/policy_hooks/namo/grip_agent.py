@@ -115,7 +115,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             'sim_freq': 50,
             'timestep': 0.002,
             'image_dimensions': (hyperparams['image_width'], hyperparams['image_height']),
-            'step_mult': 5e0,
+            'step_mult': 1e1,
             'act_jnts': ['robot_x', 'robot_y', 'robot_theta', 'right_finger_joint', 'left_finger_joint']
         }
 

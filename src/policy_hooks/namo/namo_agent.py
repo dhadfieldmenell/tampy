@@ -260,7 +260,7 @@ class NAMOSortingAgent(TAMPAgent):
         #     sample.use_ts[-1] = 0
         sample.prim_use_ts[:] = sample.use_ts[:]
         # sample.use_ts[-1] = 1.
-        sample.col_ts = col_ts
+        sample.col_ts[:] = col_ts
 
         # if np.linalg.norm(sample.get(EE_ENUM, t=0) - sample.get(EE_ENUM, t=sample.T)) < 5e-1:
         #     sample.use_ts[:] = 0
@@ -1436,6 +1436,7 @@ class NAMOSortingAgent(TAMPAgent):
 
 
     def permute_tasks(self, tasks, targets, plan):
+        raise Exception('This should call')
         encoded = [list(l) for l in tasks]
         no = self._hyperparams['num_objs']
         perm = np.random.permutation(range(no))
