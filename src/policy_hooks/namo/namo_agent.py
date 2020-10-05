@@ -971,7 +971,6 @@ class NAMOSortingAgent(TAMPAgent):
                 # cost -= 1 if dist < 0.3 else 0
                 alldisp += curdist # np.linalg.norm(disp)
                 cost -= 1 if np.all(np.abs(disp) < tol) else 0
-                print('TOL', tol)
 
         if cont: return alldisp / float(no)
         # return cost / float(self.prob.NUM_OBJS)
