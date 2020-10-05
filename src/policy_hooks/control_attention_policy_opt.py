@@ -150,7 +150,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.val_acts = {}
         self.val_ref_acts = {}
         self.val_done = {}
-
+        self.val_aux = {}
 
         self.train_iters = 0
         self.average_losses = []
@@ -407,7 +407,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             mu = np.array(mu)
             prc = np.array(prc)
             wt = np.array(wt)
-            aux = np.array(aux)
+            aux = np.array(aux).reshape((-1,1))
             #obs = np.concatenate(list(self.obs[net].values()), axis=0)
             #mu = np.concatenate(list(self.mu[net].values()), axis=0)
             #prc = np.concatenate(list(self.prc[net].values()), axis=0)
@@ -492,7 +492,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 self.primitive_eta = tf.placeholder_with_default(1., shape=())
                 tf_map_generator = self._hyperparams['primitive_network_model']
                 if self._hyperparams['split_hl_loss']:
-                    self.primitive_class_tensor = tf.placeholder(shape=[None], dtype='float32')
+                    self.primitive_class_tensor = tf.placeholder(shape=[None, 1], dtype='float32')
                     tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dPrim, batch_size=self.batch_size, network_config=self._hyperparams['primitive_network_params'], input_layer=input_tensor, eta=self.primitive_eta, class_tensor=self.primitive_class_tensor)
                 else:
                     tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dPrim, batch_size=self.batch_size, network_config=self._hyperparams['primitive_network_params'], input_layer=input_tensor, eta=self.primitive_eta)
@@ -866,7 +866,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             A tensorflow object with updated weights.
         """
         if task == 'primitive':
-            return self.update_primitive_filter(obs, tgt_mu, tgt_prc, tgt_wt, check_val=check_val, aux=[])
+            return self.update_primitive_filter(obs, tgt_mu, tgt_prc, tgt_wt, check_val=check_val, aux=aux)
         if task == 'switch':
             return self.update_switch(obs, tgt_mu, tgt_prc, tgt_wt, check_val=check_val)
         if task == 'value':
