@@ -86,4 +86,5 @@ pip install -e .
 pip install mpi4py
 cd ~/tamp_work
 
+pip install tensorflow==1.10.0
 pip install --force-reinstall numpy==1.18.5
