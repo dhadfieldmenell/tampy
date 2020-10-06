@@ -1198,6 +1198,31 @@ class RolloutServer(object):
         np.save(fname, np.array(buf))
 
 
+    def check_hl_statistics(self, xvar=None, thresh=0):
+        from tabulate import tabulate
+        inds = {
+                    'success at end': 0,
+                    'path length': 1,
+                    'optimal rollout success': 9,
+                    'time': 3,
+                    'n data': 6,
+                    'n plans': 10,
+                    'subgoals anywhere': 11,
+                    'subgoals closest dist': 12,
+                    'collision': 8,
+                    'any target': 13,
+                    'smallest tol': 14,
+                    'success anywhere': 7,
+                 }
+        data = np.array(self.hl_data)
+        mean_data = np.mean(data, axis=0)[0]
+        info = []
+        headers = ['Statistic', 'Value']
+        for key in inds:
+            info.append((key, mean_data[inds[key]]))
+        print(tabulate(info))
+
+
     def test_hl(self, rlen=None, save=True, ckpt_ind=None,
                 restore=False, debug=False, save_fail=False,
                 save_video=False):
@@ -1260,7 +1285,7 @@ class RolloutServer(object):
         subgoal_suc = 1-self.agent.goal_f(0, np.concatenate([s.get(STATE_ENUM) for s in path]), targets)
         anygoal_suc = 1-self.agent.goal_f(0, np.concatenate([s.get(STATE_ENUM) for s in path]), targets, anywhere=True)
         subgoal_dist = self.agent.goal_f(0, np.concatenate([s.get(STATE_ENUM) for s in path]), targets, cont=True)
-        ncols = np.max([np.max(sample.col_ts) for sample in path])
+        ncols = 1. if len(path) >1 and any([len(np.where(sample.col_ts > 0.99)[0]) > 3 for sample in path[:-1]]) else 0. # np.max([np.max(sample.col_ts) for sample in path])
         plan_suc_rate = np.nan if self.agent.n_plans_run == 0 else float(self.agent.n_plans_suc_run) / float(self.agent.n_plans_run)
         n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans'].value
         s.append((val,
@@ -1642,7 +1667,7 @@ class RolloutServer(object):
         '''
         if len(tgt_mu):
             # print('Sending update to primitive net')
-            self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', 1)
+            self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', 1, aux=tgt_aux)
 
 
     def gmm_inf(self, gmm, sample):

@@ -570,11 +570,11 @@ class MultiProcessMain(object):
 
         no = hyperparams['num_objs']
         print(server.agent.task_list, server.task_list)
-        for _ in range(20):
+        for _ in range(hyperparams['num_tests']):
             server.agent.replace_cond(0)
             server.agent.reset(0)
             server.test_hl(save=False, save_video=True)
-
+        server.check_hl_statistics()
         '''
         while server.policy_opt.restore_ckpts(ind):
             for _ in range(50):
@@ -582,6 +582,7 @@ class MultiProcessMain(object):
                 server.test_hl(5, save=True, ckpt_ind=ind)
             ind += 1
         '''
+        sys.exit(0)
 
 
     def kill_processes(self):

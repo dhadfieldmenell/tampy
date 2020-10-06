@@ -134,6 +134,10 @@ def main():
             args.load_render = old_args.load_render
             args.eta = old_args.eta
             args.descr = old_args.descr
+            var_args = vars(args)
+            old_vars = vars(old_args)
+            for key in old_vars:
+                if key not in var_args: var_args[key] = old_vars[key]
         if args.hl_retrain:
             sys.path.insert(1, DIR_KEY+args.hl_data)
             exps_info = [['hyp']]
@@ -336,6 +340,9 @@ def argsparser():
     parser.add_argument('-lr', '--lr', type=float, default=1e-3)
     parser.add_argument('-hllr', '--hllr', type=float, default=1e-3)
     parser.add_argument('-lr_policy', '--lr_policy', type=str, default='fixed')
+    parser.add_argument('-split_hl', '--split_hl_loss', action='store_true', default=False)
+    parser.add_argument('-image', '--add_image', action='store_true', default=False)
+    parser.add_argument('-hl_image', '--add_hl_image', action='store_true', default=False)
 
     # HL args
     parser.add_argument('-check_t', '--check_prim_t', type=int, default=1)
@@ -356,10 +363,8 @@ def argsparser():
     parser.add_argument('-mask', '--hl_mask', action='store_false', default=True)
     parser.add_argument('-rs', '--rollout_seed', action='store_true', default=False)
     parser.add_argument('-switch', '--use_switch', action='store_true', default=False)
-    parser.add_argument('-image', '--add_image', action='store_true', default=False)
-    parser.add_argument('-split_hl', '--split_hl_loss', action='store_true', default=False)
-    parser.add_argument('-hl_image', '--add_hl_image', action='store_true', default=False)
     parser.add_argument('-permute', '--permute_hl', type=int, default=0)
+    parser.add_argument('-ntest', '--num_tests', type=int, default=25)
     parser.add_argument('-col_coeff', '--col_coeff', type=float, default=0.)
 
     # Q learn args
