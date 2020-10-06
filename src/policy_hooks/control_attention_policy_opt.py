@@ -446,8 +446,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                         mu.append(self.val_mu[net][task][ind])
                         prc.append(self.val_prc[net][task][ind])
                         wt.append(self.val_wt[net][task][ind])
-                        if net in self.aux and task in self.aux[task]:
-                            aux.append(self.aux[net][task][ind])
+                        if net in self.val_aux and task in self.val_aux[task]:
+                            aux.append(self.val_aux[net][task][ind])
                 #val_obs = np.concatenate(list(self.val_obs[net].values()), axis=0)
                 #val_mu = np.concatenate(list(self.val_mu[net].values()), axis=0)
                 #val_prc = np.concatenate(list(self.val_prc[net].values()), axis=0)
@@ -491,6 +491,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             with tf.variable_scope('primitive'):
                 self.primitive_eta = tf.placeholder_with_default(1., shape=())
                 tf_map_generator = self._hyperparams['primitive_network_model']
+                self.primitive_class_tensor = None
                 if self._hyperparams['split_hl_loss']:
                     self.primitive_class_tensor = tf.placeholder(shape=[None, 1], dtype='float32')
                     tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dPrim, batch_size=self.batch_size, network_config=self._hyperparams['primitive_network_params'], input_layer=input_tensor, eta=self.primitive_eta, class_tensor=self.primitive_class_tensor)
@@ -1089,6 +1090,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         '''
         start_t = time.time()
         tgt_prc = tgt_prc * tgt_wt.reshape((N, 1)) #tgt_wt.flatten()
+        if len(aux): aux = aux.reshape((-1,1))
 
         # Assuming that N*T >= self.batch_size.
         batch_size = np.minimum(self.batch_size, N)
