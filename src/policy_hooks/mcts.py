@@ -421,6 +421,7 @@ class MCTS:
         self.n_runs += 1
         self.agent.n_hl_plan += 1
         success = 0
+        old_hist = self.agent.get_hist()
         if plan is not None and type(plan) is not str:
             assert len(plan.get_failed_preds(tol=1e-3)) == 0
             path = self.agent.run_plan(plan, targets=targets, reset=reset, permute=self._permute>0)
@@ -428,8 +429,10 @@ class MCTS:
             self.hl_suc += 1
             self.log_path(path, 10)
             for _ in range(self._permute-1):
-                new_path = self.agent.run_plan(plan, targets=targets, reset=True, permute=True)
-                self.log_path(new_path, 10)
+                self.agent.reset_to_state(state)
+                self.agent.store_hist(old_hist)
+                new_path = self.agent.run_plan(plan, targets=targets, reset=False, permute=True)
+                self.log_path(new_path, 20)
         else:
             self.agent.n_hl_fail += 1
             self.hl_fail += 1

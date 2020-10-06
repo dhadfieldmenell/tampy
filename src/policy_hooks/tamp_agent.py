@@ -228,6 +228,15 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return samples
 
 
+    def get_hist(self):
+        return {'x': self._x_delta.copy(), 'task': self._prev_task.copy()}
+
+
+    def store_hist(self, hist):
+        self._x_delta[:] = hist['x'][:]
+        self._prev_task[:] = hist['task'][:]
+
+
     def store_hl_problem(self, x0, initial, goal, keep_prob=0.1, max_len=20):
         if np.random.uniform() < keep_prob:
             self._hl_probs.append((x0, initial, goal))
@@ -306,10 +315,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
     def clear_task_paths(self, keep_prob=0.):
         n_keep = int(keep_prob * len(self.task_paths))
         self.task_paths = random.sample(self.task_paths, n_keep)
-
-
-    def get_hist(self):
-        return copy.deepcopy(self.traj_hist)
 
 
     def animate_sample(self, sample):
