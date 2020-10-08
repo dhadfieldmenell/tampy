@@ -1054,7 +1054,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return success
 
 
-    def run_plan(self, plan, targets, tasks=None, reset=True, permute=False):
+    def run_plan(self, plan, targets, tasks=None, reset=True, permute=False, save=True):
         self.n_plans_run += 1
         path = []
         nzero = self.master_config.get('add_noop', 0)
@@ -1146,7 +1146,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             path[-1].task_end = True
             if len(path) > cur_len: path[cur_len].task_start = True
         if len(path) and path[-1].success > 0.99:
-            self.add_task_paths([path])
+            if save: self.add_task_paths([path])
             for s in path:
                 self.optimal_samples[self.task_list[s.task[0]]].append(s)
             self.n_plans_suc_run += 1

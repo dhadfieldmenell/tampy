@@ -393,7 +393,7 @@ class MCTS:
         return opt_val, paths
 
 
-    def eval_pr_graph(self, state=None, targets=None, reset=True):
+    def eval_pr_graph(self, state=None, targets=None, reset=True, save=True):
         plan = None
         if targets is None:
             targets = self.agent.target_vecs[self.condition]
@@ -425,7 +425,7 @@ class MCTS:
         old_hist = self.agent.get_hist()
         if plan is not None and type(plan) is not str:
             assert len(plan.get_failed_preds(tol=1e-3)) == 0
-            path = self.agent.run_plan(plan, targets=targets, reset=reset)#, permute=self._permute>0)
+            path = self.agent.run_plan(plan, targets=targets, reset=reset, save=save)#, permute=self._permute>0)
             success = path[-1].success
             self.hl_suc += 1
             self.log_path(path, 10)

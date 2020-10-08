@@ -839,7 +839,7 @@ class RolloutServer(object):
         return x0
 
     
-    def plan_from_policy(self, N=5, s=3):
+    def plan_from_policy(self, N=10, s=5):
         self.agent.replace_cond(0)
         paths = []
         nsuc = 0
@@ -850,6 +850,13 @@ class RolloutServer(object):
             paths.append((val,path))
             nsuc += 1 if val > 0.9 else 0
         if nsuc < s:
+            if nsuc == 0:
+                path = paths[0][1]
+                x0 = path[0].get_X(t=0)
+                self.agent.reset_to_state(x0)
+                targets = path[0].targets
+                val, path, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=False, save=True)
+                paths.append((val, path))
             failed = [p for v, p in paths if v < 0.9][:s-nsuc]
             for path in failed:
                 s = np.random.randint(len(path))
@@ -858,7 +865,7 @@ class RolloutServer(object):
                 targets = path[s].targets # self.agent.target_vecs[0]
                 self.agent.reset_to_state(x0)
                 self.agent.store_x_hist(path[s].get(STATE_HIST_ENUM, t=t))
-                val, path, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=False)
+                val, path, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=False, save=False)
                 paths.append((val, path))
         suc = [p for v, p in paths if v > 0.9]
         if not len(suc): return
@@ -1512,7 +1519,7 @@ class RolloutServer(object):
                 mode = self._hyperparams.get('fail_mode', 'start')
                 self.plan_from_fail(augment=augment, mode=mode)
 
-            if self.run_hl_test:
+            elif self.run_hl_test:
                 self.agent.replace_cond(0)
                 self.agent.reset(0)
                 self.test_hl(save_fail=False)
@@ -1524,11 +1531,11 @@ class RolloutServer(object):
                     if self.run_alg_updates:
                         self.parse_prob_queue()
                 self.step()
-                for task in self.alg_map:
-                    data = self.agent.get_opt_samples(task, clear=True)
-                    if len(data):
-                        self.alg_map[task]._update_policy_no_cost(data)
-                    if self.use_switch: self.update_switch(data)
+            for task in self.alg_map:
+                data = self.agent.get_opt_samples(task, clear=True)
+                if len(data):
+                    self.alg_map[task]._update_policy_no_cost(data)
+                if self.use_switch: self.update_switch(data)
 
             step += 1
             #if time.time() - self.start_t > self._hyperparams['time_limit']:
