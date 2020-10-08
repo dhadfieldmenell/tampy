@@ -393,7 +393,22 @@ class RolloutServer(object):
 
     def switch_call(self, obs):
         return self.policy_opt.switch_call(obs)[0]
- 
+
+    
+    def hl_log_prob(self, sample):
+        log_l = 0
+        for t in range(sample.T):
+            hl_act = sample.get_prim_out(t=t)
+            distrs = self.policy_opt.task_distr(sample.get_prim_obs(t=t), eta=1.)
+            ind = 0
+            p = 1.
+            for d in distrs:
+                u = hl_act[ind:ind+len(d)]
+                p *= d[np.argmax(u)]
+                ind += len(d)
+            log_l += np.log(p)
+        return log_l
+
 
     def primitive_call(self, prim_obs, soft=False, eta=1., t=-1, task=None):
         # print 'Entering primitive call:', datetime.now()
@@ -854,6 +869,8 @@ class RolloutServer(object):
 
 
     def plan_from_fail(self, augment=False, mode='start'):
+        if mode == 'multistep':
+            return self.plan_from_policy()
         self.cur_step += 1
         self.set_policies()
         val = 1.
