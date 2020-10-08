@@ -395,18 +395,19 @@ class RolloutServer(object):
         return self.policy_opt.switch_call(obs)[0]
 
     
-    def hl_log_prob(self, sample):
+    def hl_log_prob(self, path):
         log_l = 0
-        for t in range(sample.T):
-            hl_act = sample.get_prim_out(t=t)
-            distrs = self.policy_opt.task_distr(sample.get_prim_obs(t=t), eta=1.)
-            ind = 0
-            p = 1.
-            for d in distrs:
-                u = hl_act[ind:ind+len(d)]
-                p *= d[np.argmax(u)]
-                ind += len(d)
-            log_l += np.log(p)
+        for sample in path:
+            for t in range(sample.T):
+                hl_act = sample.get_prim_out(t=t)
+                distrs = self.policy_opt.task_distr(sample.get_prim_obs(t=t), eta=1.)
+                ind = 0
+                p = 1.
+                for d in distrs:
+                    u = hl_act[ind:ind+len(d)]
+                    p *= d[np.argmax(u)]
+                    ind += len(d)
+                log_l += np.log(p)
         return log_l
 
 
@@ -838,13 +839,13 @@ class RolloutServer(object):
         return x0
 
     
-    def plan_from_policy(self, N=10, s=5):
+    def plan_from_policy(self, N=5, s=3):
         self.agent.replace_cond(0)
         paths = []
         nsuc = 0
-        for _ in range(N):
+        self.set_policies()
+        for n in range(N):
             self.agent.reset(0)
-            self.set_policies()
             val, path = self.test_hl(save=False)
             paths.append((val,path))
             nsuc += 1 if val > 0.9 else 0
@@ -852,7 +853,7 @@ class RolloutServer(object):
             failed = [p for v, p in paths if v < 0.9][:s-nsuc]
             for path in failed:
                 s = np.random.randint(len(path))
-                t = np.random.randint(s.T)
+                t = np.random.randint(path[s].T)
                 x0 = path[s].get_X(t=t) # self.agent.x0[0]
                 targets = path[s].targets # self.agent.target_vecs[0]
                 self.agent.reset_to_state(x0)
@@ -864,8 +865,8 @@ class RolloutServer(object):
         wts = [self.hl_log_prob(p) for p in suc]
         path = suc[np.argmax(wts)]
         self.agent.add_task_paths([path])
-        for s in path:
-            self.agent.optimal_samples[self.agent.task_list[s.task[0]]].append(s)
+        #for s in path:
+        #    self.agent.optimal_samples[self.agent.task_list[s.task[0]]].append(s)
 
 
     def plan_from_fail(self, augment=False, mode='start'):
@@ -1495,7 +1496,7 @@ class RolloutServer(object):
 
     def run(self):
         step = 0
-        ff_iters = 100
+        ff_iters = 300
         while not self.stopped:
             if self.cur_step == ff_iters:
                 for mcts in self.mcts:
