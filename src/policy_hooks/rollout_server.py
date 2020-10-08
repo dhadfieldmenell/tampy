@@ -822,6 +822,36 @@ class RolloutServer(object):
 
         return x0
 
+    
+    def plan_from_policy(self, N=10, s=5):
+        self.agent.replace_cond(0)
+        paths = []
+        nsuc = 0
+        for _ in range(N):
+            self.agent.reset(0)
+            self.set_policies()
+            val, path = self.test_hl(save=False)
+            paths.append((val,path))
+            nsuc += 1 if val > 0.9 else 0
+        if nsuc < s:
+            failed = [p for v, p in paths if v < 0.9][:s-nsuc]
+            for path in failed:
+                s = np.random.randint(len(path))
+                t = np.random.randint(s.T)
+                x0 = path[s].get_X(t=t) # self.agent.x0[0]
+                targets = path[s].targets # self.agent.target_vecs[0]
+                self.agent.reset_to_state(x0)
+                self.agent.store_x_hist(path[s].get(STATE_HIST_ENUM, t=t))
+                val, path, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=False)
+                paths.append((val, path))
+        suc = [p for v, p in paths if v > 0.9]
+        if not len(suc): return
+        wts = [self.hl_log_prob(p) for p in suc]
+        path = suc[np.argmax(wts)]
+        self.agent.add_task_paths([path])
+        for s in path:
+            self.agent.optimal_samples[self.agent.task_list[s.task[0]]].append(s)
+
 
     def plan_from_fail(self, augment=False, mode='start'):
         self.cur_step += 1
@@ -1220,6 +1250,7 @@ class RolloutServer(object):
         headers = ['Statistic', 'Value']
         for key in inds:
             info.append((key, mean_data[inds[key]]))
+        print(self._hyperparams['weight_dir'])
         print(tabulate(info))
 
 

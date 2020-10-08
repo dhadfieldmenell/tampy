@@ -33,9 +33,12 @@ class PolicyServer(object):
         random.seed(self.seed)
         self.start_t = hyperparams['start_t']
         self.config = hyperparams
+        self.permute = hyperparams['permute_hl'] > 0
         hyperparams['policy_opt']['scope'] = self.task
         hyperparams['policy_opt']['split_hl_loss'] = hyperparams['split_hl_loss']
         if USE_ROS: rospy.init_node(self.task+'_update_server_{0}'.format(self.group_id))
+        hyperparams['agent']['master_config'] = hyperparams
+        self.agent = hyperparams['agent']['type'](hyperparams['agent'])
         self.policy_opt = hyperparams['policy_opt']['type'](
             hyperparams['policy_opt'],
             hyperparams['dO'],
@@ -172,7 +175,8 @@ class PolicyServer(object):
 
     def update_network(self, n_updates=20):
         for _ in range(n_updates):
-            update = self.policy_opt.run_update([self.task])
+            aug_f = None if self.task != 'primitive' or not self.permute else self.agent.permute_hl_data
+            update = self.policy_opt.run_update([self.task], aug_f=aug_f)
         # print('Weights updated:', update, self.task)
         if update:
             self.n_updates += 1

@@ -27,7 +27,7 @@ from policy_hooks.utils.load_task_definitions import *
 
 def load_agent(config):
     prob = config['prob']
-    bt_ll.COL_COEFF = config['col_coeff']
+    bt_ll.COL_COEFF = config.get('col_coeff', 0.)
     time_limit = config.get('time_limit', 14400)
     conditions = config['num_conds']
     task_list = tuple(sorted(list(get_tasks(config['task_map_file']).keys())))

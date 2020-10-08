@@ -81,7 +81,7 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False,
                         info = [f for f in fnames if f.find('hl_test') >= 0 and f.endswith('test_log.npy')]
                     if len(info):
                         for fname in info:
-                            print(('Loading data from', fname, full_dir))
+                            # print(('Loading data from', fname, full_dir))
                             try:
                                 data.append(np.load(cur_dir+'/'+fname))
                             except:
@@ -95,7 +95,7 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False,
                             for pts in buf:
                                 pt = pts[0]
                                 no, nt = int(pt[4]), int(pt[5])
-                                all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'label': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9], 'number of plans': pt[10], 'subgoals anywhere': pt[11], 'subgoals closest distance': pt[12], 'collision': pt[8]})
+                                all_data[k][full_exp][cur_dir][cur_dir].append({'time': pt[3], 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'label': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9], 'number of plans': pt[10], 'subgoals anywhere': pt[11], 'subgoals closest distance': pt[12], 'collision': pt[8], 'exp id': i})
                                 if len(pt) > 13:
                                     all_data[k][full_exp][cur_dir][cur_dir][-1]['any target'] = pt[13]
                                 if len(pt) > 14:
@@ -140,6 +140,7 @@ def get_policy_data(policy, keywords=[], exclude=[]):
                 if len(next_data):
                     r_data = eval(next_data)
                     for pt in r_data:
+                        pt['exp id'] = 0
                         if type(pt['train_loss']) is dict:
                             pt['train_loss'] = pt['train_loss']['loss']
                         if type(pt['val_loss']) is dict:
@@ -180,6 +181,8 @@ def get_rollout_data(keywords=[], nfiles=20, exclude=[]):
                         next_data = f.read()
                     if len(next_data):
                         r_data = eval(next_data)
+                        for pt in next_data:
+                            pt['exp id'] = 0
                         rollout_data[r] = r_data
                     else:
                         print(('no data for', r))
@@ -320,7 +323,7 @@ def get_td_loss(keywords=[], exclude=[], pre=False):
                         exp_data[no, nt].append((full_exp, cur_t, val))
             '''
         for no, nt in exp_data:
-            print(('Plotting', no, nt, exp_name))
+            print('Plotting', no, nt, exp_name)
             pd_frame = pd.DataFrame(exp_data[no, nt], columns=['exp_name', 'time', 'value'])
             sns.set()
             sns_plot = sns.relplot(x='time', y='value', hue='exp_name', kind='line', data=pd_frame)
@@ -597,7 +600,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
         sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_true{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
 
 
-def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0):
+def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100, rolling=True, window=100):
     sns.set()
     if not separate:
         d = []
@@ -624,13 +627,25 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0):
         for k in data:
             if not len(data[k]): continue
             pd_frame = pd.DataFrame(data[k], columns=columns)
+            pd_frame.set_index(xvars[0], inplace=True)
+            pd_frame.sort_index(inplace=True)
+            pd_frame.reset_index(inplace=True)
+            if rolling:
+                numeric_cols = [col for col in pd_frame.columns if pd_frame[col].dtype.name != 'object' and col not in xvars]
+                dfs = [pd.DataFrame(y) for x, y in pd_frame.groupby(['exp id', 'description'], as_index=False)]
+                for df in dfs:
+                    rolling = df[numeric_cols].rolling(int(window)).mean()
+                    for col in numeric_cols: df[col] = rolling[col]
+                pd_frame = pd.concat(dfs)
             leg_labels = getattr(pd_frame, columns[0]).unique()
             sns_plot = None
             for xv in xvars:
                 for yv in yvars:
-                    print(('Plotting', xv, yv))
+                    print('Plotting', xv, yv)
                     cur_y = yv
                     style = None
+                    inter = int(inter)
+                    dashes = [(1,0), (4,2), (1,4), (2,2)]
                     df = pd_frame
                     if type(yv) not in (np.string_, str):
                         df = pd_frame.melt(id_vars=[xv, columns[0]], value_vars=yv, var_name='y_variable', value_name='value')
@@ -638,7 +653,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0):
                         cur_y = 'value'
                         print(('Combining', yv))
                     if sns_plot is None:
-                        sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=style, kind='line', data=df, markers=True, dashes=False)
+                        sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=style, kind='line', data=df, markers=False, dashes=dashes)
                         sns_plot.fig.set_figwidth(10)
                         sns_plot._legend.remove()
                         # sns_plot.fig.get_axes()[0].legend(loc=(0.0, -0.5), prop={'size': 12})
@@ -646,7 +661,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0):
                     else:
                         l, b, w, h = sns_plot.fig.axes[-1]._position.bounds
                         sns_plot.fig.add_axes((l+w+0.1, b, w, h))
-                        sub_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=style, kind='line', data=df, legend=False, ax=sns_plot.fig.axes[-1], dashes=False, markers=True)
+                        sub_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=style, kind='line', data=df, legend=False, ax=sns_plot.fig.axes[-1], dashes=dashes, markers=False)
                     sns_plot.fig.axes[-1].set_title('{0} vs {1}'.format(xv, cur_y), size=14)
                     '''
                     for axes in sns_plot.axes.flat:
@@ -683,7 +698,7 @@ def gen_label(exp_dir, label_vars=[], split_runs=False, run_ind=0):
 def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1., 
                    label_vars=[], ylabel='value', separate=True, keyind=3, 
                    exclude=[], include=[], split_runs=False,
-                   pre=False):
+                   pre=False, rolling=True, window=100):
     if lab == 'rollout':
         rd = get_rollout_data(keywords, exclude=exclude)
     elif lab == 'test':
@@ -714,6 +729,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
                         xvals = []
                         for xvar in xvars:
                             xvals.append(pt[xvar]//inter*inter)
+                            #xvals.append(pt[xvar])
                         yvals = []
                         yinds = []
                         for v in yvars:
@@ -737,7 +753,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
                                 else:
                                     yvals.append(pt[v])
                                     inds_to_var[v] = 1
-                        key_data.append([label, keyword]+xvals+yvals)
+                        key_data.append([label, keyword, pt['exp id']]+xvals+yvals)
             print(('Set data for', keyword, fullexp))
         data[keyword] = key_data
     yvar_labs = []
@@ -754,9 +770,9 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
             flat_yvar_labs.extend([v+'{0}'.format('_'+str(i) if inds_to_var.get(v,0) > 1 else '') for i in range(inds_to_var.get(v,1))])
 
     # yvar_labs = np.concatenate([[v+'{0}'.format('_'+str(i) if inds_to_var.get(v, 0) > 1 else '') for i in range(inds_to_var.get(v, 1))] for v in yvars])
-    plot(data, ['description', 'key']+xvars+flat_yvar_labs, '{0}_vs_{1}'.format(xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind)
+    plot(data, ['description', 'key', 'exp id']+xvars+flat_yvar_labs, '{0}_vs_{1}'.format(xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind, inter=inter, rolling=rolling, window=window)
 
-keywords = ['replan']
+keywords = ['objs4']
 include = [] # ['switch', 'base_namo_random_train'] # ['wed_nocol', 'sun']
 label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #get_hl_tests(['retrain_2by'], xvar='N', avg_time=False, tdelta=5000, wind=5000, pre=False, exclude=['0001', '10000'])
@@ -768,8 +784,11 @@ label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] 
 #get_hl_tests(['compact_base'], xvar='time', pre=True)
 #keywords = ['goalpureloss', 'grasppureloss', 'plainpureloss', 'taskpureloss']
 #label_vars = ['train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
-#gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_comp_3', exclude=[])
-#gen_data_plots(xvar='time', yvar=[['success at end', 'success anywhere', 'optimal_rollout_success'], 'subgoals anywhere'], keywords=keywords, lab='test', label_vars=label_vars, separate=True, keyind=5, ylabel='mostrecent', exclude=[], split_runs=False, include=include, pre=True)
-gen_data_plots(xvar='time', yvar=[['success at end', 'any target', 'subgoals anywhere'], 'collision'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_3', exclude=[], split_runs=False, include=[])
-gen_data_plots(xvar='number of plans', yvar=[['any target', 'success at end', 'subgoals anywhere'], 'collision'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_6', exclude=[], split_runs=False, include=[], inter=100)
-gen_data_plots(xvar='time', yvar=[['success at end', 'success anywhere'], 'subgoals anywhere'], keywords=keywords, lab='test', label_vars=label_vars, separate=True, keyind=5, ylabel='time_mostrecent_3', exclude=[], split_runs=False, include=include)
+#gen_data_plots(xvar='time', yvar=['success at end', 'collision'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='norolling', exclude=[], split_runs=False, include=[], inter=120, window=600, rolling=False)
+#gen_data_plots(xvar='time', yvar=['success at end', 'collision'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='withrolling', exclude=[], split_runs=False, include=[], inter=120, window=600)
+gen_data_plots(xvar='time', yvar=[['val_component_loss', 'train_component_loss']], keywords=['objs2'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_6', exclude=[], split_runs=False, include=[], inter=120, window=600)
+gen_data_plots(xvar='time', yvar=[['success at end','any target',  'subgoals anywhere'], 'collision'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_rolling', exclude=[], split_runs=False, include=[], inter=120, window=600)
+gen_data_plots(xvar='number of plans', yvar=[['success at end', 'any target',  'subgoals anywhere'], 'collision'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_6', exclude=[], split_runs=False, include=[], inter=20, window=50)
+
+gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs2'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_rolling', exclude=[], split_runs=False, include=[], inter=120, window=600)
+gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs2'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_6', exclude=[], split_runs=False, include=[], inter=25, window=100)

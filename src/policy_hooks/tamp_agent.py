@@ -1144,8 +1144,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             path.append(zero_sample)
             # path[cur_len].set(DONE_ENUM, np.ones(1), t=0)
             path[-1].task_end = True
-            path[cur_len].task_start = True
-        if path[-1].success > 0.99:
+            if len(path) > cur_len: path[cur_len].task_start = True
+        if len(path) and path[-1].success > 0.99:
             self.add_task_paths([path])
             for s in path:
                 self.optimal_samples[self.task_list[s.task[0]]].append(s)

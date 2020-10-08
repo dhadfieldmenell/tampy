@@ -570,10 +570,12 @@ class MultiProcessMain(object):
 
         no = hyperparams['num_objs']
         print(server.agent.task_list, server.task_list)
-        for _ in range(hyperparams['num_tests']):
+        n_vids = 20
+        for test_run in range(hyperparams['num_tests']):
+            print('RUN:', test_run)
             server.agent.replace_cond(0)
             server.agent.reset(0)
-            server.test_hl(save=False, save_video=True)
+            server.test_hl(save=False, save_video=test_run<n_vids)
         server.check_hl_statistics()
         '''
         while server.policy_opt.restore_ckpts(ind):
