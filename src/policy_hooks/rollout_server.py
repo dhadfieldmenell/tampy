@@ -158,6 +158,9 @@ class RolloutServer(object):
         self.prim_decay = hyperparams.get('prim_decay', 1.)
         self.prim_first_wt = hyperparams.get('prim_first_wt', 1.)
         self.check_prim_t = hyperparams.get('check_prim_t', 1)
+        self.explore_eta = hyperparams['explore_eta']
+        self.explore_n = hyperparams['explore_n']
+        self.explore_success = hyperparams['explore_success']
 
         self.use_local = hyperparams['use_local']
         if self.use_local:
@@ -839,14 +842,15 @@ class RolloutServer(object):
         return x0
 
     
-    def plan_from_policy(self, N=10, s=5):
+    def plan_from_policy(self):
+        N, s = self.explore_n, self.explore_success
         self.agent.replace_cond(0)
         paths = []
         nsuc = 0
         self.set_policies()
         for n in range(N):
             self.agent.reset(0)
-            val, path = self.test_hl(save=False)
+            val, path = self.test_hl(save=False, eta=self.explore_eta)
             paths.append((val,path))
             nsuc += 1 if val > 0.9 else 0
         if nsuc < s:
@@ -1281,7 +1285,7 @@ class RolloutServer(object):
 
     def test_hl(self, rlen=None, save=True, ckpt_ind=None,
                 restore=False, debug=False, save_fail=False,
-                save_video=False):
+                save_video=False, eta=None):
         if ckpt_ind is not None:
             print(('Rolling out for index', ckpt_ind))
 
@@ -1329,7 +1333,7 @@ class RolloutServer(object):
             else:
                 rlen = 3*n
         self.agent.T = 20 # self.config['task_durations'][self.task_list[0]]
-        val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], check_cost=self.check_precond)
+        val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], check_cost=self.check_precond, eta=eta)
         true_disp = np.min(np.min([[self.agent.goal_f(0, step.get(STATE_ENUM, t), targets, cont=True) for t in range(step.T)] for step in path]))
         true_val = np.max(np.max([[1-self.agent.goal_f(0, step.get(STATE_ENUM, t), targets) for t in range(step.T)] for step in path]))
         smallest_tol = 2.

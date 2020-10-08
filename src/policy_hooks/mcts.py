@@ -890,7 +890,7 @@ class MCTS:
         return value, samples[0]
 
 
-    def test_run(self, state, targets, max_t=20, hl=False, soft=False, check_cost=True):
+    def test_run(self, state, targets, max_t=20, hl=False, soft=False, check_cost=True, eta=None):
         self.agent.reset_to_state(state)
         old_opt = self.opt_strength
         # self.opt_strength = 1.
@@ -900,6 +900,8 @@ class MCTS:
         t = 0
         old_soft = self._soft
         self._soft = soft
+        old_eta = self.eta
+        if eta is not None: self.eta = eta 
         debug = np.random.uniform() < 0.1
         while t < max_t and val < 1-1e-2 and l is not None:
             l = self.iter_labels(state, l, targets=targets, debug=debug, check_cost=check_cost)
@@ -911,6 +913,7 @@ class MCTS:
             state = s.end_state # s.get_X(s.T-1)
             path.append(s)
         self.opt_strength = old_opt
+        self.eta = old_eta
         self.log_path(path, -5)
         self._soft = old_soft
         return val, path
