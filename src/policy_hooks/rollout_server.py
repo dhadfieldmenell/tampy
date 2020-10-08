@@ -1495,14 +1495,15 @@ class RolloutServer(object):
 
     def run(self):
         step = 0
-        ff_iters = 10
+        ff_iters = 100
         while not self.stopped:
             if self.cur_step == ff_iters:
                 for mcts in self.mcts:
                     mcts.ff_thresh = 1. if np.random.uniform() < self.config['ff_thresh'] else 0.
+            n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
             if not self.run_hl_test and \
                self._hyperparams.get('train_on_fail', False) and \
-               self.cur_step > ff_iters and \
+               n_plans.value > ff_iters and \
                not self._hyperparams.get('ff_only', False) and \
                self.mcts[0].ff_thresh > 0:
                 self.agent.replace_cond(0)

@@ -417,7 +417,8 @@ class MCTS:
                 p = prob.init_state.params[targ]
                 getattr(p, attr)[:,0] = self.agent.target_vecs[0][self.agent.target_inds[targ, attr]].copy()
         if plan is None:
-            plan, descr = p_mod_abs(self.agent.hl_solver, self.agent, domain, prob, initial=initial, goal=goal, label=self.agent.process_id, n_resamples=5)
+            max_iter = 4 * self.agent.num_objs
+            plan, descr = p_mod_abs(self.agent.hl_solver, self.agent, domain, prob, initial=initial, goal=goal, label=self.agent.process_id, n_resamples=5, max_iter=max_iter)
         self.n_runs += 1
         self.agent.n_hl_plan += 1
         success = 0
