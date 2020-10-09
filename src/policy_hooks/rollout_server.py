@@ -1128,6 +1128,7 @@ class RolloutServer(object):
 
             ### Look for saved successful HL rollout paths and send them to update the HL options policy
             path_samples = []
+            ref_paths = []
             for path in self.agent.get_task_paths():
                 path_samples.extend(path)
                 ref_paths.append(path)
@@ -1228,6 +1229,7 @@ class RolloutServer(object):
         
     def run_hl_update(self):
         ### Look for saved successful HL rollout paths and send them to update the HL options policy
+        ref_paths = []
         path_samples = []
         for path in self.agent.get_task_paths():
             path_samples.extend(path)
