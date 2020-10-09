@@ -1225,6 +1225,22 @@ class RolloutServer(object):
                 with open(self.rollout_log, 'w+') as f:
                     f.write(str(self.log_updates))
 
+        
+    def run_hl_update(self):
+        ### Look for saved successful HL rollout paths and send them to update the HL options policy
+        path_samples = []
+        for path in self.agent.get_task_paths():
+            path_samples.extend(path)
+            ref_paths.append(path)
+        self.agent.clear_task_paths()
+        
+        #self.update_primitive(path_samples)
+        n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
+        n_plans.value = n_plans.value + len(ref_paths)
+        for path in ref_paths:
+            self.update_primitive(path)
+        if self._hyperparams.get('save_expert', False): self.update_expert_demos(ref_paths)
+       
 
     def save_image(self, rollout, success=None, ts=0):
         if not self.render: return
@@ -1540,7 +1556,7 @@ class RolloutServer(object):
                 if len(data):
                     self.alg_map[task]._update_policy_no_cost(data)
                 if self.use_switch: self.update_switch(data)
-
+            self.run_hl_update()
             step += 1
             #if time.time() - self.start_t > self._hyperparams['time_limit']:
             #    break
