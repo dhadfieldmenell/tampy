@@ -49,6 +49,7 @@ class Sample(object):
         self.removable = True
         self.use_ts = np.ones(self.T)
         self.prim_use_ts = np.ones(self.T)
+        self.opt_strength = 0.
 
     def set(self, sensor_name, sensor_data, t=None):
         """ Set trajectory data for a particular sensor. """

@@ -631,7 +631,9 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
             pd_frame.sort_index(inplace=True)
             pd_frame.reset_index(inplace=True)
             if rolling:
+                nrows = len(pd_frame.index)
                 numeric_cols = [col for col in pd_frame.columns if pd_frame[col].dtype.name != 'object' and col not in xvars]
+                print('Rolling mean on', numeric_cols)
                 dfs = [pd.DataFrame(y) for x, y in pd_frame.groupby(['exp id', 'description'], as_index=False)]
                 for df in dfs:
                     rolling = df[numeric_cols].rolling(int(window)).mean()
@@ -786,9 +788,7 @@ label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] 
 #label_vars = ['train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #gen_data_plots(xvar='time', yvar=['success at end', 'collision'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='norolling', exclude=[], split_runs=False, include=[], inter=120, window=600, rolling=False)
 #gen_data_plots(xvar='time', yvar=['success at end', 'collision'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='withrolling', exclude=[], split_runs=False, include=[], inter=120, window=600)
-gen_data_plots(xvar='time', yvar=[['val_component_loss', 'train_component_loss']], keywords=['objs2'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_6', exclude=[], split_runs=False, include=[], inter=120, window=600)
-gen_data_plots(xvar='time', yvar=[['success at end','any target',  'subgoals anywhere'], 'collision'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_rolling', exclude=[], split_runs=False, include=[], inter=120, window=600)
-gen_data_plots(xvar='number of plans', yvar=[['success at end', 'any target',  'subgoals anywhere'], 'collision'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_6', exclude=[], split_runs=False, include=[], inter=20, window=50)
+#gen_data_plots(xvar='time', yvar=[['val_component_loss', 'train_component_loss']], keywords=['resample'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_6', exclude=[], split_runs=False, include=[], inter=120, window=600, rolling=False)
 
-gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs2'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_rolling', exclude=[], split_runs=False, include=[], inter=120, window=600)
-gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs2'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_6', exclude=[], split_runs=False, include=[], inter=25, window=100)
+gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['resample'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_rolling', exclude=[], split_runs=False, include=[], inter=60, window=600)
+gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['resample'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_6', exclude=[], split_runs=False, include=[], inter=1, window=500)

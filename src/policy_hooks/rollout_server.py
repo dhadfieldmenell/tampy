@@ -1367,8 +1367,8 @@ class RolloutServer(object):
             s[0] = s[0] + (ckpt_ind,)
         # print('EXPLORED PATH: {0}'.format([sample.task for sample in path]))
         res.append(s[0])
-        if all([s.opt_strength == 0 for s in path]): self.hl_data.append(res)
         if save:
+            if all([s.opt_strength == 0 for s in path]): self.hl_data.append(res)
             if val > 1-1e-2:
                 print(('Rollout succeeded in test! With pre?', self.check_precond))
             # if self.use_qfunc: self.log_td_error(path)
@@ -1693,8 +1693,9 @@ class RolloutServer(object):
             st, et = 0, sample.T # st, et = sample.step * sample.T, (sample.step + 1) * sample.T
             wt = np.array([self.prim_decay**t for t in range(st, et)])
             if sample.step == 0: wt[0] *= self.prim_first_wt
-            aux = np.ones(sample.T)
-            if sample.task_start: aux[0] = 0.
+            #aux = np.ones(sample.T)
+            #if sample.task_start: aux[0] = 0.
+            aux = int(sample.opt_strength) * np.ones(sample.T)
             tgt_aux = np.concatenate((tgt_aux, aux))
             wt = np.array([sample.prim_use_ts[t] * self.prim_decay**t for t in range(sample.T)])
             wt[0] *= self.prim_first_wt

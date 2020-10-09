@@ -1146,6 +1146,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             path[-1].task_end = True
             if len(path) > cur_len: path[cur_len].task_start = True
         if len(path) and path[-1].success > 0.99:
+            for sample in path: sample.opt_strength = 1.
             if save: self.add_task_paths([path])
             for s in path:
                 self.optimal_samples[self.task_list[s.task[0]]].append(s)

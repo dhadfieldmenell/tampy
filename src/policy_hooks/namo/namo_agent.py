@@ -1435,7 +1435,7 @@ class NAMOSortingAgent(TAMPAgent):
         return mask
 
 
-    def permute_hl_data(self, hl_mu, hl_obs):
+    def permute_hl_data(self, hl_mu, hl_obs, hl_wt, hl_prc, aux):
         assert len(hl_mu) == len(hl_obs)
         start_t = time.time()
         idx = self._prim_out_data_idx[OBJ_ENUM]
@@ -1444,8 +1444,12 @@ class NAMOSortingAgent(TAMPAgent):
         obs_idx = [self._prim_obs_data_idx[OBJ_ENUMS[n]] for n in range(no)]
         goal_idx = self._prim_obs_data_idx[ONEHOT_GOAL_ENUM]
 
-        new_mu = hl_mu.copy()
-        new_obs = hl_obs.copy()
+        inds = np.where(aux.flatten() == 1)[0]
+        save_inds = np.where(aux == 0)[0]
+        new_mu = hl_mu[inds].copy()
+        new_obs = hl_obs[inds].copy()
+        save_mu = hl_mu[save_inds]
+        save_obs = hl_obs[save_inds]
         old_goals = hl_obs[:,:,goal_idx]
         ng = len(goal_idx) // no
         order = np.random.permutation(range(no))
@@ -1477,7 +1481,9 @@ class NAMOSortingAgent(TAMPAgent):
         #print('Time to run permute:', time.time()-start_t)
         #print('Permuted with order', order, [hl_obs[0,0][obs_idx[n]] for n in range(no)], [new_obs[0,0][obs_idx[n]] for n in range(no)], hl_mu[0,0,a:b], new_mu[0,0,a:b])
         #print('Permuted with order', order, [hl_obs[-1,-1][obs_idx[n]] for n in range(no)], [new_obs[-1,-1][obs_idx[n]] for n in range(no)], hl_mu[-1,-1,a:b], new_mu[-1,-1,a:b])
-        return new_mu, new_obs
+        new_wt = np.r_[hl_wt[save_inds], hl_wt[inds]]
+        new_prc = np.r_[hl_prc[save_inds], hl_prc[inds]]
+        return np.r_[save_mu, new_mu], np.r_[save_obs, new_obs], new_wt, new_prc
 
 
     def permute_tasks(self, tasks, targets, plan=None, x=None):

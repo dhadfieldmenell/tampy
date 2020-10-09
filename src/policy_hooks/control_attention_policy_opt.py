@@ -424,7 +424,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             if len(mu) >= self.update_size:
                 print(('TF updating on data for', net))
                 if aug_f is not None:
-                    mu, obs = aug_f(mu, obs)
+                    mu, obs, wt, prc = aug_f(mu, obs, wt, prc, aux)
                 if net == 'value':
                     self.update_value(obs, next_obs, mu, prc, wt, acts, ref_acts, done)
                 else:
@@ -460,7 +460,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 wt = np.array(wt)
                 aux = np.array(aux)
                 if aug_f is not None:
-                    mu, obs = aug_f(mu, obs)
+                    mu, obs, wt, prc = aug_f(mu, obs, wt, prc, aux)
                 if len(mu) >= 200:
                     self.update(obs, mu, prc, wt, net, check_val=True, aux=aux)
 
