@@ -1507,7 +1507,7 @@ class RolloutServer(object):
 
     def run(self):
         step = 0
-        ff_iters = 300
+        ff_iters = self._hyperparams['warmup_iters']
         while not self.stopped:
             if self.cur_step == ff_iters:
                 for mcts in self.mcts:

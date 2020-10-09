@@ -369,6 +369,7 @@ def argsparser():
     parser.add_argument('-expl_eta', '--explore_eta', type=float, default=5.)
     parser.add_argument('-expl_n', '--explore_n', type=int, default=10)
     parser.add_argument('-expl_suc', '--explore_success', type=int, default=5)
+    parser.add_argument('-warmup', '--warmup_iters', type=int, default=300)
 
     # Q learn args
     parser.add_argument('-qimwt', '--q_imwt', type=float, default=0)
