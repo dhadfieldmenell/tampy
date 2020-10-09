@@ -202,6 +202,7 @@ class MCTS:
         self.log_file = log_prefix + '_paths.txt' if log_prefix is not None else None
         self.verbose_log_file = log_prefix + '_verbose.txt' if log_prefix is not None else None
         self.log_prefix = log_prefix
+        self._n_plans = None
         if self.log_file is not None:
             init_state = []
             x = self.agent.x0[self.condition][self.agent._x_data_idx[STATE_ENUM]]
@@ -419,6 +420,8 @@ class MCTS:
         if plan is None:
             max_iter = 4 * self.agent.num_objs
             plan, descr = p_mod_abs(self.agent.hl_solver, self.agent, domain, prob, initial=initial, goal=goal, label=self.agent.process_id, n_resamples=5, max_iter=max_iter)
+            if self._n_plans is not None:
+                self._n_plans.value = self._n_plans.value + 1
         self.n_runs += 1
         self.agent.n_hl_plan += 1
         success = 0

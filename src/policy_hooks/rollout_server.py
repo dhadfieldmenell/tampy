@@ -99,8 +99,10 @@ class RolloutServer(object):
         #     self.agent.replace_cond(c, curric_step=(1 if hyperparams.get('curric_thresh', 0) > 0 else 0))
 
         self.solver.agent = self.agent
+        n_plans = hyperparams['policy_opt']['buffer_sizes']['n_plans']
         for i in range(len(self.mcts)):
             m = self.mcts[i]
+            m._n_plans = n_plans
             m.use_q = self.config.get('use_qfunc', False)
             m.discrete_prim = self.config.get('discrete_prim', True)
             m.value_func = self.value_call
@@ -1135,8 +1137,8 @@ class RolloutServer(object):
             self.agent.clear_task_paths()
             
             #self.update_primitive(path_samples)
-            n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
-            n_plans.value = n_plans.value + len(ref_paths)
+            #n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
+            #n_plans.value = n_plans.value + len(ref_paths)
             for path in ref_paths:
                 self.update_primitive(path)
             if self._hyperparams.get('save_expert', False): self.update_expert_demos(ref_paths)
@@ -1237,10 +1239,10 @@ class RolloutServer(object):
         self.agent.clear_task_paths()
         
         #self.update_primitive(path_samples)
-        n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
-        n_plans.value = n_plans.value + len(ref_paths)
-        for path in ref_paths:
-            self.update_primitive(path)
+        #n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
+        #n_plans.value = n_plans.value + len(ref_paths)
+        #for path in ref_paths:
+        #    self.update_primitive(path)
         if self._hyperparams.get('save_expert', False): self.update_expert_demos(ref_paths)
        
 
