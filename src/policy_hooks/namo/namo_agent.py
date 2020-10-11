@@ -234,7 +234,7 @@ class NAMOSortingAgent(TAMPAgent):
                 aval = getattr(p, aname)[:,min(t+1, sample.T-1)]
                 if np.any(np.isnan(aval)):
                     print(('NAN in:', pname, aname, t+1))
-                    aval[:] = 0.
+                    aval[:] = getattr(p, aname)[:,t]
                 new_state[self.state_inds[pname, aname]] = aval
             if len(self._prev_U): self._prev_U = np.r_[self._prev_U[1:], [U_nogrip]]
             if len(self._x_delta)-1: self._x_delta = np.r_[self._x_delta[1:], [new_state]]
@@ -392,9 +392,9 @@ class NAMOSortingAgent(TAMPAgent):
         col = 0.
         old_state = x.copy()
         old_pose = plan.params['pr2'].pose[:, t].copy()
-
         dtol = 5e-2
         old_in_gripper = self.in_gripper
+        pr2_disp = plan.params['pr2'].pose[:, t] - old_state[x_inds['pr2', 'pose']]
         if grasp is None:
             grasp = plan.params['grasp0'].value[:,0].copy()
         if t < plan.horizon - 1:
@@ -412,13 +412,16 @@ class NAMOSortingAgent(TAMPAgent):
                     getattr(plan.params[param], 'vel')[:, t+1] = new_vel
                 # else:
                 #     getattr(plan.params[param], attr)[:, t] = x[x_inds[param, attr]] + u[u_inds[param, attr]]
+            pr2_disp = plan.params['pr2'].pose[:, t] - old_state[x_inds['pr2', 'pose']]
+            new_pose = plan.params['pr2'].pose[:,t]
+            check_col = self.check_col and np.abs(new_pose[0]) > 5 and (new_pose[1] > 1.5 or new_pose[1] < -4)
 
             for param in list(plan.params.values()):
                 if param._type == 'Can':
+                    if param.name.find('pr2') >= 0: print('CHECK PR2???')
                     disp = old_state[x_inds['pr2', 'pose']] - old_state[x_inds[param.name, 'pose']]# plan.params['pr2'].pose[:, t] - param.pose[:, t]
                     new_disp = plan.params['pr2'].pose[:, t] - param.pose[:, t]
-                    pr2_disp = plan.params['pr2'].pose[:, t] - old_state[x_inds['pr2', 'pose']]
-                    dist = np.linalg.norm(disp)
+                    #dist = np.linalg.norm(disp)
                     if grasp[1] < 0: grasp_check = disp[1] < 0
                     if grasp[1] > 0: grasp_check = disp[1] > 0
                     if grasp[0] < 0: grasp_check = disp[0] < 0
@@ -544,19 +547,20 @@ class NAMOSortingAgent(TAMPAgent):
             ignore = []
             if self.in_gripper is not None:
                 ignore = [self.in_gripper.name]
-            dist, rays = self.dist_obs(plan, t, 8, objects=['obs0'], ignore=ignore, return_rays=True)
-            if self.check_col and np.any(np.abs(dist) < plan.params['pr2'].geom.radius - dtol):
-            # if self.check_col and np.any(np.abs(dist) < plan.params['pr2'].geom.radius):
-                col = 1.
-                info = {}
-                self.in_gripper = old_in_gripper
-                if old_in_gripper is not None: self._in_gripper = self.in_gripper.name
-                for pname, aname in self.state_inds:
-                    if plan.params[pname].is_symbol(): continue
-                    info[pname, aname] = getattr(plan.params[pname], aname)[:,t]
-                    getattr(plan.params[pname], aname)[:,t+1] = old_state[self.state_inds[pname, aname]]
-                # if self.debug: print('Got stuck for', info, self.process_id)
-            else:
+            no_col = True
+            if check_col:
+                dist, rays = self.dist_obs(plan, t, 8, objects=['obs0'], ignore=ignore, return_rays=True)
+                if np.any(np.abs(dist) < plan.params['pr2'].geom.radius - dtol):
+                    no_col = False
+                    col = 1.
+                    info = {}
+                    self.in_gripper = old_in_gripper
+                    if old_in_gripper is not None: self._in_gripper = self.in_gripper.name
+                    for pname, aname in self.state_inds:
+                        if plan.params[pname].is_symbol(): continue
+                        info[pname, aname] = getattr(plan.params[pname], aname)[:,t]
+                        getattr(plan.params[pname], aname)[:,t+1] = old_state[self.state_inds[pname, aname]]
+            if no_col:
                 for pname, aname in self.state_inds:
                     if plan.params[pname].is_symbol(): continue
                     getattr(plan.params[pname], aname)[:,t+1] = getattr(plan.params[pname], aname)[:,t]
