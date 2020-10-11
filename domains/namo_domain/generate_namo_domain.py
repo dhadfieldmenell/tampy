@@ -112,7 +112,7 @@ class Transfer(Action):
         self.eff = [\
                 ('(At ?c ?t)', '{0}:{1}'.format(et-1, et)),
                 ('(Near ?c ?t)', '{0}:{0}'.format(et)),
-                ('(forall (?obj - Can) (forall (?targ - Target) (not (TargetCanGraspCollides ?targ ?c ?g ?obj))))', '{0}:{1}'.format(et-1, et)),
+                ('(forall (?obj - Can) (forall (?targ - Target) (not (TargetCanGraspCollides ?targ ?c ?g ?obj))))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?targ - Target / ?t) (not (Near ?c ?targ)))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?targ - Target / ?t) (not (At ?c ?targ)))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can) (not (Obstructs ?robot ?obj ?obj ?c)))', '{0}:{1}'.format(et, et-1)),
