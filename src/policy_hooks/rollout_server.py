@@ -162,6 +162,7 @@ class RolloutServer(object):
         self.check_prim_t = hyperparams.get('check_prim_t', 1)
         self.explore_eta = hyperparams['explore_eta']
         self.explore_n = hyperparams['explore_n']
+        self.explore_nmax = hyperparams['explore_nmax']
         self.explore_success = hyperparams['explore_success']
 
         self.use_local = hyperparams['use_local']
@@ -879,8 +880,10 @@ class RolloutServer(object):
         suc = [p for v, p in paths if v > 0.9]
         if not len(suc): return
         wts = [self.hl_log_prob(p) for p in suc]
-        path = suc[np.argmax(wts)]
-        self.agent.add_task_paths([path])
+        for i in range(min(len(wts), self.explore_nmax)):
+            path = suc[np.argmax(wts)]
+            self.agent.add_task_paths([path])
+            wts[np.argmax(wts)] = -np.inf
 
         
     def plan_from_fail(self, augment=False, mode='start'):
