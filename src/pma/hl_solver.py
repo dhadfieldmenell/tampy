@@ -463,8 +463,8 @@ class FFSolver(HLSolver):
                              "%sprob.pddl"%fprefix,
                              "%sprob.pddl.soln"%fprefix,
                              "%sprob.output"%fprefix])
-        if plan != Plan.IMPOSSIBLE:
-            plan = self._patch_redundancy(plan)
+        #if plan != Plan.IMPOSSIBLE:
+        #    plan = self._patch_redundancy(plan)
         return plan
 
     def _patch_redundancy(self, plan_str):
