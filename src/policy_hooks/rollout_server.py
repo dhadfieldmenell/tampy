@@ -845,7 +845,7 @@ class RolloutServer(object):
 
     
     def plan_from_policy(self):
-        N, s = self.explore_n, self.explore_success
+        N, ns = self.explore_n, self.explore_success
         self.agent.replace_cond(0)
         paths = []
         nsuc = 0
@@ -855,33 +855,34 @@ class RolloutServer(object):
             val, path = self.test_hl(save=False, eta=self.explore_eta)
             paths.append((val,path))
             nsuc += 1 if val > 0.9 else 0
-        if nsuc < s:
-            if nsuc == 0:
-                path = paths[0][1]
-                x0 = path[0].get_X(t=0)
+        if nsuc < ns:
+            hor = (ns-nsuc)*max([max([s.T for s in path]) for _, path in paths])
+            ts = np.linspace(0, hor, ns-nsuc, dtype=np.int)
+            failed = [p for v, p in paths if v < 0.9][:len(ts)]
+            for i, p in enumerate(failed):
+                s, t = 0, 0
+                total_t = p[0].T
+                while total_t < ts[i] and s < len(p)-1:
+                    s += 1
+                    total_t += p[s].T
+                total_t -= p[s].T
+                t = min(ts[i] - total_t, p[s].T-1)
+                x0 = p[s].get_X(t=t) # self.agent.x0[0]
+                targets = p[s].targets # self.agent.target_vecs[0]
                 self.agent.reset_to_state(x0)
-                targets = path[0].targets
+                self.agent.store_x_hist(p[s].get(STATE_HIST_ENUM, t=t))
                 val, path, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=False, save=True)
-                paths.append((val, path))
-            failed = [p for v, p in paths if v < 0.9][:s-nsuc]
-            for path in failed:
-                s = np.random.randint(len(path))
-                t = np.random.randint(path[s].T)
-                x0 = path[s].get_X(t=t) # self.agent.x0[0]
-                targets = path[s].targets # self.agent.target_vecs[0]
-                self.agent.reset_to_state(x0)
-                self.agent.store_x_hist(path[s].get(STATE_HIST_ENUM, t=t))
-                val, path, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=False, save=False)
-                paths.append((val, path))
+                p[s].use_ts[t+1:] = 0
+                p[s].prim_use_ts[t+1:] = 0
+                new_path = p[:s+1] + path
+                paths.append((val, new_path))
         suc = [p for v, p in paths if v > 0.9]
         if not len(suc): return
         wts = [self.hl_log_prob(p) for p in suc]
         path = suc[np.argmax(wts)]
         self.agent.add_task_paths([path])
-        #for s in path:
-        #    self.agent.optimal_samples[self.agent.task_list[s.task[0]]].append(s)
 
-
+        
     def plan_from_fail(self, augment=False, mode='start'):
         if mode == 'multistep':
             return self.plan_from_policy()
@@ -1382,7 +1383,8 @@ class RolloutServer(object):
                   subgoal_suc,
                   subgoal_dist,
                   anygoal_suc,
-                  smallest_tol))
+                  smallest_tol,
+                  n_plans/(time.time()-self.start_t)))
         if ckpt_ind is not None:
             s[0] = s[0] + (ckpt_ind,)
         # print('EXPLORED PATH: {0}'.format([sample.task for sample in path]))

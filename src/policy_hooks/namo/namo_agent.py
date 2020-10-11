@@ -475,7 +475,7 @@ class NAMOSortingAgent(TAMPAgent):
                             # if self.debug: print('Caught at stuck', plan.params['pr2'].pose[:,t], param.pose[:,t], self.process_id)
                             plan.params['pr2'].pose[:, t] = [zx + x, zy + y]
                             if self._in_gripper is not None:
-                                plan.params[self._in_gripper].pose[:, t] = plan.params['pr2'].pose[:, t] - (old_state[x_inds['pr2', 'pose']] - old_state[x_inds[self.in_gripper.name, 'pose']])
+                                plan.params[self._in_gripper].pose[:, t] = plan.params['pr2'].pose[:, t] - (old_state[x_inds['pr2', 'pose']] - old_state[x_inds[self._in_gripper, 'pose']])
 
                         '''
                         # if self.in_gripper is not None and self.in_gripper is not param and np.linalg.norm(self.in_gripper.pose[:,t] - param.pose[:,t]) < radius2 + radius2 - dtol:

@@ -600,7 +600,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
         sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_true{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
 
 
-def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100, rolling=True, window=100):
+def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100, rolling=True, window=100, ylim=None):
     sns.set()
     if not separate:
         d = []
@@ -610,8 +610,9 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
         pd_frame = pd.DataFrame(d, columns=columns)
         # leg_labels = getattr(pd_frame, columns[0]).unique()
         for xv in xvars:
-            for yv in yvars:
+            for yind, yv in enumerate(yvars):
                 print(('Plotting', xv, yv))
+                if ylim is not None: plt.ylim(*ylim[yind])
                 if type(yv) not in (np.string_, str):
                     df = pd_frame.melt(id_vars=[xv, columns[0]], value_vars=yv, var_name='y_variable', value_name='value')
                     sns_plot = sns.relplot(x=xv, y='value', hue=columns[0], style="y_variable", kind='line', data=df, markers=True, dashes=False)
@@ -642,7 +643,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
             leg_labels = getattr(pd_frame, columns[0]).unique()
             sns_plot = None
             for xv in xvars:
-                for yv in yvars:
+                for yind, yv in enumerate(yvars):
                     print('Plotting', xv, yv)
                     cur_y = yv
                     style = None
@@ -665,6 +666,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                         sns_plot.fig.add_axes((l+w+0.1, b, w, h))
                         sub_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=style, kind='line', data=df, legend=False, ax=sns_plot.fig.axes[-1], dashes=dashes, markers=False)
                     sns_plot.fig.axes[-1].set_title('{0} vs {1}'.format(xv, cur_y), size=14)
+                    if ylim is not None: sns_plot.fig.axes[-1].set(ylim=ylim[yind])
                     '''
                     for axes in sns_plot.axes.flat:
                         box = axes.get_position()
@@ -700,7 +702,7 @@ def gen_label(exp_dir, label_vars=[], split_runs=False, run_ind=0):
 def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1., 
                    label_vars=[], ylabel='value', separate=True, keyind=3, 
                    exclude=[], include=[], split_runs=False,
-                   pre=False, rolling=True, window=100):
+                   pre=False, rolling=True, window=100, ylim=None):
     if lab == 'rollout':
         rd = get_rollout_data(keywords, exclude=exclude)
     elif lab == 'test':
@@ -772,7 +774,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
             flat_yvar_labs.extend([v+'{0}'.format('_'+str(i) if inds_to_var.get(v,0) > 1 else '') for i in range(inds_to_var.get(v,1))])
 
     # yvar_labs = np.concatenate([[v+'{0}'.format('_'+str(i) if inds_to_var.get(v, 0) > 1 else '') for i in range(inds_to_var.get(v, 1))] for v in yvars])
-    plot(data, ['description', 'key', 'exp id']+xvars+flat_yvar_labs, '{0}_vs_{1}'.format(xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind, inter=inter, rolling=rolling, window=window)
+    plot(data, ['description', 'key', 'exp id']+xvars+flat_yvar_labs, '{0}_vs_{1}'.format(xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind, inter=inter, rolling=rolling, window=window, ylim=ylim)
 
 keywords = ['objs4']
 include = [] # ['switch', 'base_namo_random_train'] # ['wed_nocol', 'sun']
@@ -790,5 +792,6 @@ label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] 
 #gen_data_plots(xvar='time', yvar=['success at end', 'collision'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='withrolling', exclude=[], split_runs=False, include=[], inter=120, window=600)
 #gen_data_plots(xvar='time', yvar=[['val_component_loss', 'train_component_loss']], keywords=['resample'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_6', exclude=[], split_runs=False, include=[], inter=120, window=600, rolling=False)
 
-gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['resample'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_rolling', exclude=[], split_runs=False, include=[], inter=60, window=600)
-gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['resample'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_6', exclude=[], split_runs=False, include=[], inter=100, window=500)
+include = ['no_resample', 'base', 'resample_N10_s5']
+gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs2'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='timerolling', exclude=[], split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 6)])
+gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs2'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='plansrolling', exclude=[], split_runs=False, include=include, inter=5, window=200, ylim=[(0.,1.), (0.,1.), (0, 6)])
