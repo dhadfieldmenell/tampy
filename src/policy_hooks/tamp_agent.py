@@ -1087,6 +1087,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 new_traj = self.retime_traj(opt_traj, vel=vel)
                 # for _ in range(nzero):
                 #     new_traj = np.r_[new_traj, new_traj[-1:]]
+                if np.any(np.isnan(opt_traj)): print('NAN in opt traj')
+                if np.any(np.isnan(new_traj)): print('NAN in retime')
                 T = et-st+1
                 t = 0
                 ind = 0

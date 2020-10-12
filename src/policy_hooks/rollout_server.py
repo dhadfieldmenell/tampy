@@ -161,6 +161,7 @@ class RolloutServer(object):
         self.prim_first_wt = hyperparams.get('prim_first_wt', 1.)
         self.check_prim_t = hyperparams.get('check_prim_t', 1)
         self.explore_eta = hyperparams['explore_eta']
+        self.explore_wt = hyperparams['explore_wt']
         self.explore_n = hyperparams['explore_n']
         self.explore_nmax = hyperparams['explore_nmax']
         self.explore_success = hyperparams['explore_success']
@@ -1716,13 +1717,13 @@ class RolloutServer(object):
             mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
             tgt_mu = np.concatenate((tgt_mu, mu))
             st, et = 0, sample.T # st, et = sample.step * sample.T, (sample.step + 1) * sample.T
-            wt = np.array([self.prim_decay**t for t in range(st, et)])
-            if sample.step == 0: wt[0] *= self.prim_first_wt
             #aux = np.ones(sample.T)
             #if sample.task_start: aux[0] = 0.
             aux = int(sample.opt_strength) * np.ones(sample.T)
             tgt_aux = np.concatenate((tgt_aux, aux))
             wt = np.array([sample.prim_use_ts[t] * self.prim_decay**t for t in range(sample.T)])
+            if sample.step == 0: wt[0] = self.prim_first_wt
+            if sample.opt_strength < 1-1e-3: wt[:] *= self.explore_wt
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs = sample.get_prim_obs()
             if np.any(np.isnan(obs)):

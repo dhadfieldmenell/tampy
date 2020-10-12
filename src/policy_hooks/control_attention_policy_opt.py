@@ -18,7 +18,7 @@ from gps.algorithm.policy_opt.policy_opt import PolicyOpt
 from gps.algorithm.policy_opt.tf_utils import TfSolver
 
 MAX_QUEUE_SIZE = 500000
-MAX_UPDATE_SIZE = 20000
+MAX_UPDATE_SIZE = 10000
 SCOPE_LIST = ['primitive', 'value', 'image', 'switch']
 
 

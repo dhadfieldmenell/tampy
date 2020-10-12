@@ -51,6 +51,7 @@ class PolicyServer(object):
         # self.policy_opt = policy_opt
         # self.policy_opt.hyperparams['scope'] = task
         self.stopped = False
+        self.warmup = hyperparams['tf_warmup_iters']
         if USE_ROS:
             # self.prob_service = rospy.Service(self.task+'_policy_prob', PolicyProb, self.prob)
             # self.act_service = rospy.Service(self.task+'_policy_act', PolicyAct, self.act)
@@ -173,13 +174,16 @@ class PolicyServer(object):
             end_time = time.time()
 
 
-    def update_network(self, n_updates=20):
+    def update_network(self, n_updates=5):
         for _ in range(n_updates):
-            aug_f = None if self.task != 'primitive' or not self.permute else self.agent.permute_hl_data
+            aug_f = None
+            niters = self.config['policy_opt']['buffer_sizes']['n_plans'].value
+            if self.task == 'primitive' and self.permute and niters > self.warmup:
+                aug_f = self.agent.permute_hl_data
             update = self.policy_opt.run_update([self.task], aug_f=aug_f)
         # print('Weights updated:', update, self.task)
         if update:
-            self.n_updates += 1
+            self.n_updates += n_updates
             if not USE_ROS or self.policy_opt.share_buffers:
                 self.policy_opt.write_shared_weights([self.task])
             else:
