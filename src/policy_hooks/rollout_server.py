@@ -1723,7 +1723,6 @@ class RolloutServer(object):
             aux = int(sample.opt_strength) * np.ones(sample.T)
             tgt_aux = np.concatenate((tgt_aux, aux))
             wt = np.array([sample.prim_use_ts[t] * self.prim_decay**t for t in range(sample.T)])
-            wt[0] *= self.prim_first_wt
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs = sample.get_prim_obs()
             if np.any(np.isnan(obs)):
