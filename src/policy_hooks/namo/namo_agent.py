@@ -1447,6 +1447,7 @@ class NAMOSortingAgent(TAMPAgent):
         no = self._hyperparams['num_objs']
         obs_idx = [self._prim_obs_data_idx[OBJ_ENUMS[n]] for n in range(no)]
         goal_idx = self._prim_obs_data_idx[ONEHOT_GOAL_ENUM]
+        hist_idx = self._prim_obs_data_idx.get(TASK_HIST_ENUM, None)
 
         inds = np.where(aux.flatten() == 1)[0]
         save_inds = np.where(aux == 0)[0]
@@ -1458,31 +1459,24 @@ class NAMOSortingAgent(TAMPAgent):
         ng = len(goal_idx) // no
         order = np.random.permutation(range(no))
         rev_order = [order.tolist().index(n) for n in range(no)]
-        t0 = 0
-        for t in range(len(hl_mu)):
-            #assert np.all(np.sum(hl_mu[t][:, a:b], axis=-1) == 1), 'VEC was: {0} from {1} to {2}'.format(hl_mu[t], a, b)
-            #old_ind = np.argmax(hl_mu[t][:, a:b])
-            #new_ind = order[old_ind]
-            #new_mu[t][:, a:b] = 0.
-            #new_mu[t][:, a+new_ind] = 1.
-            #for n in range(no):
-            #    new_obs[t][:, obs_idx[rev_order[n]]] = hl_obs[t][:, obs_idx[n]]
-            # g = old_goals[t]
-            # new_obs[t][:, goal_idx] = np.concatenate([g[:,rev_order[n]*ng:(rev_order[n]+1)*ng] for n in range(no)], axis=-1)
-            if not t % 100 and t > 0:
-                new_mu[t0:t][:,:, a:b] = hl_mu[t0:t][:,:,a:b][:,:,order]
-                for n in range(no):
-                    new_obs[t0:t][:,:, obs_idx[rev_order[n]]] = hl_obs[t0:t][:, :, obs_idx[n]]
-                new_obs[t0:t][:, :, goal_idx] = np.concatenate([old_goals[t0:t][:, :, rev_order[n]*ng:(rev_order[n]+1)*ng] for n in range(no)], axis=-1)
-                order = np.random.permutation(range(no))
-                rev_order = [order.tolist().index(n) for n in range(no)]
-                t0 = t
+        for t in range(0, len(hl_mu), 100):
+            order = np.random.permutation(range(no))
+            rev_order = [order.tolist().index(n) for n in range(no)]
+            new_mu[t:t+100][:,:, a:b] = hl_mu[t:t+100][:,:,a:b][:,:,order]
+            for n in range(no):
+                new_obs[t:t+100][:,:, obs_idx[rev_order[n]]] = hl_obs[t:t+100][:, :, obs_idx[n]]
+            new_obs[t:t+100][:, :, goal_idx] = np.concatenate([old_goals[t:t+100][:, :, order[n]*ng:(order[n]+1)*ng] for n in range(no)], axis=-1)
+            if hist_idx is not None:
+                hist = hl_obs[t:t+100][:,:,hist_idx].reshape((-1,self.task_hist_len,self.dPrimOut))
+                new_hist = hist.copy()
+                new_hist[:,:,a:b] = hist[:,:,a:b][:, :, order]
+                new_obs[t:t+100][:, :, hist_idx] = new_hist.reshape((-1, 1, self.dPrimOut*self.task_hist_len))
 
-        for n in range(no):
-            new_obs[t0:][:,:, obs_idx[rev_order[n]]] = hl_obs[t0:][:, :, obs_idx[n]]
-        new_mu[t0:][:,:, a:b] = hl_mu[t0:][:,:,a:b][:,:,order]
-        new_obs[t0:][:, :, goal_idx] = np.concatenate([old_goals[t0:][:, :,rev_order[n]*ng:(rev_order[n]+1)*ng] for n in range(no)], axis=-1)
         #print('Permuted with order', order, [hl_obs[-1,-1][obs_idx[n]] for n in range(no)], [new_obs[-1,-1][obs_idx[n]] for n in range(no)], hl_mu[-1,-1,a:b], new_mu[-1,-1,a:b])
+        #print(hl_obs[-1,-1][goal_idx])
+        #print(new_obs[-1,-1][goal_idx])
+        #print(hl_obs[-1,-1][hist_idx].reshape((self.task_hist_len, -1)))
+        #print(new_obs[-1,-1][hist_idx].reshape((self.task_hist_len, -1)))
         new_wt = np.r_[hl_wt[save_inds], hl_wt[inds]]
         new_prc = np.r_[hl_prc[save_inds], hl_prc[inds]]
         return np.r_[save_mu, new_mu], np.r_[save_obs, new_obs], new_wt, new_prc
