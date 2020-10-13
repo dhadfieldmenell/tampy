@@ -792,6 +792,6 @@ label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] 
 #gen_data_plots(xvar='time', yvar=['success at end', 'collision'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='withrolling', exclude=[], split_runs=False, include=[], inter=120, window=600)
 #gen_data_plots(xvar='time', yvar=[['val_component_loss', 'train_component_loss']], keywords=['resample'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_6', exclude=[], split_runs=False, include=[], inter=120, window=600, rolling=False)
 
-include = [] #['no_resample', 'base', 'resample_N10_s5']
-gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['polresample'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='2timerolling', exclude=[], split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 6)])
-gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['polresample'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='2plansrolling', exclude=[], split_runs=False, include=include, inter=5, window=200, ylim=[(0.,1.), (0.,1.), (0, 6)])
+include = ['objs4'] #['no_resample', 'base', 'resample_N10_s5']
+gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['polresample'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='timeagainrolling', exclude=[], split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 6)])
+gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['polresample'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='plansagainrolling', exclude=[], split_runs=False, include=include, inter=5, window=200, ylim=[(0.,1.), (0.,1.), (0, 6)])

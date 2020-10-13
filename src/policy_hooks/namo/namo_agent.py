@@ -774,7 +774,7 @@ class NAMOSortingAgent(TAMPAgent):
             sample.set(TRAJ_HIST_ENUM, self._prev_U.flatten(), t)
             x_delta = self._x_delta[1:] - self._x_delta[:1]
             sample.set(STATE_DELTA_ENUM, x_delta.flatten(), t)
-            sample.set(STATE_HIST_ENUM, self._x_delta.flatten(), t)
+        sample.set(STATE_HIST_ENUM, self._x_delta.flatten(), t)
         if self.task_hist_len > 0:
             sample.set(TASK_HIST_ENUM, self._prev_task.flatten(), t)
         onehot_task = np.zeros(self.sensor_dims[ONEHOT_TASK_ENUM])
@@ -1434,8 +1434,8 @@ class NAMOSortingAgent(TAMPAgent):
         for t in range(sample.T):
             if enum == TARG_ENUM and sample.get(TASK_ENUM, t)[ind2] < 0.5:
                 mask[t, :] = 0.
-            elif enum == OBJ_ENUM and sample.get(TASK_ENUM, t)[ind1] < 0.5:
-                mask[t, :] = 0.
+            #elif enum == OBJ_ENUM and sample.get(TASK_ENUM, t)[ind1] < 0.5:
+            #    mask[t, :] = 0.
         return mask
 
 
@@ -1482,8 +1482,6 @@ class NAMOSortingAgent(TAMPAgent):
             new_obs[t0:][:,:, obs_idx[rev_order[n]]] = hl_obs[t0:][:, :, obs_idx[n]]
         new_mu[t0:][:,:, a:b] = hl_mu[t0:][:,:,a:b][:,:,order]
         new_obs[t0:][:, :, goal_idx] = np.concatenate([old_goals[t0:][:, :,rev_order[n]*ng:(rev_order[n]+1)*ng] for n in range(no)], axis=-1)
-        #print('Time to run permute:', time.time()-start_t)
-        #print('Permuted with order', order, [hl_obs[0,0][obs_idx[n]] for n in range(no)], [new_obs[0,0][obs_idx[n]] for n in range(no)], hl_mu[0,0,a:b], new_mu[0,0,a:b])
         #print('Permuted with order', order, [hl_obs[-1,-1][obs_idx[n]] for n in range(no)], [new_obs[-1,-1][obs_idx[n]] for n in range(no)], hl_mu[-1,-1,a:b], new_mu[-1,-1,a:b])
         new_wt = np.r_[hl_wt[save_inds], hl_wt[inds]]
         new_prc = np.r_[hl_prc[save_inds], hl_prc[inds]]
