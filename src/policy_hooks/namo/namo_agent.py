@@ -1374,7 +1374,7 @@ class NAMOSortingAgent(TAMPAgent):
                     for t in range(s.T):
                         s.set(enum, val, t=t)
         for s in path: s.success = self.goal_f(0, s.get(STATE_ENUM, t=s.T-1), targets=s.get(TARGETS_ENUM, t=s.T-1))
-        for s n path: s.targets = targets
+        for s in path: s.targets = targets
         return {GOAL_ENUM: only_goal, ONEHOT_GOAL_ENUM: onehot_goal, TARGETS_ENUM: targets}
 
 
