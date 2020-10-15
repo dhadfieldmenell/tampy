@@ -1391,7 +1391,6 @@ class RolloutServer(object):
                   n_plans/(time.time()-self.start_t)))
         if ckpt_ind is not None:
             s[0] = s[0] + (ckpt_ind,)
-        # print('EXPLORED PATH: {0}'.format([sample.task for sample in path]))
         res.append(s[0])
         if save:
             if all([s.opt_strength == 0 for s in path]): self.hl_data.append(res)
@@ -1419,25 +1418,16 @@ class RolloutServer(object):
                 with open(self.fail_log, 'a+') as f:
                     f.write(pp_info)
                     f.write('\n')
-        if debug:
-            if val < 1:
-                print(('failed for', x0, [s.task for s in path]))
-                for s in path:
-                    # print(s.task, s.get(STATE_ENUM, t=0))
-                    print((s.task, s.get_val_obs(t=0)))
-            else:
-                print(('succeeded for', path[0].get_X(t=0)))
-                print(('succeeded for', path[0].get_X(t=0)))
-                print(('path len:', len(path)))
-            print(('n_success', len([d for d in self.hl_data if d[0][0] > 1-1e-3])))
-            print(('n_true_success', len([d for d in self.hl_data if d[0][2] > 1-1e-3])))
-            print(('n_runs', len(self.hl_data)))
         if self.render and save_video:
             print('Saving video...', val)
             self.save_video(path, val > 0)
             print('Saved video. Rollout success was: ', val > 0)
         self.last_hl_test = time.time()
         self.agent.debug = True
+        if not self.run_hl_test and self._hyperparams['hindsight'] and val == 0:
+            self.relabel_goal(path)
+            if path[-1].success == 1:
+                self.agent.add_task_paths([path])
         # print('TESTED HL')
         return val, path
 

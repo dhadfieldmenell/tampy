@@ -814,6 +814,8 @@ class NAMOSortingAgent(TAMPAgent):
             elif self.task_list[task[0]].find('transfer') >= 0:
                 obj_vec[:] = 1. / len(obj_vec)
                 targ_vec[task[2]] = 1.
+            #obj_vec[task[1]] = 1.
+            #targ_vec[task[2]] = 1.
             sample.obj_ind = task[1]
             sample.targ_ind = task[2]
             sample.set(OBJ_ENUM, obj_vec, t)
@@ -847,7 +849,10 @@ class NAMOSortingAgent(TAMPAgent):
             sample.set(END_POSE_ENUM, targ_pose + grasp, t)
             #sample.set(END_POSE_ENUM, targ_pose.copy(), t)
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
-            sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
+            #sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
+            targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
+            sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose, t)
+            sample.set(TARG_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
 
         if INGRASP_ENUM in self._hyperparams['sensor_dims']:
             vec = np.zeros(len(prim_choices[OBJ_ENUM]))
@@ -1342,19 +1347,33 @@ class NAMOSortingAgent(TAMPAgent):
         return attr_dict
 
 
-    def relabel_goal(self, sample, debug=False):
+    def relabel_goal(self, path, debug=False):
+        sample = path[-1]
         X = sample.get_X(sample.T-1)
-        plan = list(self.plans.values())[0]
-        goal = self.target_vecs[0].copy()
-        for pname, aname in self.state_inds:
-            if plan.params[pname].is_symbol(): continue
-            attr = X[self.state_inds[pname, aname]]
-            if ('{0}_end_target'.format(pname), 'value') in self.target_inds:
-                goal[self.target_inds[('{0}_end_target'.format(pname), 'value')]] = attr
-        prim_choices = self.prob.get_prim_choices()
-        only_goal = np.concatenate([goal[self.target_inds['{0}_end_target'.format(o), 'value']] for o in prim_choices[OBJ_ENUM]])
+        targets = sample.get(TARGETS_ENUM, t=sample.T-1)
+        prim_choices = self.prob.get_prim_choices(self.task_list)
+        for n, obj in enumerate(prim_choices[OBJ_ENUM]):
+            pos = X[self.state_inds[obj, 'pose']]
+            cur_targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
+            prev_targ = cur_targ
+            for opt in self.targ_labels:
+                if np.all(np.abs(pos - self.targ_labels[opt])) < NEAR_TOL:
+                    cur_targ = self.targ_labels[opt]
+                    break
+            targets[self.target_inds['{0}_end_target'.format(obj), 'value']] = cur_targ
+            if TARG_ENUMS[n] in self._prim_obs_data_idx:
+                for s in path:
+                    new_disp = s.get(TARG_ENUMS[n]) + (cur_targ - prev_targ).reshape((1, -1))
+                    s.set(TARG_ENUMS[n], new_disp)
+        only_goal = np.concatenate([targets[self.target_inds['{0}_end_target'.format(o), 'value']] for o in prim_choices[OBJ_ENUM]])
         onehot_goal = self.onehot_encode_goal(only_goal, debug=debug)
-        return {GOAL_ENUM: only_goal, ONEHOT_GOAL_ENUM: onehot_goal, TARGETS_ENUM: goal}
+        for enum, val in zip([GOAL_ENUM, ONEHOT_GOAL_ENUM, TAGRETS_ENUM], [only_goal, onehot_goal, targets]):
+            if enum in self._prim_data_obs_idx:
+                for s in path:
+                    for t in range(s.T):
+                        s.set(enum, val, t=t)
+        for s in path: s.success = self.goal_f(0, s.get(STATE_ENUM, t=s.T-1), targets=s.get(TARGETS_ENUM, t=s.T-1))
+        return {GOAL_ENUM: only_goal, ONEHOT_GOAL_ENUM: onehot_goal, TARGETS_ENUM: targets}
 
 
     def replace_cond(self, cond, curric_step=-1):
@@ -1429,6 +1448,7 @@ class NAMOSortingAgent(TAMPAgent):
 
     def get_mask(self, sample, enum):
         mask = np.ones((sample.T, 1))
+        return mask
         ind1 = self.task_list.index('moveto')
         ind2  = self.task_list.index('transfer')
         for t in range(sample.T):
@@ -1446,6 +1466,7 @@ class NAMOSortingAgent(TAMPAgent):
         a, b = min(idx), max(idx)+1
         no = self._hyperparams['num_objs']
         obs_idx = [self._prim_obs_data_idx[OBJ_ENUMS[n]] for n in range(no)]
+        targ_idx = [self._prim_obs_data_idx[TARG_ENUMS[n]] for n in range(no)]
         goal_idx = self._prim_obs_data_idx[ONEHOT_GOAL_ENUM]
         hist_idx = self._prim_obs_data_idx.get(TASK_HIST_ENUM, None)
 
@@ -1465,6 +1486,7 @@ class NAMOSortingAgent(TAMPAgent):
             new_mu[t:t+100][:,:, a:b] = hl_mu[t:t+100][:,:,a:b][:,:,order]
             for n in range(no):
                 new_obs[t:t+100][:,:, obs_idx[rev_order[n]]] = hl_obs[t:t+100][:, :, obs_idx[n]]
+                new_obs[t:t+100][:,:, targ_idx[rev_order[n]]] = hl_obs[t:t+100][:, :, targ_idx[n]]
             new_obs[t:t+100][:, :, goal_idx] = np.concatenate([old_goals[t:t+100][:, :, order[n]*ng:(order[n]+1)*ng] for n in range(no)], axis=-1)
             if hist_idx is not None:
                 hist = hl_obs[t:t+100][:,:,hist_idx].reshape((-1,self.task_hist_len,self.dPrimOut))

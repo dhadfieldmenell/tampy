@@ -415,6 +415,10 @@ class At(ExprPredicate):
         e = EqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
 
+class AtStart(At):
+    def get_param_vector(self, t):
+        return super(At, self).get_param_vector(0)
+
 class AtNEq(ExprPredicate):
 
     def __init__(self, name, params, expected_param_types, env=None):

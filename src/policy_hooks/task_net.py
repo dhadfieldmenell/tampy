@@ -53,7 +53,7 @@ def multi_softmax_loss_layer(labels, logits, boundaries, precision=None, scalar=
     for i, (start, end) in enumerate(boundaries):
         loss = tf.losses.softmax_cross_entropy(onehot_labels=labels[:,start:end], logits=logits[:, start:end], reduction=tf.losses.Reduction.NONE)
         if precision is not None:
-            loss *= precision[:, i]
+            loss *= precision[:, i] / tf.reduce_mean(precision[:,i])
         # loss /= float(end - start)
         # losses.append(tf.reduce_mean(loss, axis=0))
         losses.append(loss)

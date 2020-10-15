@@ -776,7 +776,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
     # yvar_labs = np.concatenate([[v+'{0}'.format('_'+str(i) if inds_to_var.get(v, 0) > 1 else '') for i in range(inds_to_var.get(v, 1))] for v in yvars])
     plot(data, ['description', 'key', 'exp id']+xvars+flat_yvar_labs, '{0}_vs_{1}'.format(xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind, inter=inter, rolling=rolling, window=window, ylim=ylim)
 
-keywords = ['objs4']
+keywords = ['objs2']
 include = [] # ['switch', 'base_namo_random_train'] # ['wed_nocol', 'sun']
 label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #get_hl_tests(['retrain_2by'], xvar='N', avg_time=False, tdelta=5000, wind=5000, pre=False, exclude=['0001', '10000'])
@@ -792,6 +792,6 @@ label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] 
 #gen_data_plots(xvar='time', yvar=['success at end', 'collision'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='withrolling', exclude=[], split_runs=False, include=[], inter=120, window=600)
 #gen_data_plots(xvar='time', yvar=[['val_component_loss', 'train_component_loss']], keywords=['resample'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='time_again_6', exclude=[], split_runs=False, include=[], inter=120, window=600, rolling=False)
 
-include = ['objs4'] #['no_resample', 'base', 'resample_N10_s5']
-gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['polresample'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='timeagainrolling', exclude=[], split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 6)])
+include = ['polresample', 'base'] #['no_resample', 'base', 'resample_N10_s5']
+gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs2'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='timeagainrolling', exclude=[], split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 6)])
 gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['polresample'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='plansagainrolling', exclude=[], split_runs=False, include=include, inter=5, window=200, ylim=[(0.,1.), (0.,1.), (0, 6)])
