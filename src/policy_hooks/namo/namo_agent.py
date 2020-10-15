@@ -808,12 +808,14 @@ class NAMOSortingAgent(TAMPAgent):
 
             obj_vec = np.zeros((len(prim_choices[OBJ_ENUM])), dtype='float32')
             targ_vec = np.zeros((len(prim_choices[TARG_ENUM])), dtype='float32')
+            obj_vec[task[1]] = 1.
+            targ_vec[task[2]] = 1.
             if self.task_list[task[0]].find('move') >= 0:
                 obj_vec[task[1]] = 1.
                 targ_vec[:] = 1. / len(targ_vec)
-            elif self.task_list[task[0]].find('transfer') >= 0:
-                obj_vec[:] = 1. / len(obj_vec)
-                targ_vec[task[2]] = 1.
+            #elif self.task_list[task[0]].find('transfer') >= 0:
+            #    obj_vec[:] = 1. / len(obj_vec)
+            #    targ_vec[task[2]] = 1.
             #obj_vec[task[1]] = 1.
             #targ_vec[task[2]] = 1.
             sample.obj_ind = task[1]
@@ -1350,13 +1352,13 @@ class NAMOSortingAgent(TAMPAgent):
     def relabel_goal(self, path, debug=False):
         sample = path[-1]
         X = sample.get_X(sample.T-1)
-        targets = sample.get(TARGETS_ENUM, t=sample.T-1)
+        targets = sample.get(TARGETS_ENUM, t=sample.T-1).copy()
         assert np.sum([s.get(TARGETS_ENUM, t=2) - s.targets for s in path]) < 0.001
         prim_choices = self.prob.get_prim_choices(self.task_list)
         for n, obj in enumerate(prim_choices[OBJ_ENUM]):
             pos = X[self.state_inds[obj, 'pose']]
             cur_targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
-            prev_targ = cur_targ
+            prev_targ = cur_targ.copy()
             for opt in self.targ_labels:
                 if np.all(np.abs(pos - self.targ_labels[opt])) < NEAR_TOL:
                     cur_targ = self.targ_labels[opt]
