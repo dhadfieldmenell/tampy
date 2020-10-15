@@ -1367,7 +1367,7 @@ class NAMOSortingAgent(TAMPAgent):
                     s.set(TARG_ENUMS[n], new_disp)
         only_goal = np.concatenate([targets[self.target_inds['{0}_end_target'.format(o), 'value']] for o in prim_choices[OBJ_ENUM]])
         onehot_goal = self.onehot_encode_goal(only_goal, debug=debug)
-        for enum, val in zip([GOAL_ENUM, ONEHOT_GOAL_ENUM, TAGRETS_ENUM], [only_goal, onehot_goal, targets]):
+        for enum, val in zip([GOAL_ENUM, ONEHOT_GOAL_ENUM, TARGETS_ENUM], [only_goal, onehot_goal, targets]):
             if enum in self._prim_data_obs_idx:
                 for s in path:
                     for t in range(s.T):
