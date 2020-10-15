@@ -1470,12 +1470,14 @@ class NAMOSortingAgent(TAMPAgent):
         goal_idx = self._prim_obs_data_idx[ONEHOT_GOAL_ENUM]
         hist_idx = self._prim_obs_data_idx.get(TASK_HIST_ENUM, None)
 
-        inds = np.where(aux.flatten() == 1)[0]
+        inds = np.where(aux == 1)[0]
         save_inds = np.where(aux == 0)[0]
         new_mu = hl_mu[inds].copy()
         new_obs = hl_obs[inds].copy()
         save_mu = hl_mu[save_inds]
         save_obs = hl_obs[save_inds]
+        hl_mu = hl_mu[inds]
+        hl_obs = hl_obs[inds]
         old_goals = hl_obs[:,:,goal_idx]
         ng = len(goal_idx) // no
         order = np.random.permutation(range(no))
