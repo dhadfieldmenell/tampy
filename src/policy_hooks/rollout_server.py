@@ -1425,7 +1425,7 @@ class RolloutServer(object):
         self.last_hl_test = time.time()
         self.agent.debug = True
         if not self.run_hl_test and self._hyperparams['hindsight'] and val == 0:
-            self.relabel_goal(path)
+            self.agent.relabel_goal(path)
             if path[-1].success == 1:
                 self.agent.add_task_paths([path])
         # print('TESTED HL')
