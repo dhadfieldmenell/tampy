@@ -1351,6 +1351,7 @@ class NAMOSortingAgent(TAMPAgent):
         sample = path[-1]
         X = sample.get_X(sample.T-1)
         targets = sample.get(TARGETS_ENUM, t=sample.T-1)
+        assert np.sum([s.get(TARGETS_ENUM, t=2) - s.targets for s in path]) < 0.001
         prim_choices = self.prob.get_prim_choices(self.task_list)
         for n, obj in enumerate(prim_choices[OBJ_ENUM]):
             pos = X[self.state_inds[obj, 'pose']]
@@ -1373,6 +1374,7 @@ class NAMOSortingAgent(TAMPAgent):
                     for t in range(s.T):
                         s.set(enum, val, t=t)
         for s in path: s.success = self.goal_f(0, s.get(STATE_ENUM, t=s.T-1), targets=s.get(TARGETS_ENUM, t=s.T-1))
+        for s n path: s.targets = targets
         return {GOAL_ENUM: only_goal, ONEHOT_GOAL_ENUM: onehot_goal, TARGETS_ENUM: targets}
 
 
@@ -1478,6 +1480,7 @@ class NAMOSortingAgent(TAMPAgent):
         save_obs = hl_obs[save_inds]
         hl_mu = hl_mu[inds]
         hl_obs = hl_obs[inds]
+
         old_goals = hl_obs[:,:,goal_idx]
         ng = len(goal_idx) // no
         order = np.random.permutation(range(no))
