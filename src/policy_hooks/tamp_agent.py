@@ -1103,6 +1103,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                     sample.opt_strength = 1.
                     sample.opt_suc = True
                     sample.step = ind
+                    sample.task_start = ind == 0
                     sample.task_end = False
                     ind += 1
                     t += T - 1
@@ -1147,7 +1148,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             path.append(zero_sample)
             # path[cur_len].set(DONE_ENUM, np.ones(1), t=0)
             path[-1].task_end = True
-            if len(path) > cur_len: path[cur_len].task_start = True
+            path[cur_len].task_start = True
         if len(path) and path[-1].success > 0.99:
             for sample in path: sample.opt_strength = 1.
             if save: self.add_task_paths([path])
