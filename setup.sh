@@ -1,5 +1,6 @@
 FULL_INSTALL=true
 cd ~
+mkdir -p Dropbox
 mkdir tamp_work
 cd ~/tamp_work
 
@@ -84,6 +85,7 @@ pip install -e .
 cd ../h-baselines
 pip install -e .
 pip install mpi4py
+pip install imageio
 cd ~/tamp_work
 
 pip install tensorflow==1.10.0

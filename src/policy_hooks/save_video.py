@@ -14,6 +14,8 @@ prefix = os.path.expanduser('~')
 SAVEDIR = prefix+'/Dropbox/videos/'
 def save_video(fname, dname=''):
     arr = np.load(fname)
+    if not os.path.isdir(SAVEDIR):
+        os.mkdir(SAVEDIR)
     if not os.path.isdir(SAVEDIR+dname):
         os.mkdir(SAVEDIR+dname)
     vname = SAVEDIR+dname+fname.split('/')[-1].split('.')[0]+'.gif'

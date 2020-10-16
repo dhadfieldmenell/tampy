@@ -1712,7 +1712,7 @@ class RolloutServer(object):
             aux = int(sample.opt_strength) * np.ones(sample.T)
             tgt_aux = np.concatenate((tgt_aux, aux))
             wt = np.array([sample.prim_use_ts[t] * self.prim_decay**t for t in range(sample.T)])
-            if sample.step == 0: wt[0] = self.prim_first_wt
+            if sample.task_start: wt[0] = self.prim_first_wt
             if sample.opt_strength < 1-1e-3: wt[:] *= self.explore_wt
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs = sample.get_prim_obs()
