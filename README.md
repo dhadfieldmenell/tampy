@@ -17,6 +17,10 @@ If everything works, the output should match: `PLAN FINISHED WITH FAILED PREDIAT
 This should take under a minute to run.
 
 
+## Verify learning
+If you wish to train policies from the code, verify that a Mujoco key titled `mjkey.txt` is in your home directory an that `FULL_INSTALL=true` in `setup.sh`. Once this has completed, make sure you are on the virtual env (by running `tampenv`) and try running `test_training.sh`; this script will attempt to train policies for a two object pick-place problem with some default parameter settings. Once completed, is will generate some plots on performance and videos of rollouts into the `~/Dropbox` directory. Note the script will use about 16 proccesses, so it's reccomended to run it from at least an 8-physical core machine.
+
+
 ## The code
 
 ### Defining domains
