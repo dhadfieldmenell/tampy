@@ -1360,7 +1360,7 @@ class NAMOSortingAgent(TAMPAgent):
             cur_targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
             prev_targ = cur_targ.copy()
             for opt in self.targ_labels:
-                if np.all(np.abs(pos - self.targ_labels[opt])) < NEAR_TOL:
+                if np.all(np.abs(pos - self.targ_labels[opt]) < NEAR_TOL):
                     cur_targ = self.targ_labels[opt]
                     break
             targets[self.target_inds['{0}_end_target'.format(obj), 'value']] = cur_targ
