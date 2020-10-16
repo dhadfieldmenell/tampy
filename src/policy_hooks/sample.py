@@ -86,7 +86,7 @@ class Sample(object):
                 data = (self._data[data_type] if t is None
                         else self._data[data_type][t, :])
                 self.agent.pack_data_x(X, data, data_types=[data_type])
-        return X
+        return X.copy()
 
     def set_X(self, X, t=None):
         for data_type in self.agent._x_data_idx:
@@ -121,7 +121,7 @@ class Sample(object):
                 data = (self._data[data_type] if t is None
                         else self._data[data_type][t, :])
                 self.agent.pack_data_obs(obs, data, data_types=[data_type])
-        return obs
+        return obs.copy()
 
     def get_prim_obs(self, t=None):
         """ Get the observation. Put it together if not precomputed. """
@@ -135,7 +135,7 @@ class Sample(object):
                 data = (self._data[data_type] if t is None
                         else self._data[data_type][t, :])
                 self.agent.pack_data_prim_obs(obs, data, data_types=[data_type])
-        return obs
+        return obs.copy()
 
     def get_prim_out(self, t=None):
         """ Get the observation. Put it together if not precomputed. """
@@ -149,7 +149,7 @@ class Sample(object):
                 data = (self._data[data_type] if t is None
                         else self._data[data_type][t, :])
                 self.agent.pack_data_prim_out(out, data, data_types=[data_type])
-        return out
+        return out.copy()
 
     def get_val_obs(self, t=None):
         """ Get the observation. Put it together if not precomputed. """
@@ -163,7 +163,7 @@ class Sample(object):
                 data = (self._data[data_type] if t is None
                         else self._data[data_type][t, :])
                 self.agent.pack_data_val_obs(obs, data, data_types=[data_type])
-        return obs
+        return obs.copy()
 
     def get_meta(self):
         """ Get the meta data. Put it together if not precomputed. """
