@@ -1468,9 +1468,15 @@ class NAMOSortingAgent(TAMPAgent):
         idx = self._prim_out_data_idx[OBJ_ENUM]
         a, b = min(idx), max(idx)+1
         no = self._hyperparams['num_objs']
-        obs_idx = [self._prim_obs_data_idx[OBJ_ENUMS[n]] for n in range(no)]
-        obs_idx2 = [self._prim_obs_data_idx[OBJ_DELTA_ENUMS[n]] for n in range(no)]
-        targ_idx = [self._prim_obs_data_idx[TARG_ENUMS[n]] for n in range(no)]
+        obs_idx = None
+        if OBJ_ENUMS[0] in self._prim_obs_data_idx:
+            obs_idx = [self._prim_obs_data_idx[OBJ_ENUMS[n]] for n in range(no)]
+        obs_idx2 = None
+        if OBJ_DELTA_ENUMS[0] in self._prim_obs_data_idx:
+            obs_idx2 = [self._prim_obs_data_idx[OBJ_DELTA_ENUMS[n]] for n in range(no)]
+        targ_idx = None
+        if TARG_ENUMS[0] in self._prim_obs_data_idx:
+            targ_idx = [self._prim_obs_data_idx[TARG_ENUMS[n]] for n in range(no)]
         goal_idx = self._prim_obs_data_idx[ONEHOT_GOAL_ENUM]
         hist_idx = self._prim_obs_data_idx.get(TASK_HIST_ENUM, None)
         xhist_idx = self._prim_obs_data_idx.get(STATE_DELTA_ENUM, None)
@@ -1491,18 +1497,17 @@ class NAMOSortingAgent(TAMPAgent):
         for t in range(0, len(hl_mu), 100):
             order = np.random.permutation(range(no))
             rev_order = [order.tolist().index(n) for n in range(no)]
-            inds = np.array([self.state_inds['can{0}'.format(n), 'pose'] for n in range(no)])
-            perm_inds = inds[order]
+            cur_inds = np.array([self.state_inds['can{0}'.format(n), 'pose'] for n in range(no)])
             new_mu[t:t+100][:,:, a:b] = hl_mu[t:t+100][:,:,a:b][:,:,order]
             if xhist_idx is not None:
                 hist = hl_obs[t:t+100][:,:,xhist_idx].reshape((-1,self.hist_len,self.dX))
                 new_hist = hist.copy()
-                new_hist[:, :, np.r_[inds]] = new_hist[:, :, np.r_[inds[order]]]
+                new_hist[:, :, np.r_[cur_inds]] = new_hist[:, :, np.r_[cur_inds[order]]]
                 new_obs[t:t+100][:,:,xhist_idx] = new_hist.reshape((-1, 1, self.hist_len*self.dX))
             for n in range(no):
-                new_obs[t:t+100][:,:, obs_idx[rev_order[n]]] = hl_obs[t:t+100][:, :, obs_idx[n]]
-                new_obs[t:t+100][:,:, obs_idx2[rev_order[n]]] = hl_obs[t:t+100][:, :, obs_idx2[n]]
-                new_obs[t:t+100][:,:, targ_idx[rev_order[n]]] = hl_obs[t:t+100][:, :, targ_idx[n]]
+                if obs_idx is not None: new_obs[t:t+100][:,:, obs_idx[rev_order[n]]] = hl_obs[t:t+100][:, :, obs_idx[n]]
+                if obs_idx2 is not None: new_obs[t:t+100][:,:, obs_idx2[rev_order[n]]] = hl_obs[t:t+100][:, :, obs_idx2[n]]
+                if targ_idx is not None: new_obs[t:t+100][:,:, targ_idx[rev_order[n]]] = hl_obs[t:t+100][:, :, targ_idx[n]]
             new_obs[t:t+100][:, :, goal_idx] = np.concatenate([old_goals[t:t+100][:, :, order[n]*ng:(order[n]+1)*ng] for n in range(no)], axis=-1)
             if hist_idx is not None:
                 hist = hl_obs[t:t+100][:,:,hist_idx].reshape((-1,self.task_hist_len,self.dPrimOut))
@@ -1510,7 +1515,9 @@ class NAMOSortingAgent(TAMPAgent):
                 new_hist[:,:,a:b] = hist[:,:,a:b][:, :, order]
                 new_obs[t:t+100][:, :, hist_idx] = new_hist.reshape((-1, 1, self.dPrimOut*self.task_hist_len))
 
-        #print('Permuted with order', order, [hl_obs[-1,-1][obs_idx[n]] for n in range(no)], [new_obs[-1,-1][obs_idx[n]] for n in range(no)], hl_mu[-1,-1,a:b], new_mu[-1,-1,a:b])
+        #print('Permuted with order', order, [hl_obs[-1,-1][obs_idx2[n]] for n in range(no)], [new_obs[-1,-1][obs_idx2[n]] for n in range(no)], hl_mu[-1,-1,a:b], new_mu[-1,-1,a:b])
+        #print(hl_obs[-1,-1][xhist_idx].reshape((self.hist_len, -1)))
+        #print(new_obs[-1,-1][xhist_idx].reshape((self.hist_len, -1)))
         #print(hl_obs[-1,-1][goal_idx])
         #print(new_obs[-1,-1][goal_idx])
         #print(hl_obs[-1,-1][hist_idx].reshape((self.task_hist_len, -1)))
