@@ -1339,7 +1339,6 @@ class RolloutServer(object):
                                   for task in self.agent.task_list}
         self.mcts[0].rollout_policy = rollout_policies
         prim_opts = self.agent.prob.get_prim_choices()
-        if OBJ_ENUM not in prim_opts: return
         n_targs = list(range(len(prim_opts[OBJ_ENUM])))
         res = []
         ns = [self.config['num_targs']]
@@ -1424,9 +1423,10 @@ class RolloutServer(object):
             print('Saved video. Rollout success was: ', val > 0)
         self.last_hl_test = time.time()
         self.agent.debug = True
-        if not self.run_hl_test and self._hyperparams['hindsight'] and val == 0:
+        if not self.run_hl_test and self._hyperparams['hindsight']:
             self.agent.relabel_goal(path)
             if path[-1].success == 1:
+                print('Adding relabelled goal')
                 self.agent.add_task_paths([path])
         # print('TESTED HL')
         return val, path

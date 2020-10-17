@@ -851,9 +851,9 @@ class NAMOSortingAgent(TAMPAgent):
             sample.set(END_POSE_ENUM, targ_pose + grasp, t)
             #sample.set(END_POSE_ENUM, targ_pose.copy(), t)
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
-            #sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
+            sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
             targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
-            sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose, t)
+            sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose, t)
             sample.set(TARG_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
 
         if INGRASP_ENUM in self._hyperparams['sensor_dims']:
@@ -1469,9 +1469,11 @@ class NAMOSortingAgent(TAMPAgent):
         a, b = min(idx), max(idx)+1
         no = self._hyperparams['num_objs']
         obs_idx = [self._prim_obs_data_idx[OBJ_ENUMS[n]] for n in range(no)]
+        obs_idx2 = [self._prim_obs_data_idx[OBJ_DELTA_ENUMS[n]] for n in range(no)]
         targ_idx = [self._prim_obs_data_idx[TARG_ENUMS[n]] for n in range(no)]
         goal_idx = self._prim_obs_data_idx[ONEHOT_GOAL_ENUM]
         hist_idx = self._prim_obs_data_idx.get(TASK_HIST_ENUM, None)
+        xhist_idx = self._prim_obs_data_idx.get(STATE_DELTA_ENUM, None)
 
         inds = np.where(aux == 1)[0]
         save_inds = np.where(aux == 0)[0]
@@ -1489,9 +1491,17 @@ class NAMOSortingAgent(TAMPAgent):
         for t in range(0, len(hl_mu), 100):
             order = np.random.permutation(range(no))
             rev_order = [order.tolist().index(n) for n in range(no)]
+            inds = np.array([self.state_inds['can{0}'.format(n), 'pose'] for n in range(no)])
+            perm_inds = inds[order]
             new_mu[t:t+100][:,:, a:b] = hl_mu[t:t+100][:,:,a:b][:,:,order]
+            if xhist_idx is not None:
+                hist = hl_obs[t:t+100][:,:,xhist_idx].reshape((-1,self.hist_len,self.dX))
+                new_hist = hist.copy()
+                new_hist[:, :, np.r_[inds]] = new_hist[:, :, np.r_[inds[order]]]
+                new_obs[t:t+100][:,:,xhist_idx] = new_hist.reshape((-1, 1, self.hist_len*self.dX))
             for n in range(no):
                 new_obs[t:t+100][:,:, obs_idx[rev_order[n]]] = hl_obs[t:t+100][:, :, obs_idx[n]]
+                new_obs[t:t+100][:,:, obs_idx2[rev_order[n]]] = hl_obs[t:t+100][:, :, obs_idx2[n]]
                 new_obs[t:t+100][:,:, targ_idx[rev_order[n]]] = hl_obs[t:t+100][:, :, targ_idx[n]]
             new_obs[t:t+100][:, :, goal_idx] = np.concatenate([old_goals[t:t+100][:, :, order[n]*ng:(order[n]+1)*ng] for n in range(no)], axis=-1)
             if hist_idx is not None:

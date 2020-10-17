@@ -71,10 +71,14 @@ TARG_ENUMS = {}
 for i in range(100):
     TARG_ENUMS[i] = 200 + i
 
-
 GOAL_ENUMS = {}
 for i in range(100):
     GOAL_ENUMS[i] = 300 + i
+
+OBJ_DELTA_ENUMS = {}
+for i in range(100):
+    OBJ_DELTA_ENUMS[i] = 400 + i
+
 
 IM_H = 64
 IM_W = 64

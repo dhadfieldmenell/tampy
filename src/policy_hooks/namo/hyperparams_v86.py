@@ -37,7 +37,7 @@ N_SAMPLES = 10
 N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
 OPT_WT_MULT = 5e2
-N_ROLLOUT_SERVERS = 28
+N_ROLLOUT_SERVERS = 32
 N_ALG_SERVERS = 0
 N_OPTIMIZERS = 0
 N_DIRS = 16
@@ -199,11 +199,11 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'solver_type': 'adam', #'rmsprop',
         'cost_wp_mult': cost_wp_mult,
 
-        'train_iterations': 10,
+        'train_iterations': 50,
         'weight_decay': 1e-3,
         'prim_weight_decay': 1e-3,
         'val_weight_decay': 1e-3,
-        'batch_size': 500,
+        'batch_size': 100,
         'n_layers': 2,
         'prim_n_layers': 1,
         'val_n_layers': 1,
@@ -293,11 +293,9 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 # utils.INIT_OBJ_POSE_ENUM: 2,
             },
         'visual': False,
-        'image_height': 64,
-        'image_width': 64,
         'time_limit': TIME_LIMIT,
         'success_to_replace': 1,
-        'steps_to_replace': no * 50,
+        'steps_to_replace': no * 10,
         'curric_thresh': -1,
         'n_thresh': -1,
         'expand_process': False,
@@ -307,12 +305,13 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'prim_first_wt': 1e1,
     }
 
-    #config['prim_obs_include'].append(utils.EE_ENUM)
-    config['val_obs_include'].append(utils.EE_ENUM)
+    config['prim_obs_include'].append(utils.EE_ENUM)
     for o in range(no):
         config['sensor_dims'][utils.OBJ_ENUMS[o]] = 2
-        #config['prim_obs_include'].append(utils.OBJ_ENUMS[o])
-        config['val_obs_include'].append(utils.OBJ_ENUMS[o])
+        config['sensor_dims'][utils.OBJ_DELTA_ENUMS[o]] = 2
+        config['sensor_dims'][utils.TARG_ENUMS[o]] = 2
+        config['prim_obs_include'].append(utils.OBJ_ENUMS[o])
+        #config['prim_obs_include'].append(utils.TARG_ENUMS[o])
     return config
 
 config = refresh_config()
