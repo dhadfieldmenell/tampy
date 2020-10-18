@@ -65,8 +65,29 @@ class optimal_pol:
 
     def act(self, X, O, t, noise):
         u = np.zeros(self.dU)
-        for param, attr in self.action_inds:
-            u[self.action_inds[param, attr]] = self.opt_traj[t, self.state_inds[param, attr]]
+        if t < len(self.opt_traj) - 1:
+            for param, attr in self.action_inds:
+                if attr == 'gripper':
+                    u[self.action_inds[param, attr]] = self.opt_traj[t+1, self.state_inds[param, attr]]
+                elif attr == 'pose':
+                    x, y = self.opt_traj[t+1, self.state_inds['pr2', 'pose']]
+                    curx, cury = X[self.state_inds['pr2', 'pose']]
+                    relpos = [x-curx, y-cury]
+                    u[self.action_inds['pr2', 'pose']] = relpos
+                elif attr == 'vel':
+                    vel = self.opt_traj[t+1, self.state_inds['pr2', 'vel']] # np.linalg.norm(self.opt_traj[t+1, inds]-X[inds])
+                    vel = np.linalg.norm(self.opt_traj[t+1, self.state_inds['pr2', 'pose']] - X[self.state_inds['pr2', 'pose']])
+                    if self.opt_traj[t+1, self.state_inds['pr2', 'vel']] < 0:
+                        vel *= -1
+                    u[self.action_inds[param, attr]] = vel
+                elif attr == 'theta':
+                    u[self.action_inds[param, attr]] = self.opt_traj[t+1, self.state_inds[param, attr]] - X[self.state_inds[param, attr]]
+                else:
+                    u[self.action_inds[param, attr]] = self.opt_traj[t+1, self.state_inds[param, attr]] - X[self.state_inds[param, attr]]
+        else:
+            u[self.action_inds['pr2', 'gripper']] = self.opt_traj[-1, self.state_inds['pr2', 'gripper']]
+        if np.any(np.isnan(u)):
+            u[np.isnan(u)] = 0.
         return u
 
 
@@ -418,7 +439,6 @@ class NAMOSortingAgent(TAMPAgent):
 
             for param in list(plan.params.values()):
                 if param._type == 'Can':
-                    if param.name.find('pr2') >= 0: print('CHECK PR2???')
                     disp = old_state[x_inds['pr2', 'pose']] - old_state[x_inds[param.name, 'pose']]# plan.params['pr2'].pose[:, t] - param.pose[:, t]
                     new_disp = plan.params['pr2'].pose[:, t] - param.pose[:, t]
                     #dist = np.linalg.norm(disp)
@@ -671,26 +691,7 @@ class NAMOSortingAgent(TAMPAgent):
             for t in range(plan.horizon):
                 traj[t][inds] = getattr(plan.params[pname], aname)[:,t]
 
-        class optimal_pol:
-            def act(self, X, O, t, noise):
-                U = np.zeros((plan.dU), dtype=np.float32)
-                if t < len(traj)-1:
-                    for param, attr in plan.action_inds:
-                        if attr == 'pose':
-                            # U[plan.action_inds[param, attr]] = getattr(plan.params[param], attr)[:, t+1] - getattr(plan.params[param], attr)[:, t]
-                            U[plan.action_inds[param, attr]] = traj[t+1][plan.state_inds[param, attr]] - traj[t][plan.state_inds[param, attr]]
-                        elif attr == 'gripper':
-                            # U[plan.action_inds[param, attr]] = getattr(plan.params[param], attr)[:, t]
-                            U[plan.action_inds[param, attr]] = traj[t+1][plan.state_inds[param, attr]]
-                        else:
-                            raise NotImplementedError
-                    # U[plan.action_inds['pr2', 'pose']] = plan.params['pr2'].pose[:, t+1] - plan.params['pr2'].pose[:, t]
-                    # U[plan.action_inds['pr2', 'gripper']] = plan.params['pr2'].gripper[:, t+1]
-                if np.any(np.isnan(U)):
-                    if success: print(('NAN in {0} plan act'.format(success)))
-                    U[:] = 0.
-                return U
-        sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False, skip_opt=True)
+        sample = self.sample_task(optimal_pol(self.dU, self.actions_inds, self.state_inds, traj), condition, state, task, noisy=False, skip_opt=True)
 
         # for t in range(sample.T):
         #     if np.all(np.abs(sample.get(ACTION_ENUM, t=t))) < 1e-3: sample.use_ts[t] = 0.
@@ -1241,15 +1242,7 @@ class NAMOSortingAgent(TAMPAgent):
 
         exclude_targets = []
         plan = self.plans[task]
-        act_traj = np.zeros((plan.horizon, self.dU))
-        pos_traj = opt_traj[:, self.state_inds['pr2', 'pose']]
-        grip_traj = opt_traj[:, self.state_inds['pr2', 'gripper']]
-        for t in range(len(opt_traj)-1):
-            act_traj[t, self.action_inds['pr2', 'pose']] = pos_traj[t+1] - pos_traj[t]
-            act_traj[t, self.action_inds['pr2', 'gripper']] = grip_traj[t+1]
-        T = len(opt_traj)-1
-        act_traj[T:, self.action_inds['pr2', 'gripper']] = grip_traj[T-1]
-        sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, act_traj), condition, state, task, noisy=False, skip_opt=True)
+        sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, opt_traj), condition, state, task, noisy=False, skip_opt=True)
         sample.set_ref_X(sample.get_X())
         sample.set_ref_U(sample.get_U())
 
@@ -1494,26 +1487,27 @@ class NAMOSortingAgent(TAMPAgent):
         ng = len(goal_idx) // no
         order = np.random.permutation(range(no))
         rev_order = [order.tolist().index(n) for n in range(no)]
-        for t in range(0, len(hl_mu), 100):
+        nperm = 500
+        for t in range(0, len(hl_mu), nperm):
             order = np.random.permutation(range(no))
             rev_order = [order.tolist().index(n) for n in range(no)]
             cur_inds = np.array([self.state_inds['can{0}'.format(n), 'pose'] for n in range(no)])
-            new_mu[t:t+100][:,:, a:b] = hl_mu[t:t+100][:,:,a:b][:,:,order]
+            new_mu[t:t+nperm][:,:, a:b] = hl_mu[t:t+nperm][:,:,a:b][:,:,order]
             if xhist_idx is not None:
-                hist = hl_obs[t:t+100][:,:,xhist_idx].reshape((-1,self.hist_len,self.dX))
+                hist = hl_obs[t:t+nperm][:,:,xhist_idx].reshape((-1,self.hist_len,self.dX))
                 new_hist = hist.copy()
                 new_hist[:, :, np.r_[cur_inds]] = new_hist[:, :, np.r_[cur_inds[order]]]
-                new_obs[t:t+100][:,:,xhist_idx] = new_hist.reshape((-1, 1, self.hist_len*self.dX))
+                new_obs[t:t+nperm][:,:,xhist_idx] = new_hist.reshape((-1, 1, self.hist_len*self.dX))
             for n in range(no):
-                if obs_idx is not None: new_obs[t:t+100][:,:, obs_idx[rev_order[n]]] = hl_obs[t:t+100][:, :, obs_idx[n]]
-                if obs_idx2 is not None: new_obs[t:t+100][:,:, obs_idx2[rev_order[n]]] = hl_obs[t:t+100][:, :, obs_idx2[n]]
-                if targ_idx is not None: new_obs[t:t+100][:,:, targ_idx[rev_order[n]]] = hl_obs[t:t+100][:, :, targ_idx[n]]
-            new_obs[t:t+100][:, :, goal_idx] = np.concatenate([old_goals[t:t+100][:, :, order[n]*ng:(order[n]+1)*ng] for n in range(no)], axis=-1)
+                if obs_idx is not None: new_obs[t:t+nperm][:,:, obs_idx[rev_order[n]]] = hl_obs[t:t+nperm][:, :, obs_idx[n]]
+                if obs_idx2 is not None: new_obs[t:t+nperm][:,:, obs_idx2[rev_order[n]]] = hl_obs[t:t+nperm][:, :, obs_idx2[n]]
+                if targ_idx is not None: new_obs[t:t+nperm][:,:, targ_idx[rev_order[n]]] = hl_obs[t:t+nperm][:, :, targ_idx[n]]
+            new_obs[t:t+nperm][:, :, goal_idx] = np.concatenate([old_goals[t:t+nperm][:, :, order[n]*ng:(order[n]+1)*ng] for n in range(no)], axis=-1)
             if hist_idx is not None:
-                hist = hl_obs[t:t+100][:,:,hist_idx].reshape((-1,self.task_hist_len,self.dPrimOut))
+                hist = hl_obs[t:t+nperm][:,:,hist_idx].reshape((-1,self.task_hist_len,self.dPrimOut))
                 new_hist = hist.copy()
                 new_hist[:,:,a:b] = hist[:,:,a:b][:, :, order]
-                new_obs[t:t+100][:, :, hist_idx] = new_hist.reshape((-1, 1, self.dPrimOut*self.task_hist_len))
+                new_obs[t:t+nperm][:, :, hist_idx] = new_hist.reshape((-1, 1, self.dPrimOut*self.task_hist_len))
 
         #print('Permuted with order', order, [hl_obs[-1,-1][obs_idx2[n]] for n in range(no)], [new_obs[-1,-1][obs_idx2[n]] for n in range(no)], hl_mu[-1,-1,a:b], new_mu[-1,-1,a:b])
         #print(hl_obs[-1,-1][xhist_idx].reshape((self.hist_len, -1)))
