@@ -99,6 +99,7 @@ class RolloutServer(object):
         #     self.agent.replace_cond(c, curric_step=(1 if hyperparams.get('curric_thresh', 0) > 0 else 0))
 
         self.solver.agent = self.agent
+        self._n_plans = 0
         n_plans = hyperparams['policy_opt']['buffer_sizes']['n_plans']
         for i in range(len(self.mcts)):
             m = self.mcts[i]
@@ -338,7 +339,8 @@ class RolloutServer(object):
                             pass
 
                     try:
-                        q.put(msg, block=True, timeout=0.1)
+                        #q.put(msg, block=True, timeout=0.1)
+                        q.put_nowait(msg)
                         placed = True
                         break
                     except queue.Full:
@@ -888,6 +890,7 @@ class RolloutServer(object):
 
         
     def plan_from_fail(self, augment=False, mode='start'):
+        print('Planning from fail...')
         if mode == 'multistep':
             return self.plan_from_policy()
         self.cur_step += 1
@@ -897,9 +900,10 @@ class RolloutServer(object):
         while val >= 1. and i < 10:
             self.agent.replace_cond(0)
             self.agent.reset(0)
-            val, path = self.test_hl(save=False)
+            val, path = self.test_hl(eta=self.explore_eta)
             i += 1
 
+        print('Found failure?', val, self.id)
         if val < 1:
             if mode == 'start':
                 s, t = 0, 0
@@ -940,7 +944,7 @@ class RolloutServer(object):
                     (s, t) = len(path)-1, path[-1].T-1
                 else:
                     (s, t) = fail_pt
-                print('FIRST FAILED TASK:', s, t)
+                print('FIRST FAILED TASK:', s, t, self.id)
             elif mode == 'switch':
                 cur_task = path[0].get(FACTOREDTASK_ENUM, t=0)
                 s, t = 0, 0
@@ -965,6 +969,7 @@ class RolloutServer(object):
             targets = path[s].targets # self.agent.target_vecs[0]
             self.agent.reset_to_state(x0)
             self.agent.store_x_hist(path[s].get(STATE_HIST_ENUM, t=t))
+            print('Planning on failure for', x0, self.id)
             val, path, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=False)
 
             print(('Plan from fail?', plan, val, len(path), s, t, self.id))
@@ -1425,6 +1430,7 @@ class RolloutServer(object):
         self.agent.debug = True
         if not self.run_hl_test and self._hyperparams['hindsight']:
             self.agent.relabel_goal(path)
+            print('Relabelled', path[-1].get_X(t=path[-1].T-1), 'to', path[-1].get(GOAL_ENUM, t=path[-1].T-1), path[-1].success)
             if path[-1].success == 1:
                 print('Adding relabelled goal')
                 self.agent.add_task_paths([path])
@@ -1524,14 +1530,18 @@ class RolloutServer(object):
     def run(self):
         step = 0
         ff_iters = self._hyperparams['warmup_iters']
+        if self._n_plans <= ff_iters:
+            n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
+            self._n_plans = n_plans.value
         while not self.stopped:
+            if not self.run_hl_test: print('Running rollout...', self.id)
             if self.cur_step == ff_iters:
                 for mcts in self.mcts:
                     mcts.ff_thresh = 1. if np.random.uniform() < self.config['ff_thresh'] else 0.
             n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
             if not self.run_hl_test and \
                self._hyperparams.get('train_on_fail', False) and \
-               n_plans.value > ff_iters and \
+               self._n_plans > ff_iters and \
                not self._hyperparams.get('ff_only', False) and \
                self.mcts[0].ff_thresh > 0:
                 self.agent.replace_cond(0)
@@ -1558,6 +1568,7 @@ class RolloutServer(object):
                 if self.use_switch: self.update_switch(data)
             self.run_hl_update()
             step += 1
+            if not self.run_hl_test: print('finished rollout run', self.id, self.stopped)
             #if time.time() - self.start_t > self._hyperparams['time_limit']:
             #    break
         self.policy_opt.sess.close()

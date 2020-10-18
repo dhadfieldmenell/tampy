@@ -421,7 +421,8 @@ class MCTS:
             max_iter = 4 * self.agent.num_objs
             plan, descr = p_mod_abs(self.agent.hl_solver, self.agent, domain, prob, initial=initial, goal=goal, label=self.agent.process_id, n_resamples=5, max_iter=max_iter)
             if self._n_plans is not None:
-                self._n_plans.value = self._n_plans.value + 1
+                with self._n_plans.get_lock():
+                    self._n_plans.value = self._n_plans.value + 1
         self.n_runs += 1
         self.agent.n_hl_plan += 1
         success = 0
