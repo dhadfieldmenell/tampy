@@ -1248,7 +1248,7 @@ class RolloutServer(object):
             ref_paths.append(path)
         self.agent.clear_task_paths()
         
-        #self.update_primitive(path_samples)
+        self.update_primitive(path_samples)
         #n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
         #n_plans.value = n_plans.value + len(ref_paths)
         #for path in ref_paths:
