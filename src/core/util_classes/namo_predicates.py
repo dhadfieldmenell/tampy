@@ -1183,7 +1183,7 @@ class Obstructs(CollisionPredicate):
 class WideObstructs(Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug=debug)
-        self.dsafe = 0.3
+        self.dsafe = 0.2
 
 def sample_pose(plan, pose, robot, rs_scale):
     targets  = plan.get_param('InContact', 2, {0: robot, 1:pose})
@@ -1448,7 +1448,7 @@ class ObstructsHolding(CollisionPredicate):
 class WideObstructsHolding(ObstructsHolding):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(WideObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.25
+        self.dsafe = 0.4
 
 
 class InGripper(ExprPredicate):
@@ -1515,6 +1515,7 @@ class RobotStationary(ExprPredicate):
     # Stationary, Can
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.hl_ignore = True
         self.c,  = params
         attr_inds = OrderedDict([(self.c, [("pose", np.array([0, 1], dtype=np.int))])])
         A = np.array([[1, 0, -1, 0],

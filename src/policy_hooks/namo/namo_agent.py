@@ -68,7 +68,8 @@ class optimal_pol:
         if t < len(self.opt_traj) - 1:
             for param, attr in self.action_inds:
                 if attr == 'gripper':
-                    u[self.action_inds[param, attr]] = self.opt_traj[t+1, self.state_inds[param, attr]]
+                    #u[self.action_inds[param, attr]] = self.opt_traj[t+1, self.state_inds[param, attr]]
+                    u[self.action_inds[param, attr]] = self.opt_traj[t, self.state_inds[param, attr]]
                 elif attr == 'pose':
                     x, y = self.opt_traj[t+1, self.state_inds['pr2', 'pose']]
                     curx, cury = X[self.state_inds['pr2', 'pose']]
@@ -292,10 +293,11 @@ class NAMOSortingAgent(TAMPAgent):
         return sample
 
 
-    def dist_obs(self, plan, t, n_dirs=-1, objects=[], ignore=[], return_rays=False, extra_rays=[]):
+    def dist_obs(self, plan, t, n_dirs=-1, objects=[], ignore=[], center='pr2', return_rays=False, extra_rays=[]):
         if n_dirs <= 0:
             n_dirs = self.n_dirs
-        pr2 = plan.params['pr2']
+        if center not in plan.params: return LIDAR_DIST * np.ones(n_dirs)
+        pr2 = plan.params[center]
         obs = 1e1*np.ones(n_dirs)
         angles = 2 * np.pi * np.array(list(range(n_dirs)), dtype='float32') / n_dirs
         rays = np.zeros((n_dirs, 6))
@@ -814,9 +816,9 @@ class NAMOSortingAgent(TAMPAgent):
             if self.task_list[task[0]].find('move') >= 0:
                 obj_vec[task[1]] = 1.
                 targ_vec[:] = 1. / len(targ_vec)
-            #elif self.task_list[task[0]].find('transfer') >= 0:
-            #    obj_vec[:] = 1. / len(obj_vec)
-            #    targ_vec[task[2]] = 1.
+            elif self.task_list[task[0]].find('transfer') >= 0:
+                obj_vec[:] = 1. / len(obj_vec)
+                targ_vec[task[2]] = 1.
             #obj_vec[task[1]] = 1.
             #targ_vec[task[2]] = 1.
             sample.obj_ind = task[1]
@@ -877,6 +879,13 @@ class NAMOSortingAgent(TAMPAgent):
                 set_params_attrs(plan.params, plan.state_inds, mp_state, t)
                 lidar = self.dist_obs(plan, t)
                 sample.set(LIDAR_ENUM, lidar.flatten(), t)
+
+            if OBJ_LIDAR_ENUM in self._hyperparams['obs_include']:
+                plan = list(self.plans.values())[0]
+                set_params_attrs(plan.params, plan.state_inds, mp_state, t)
+                lidar = self.dist_obs(plan, t, center=self._in_gripper)
+                sample.set(OBJ_LIDAR_ENUM, lidar.flatten(), t)
+
 
             if IM_ENUM in self._hyperparams['obs_include'] or \
                IM_ENUM in self._hyperparams['prim_obs_include']:

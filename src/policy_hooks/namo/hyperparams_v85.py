@@ -278,6 +278,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.OBJ_POSE_ENUM: 2,
                 utils.TARG_POSE_ENUM: 2,
                 utils.LIDAR_ENUM: N_DIRS,
+                utils.OBJ_LIDAR_ENUM: N_DIRS,
                 utils.EE_ENUM: 2,
                 utils.END_POSE_ENUM: 2,
                 utils.GRIPPER_ENUM: 1,
@@ -305,14 +306,14 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'prim_first_wt': 1e1,
     }
 
-    config['prim_obs_include'].append(utils.EE_ENUM)
+    #config['prim_obs_include'].append(utils.EE_ENUM)
     for o in range(no):
-        #config['sensor_dims'][utils.OBJ_DELTA_ENUMS[o]] = 2
+        config['sensor_dims'][utils.OBJ_DELTA_ENUMS[o]] = 2
         config['sensor_dims'][utils.OBJ_ENUMS[o]] = 2
-        #config['sensor_dims'][utils.TARG_ENUMS[o]] = 2
-        config['prim_obs_include'].append(utils.OBJ_ENUMS[o])
-        #config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
-        #config['prim_obs_include'].append(utils.TARG_ENUMS[o])
+        config['sensor_dims'][utils.TARG_ENUMS[o]] = 2
+        #config['prim_obs_include'].append(utils.OBJ_ENUMS[o])
+        config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
+        config['prim_obs_include'].append(utils.TARG_ENUMS[o])
     return config
 
 config = refresh_config()

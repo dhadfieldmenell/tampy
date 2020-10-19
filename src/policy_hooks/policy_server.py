@@ -176,11 +176,14 @@ class PolicyServer(object):
 
     def update_network(self, n_updates=5):
         for _ in range(n_updates):
+            start_t = time.time()
             aug_f = None
             niters = self.config['policy_opt']['buffer_sizes']['n_plans'].value
             if self.task == 'primitive' and self.permute and niters > self.warmup:
                 aug_f = self.agent.permute_hl_data
+                #print('Time to aug:', time.time() - start_t)
             update = self.policy_opt.run_update([self.task], aug_f=aug_f)
+            #print('Time to update:', time.time() - start_t)
         # print('Weights updated:', update, self.task)
         if update:
             self.n_updates += n_updates
@@ -192,7 +195,7 @@ class PolicyServer(object):
                 msg.data = self.policy_opt.serialize_weights([self.task])
                 self.weight_publisher.publish(msg)
             self.update_t = time.time()
-            print(('Updated weights for {0}'.format(self.task)))
+            # print(('Updated weights for {0}'.format(self.task)))
 
             incr = 10
             if len(self.policy_opt.average_losses) and len(self.policy_opt.average_val_losses):

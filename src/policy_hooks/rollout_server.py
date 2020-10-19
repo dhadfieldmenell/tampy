@@ -1424,8 +1424,8 @@ class RolloutServer(object):
             print('Saved video. Rollout success was: ', val > 0)
         self.last_hl_test = time.time()
         self.agent.debug = True
-        if not self.run_hl_test and self._hyperparams['hindsight']:
-            self.agent.relabel_goal(path)
+        if not self.run_hl_test and self.explore_wt > 0:
+            if self._hyperparams['hindsight']: self.agent.relabel_goal(path)
             if path[-1].success == 1:
                 print('Adding relabelled goal')
                 self.agent.add_task_paths([path])

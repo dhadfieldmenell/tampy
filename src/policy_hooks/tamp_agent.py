@@ -619,50 +619,11 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
         self.target_vecs[condition] = target_vec
 
-
-    '''
-    def replace_conditions(self, conditions, keep=(0., 0.)):
-        self.targets = []
-        for i in range(conditions):
-            self.targets.append(self.prob.get_end_targets(self.num_objs))
-        self.init_vecs = self.prob.get_random_initial_state_vec(self.num_objs, self.targets, self.dX, self.state_inds, conditions)
-        self.x0 = [x[:self.symbolic_bound] for x in self.init_vecs]
-        self.target_vecs = []
-        for condition in range(len(self.x0)):
-            target_vec = np.zeros((self.target_dim,))
-            for target_name in self.targets[condition]:
-                target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
-            self.target_vecs.append(target_vec)
-
-        if keep != (1., 1.):
-            self.clear_samples(*keep)
-    '''
     def replace_conditions(self, conditions=None, curric_step=-1):
         if conditions is None:
             conditions = list(range(len(self.x0)))
         for c in conditions:
             self.replace_cond(c, curric_step)
-
-    '''
-    def replace_cond(self, cond, curric_step=-1):
-        self.targets[cond] = self.prob.get_end_targets(self.num_objs)
-        self.init_vecs[cond] = self.prob.get_random_initial_state_vec(self.config, self.num_objs, self.targets, self.dX, self.state_inds, 1)[0]
-        self.x0[cond] = self.init_vecs[cond][:self.symbolic_bound]
-        self.target_vecs[cond] = np.zeros((self.target_dim,))
-        prim_choices = self.prob.get_prim_choices()
-        if OBJ_ENUM in prim_choices and curric_step > 0:
-            i = 0
-            inds = np.random.permutation(range(len(prim_choices[OBJ_ENUM])))
-            for j in inds:
-                obj = prim_choices[OBJ_ENUM][j]
-                if '{0}_end_target'.format(obj) not in self.targets[cond]: continue
-                if i >= len(prim_choices[OBJ_ENUM]) - curric_step: break
-                self.x0[cond][self.state_inds[obj, 'pose']] = self.targets[cond]['{0}_end_target'.format(obj)]
-                i += 1
-
-        for target_name in self.targets[cond]:
-            self.target_vecs[cond][self.target_inds[target_name, 'value']] = self.targets[cond][target_name]
-    '''
 
     def replace_cond(self, cond, curric_step=-1):
         self.init_vecs[cond], self.targets[cond] = self.prob.get_random_initial_state_vec(self.config, self.targets, self.dX, self.state_inds, 1)
@@ -1131,6 +1092,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 sample.discount = 1.
                 sample.opt_strength = 1.
                 sample.opt_suc = True
+                sample.task_start = True
                 x0 = sample.end_state # sample.get_X(sample.T-1)
                 sample.success = 1. - self.goal_f(0, x0, targets)
                 # zero_sample.success = sample.success
@@ -1148,7 +1110,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             path.append(zero_sample)
             # path[cur_len].set(DONE_ENUM, np.ones(1), t=0)
             path[-1].task_end = True
-            path[cur_len].task_start = True
+            #path[cur_len].task_start = True
         if len(path) and path[-1].success > 0.99:
             for sample in path: sample.opt_strength = 1.
             if save: self.add_task_paths([path])

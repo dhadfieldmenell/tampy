@@ -18,4 +18,5 @@ src/ros_utils/install/*
 src/ros_utils/build/*
 src/memory_info.txt
 *.bak
+src/exp_logs/*
 
