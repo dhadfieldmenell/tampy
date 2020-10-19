@@ -230,6 +230,7 @@ def parse_hl_plan(hl_plan):
 
 def get_plans(use_tf=False):
     tasks = get_tasks(mapping_file)
+    task_ids = sorted(list(tasks.keys()))
     prim_options = get_prim_choices()
     plans = {}
     openrave_bodies = {}
@@ -249,7 +250,7 @@ def get_plans(use_tf=False):
                     plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params)
                     plan.params['pr2'].gripper[0,0] = -GRIP_VAL
                     params = plan.params
-                    plans[(list(tasks.keys()).index(task), i, j, k)] = plan
+                    plans[(task_ids.index(task), i, j, k)] = plan
                     if env is None:
                         env = plan.env
                         for param in list(plan.params.values()):

@@ -223,6 +223,7 @@ def parse_hl_plan(hl_plan):
 
 def get_plans(use_tf=False):
     tasks = get_tasks(mapping_file)
+    task_ids = sorted(list(get_tasks(mapping_file).keys()))
     prim_options = get_prim_choices()
     plans = {}
     openrave_bodies = {}
@@ -230,7 +231,7 @@ def get_plans(use_tf=False):
     params = None
     sess = None
     st = time.time()
-    for task in tasks:
+    for task in task_ids:
         next_task_str = copy.deepcopy(tasks[task])
         for i in range(len(prim_options[utils.OBJ_ENUM])):
             for j in range(len(prim_options[utils.TARG_ENUM])):
@@ -243,7 +244,7 @@ def get_plans(use_tf=False):
                         new_task_str.append(step.format(obj, targ, grasp))
                     plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params, sess=sess, use_tf=use_tf)
                     params = plan.params
-                    plans[(list(tasks.keys()).index(task), i, j, k)] = plan
+                    plans[(task_ids.index(task), i, j, k)] = plan
                     if env is None:
                         env = plan.env
                         for param in list(plan.params.values()):

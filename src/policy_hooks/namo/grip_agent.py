@@ -124,7 +124,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         colors = [[0.9, 0, 0, 1], [0, 0.9, 0, 1], [0, 0, 0.9, 1], [0.7, 0.7, 0.1, 1], [1., 0.1, 0.8, 1], [0.5, 0.95, 0.5, 1], [0.75, 0.4, 0, 1], [0.25, 0.25, 0.5, 1], [0.5, 0, 0.25, 1], [0, 0.5, 0.75, 1], [0, 0, 0.5, 1]]
 
         items = config['include_items']
-        prim_options = self.prob.get_prim_choices()
+        prim_options = self.prob.get_prim_choices(self.task_list)
         for name in prim_options[OBJ_ENUM]:
             if name =='pr2': continue
             cur_color = colors.pop(0)
@@ -168,7 +168,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         sample.init_t = 0
         col_ts = np.zeros(self.T)
 
-        prim_choices = self.prob.get_prim_choices()
+        prim_choices = self.prob.get_prim_choices(self.task_list)
         target_vec = np.zeros((self.target_dim,))
 
         n_steps = 0
@@ -375,7 +375,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         task_ind = task[0]
         obj_ind = task[1]
         targ_ind = task[2]
-        prim_choices = self.prob.get_prim_choices()
+        prim_choices = self.prob.get_prim_choices(self.task_list)
 
         task_vec = np.zeros((len(self.task_list)), dtype=np.float32)
         task_vec[task[0]] = 1.
@@ -456,6 +456,9 @@ class NAMOGripAgent(NAMOSortingAgent):
             #sample.set(END_POSE_ENUM, targ_pose.copy(), t)
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
             sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
+            targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
+            sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose, t)
+            sample.set(TARG_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
 
         if INGRASP_ENUM in self._hyperparams['sensor_dims']:
             vec = np.zeros(len(prim_choices[OBJ_ENUM]))
@@ -518,7 +521,7 @@ class NAMOGripAgent(NAMOSortingAgent):
 
 
     def set_to_targets(self, condition=0):
-        prim_choices = self.prob.get_prim_choices()
+        prim_choices = self.prob.get_prim_choices(self.task_list)
         objs = prim_choices[OBJ_ENUM]
         for obj_name in objs:
             self.mjc_env.set_item_pos(obj_name, np.r_[self.targets[condition]['{0}_end_target'.format(obj_name)], 0], forward=False)
@@ -607,7 +610,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         iteration = 0
         iteration += 1
         plan = self.plans[task]
-        prim_choices = self.prob.get_prim_choices()
+        prim_choices = self.prob.get_prim_choices(self.task_list)
         # obj_name = prim_choices[OBJ_ENUM][task[1]]
         # targ_name = prim_choices[TARG_ENUM][task[2]]
         set_params_attrs(plan.params, plan.state_inds, x0, 0)
@@ -784,7 +787,7 @@ class NAMOGripAgent(NAMOSortingAgent):
     def set_symbols(self, plan, task, anum=0, cond=0):
         st, et = plan.actions[anum].active_timesteps
         targets = self.target_vecs[cond].copy()
-        prim_choices = self.prob.get_prim_choices()
+        prim_choices = self.prob.get_prim_choices(self.task_list)
         act = plan.actions[anum]
         params = act.params
         if self.task_list[task[0]] == 'moveto':
@@ -811,7 +814,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             return '(NearGraspAngle  pr2 can0) '
         if targets is None:
             targets = self.target_vecs[cond]
-        prim_choices = self.prob.get_prim_choices()
+        prim_choices = self.prob.get_prim_choices(self.task_list)
         goal = ''
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
             targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
