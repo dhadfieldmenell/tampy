@@ -426,6 +426,8 @@ class NAMOGripAgent(NAMOSortingAgent):
             obj_pose = rot.dot(obj_pose)
             targ_pose = rot.dot(targ_pose)
             targ_off_pose = rot.dot(targ_off_pose)
+        else:
+            rot = np.eye(2)
         # if task[0] == 1:
         #     obj_pose = np.zeros_like(obj_pose)
         sample.set(OBJ_POSE_ENUM, obj_pose.copy(), t)
@@ -457,7 +459,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
             sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
             targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
-            sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose, t)
+            sample.set(OBJ_DELTA_ENUMS[i], rot.dot(mp_state[self.state_inds[obj, 'pose']]-ee_pose), t)
             sample.set(TARG_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
 
         if INGRASP_ENUM in self._hyperparams['sensor_dims']:
@@ -726,8 +728,8 @@ class NAMOGripAgent(NAMOSortingAgent):
             grippts= []
             d = 0
             if inds is None:
-                inds = np.r_[self.state_inds['pr2', 'vel'], \
-                             self.state_inds['pr2', 'pose']]
+                #inds = np.r_[self.state_inds['pr2', 'vel'], \
+                #             self.state_inds['pr2', 'pose']]
                 inds = self.state_inds['pr2', 'pose']
             for t in range(len(step)):
                 xpts.append(d)

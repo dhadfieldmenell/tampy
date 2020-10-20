@@ -5,15 +5,14 @@ do
         python3 -W ignore policy_hooks/run_training.py \
                 -c policy_hooks.namo.hyperparams_v93 \
                 -no 1 -nt 1 \
-                -baseline hiro \
+                -baseline example \
                 --traj_limitation ${T} \
                 --index ${N} \
                 --num_timesteps 5000000 \
-                --episode_timesteps 200\
-                -descr hiro_baseline_1obj_${T}_trajectories & 
-        sleep 3h
-        pkill -f run_train -9
-        sleep 5s
+                --episode_timesteps 200 \
+		-ref_key ex_baseline \
+		-run_baseline \
+                -descr ex_baseline_1obj_${T}_trajectories
     done
 done
 
