@@ -25,7 +25,7 @@ class ParseProblemConfig(object):
         # create parameter objects
         params = {}
         if use_tf and sess is None:
-            cuda_vis = os.environ["CUDA_VISIBLE_DEVICES"]
+            cuda_vis = os.environ.get("CUDA_VISIBLE_DEVICES", "")
             os.environ["CUDA_VISIBLE_DEVICES"] = ""
             config = tf.ConfigProto(inter_op_parallelism_threads=1, \
                                     intra_op_parallelism_threads=1, \
