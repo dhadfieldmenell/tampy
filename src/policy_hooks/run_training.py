@@ -94,152 +94,24 @@ def load_config(args, config=None, reload_module=None):
     return config, config_module
 
 
-def main():
-    args = argsparser()
-    exps = None
-    if args.file == "":
-        exps = [[args.config]]
-
-    if False:#args.file == "":
-        config, config_module = load_config(args)
-    else:
-        print(('LOADING {0}'.format(args.file)))
-        if exps is None:
-            exps = []
-            with open(args.file, 'r+') as f:
-                exps = eval(f.read())
-        exps_info = exps
-        n_objs = args.nobjs if args.nobjs > 0 else None
-        n_targs = args.ntargs if args.ntargs > 0 else None
-        if USE_BASELINES and len(args.expert_path):
-            sys.path.insert(1, args.expert_path)
-            exps_info = [['hyp']]
-            with open(args.expert_path+'/args.pkl', 'rb') as f:
-                prev_args = pickle.load(f)
-            args.add_obs_delta = prev_args.add_obs_delta
-            args.hist_len = prev_args.hist_len
-            args.add_action_hist = prev_args.add_action_hist
-
-        if len(args.test):
-            sys.path.insert(1, DIR_KEY+args.test)
-            exps_info = [['hyp']]
-            old_args = args
-            with open(DIR_KEY+args.test+'/args.pkl', 'rb') as f:
-                args = pickle.load(f)
-            args.soft_eval = old_args.soft_eval
-            args.test = old_args.test
-            args.use_switch = old_args.use_switch
-            args.ll_policy = args.test
-            args.hl_policy = args.test
-            args.load_render = old_args.load_render
-            args.eta = old_args.eta
-            args.descr = old_args.descr
-            var_args = vars(args)
-            old_vars = vars(old_args)
-            for key in old_vars:
-                if key not in var_args: var_args[key] = old_vars[key]
-        if args.hl_retrain:
-            sys.path.insert(1, DIR_KEY+args.hl_data)
-            exps_info = [['hyp']]
-
-        exps = load_multi(exps_info, n_objs, n_targs, args)
-        for ind, exp in enumerate(exps):
-            mains = []
-            for ind2, (c, cm) in enumerate(exp):
-                if len(args.test):
-                    # c['weight_dir'] = args.test
-                    m = MultiProcessMain(c)
-                    m.run_test(c)
-                    continue
-
-                print('\n\n\n\n\n\nLOADING NEXT EXPERIMENT\n\n\n\n\n\n')
-                current_id = 0 if c.get('index', -1) < 0 else c['index']
-                if c.get('index', -1) < 0:
-                    while os.path.isdir(DIR_KEY+c['weight_dir']+'_'+str(current_id)):
-                        current_id += 1
-                c['group_id'] = current_id
-                c['weight_dir'] = c['weight_dir']+'_{0}'.format(current_id)
-                dir_name = ''
-                sub_dirs = [DIR_KEY] + c['weight_dir'].split('/')
-
-                try:
-                    from mpi4py import MPI
-                    rank = MPI.COMM_WORLD.Get_rank()
-                except Exception as e:
-                    print(e)
-                    rank = 0
-                if rank < 0: rank == 0
-
-                c['rank'] = rank
-                if rank == 0:
-                    for d_ind, d in enumerate(sub_dirs):
-                        dir_name += d + '/'
-                        if not os.path.isdir(dir_name):
-                            os.mkdir(dir_name)
-                    if args.hl_retrain:
-                        src = DIR_KEY + args.hl_data + '/hyp.py'
-                    elif len(args.expert_path):
-                        src = args.expert_path+'/hyp.py'
-                    else:
-                        src = exps_info[ind][ind2].replace('.', '/')+'.py'
-                    shutil.copyfile(src, DIR_KEY+c['weight_dir']+'/hyp.py')
-                    with open(DIR_KEY+c['weight_dir']+'/__init__.py', 'w+') as f:
-                        f.write('')
-                    with open(DIR_KEY+c['weight_dir']+'/args.pkl', 'wb+') as f:
-                        pickle.dump(args, f)
-                else:
-                    time.sleep(0.5) # Give others a chance to let base set up dirrs
-
-
-                if len(args.baseline):
-                    run_baseline(c, args.baseline)
-
-                m = MultiProcessMain(c)
-                m.monitor = False # If true, m will wait to finish before moving on
-                m.group_id = current_id
-                if args.hl_retrain:
-                    m.hl_retrain(c)
-                elif args.hl_only_retrain:
-                    m.hl_only_retrain(c)
-                else:
-                    m.start()
-                mains.append(m)
-                time.sleep(1)
-            active = True
-
-            start_t = time.time()
-            while active:
-                time.sleep(120.)
-                print('RUNNING...')
-                active = False
-                for m in mains:
-                    p_info = m.check_processes()
-                    print(('PINFO {0}'.format(p_info)))
-                    active = active or any([code is None for code in p_info])
-                    if active: m.expand_rollout_servers()
-
-                if not active:
-                    for m in mains:
-                        m.kill_processes()
-
-        print('\n\n\n\n\n\n\n\nEXITING')
-        sys.exit(0)
-
-    if not args.nofull:
-        main = MultiProcessMain(config)
-        main.start(kill_all=args.killall)
-
-
-def run_baseline(config, baseline):
-    dirs = None
-    if len(config['reference_keyword']):
-        k = config['reference_keyword']
-        dir_key = config['base_weight_dir'] + 'objs{0}_{1}'.format(config['num_objs'], config['num_targs'])
-        dirs = list(filter(lambda f: os.path.isdir(DIR_KEY+f), os.listdir(DIR_KEY)))
-        master_dir = list(filter(lambda f: f.find(dir_key) >= 0, dirs))[0] + '/'
-        dirs = list(filter(lambda f: os.path.isdir(DIR_KEY+master_dir+f), os.listdir(DIR_KEY+master_dir)))
-        sub_dirs = list(filter(lambda f: f.find(k) >= 0, dirs))
-        sub_dirs = list(map(lambda f: DIR_KEY+master_dir+f, sub_dirs))
+def run_baseline(args):
+    # Retrieve previous information to match how the expert was trained
+    exps_info = [[args.config]]
+    n_objs = args.nobjs if args.nobjs > 0 else None
+    n_targs = args.ntargs if args.ntargs > 0 else None
+    if USE_BASELINES and len(args.expert_path):
+        sys.path.insert(1, args.expert_path)
+        exps_info = [['hyp']]
+        with open(args.expert_path+'/args.pkl', 'rb') as f:
+            prev_args = pickle.load(f)
+        args.add_obs_delta = prev_args.add_obs_delta
+        args.hist_len = prev_args.hist_len
+        args.add_action_hist = prev_args.add_action_hist
+    exps = load_multi(exps_info, n_objs, n_targs, args)
+    config = exps[0][0][0]
+    config['source'] = args.config
+    current_id = setup_dirs(config, args)
+    baseline = args.baseline
 
     if baseline.lower() == 'gail':
         from policy_hooks.baselines.gail import run, eval_ckpts
@@ -256,10 +128,141 @@ def run_baseline(config, baseline):
         config['id'] = 0
         run(config=config)
 
+    elif baseline.lower() == 'example':
+        from policy_hooks.baselines.example import run
+        config['id'] = 0
+        run(config=config)
     else:
         raise NotImplementedError
 
     sys.exit(0)
+
+
+def setup_dirs(c, args):
+    current_id = 0 if c.get('index', -1) < 0 else c['index']
+    if c.get('index', -1) < 0:
+        while os.path.isdir(DIR_KEY+c['weight_dir']+'_'+str(current_id)):
+            current_id += 1
+    c['group_id'] = current_id
+    c['weight_dir'] = c['weight_dir']+'_{0}'.format(current_id)
+    dir_name = ''
+    sub_dirs = [DIR_KEY] + c['weight_dir'].split('/')
+
+    try:
+        from mpi4py import MPI
+        rank = MPI.COMM_WORLD.Get_rank()
+    except Exception as e:
+        rank = 0
+    if rank < 0: rank = 0
+
+    c['rank'] = rank
+    if rank == 0:
+        for d_ind, d in enumerate(sub_dirs):
+            dir_name += d + '/'
+            if not os.path.isdir(dir_name):
+                os.mkdir(dir_name)
+        if args.hl_retrain:
+            src = DIR_KEY + args.hl_data + '/hyp.py'
+        elif len(args.expert_path):
+            src = args.expert_path+'/hyp.py'
+        else:
+            src = c['source'].replace('.', '/')+'.py'
+        shutil.copyfile(src, DIR_KEY+c['weight_dir']+'/hyp.py')
+        with open(DIR_KEY+c['weight_dir']+'/__init__.py', 'w+') as f:
+            f.write('')
+        with open(DIR_KEY+c['weight_dir']+'/args.pkl', 'wb+') as f:
+            pickle.dump(args, f)
+    else:
+        time.sleep(0.5) # Give others a chance to let base set up dirrs
+    return current_id
+
+
+def main():
+    args = argsparser()
+    if args.run_baseline: run_baseline(args)
+
+    exps = None
+    if args.file == "":
+        exps = [[args.config]]
+
+    print(('LOADING {0}'.format(args.file)))
+    if exps is None:
+        exps = []
+        with open(args.file, 'r+') as f:
+            exps = eval(f.read())
+    exps_info = exps
+    n_objs = args.nobjs if args.nobjs > 0 else None
+    n_targs = args.ntargs if args.ntargs > 0 else None
+    if len(args.test):
+        sys.path.insert(1, DIR_KEY+args.test)
+        exps_info = [['hyp']]
+        old_args = args
+        with open(DIR_KEY+args.test+'/args.pkl', 'rb') as f:
+            args = pickle.load(f)
+        args.soft_eval = old_args.soft_eval
+        args.test = old_args.test
+        args.use_switch = old_args.use_switch
+        args.ll_policy = args.test
+        args.hl_policy = args.test
+        args.load_render = old_args.load_render
+        args.eta = old_args.eta
+        args.descr = old_args.descr
+        var_args = vars(args)
+        old_vars = vars(old_args)
+        for key in old_vars:
+            if key not in var_args: var_args[key] = old_vars[key]
+    if args.hl_retrain:
+        sys.path.insert(1, DIR_KEY+args.hl_data)
+        exps_info = [['hyp']]
+
+    exps = load_multi(exps_info, n_objs, n_targs, args)
+    for ind, exp in enumerate(exps):
+        mains = []
+        for ind2, (c, cm) in enumerate(exp):
+            if len(args.test):
+                # c['weight_dir'] = args.test
+                m = MultiProcessMain(c)
+                m.run_test(c)
+                continue
+
+            print('\n\n\n\n\n\nLOADING NEXT EXPERIMENT\n\n\n\n\n\n')
+            c['source'] = exps_info[ind][ind2]
+            current_id = setup_dirs(c, args)
+
+            m = MultiProcessMain(c)
+            m.monitor = False # If true, m will wait to finish before moving on
+            m.group_id = current_id
+            if args.hl_retrain:
+                m.hl_retrain(c)
+            elif args.hl_only_retrain:
+                m.hl_only_retrain(c)
+            else:
+                m.start()
+            mains.append(m)
+            time.sleep(1)
+        active = True
+
+        start_t = time.time()
+        while active:
+            time.sleep(120.)
+            print('RUNNING...')
+            active = False
+            for m in mains:
+                p_info = m.check_processes()
+                print(('PINFO {0}'.format(p_info)))
+                active = active or any([code is None for code in p_info])
+                if active: m.expand_rollout_servers()
+
+            if not active:
+                for m in mains:
+                    m.kill_processes()
+
+        print('\n\n\n\n\n\n\n\nEXITING')
+        sys.exit(0)
+
+    if not args.nofull:
+        main = MultiProcessMain(config)
+        main.start(kill_all=args.killall)
 
 
 def argsparser():
@@ -382,6 +385,7 @@ def argsparser():
     ## Baselines - these are passed through to other codebases
     if USE_BASELINES:
         parser.add_argument('-baseline', '--baseline', type=str, default='')
+        parser.add_argument('-run_baseline', '--run_baseline', action='store_true', default=False)
         parser.add_argument('-ref_key', '--reference_keyword', type=str, default='')
         parser.add_argument('-reward_type', '--reward_type', type=str, default='binary')
         baseline_argsparser(parser)

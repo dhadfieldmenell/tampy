@@ -20,9 +20,9 @@ def add_env(envtype, inds, acspace):
 
 def run(config, mode='train'):
     args = config['args']
-    envname = 'baselineEnv'
+    envname = 'baselineEnv-v0'
     agent = build_agent(load_agent(config))
-    inds = np.concatenate([agent._prim_obs_idx[obj] for obj in config['prim_obs_include']])
+    inds = np.concatenate(agent._prim_obs_idx) 
 
     register_env(config, name=envname, max_ts=args.episode_timesteps)
 

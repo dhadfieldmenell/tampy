@@ -47,23 +47,21 @@ descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.for
 #            (-2., -2.)]
 
 END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
-END_TARGETS.extend([(1.8, 2),
-                   (-1.8, 2),
-                   (0.6, 2),
-                   (-0.6, 2),
-                   (-3.0, 2),
-                   (3.0, 2),
-                   (4.2, 2),
-                   (-4.2, 2),
-                   (5.4, 2),
-                   (-5.4, 2),
+END_TARGETS.extend([(0.8, 2),
+                   (-0.8, 2),
+                   (2.2, 2),
+                   (-2.2, 2),
+                   (-3.6, 2),
+                   (3.6, 2),
+                   (5.0, 2),
+                   (-5.0, 2),
                    ])
 
 n_aux = 4
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25
 #possible_can_locs.extend(list(itertools.product(list(range(-45, 45, 4)), list(range(-40, -10, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-55, 55, 4)), list(range(-50, -10, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-60, 60, 4)), list(range(-60, -10, 2)))))
 
 
 for i in range(len(possible_can_locs)):
@@ -79,9 +77,12 @@ def prob_file(descr=None):
     return "../domains/namo_domain/namo_probs/{0}.prob".format(descr)
 
 
-def get_prim_choices():
+def get_prim_choices(task_list=None):
     out = OrderedDict({})
-    out[utils.TASK_ENUM] = list(get_tasks(mapping_file).keys())
+    if task_list is None:
+        out[utils.TASK_ENUM] = sorted(list(get_tasks(mapping_file).keys()))
+    else:
+        out[utils.TASK_ENUM] = sorted(list(task_list))
     out[utils.OBJ_ENUM] = ['can{0}'.format(i) for i in range(NUM_OBJS)]
     out[utils.TARG_ENUM] = []
     for i in range(n_aux):
@@ -136,8 +137,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         while len(locs) < config['num_objs'] + 1:
             locs = []
             random.shuffle(can_locs)
-            pr2_loc = [0,-5.5] # can_locs[0]
-            pr2_loc = [0,-6.5] # can_locs[0]
+            pr2_loc = can_locs[0]
             locs.append(pr2_loc)
             valid = [1 for _ in range(len(can_locs))]
             valid[0] = 0
@@ -223,6 +223,7 @@ def parse_hl_plan(hl_plan):
 
 def get_plans(use_tf=False):
     tasks = get_tasks(mapping_file)
+    task_ids = sorted(list(get_tasks(mapping_file).keys()))
     prim_options = get_prim_choices()
     plans = {}
     openrave_bodies = {}
@@ -230,7 +231,7 @@ def get_plans(use_tf=False):
     params = None
     sess = None
     st = time.time()
-    for task in tasks:
+    for task in task_ids:
         next_task_str = copy.deepcopy(tasks[task])
         for i in range(len(prim_options[utils.OBJ_ENUM])):
             for j in range(len(prim_options[utils.TARG_ENUM])):
@@ -243,7 +244,7 @@ def get_plans(use_tf=False):
                         new_task_str.append(step.format(obj, targ, grasp))
                     plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params, sess=sess, use_tf=use_tf)
                     params = plan.params
-                    plans[(list(tasks.keys()).index(task), i, j, k)] = plan
+                    plans[(task_ids.index(task), i, j, k)] = plan
                     if env is None:
                         env = plan.env
                         for param in list(plan.params.values()):

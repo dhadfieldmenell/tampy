@@ -148,7 +148,7 @@ class AgentEnvWrapper(Env):
 
     def check_goal(self, x):
         if self.agent is not None:
-            return 1. - self.agent.goal_f(0, x)
+            return 1. - self.agent.goal_f(0, x, cont=True)
         raise NotImplementedError
 
 
