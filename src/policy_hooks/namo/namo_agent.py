@@ -502,9 +502,8 @@ class NAMOSortingAgent(TAMPAgent):
                             if self._in_gripper is not None:
                                 plan.params[self._in_gripper].pose[:, t] = plan.params['pr2'].pose[:, t] - (old_state[x_inds['pr2', 'pose']] - old_state[x_inds[self._in_gripper, 'pose']])
 
-                        '''
                         # if self.in_gripper is not None and self.in_gripper is not param and np.linalg.norm(self.in_gripper.pose[:,t] - param.pose[:,t]) < radius2 + radius2 - dtol:
-                        if self.in_gripper is not None and self.in_gripper is not param and np.linalg.norm(self.in_gripper.pose[:,t] - param.pose[:,t]) < radius2 + radius2 + 5e-3:
+                        if self.in_gripper is not None and self._in_gripper is not param.name and np.linalg.norm(plan.params[self._in_gripper].pose[:,t] - param.pose[:,t]) < radius2 + radius2 + 5e-3:
                             col = 1.
                             dx, dy = -1e1 * pr2_disp
                             zx, zy = param.pose[:,t]
@@ -533,11 +532,11 @@ class NAMOSortingAgent(TAMPAgent):
 
                             # param.pose[:, t] = [zx + x, zy + y]
                             self.in_gripper.pose[:, t] = [zx + x, zy + y]
+                            plan.params[self._in_gripper].pose[:, t] = [zx + x, zy + y]
                             plan.params['pr2'].pose[:,t] = self.in_gripper.pose[:,t] - (old_state[x_inds[self.in_gripper.name, 'pose']] - old_state[x_inds['pr2', 'pose']])
                         else:
                             pass
                             # param.pose[:, t] = param.pose[:, t]
-                        '''
                     # dist = plan.params['pr2'].pose[:, t] - param.pose[:, t]
                     # radius1 = param.geom.radius
                     # radius2 = plan.params['pr2'].geom.radius
@@ -965,6 +964,7 @@ class NAMOSortingAgent(TAMPAgent):
     def goal_f(self, condition, state, targets=None, cont=False, anywhere=False, tol=NEAR_TOL):
         if targets is None:
             targets = self.target_vecs[condition]
+        tol = 1.
         cost = self.prob.NUM_OBJS
         alldisp = 0
         plan = list(self.plans.values())[0]
