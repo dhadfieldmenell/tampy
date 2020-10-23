@@ -60,7 +60,8 @@ class MoveTo(Action):
                 ('(At ?can ?target)', '0:0'),
                 ('(forall (?gr - Grasp) (not (RobotAtGrasp ?robot ?can ?gr)))', '0:0'),
                 ('(forall (?w - Obstacle) (not (CanGraspCollides ?can ?w ?g)))', '0:0'),
-                ('(not (GripperClosed ?robot))', '1:{0}'.format(et-1)),
+                ('(not (GripperClosed ?robot))', '1:{0}'.format(et-2)),
+                ('(GripperClosed ?robot)', '{0}:{0}'.format(et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '0:{0}'.format(et-1)),
                 ('(forall (?w - Obstacle) (StationaryW ?w))', '0:{0}'.format(et-1)),
                 ('(IsMP ?robot)', '0:{0}'.format(et-1)),
@@ -77,8 +78,8 @@ class MoveTo(Action):
                 ('(forall (?obj - Can / ?can) (forall (?gr - Grasp) (not (RobotAtGrasp ?robot ?obj ?gr))))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can) (forall (?gr - Grasp / ?g) (not (RobotAtGrasp ?robot ?obj ?gr))))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
-                #('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
-                ('(RobotStationary ?robot)', '{0}:{1}'.format(et, et-1)),
+                ('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
+                #('(RobotStationary ?robot)', '{0}:{1}'.format(et, et-1)),
         ]
 
 class Transfer(Action):
@@ -99,16 +100,16 @@ class Transfer(Action):
                 ('(InGripper ?robot ?c ?g)', '{0}:{0}'.format(1, et-1)),
                 ('(RobotAtGrasp ?robot ?c ?g)', '{0}:{0}'.format(0)),
                 ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?init ?t ?obj ?c)))', '0:{0}'.format(0)),
-                ('(forall (?obj - Can) (not (WideObstructsHolding ?robot ?init ?t ?obj ?c)))', '1:{0}'.format(et-1)),
+                ('(forall (?obj - Can) (not (WideObstructsHolding ?robot ?init ?t ?obj ?c)))', '1:{0}'.format(et-2)),
                 ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?init ?t ?obj ?c)))', '1:{0}'.format(et-2)),
                 ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?init ?t ?obj ?c)))', '{0}:{0}'.format(et-1)),
-                ('(forall (?obj - Can ) (not (Obstructs ?robot ?c ?c ?obj)))', '{0}:{0}'.format(et-1)),
+                ('(forall (?obj - Can) (not (Obstructs ?robot ?c ?c ?obj)))', '{0}:{0}'.format(et-1)),
                 ('(forall (?obj - Can) (StationaryNEq ?obj ?c))', '0:{0}'.format(et-1)), 
                 ('(forall (?w - Obstacle) (StationaryW ?w))', '0:{0}'.format(et-1)), 
                 ('(IsMP ?robot)', '0:{0}'.format(et-1)),
                 ('(forall (?w - Obstacle) (forall (?obj - Can) (not (Collides ?obj ?w))))', '0:{0}'.format(et-1)),
                 ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '0:{0}'.format(et-1)),
-                ('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
+                #('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
                 ]
         self.eff = [\
                 ('(At ?c ?t)', '{0}:{1}'.format(et-1, et)),

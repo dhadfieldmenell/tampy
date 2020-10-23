@@ -106,7 +106,7 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False,
     return all_data
 
 
-def get_policy_data(policy, keywords=[], exclude=[]):
+def get_policy_data(policy, keywords=[], exclude=[], include=[]):
     exp_probs = os.listdir(LOG_DIR)
     data = {}
     for k in keywords:
@@ -123,7 +123,23 @@ def get_policy_data(policy, keywords=[], exclude=[]):
                 for ekey in exclude:
                     if full_dir.find(ekey) >= 0:
                         skip = True
+        
+                if len(include):
+                    skip = True
+                    for inc in include:
+                        if dir_name.find(inc) >= 0 or dir_prefix.find(inc) >= 0:
+                            skip = False
+                    if skip: continue
+
+
+                if len(exclude):
+                    skip = False
+                    for exc in exclude:
+                        if dir_name.find(exc) >= 0 or dir_prefix.find(exc) >= 0:
+                            skip = True
+                            print(('skipping', dir_name))
                 if skip: continue
+
                 if not os.path.isdir(full_dir) or full_dir.find(k) < 0: continue
                 full_exp = full_dir[:-1]
                 if full_exp not in data[k]:
@@ -139,6 +155,7 @@ def get_policy_data(policy, keywords=[], exclude=[]):
                     next_data = f.read()
                 if len(next_data):
                     r_data = eval(next_data)
+                    print('Loading {0} pts for {1}'.format(len(r_data), full_dir+'/'+r))
                     for pt in r_data:
                         pt['exp id'] = 0
                         if type(pt['train_loss']) is dict:
@@ -709,7 +726,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
     elif lab == 'test':
         rd = get_test_data(keywords, include=include, exclude=exclude, split_runs=split_runs, pre=pre, label_vars=label_vars)
     else:
-        rd = get_policy_data(lab, keywords, exclude=exclude)
+        rd = get_policy_data(lab, keywords, exclude=exclude,include=include)
     data = {}
     print('Collected data...')
     xvars = [xvar] if type(xvar) is not list else xvar
@@ -777,6 +794,22 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
     # yvar_labs = np.concatenate([[v+'{0}'.format('_'+str(i) if inds_to_var.get(v, 0) > 1 else '') for i in range(inds_to_var.get(v, 1))] for v in yvars])
     plot(data, ['description', 'key', 'exp id']+xvars+flat_yvar_labs, '{0}_vs_{1}'.format(xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind, inter=inter, rolling=rolling, window=window, ylim=ylim)
 
+
+include=['hightol', 'init_near', 'nocol', 'newdom_obsdeltas_train_from_random']
+for key in include:
+    gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='compsplit{0}newtimeagainrolling'.format(key), exclude=[], split_runs=True, include=[key], inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
+gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='compnewtimeagainrolling', exclude=[], split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
+gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='compnewplansagainrolling', exclude=[], split_runs=False, include=include, inter=5, window=500, ylim=[(0.,1.), (0.,1.), (0, 1.)])
+
+
+gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=['objs4'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='trainlosses1', exclude=[], split_runs=False, include=['hindsight_obsdeltas_train_from_random'], inter=1, window=120)
+gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='againnewtimeagainrolling', exclude=['smooth'], split_runs=False, include=['hindsight_obsdeltas_train_from_random'], inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 6)])
+include=['newdom']
+gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='newtimeagainrolling', exclude=['smooth'], split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 6)])
+gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='newplansagainrolling', exclude=['smooth'], split_runs=False, include=include, inter=5, window=200, ylim=[(0.,1.), (0.,1.), (0, 6)])
+
 include = ['polresample', 'obsdeltas', 'base', 'hindsight'] #['no_resample', 'base', 'resample_N10_s5']
+gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=['objs4'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='trainlosses1', exclude=[], split_runs=False, include=include, inter=1, window=120)
+gen_data_plots(xvar='n_data', yvar=[['train_component_loss', 'val_component_loss']], keywords=['objs4'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='trainlosses1', exclude=[], split_runs=False, include=include, inter=1, window=120)
 gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='timeagainrolling', exclude=[], split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 6)])
 gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='plansagainrolling', exclude=[], split_runs=False, include=include, inter=5, window=200, ylim=[(0.,1.), (0.,1.), (0, 6)])
