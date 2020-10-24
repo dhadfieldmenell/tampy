@@ -53,7 +53,7 @@ class Action(object):
 class MoveTo(Action):
     def __init__(self):
         self.name = 'moveto'
-        self.timesteps = 20
+        self.timesteps = 25
         et = self.timesteps - 1
         self.args = '(?robot - Robot ?can - Can ?target - Target ?sp - RobotPose ?gp - RobotPose ?g - Grasp ?end - Target)' 
         self.pre = [\
@@ -84,7 +84,7 @@ class MoveTo(Action):
 class Transfer(Action):
     def __init__(self):
         self.name = 'transfer'
-        self.timesteps = 20
+        self.timesteps = 25
         et = self.timesteps - 1
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can ?t - Target ?g - Grasp ?init - Target)'
         self.pre = [\

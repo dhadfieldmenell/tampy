@@ -171,7 +171,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.FIX_TARGETS = True
 
     prob.domain_file = "../domains/namo_domain/namo_current.domain"
-    prob.mapping_file = "policy_hooks/namo/sorting_task_mapping_8"
+    prob.mapping_file = "policy_hooks/namo/sorting_task_mapping_9"
     prob.END_TARGETS = prob.END_TARGETS[:8]
     prob.n_aux = 0
     config = {
