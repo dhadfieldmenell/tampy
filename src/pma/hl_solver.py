@@ -100,7 +100,7 @@ class FFSolver(HLSolver):
                 if count == 0:
                     inds.append(i+1)
         for i in range(len(inds)):
-            if ts[i][0] == 0 and ts[i][1] == 0:
+            if ts[i][0] == 0 and ts[i][1] <= 0:
                 pred = pre[inds[i]:inds[i+1]] if i+1 < len(inds) else pre[inds[i]:]
                 if pred not in so_far:
                     preds += pred

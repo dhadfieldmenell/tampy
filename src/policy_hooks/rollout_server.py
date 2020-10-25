@@ -925,7 +925,7 @@ class RolloutServer(object):
                         opts.append((s,t))
                 if len(opts):
                     ind = np.random.randint(len(opts))
-                    s, t = opts[ind]
+                    s, t = opts[0]#opts[ind]
                 else:
                     s = np.random.randint(len(path))
                     t = np.random.randint(path[s].T)
@@ -1146,6 +1146,7 @@ class RolloutServer(object):
             #n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
             #n_plans.value = n_plans.value + len(ref_paths)
             for path in ref_paths:
+                #self.save_video(path, lab='mp', annotate=False)
                 self.update_primitive(path)
             if self._hyperparams.get('save_expert', False): self.update_expert_demos(ref_paths)
             if self.config.get('use_qfunc', False):
@@ -1264,21 +1265,26 @@ class RolloutServer(object):
         im.save(fname)
 
 
-    def save_video(self, rollout, success=None, ts=None):
+    def save_video(self, rollout, success=None, ts=None, lab='', annotate=True):
         if not self.render: return
         suc_flag = ''
         if success is not None:
             suc_flag = 'succeeded' if success else 'failed'
-        fname = self.video_dir + '/{0}_{1}_{2}_{3}.npy'.format(self.id, self.group_id, self.cur_vid_id, suc_flag)
+        fname = self.video_dir + '/{0}_{1}_{2}_{3}{4}.npy'.format(self.id, self.group_id, self.cur_vid_id, suc_flag, lab)
         self.cur_vid_id += 1
         buf = []
         for step in rollout:
+            if not step.draw: continue
             if ts is None: 
                 ts_range = range(step.T)
             else:
                 ts_range = range(ts[0], ts[1])
             for t in ts_range:
-                im = self.agent.get_annotated_image(step, t)
+                if annotate:
+                    im = self.agent.get_annotated_image(step, t)
+                else:
+                    self.agent.target_vecs[0] = step.targets
+                    im = self.agent.get_image(step.get_X(t=t))
                 buf.append(im)
         np.save(fname, np.array(buf))
 
@@ -1410,17 +1416,22 @@ class RolloutServer(object):
             with open(self.fail_data_file, 'a+') as f:
                 f.write(str(fail_pt))
                 f.write('\n')
+
+        opt_path = None
         if save_fail and val < 1:
-            opt_path = self.agent.run_pr_graph(x0, targets)
-            if len(opt_path):
-                info = self.get_path_compare(path, opt_path, true_val)
-                pp_info = pprint.pformat(info, depth=360, width=360)
-                with open(self.fail_log, 'a+') as f:
-                    f.write(pp_info)
-                    f.write('\n')
+            opt_val, opt_path, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=True, save=False)
+            self.agent.target_vecs[0] = targets
+            #opt_path = self.agent.run_pr_graph(x0, targets)
+            #if len(opt_path):
+            #    info = self.get_path_compare(path, opt_path, true_val)
+            #    pp_info = pprint.pformat(info, depth=360, width=360)
+            #    with open(self.fail_log, 'a+') as f:
+            #        f.write(pp_info)
+            #        f.write('\n')
         if self.render and save_video:
             print('Saving video...', val)
             self.save_video(path, val > 0)
+            if opt_path is not None: self.save_video(opt_path, val > 0, lab='_mp')
             print('Saved video. Rollout success was: ', val > 0)
         self.last_hl_test = time.time()
         self.agent.debug = True

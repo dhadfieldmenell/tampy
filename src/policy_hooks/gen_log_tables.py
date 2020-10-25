@@ -794,7 +794,9 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
     # yvar_labs = np.concatenate([[v+'{0}'.format('_'+str(i) if inds_to_var.get(v, 0) > 1 else '') for i in range(inds_to_var.get(v, 1))] for v in yvars])
     plot(data, ['description', 'key', 'exp id']+xvars+flat_yvar_labs, '{0}_vs_{1}'.format(xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind, inter=inter, rolling=rolling, window=window, ylim=ylim)
 
-
+include=['spreadtargets']
+gen_data_plots(xvar='time', yvar=['collision'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='collisionspreadtargs', exclude=[], split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
+gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='spreadtargs', exclude=[], split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
 include=['hightol', 'init_near', 'nocol', 'newdom_obsdeltas_train_from_random']
 for key in include:
     gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='compsplit{0}newtimeagainrolling'.format(key), exclude=[], split_runs=True, include=[key], inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
@@ -802,14 +804,4 @@ gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anyw
 gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='compnewplansagainrolling', exclude=[], split_runs=False, include=include, inter=5, window=500, ylim=[(0.,1.), (0.,1.), (0, 1.)])
 
 
-gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=['objs4'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='trainlosses1', exclude=[], split_runs=False, include=['hindsight_obsdeltas_train_from_random'], inter=1, window=120)
-gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='againnewtimeagainrolling', exclude=['smooth'], split_runs=False, include=['hindsight_obsdeltas_train_from_random'], inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 6)])
-include=['newdom']
-gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='newtimeagainrolling', exclude=['smooth'], split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 6)])
-gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='newplansagainrolling', exclude=['smooth'], split_runs=False, include=include, inter=5, window=200, ylim=[(0.,1.), (0.,1.), (0, 6)])
 
-include = ['polresample', 'obsdeltas', 'base', 'hindsight'] #['no_resample', 'base', 'resample_N10_s5']
-gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=['objs4'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='trainlosses1', exclude=[], split_runs=False, include=include, inter=1, window=120)
-gen_data_plots(xvar='n_data', yvar=[['train_component_loss', 'val_component_loss']], keywords=['objs4'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='trainlosses1', exclude=[], split_runs=False, include=include, inter=1, window=120)
-gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='timeagainrolling', exclude=[], split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 6)])
-gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='plansagainrolling', exclude=[], split_runs=False, include=include, inter=5, window=200, ylim=[(0.,1.), (0.,1.), (0, 6)])

@@ -17,6 +17,7 @@ class Sample(object):
         self.task_end = False
         self._data = {}
         self.reinit()
+        self.draw = True
 
     def reinit(self):
         self.dX = self.agent.dX

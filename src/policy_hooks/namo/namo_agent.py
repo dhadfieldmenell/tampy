@@ -815,9 +815,9 @@ class NAMOSortingAgent(TAMPAgent):
             if self.task_list[task[0]].find('move') >= 0:
                 obj_vec[task[1]] = 1.
                 targ_vec[:] = 1. / len(targ_vec)
-            elif self.task_list[task[0]].find('transfer') >= 0:
-                obj_vec[:] = 1. / len(obj_vec)
-                targ_vec[task[2]] = 1.
+            #elif self.task_list[task[0]].find('transfer') >= 0:
+            #    obj_vec[:] = 1. / len(obj_vec)
+            #    targ_vec[task[2]] = 1.
             #obj_vec[task[1]] = 1.
             #targ_vec[task[2]] = 1.
             sample.obj_ind = task[1]
@@ -888,7 +888,7 @@ class NAMOSortingAgent(TAMPAgent):
 
             if IM_ENUM in self._hyperparams['obs_include'] or \
                IM_ENUM in self._hyperparams['prim_obs_include']:
-                self.reset_mjc_env(sample.get_X(t=t))
+                self.reset_mjc_env(sample.get_X(t=t), targets)
                 im = self.mjc_env.render(height=self.image_height, width=self.image_width)
                 sample.set(IM_ENUM, im.flatten(), t)
 
@@ -1188,14 +1188,16 @@ class NAMOSortingAgent(TAMPAgent):
         self.reset_mjc_env(mp_state)
 
 
-    def reset_mjc_env(self, x):
+    def reset_mjc_env(self, x, targets=None):
+        if targets is None:
+            targets = self.target_vecs[0]
         mp_state = x[self._x_data_idx[STATE_ENUM]]
         for param_name, attr in self.state_inds:
             if attr == 'pose':
                 pos = mp_state[self.state_inds[param_name, 'pose']].copy()
                 self.mjc_env.set_item_pos(param_name, np.r_[pos, 0.5], mujoco_frame=False, forward=False)
                 if param_name != 'pr2':
-                    targ = self.target_vecs[0][self.target_inds['{0}_end_target'.format(param_name), 'value']]
+                    targ = targets[self.target_inds['{0}_end_target'.format(param_name), 'value']]
                     self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, 2.5], forward=False)
         self.mjc_env.physics.forward()
 

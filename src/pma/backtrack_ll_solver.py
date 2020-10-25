@@ -15,11 +15,11 @@ from core.util_classes.viewer import OpenRAVEViewer
 
 MAX_PRIORITY=3
 BASE_MOVE_COEFF = 1.
-TRAJOPT_COEFF=1e-2
+TRAJOPT_COEFF=1e1
 TRANSFER_COEFF = 1e-1
 FIXED_COEFF = 1e0
 INIT_TRAJ_COEFF = 1e-1
-RS_COEFF = 1e0 # 1e2
+RS_COEFF = 1e-1 # 1e2
 COL_COEFF = 0
 SAMPLE_SIZE = 5
 BASE_SAMPLE_SIZE = 5
@@ -289,7 +289,7 @@ class BacktrackLLSolver(LLSolver):
             rs_obj = self._resample(plan, failed_preds, sample_all = True)
             # import ipdb; ipdb.set_trace()
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
-            # obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
+            obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
             obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
 
             self._add_all_timesteps_of_actions(plan, priority=priority,

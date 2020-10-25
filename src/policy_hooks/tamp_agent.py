@@ -1105,6 +1105,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             zero_sample.use_ts[:nzero] = 1.
             zero_sample.prim_use_ts[:] = 0.
             zero_sample.step = path[-1].step + 1
+            zero_sample.draw = False
             zero_sample.success = path[-1].success
             zero_sample.set(TASK_DONE_ENUM, np.tile([0,1], (zero_sample.T, 1)))
             path.append(zero_sample)

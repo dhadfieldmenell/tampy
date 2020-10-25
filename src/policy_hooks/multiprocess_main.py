@@ -575,7 +575,7 @@ class MultiProcessMain(object):
             print('RUN:', test_run)
             server.agent.replace_cond(0)
             server.agent.reset(0)
-            server.test_hl(save=False, save_video=test_run<n_vids)
+            server.test_hl(save=True, save_video=test_run<n_vids, save_fail=True)
         server.check_hl_statistics()
         '''
         while server.policy_opt.restore_ckpts(ind):

@@ -23,13 +23,13 @@ This file implements the predicates for the 2D NAMO domain.
 
 dsafe = 1e-3 # 1e-1
 # dmove = 1.1e0 # 5e-1
-dmove = 1.5e0 # 5e-1
+dmove = 1.2e0 # 5e-1
 contact_dist = 5e-2 # dsafe
 
 RS_SCALE = 0.5
 N_DIGS = 5
 GRIP_TOL = 5e-1
-COL_TS = 4 # 3
+COL_TS = 7 # 3
 NEAR_TOL = 0.3 # 0.4
 GRIP_VAL = 1.
 
@@ -656,6 +656,9 @@ class Collides(CollisionPredicate):
         self._param_to_body = {self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom),
                                self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
 
+        neg_coeff = 1e4
+        neg_grad_coeff = 1e-3
+
         def f(x):
             if self.c is self.w: return np.zeros((COL_TS*8,1))
             return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
@@ -665,10 +668,10 @@ class Collides(CollisionPredicate):
             return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
 
         def f_neg(x):
-            return -f(x)
+            return -neg_coeff*f(x)
 
         def grad_neg(x):
-            return -grad(x)
+            return -neg_grad_coeff*grad(x)
 
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
@@ -1183,7 +1186,7 @@ class Obstructs(CollisionPredicate):
 class WideObstructs(Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug=debug)
-        self.dsafe = 0.2
+        self.dsafe = 0.9
 
 def sample_pose(plan, pose, robot, rs_scale):
     targets  = plan.get_param('InContact', 2, {0: robot, 1:pose})
@@ -1275,7 +1278,7 @@ class ObstructsHolding(CollisionPredicate):
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
         neg_coeff = 1e3
-        neg_grad_coeff = 1e-3
+        neg_grad_coeff = 1e-1
         ## so we have an expr for the negated predicate
         #f_neg = lambda x: neg_coeff*self.distance_from_obj(x)[0]
         #grad_neg = lambda x: neg_grad_coeff*self.distance_from_obj(x)[1]
@@ -1441,6 +1444,10 @@ class ObstructsHolding(CollisionPredicate):
             else:
                 val = np.array(col_val2)
                 jac = np.c_[np.zeros((1, 2)), jac21[:, 2:], jac21[:, :2]].reshape((1, 6))
+            val = np.r_[col_val1, col_val2]
+            jac1 = np.c_[jac01, np.zeros((1, 2))].reshape((1, 6))
+            jac2 = np.c_[np.zeros((1, 2)), jac21[:, 2:], jac21[:, :2]].reshape((1, 6))
+            jac = np.r_[jac1, jac2]
 
         return val, jac
 
@@ -1448,7 +1455,7 @@ class ObstructsHolding(CollisionPredicate):
 class WideObstructsHolding(ObstructsHolding):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(WideObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.4
+        self.dsafe = 1.0
 
 
 class InGripper(ExprPredicate):
@@ -1488,6 +1495,30 @@ class Retreat(ExprPredicate):
 
         super(Retreat, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2, active_range=(0,1))
 
+
+class Approach(ExprPredicate):
+
+    # InGripper, Robot, Can, Grasp
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.r, self.can, self.grasp = params
+        k = "pose" if not self.can.is_symbol() else "value"
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]),
+                                 (self.can, [(k, np.array([0, 1], dtype=np.int))]),
+                                 (self.grasp, [("value", np.array([0, 1], dtype=np.int))])
+                                ])
+        # want x0 - x2 = x4, x1 - x3 = x5
+        A = 1e1 * np.array([[1, 0, -1, 0, -1.6, 0],
+                            [0, 1, 0, -1, 0, -1.6]])
+        b = np.zeros((2, 1))
+
+        e = AffExpr(A, b)
+        e = EqExpr(e, np.zeros((2,1)))
+
+        super(Approach, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+
+class ApproachTarget(Approach):
+    pass
 
 class GraspValid(ExprPredicate):
 
