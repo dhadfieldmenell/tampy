@@ -29,7 +29,7 @@ contact_dist = 5e-2 # dsafe
 RS_SCALE = 0.5
 N_DIGS = 5
 GRIP_TOL = 5e-1
-COL_TS = 7 # 3
+COL_TS = 5 # 3
 NEAR_TOL = 0.3 # 0.4
 GRIP_VAL = 1.
 
@@ -1186,7 +1186,7 @@ class Obstructs(CollisionPredicate):
 class WideObstructs(Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug=debug)
-        self.dsafe = 0.5
+        self.dsafe = 0.8
 
 def sample_pose(plan, pose, robot, rs_scale):
     targets  = plan.get_param('InContact', 2, {0: robot, 1:pose})
