@@ -68,7 +68,7 @@ class MoveTo(Action):
                 ('(forall (?w - Obstacle) (forall (?obj - Can) (not (Collides ?obj ?w))))', '0:{0}'.format(et-1)),
                 ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '0:{0}'.format(et-1)),
                 ('(forall (?obj - Can) (not (Obstructs ?robot ?can ?can ?obj)))', '0:-1'),
-                ('(forall (?obj - Can) (not (WideObstructs ?robot ?can ?can ?obj)))', '1:{0}'.format(et-2)),
+                ('(forall (?obj - Can) (not (WideObstructs ?robot ?can ?can ?obj)))', '1:{0}'.format(et-1)),
                 ('(forall (?obj - Can) (not (Obstructs ?robot ?can ?can ?obj)))', '1:{0}'.format(et-2)),
                 ('(forall (?obj - Can) (not (Obstructs ?robot ?can ?can ?obj)))', '{0}:{1}'.format(et-1, et-1)),
                 # ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?can ?can ?obj ?can)))', '{0}:{1}'.format(et-2, et-1)),
