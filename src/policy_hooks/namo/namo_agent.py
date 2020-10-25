@@ -415,7 +415,7 @@ class NAMOSortingAgent(TAMPAgent):
         col = 0.
         old_state = x.copy()
         old_pose = plan.params['pr2'].pose[:, t].copy()
-        dtol = 5e-3
+        dtol = 5e-2
         old_in_gripper = self.in_gripper
         pr2_disp = plan.params['pr2'].pose[:, t] - old_state[x_inds['pr2', 'pose']]
         if grasp is None:
@@ -468,7 +468,7 @@ class NAMOSortingAgent(TAMPAgent):
 
                     if self.check_col:
                         elastic = 1e-3 # max(1e-2, 2e-1 * np.linalg.norm(pr2_disp))
-                        if param.name != self._in_gripper and np.linalg.norm(new_disp) < radius1 + radius2:
+                        if param.name != self._in_gripper and np.linalg.norm(new_disp) < radius1 + radius2 - dtol:
                         # if param is not self.in_gripper and np.linalg.norm(new_disp) < radius1 + radius2 + elastic:
                             col = 1. if obj is None or param.name != obj else 0.
                             dx, dy = -1e1 * pr2_disp
@@ -503,7 +503,7 @@ class NAMOSortingAgent(TAMPAgent):
                                 plan.params[self._in_gripper].pose[:, t] = plan.params['pr2'].pose[:, t] - (old_state[x_inds['pr2', 'pose']] - old_state[x_inds[self._in_gripper, 'pose']])
 
                         # if self.in_gripper is not None and self.in_gripper is not param and np.linalg.norm(self.in_gripper.pose[:,t] - param.pose[:,t]) < radius2 + radius2 - dtol:
-                        if self.in_gripper is not None and self._in_gripper is not param.name and np.linalg.norm(plan.params[self._in_gripper].pose[:,t] - param.pose[:,t]) < radius2 + radius2 + 1e-3:
+                        if self.in_gripper is not None and self._in_gripper is not param.name and np.linalg.norm(plan.params[self._in_gripper].pose[:,t] - param.pose[:,t]) < radius2 + radius2 - dtol:
                             col = 1.
                             dx, dy = -1e1 * pr2_disp
                             zx, zy = param.pose[:,t]
@@ -815,9 +815,9 @@ class NAMOSortingAgent(TAMPAgent):
             if self.task_list[task[0]].find('move') >= 0:
                 obj_vec[task[1]] = 1.
                 targ_vec[:] = 1. / len(targ_vec)
-            #elif self.task_list[task[0]].find('transfer') >= 0:
-            #    obj_vec[:] = 1. / len(obj_vec)
-            #    targ_vec[task[2]] = 1.
+            elif self.task_list[task[0]].find('transfer') >= 0:
+                obj_vec[:] = 1. / len(obj_vec)
+                targ_vec[task[2]] = 1.
             #obj_vec[task[1]] = 1.
             #targ_vec[task[2]] = 1.
             sample.obj_ind = task[1]

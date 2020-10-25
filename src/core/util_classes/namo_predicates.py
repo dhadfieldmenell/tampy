@@ -23,7 +23,7 @@ This file implements the predicates for the 2D NAMO domain.
 
 dsafe = 1e-3 # 1e-1
 # dmove = 1.1e0 # 5e-1
-dmove = 1.2e0 # 5e-1
+dmove = 1.6e0 # 5e-1
 contact_dist = 5e-2 # dsafe
 
 RS_SCALE = 0.5
@@ -1065,7 +1065,7 @@ class Obstructs(CollisionPredicate):
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
-        neg_coeff = 1e3
+        neg_coeff = 1e4
         neg_grad_coeff = 1e-1 # 1e-3
         '''
         ## so we have an expr for the negated predicate
@@ -1186,7 +1186,7 @@ class Obstructs(CollisionPredicate):
 class WideObstructs(Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug=debug)
-        self.dsafe = 0.9
+        self.dsafe = 1.2
 
 def sample_pose(plan, pose, robot, rs_scale):
     targets  = plan.get_param('InContact', 2, {0: robot, 1:pose})
@@ -1277,7 +1277,7 @@ class ObstructsHolding(CollisionPredicate):
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
-        neg_coeff = 1e3
+        neg_coeff = 1e4
         neg_grad_coeff = 1e-1
         ## so we have an expr for the negated predicate
         #f_neg = lambda x: neg_coeff*self.distance_from_obj(x)[0]
@@ -1356,7 +1356,7 @@ class ObstructsHolding(CollisionPredicate):
         orth = orth / np.linalg.norm(orth)
 
         rdisp = -(self.obstr.geom.radius + self.held.geom.radius + self.dsafe + 2e-1) * disp / np.linalg.norm(disp)
-        orth = rdisp # + np.random.uniform(0.2, 0.5) * orth
+        orth = rdisp + np.random.uniform(0.05, 0.2) * orth
         # orth *= np.random.uniform(1.2, 1.8) * (self.obstr.geom.radius + self.r.geom.radius)
         # orth += np.random.uniform([-0.15, 0.15], [-0.15, 0.15])
 
@@ -1455,7 +1455,7 @@ class ObstructsHolding(CollisionPredicate):
 class WideObstructsHolding(ObstructsHolding):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(WideObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 1.0
+        self.dsafe = 1.5
 
 
 class InGripper(ExprPredicate):
