@@ -315,6 +315,7 @@ def argsparser():
     parser.add_argument('-vel', '--velocity', type=float, default=0.3)
     parser.add_argument('-nocol', '--check_col', action='store_false', default=True)
     parser.add_argument('-cond', '--conditional', action='store_true', default=False)
+    parser.add_argument('-easy', '--easy', action='store_true', default=False)
     parser.add_argument('-save_exp', '--save_expert', action='store_true', default=False)
     parser.add_argument('-ind', '--index', type=int, default=-1)
 

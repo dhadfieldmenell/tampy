@@ -443,6 +443,7 @@ class NAMOSortingAgent(TAMPAgent):
                 if param._type == 'Can':
                     disp = old_state[x_inds['pr2', 'pose']] - old_state[x_inds[param.name, 'pose']]# plan.params['pr2'].pose[:, t] - param.pose[:, t]
                     new_disp = plan.params['pr2'].pose[:, t] - param.pose[:, t]
+                    mid_disp = plan.params['pr2'].pose[:,t] - (param.pose[:,t] + old_state[x_inds[param.name, 'pose']])/2.
                     #dist = np.linalg.norm(disp)
                     if grasp[1] < 0: grasp_check = disp[1] < 0
                     if grasp[1] > 0: grasp_check = disp[1] > 0
@@ -468,7 +469,9 @@ class NAMOSortingAgent(TAMPAgent):
 
                     if self.check_col:
                         elastic = 1e-3 # max(1e-2, 2e-1 * np.linalg.norm(pr2_disp))
-                        if param.name != self._in_gripper and np.linalg.norm(new_disp) < radius1 + radius2 - dtol:
+                        if param.name != self._in_gripper \
+                            and (np.linalg.norm(new_disp) < radius1 + radius2 - dtol \
+                            or np.linalg.norm(mid_disp) < radius1 + radius2 - dtol):
                         # if param is not self.in_gripper and np.linalg.norm(new_disp) < radius1 + radius2 + elastic:
                             col = 1. if obj is None or param.name != obj else 0.
                             dx, dy = -1e1 * pr2_disp
@@ -815,9 +818,9 @@ class NAMOSortingAgent(TAMPAgent):
             if self.task_list[task[0]].find('move') >= 0:
                 obj_vec[task[1]] = 1.
                 targ_vec[:] = 1. / len(targ_vec)
-            elif self.task_list[task[0]].find('transfer') >= 0:
-                obj_vec[:] = 1. / len(obj_vec)
-                targ_vec[task[2]] = 1.
+            #elif self.task_list[task[0]].find('transfer') >= 0:
+            #    obj_vec[:] = 1. / len(obj_vec)
+            #    targ_vec[task[2]] = 1.
             #obj_vec[task[1]] = 1.
             #targ_vec[task[2]] = 1.
             sample.obj_ind = task[1]
@@ -1385,6 +1388,24 @@ class NAMOSortingAgent(TAMPAgent):
     def replace_cond(self, cond, curric_step=-1):
         self.init_vecs[cond], self.targets[cond] = self.prob.get_random_initial_state_vec(self.config, self.targets, self.dX, self.state_inds, 1)
         self.init_vecs[cond], self.targets[cond] = self.init_vecs[cond][0], self.targets[cond][0]
+        if self.master_config['easy']:
+            for pname, aname in self.state_inds:
+                inds = self.state_inds[pname, aname]
+                if '{0}_end_target'.format(pname) in self.targets[cond]:
+                    x, y = self.targets[cond]['{0}_end_target'.format(pname)]
+                    if x < -5:
+                        newx = x + np.random.uniform(1., 3.)
+                    elif x > 5:
+                        newx = x - np.random.uniform(1., 3.)
+                    else:
+                        newx = x + np.random.uniform(-2, 2)
+                    if y < -6:
+                        newy = y + np.random.uniform(1., 3.)
+                    elif y > 1:
+                        newy = y - np.random.uniform(1., 3.)
+                    else:
+                        newy = y + np.random.uniform(-2, 2)
+                    self.init_vecs[cond][inds] = [newx, newy]
         self.x0[cond] = self.init_vecs[cond][:self.symbolic_bound]
         self.target_vecs[cond] = np.zeros((self.target_dim,))
         prim_choices = self.prob.get_prim_choices(self.task_list)

@@ -23,7 +23,7 @@ This file implements the predicates for the 2D NAMO domain.
 
 dsafe = 1e-3 # 1e-1
 # dmove = 1.1e0 # 5e-1
-dmove = 1.6e0 # 5e-1
+dmove = 1.5e0 # 5e-1
 contact_dist = 5e-2 # dsafe
 
 RS_SCALE = 0.5
@@ -720,7 +720,7 @@ class TargetGraspCollides(Collides):
         self._param_to_body = {self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom),
                                self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
 
-        dist = 1.2
+        dist = 2.
         N_COLS = 8
         def f(x):
             if self.held is not None and any([self.held.name == p.name for p in [self.c, self.w]]):
@@ -759,7 +759,7 @@ class TargetGraspCollides(Collides):
 
         super(Collides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1,
-                                        active_range=(0,0), priority=2)
+                                        active_range=(0,0), priority=1)
         self.n_cols = N_COLS
         # self.priority = 1
 
@@ -1152,8 +1152,8 @@ class Obstructs(CollisionPredicate):
         orth *= np.random.choice([-1., 1.], p=[w1, w2])
         orth = orth / np.linalg.norm(orth)
 
-        rdisp = -(self.c.geom.radius + self.r.geom.radius + self.dsafe + 1e-1) * disp / np.linalg.norm(disp)
-        orth = rdisp #+ np.random.uniform(0.5, 2.) * orth
+        rdisp = -(self.c.geom.radius + self.r.geom.radius + self.dsafe + 2e-1) * disp / np.linalg.norm(disp)
+        orth = rdisp + np.random.uniform(0.01, 0.1) * orth
         # orth *= np.random.uniform(0.7, 1.5) * (self.c.geom.radius + self.r.geom.radius + self.dsafe)
         # orth += np.random.uniform([-0.15, 0.15], [-0.15, 0.15])
 
