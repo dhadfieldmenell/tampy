@@ -27,7 +27,7 @@ This file implements the predicates for the 2D NAMO domain.
 
 dsafe = 1e-1
 # dmove = 1.1e0 # 5e-1
-dmove = 1.5e0 # 5e-1
+dmove = 1.3e0 # 5e-1
 contact_dist = 2e-1 # dsafe
 gripdist = 0.61 # 75
 
@@ -1277,7 +1277,7 @@ class Obstructs(CollisionPredicate):
 class WideObstructs(Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.25
+        self.dsafe = 0.5
         self.check_aabb = False # True
 
 
@@ -1590,7 +1590,7 @@ class ObstructsHolding(CollisionPredicate):
 class WideObstructsHolding(ObstructsHolding):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(WideObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.3
+        self.dsafe = 0.5
         self.check_aabb = False # True
 
 

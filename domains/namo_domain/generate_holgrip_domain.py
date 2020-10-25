@@ -53,7 +53,7 @@ class Action(object):
 class MoveTo(Action):
     def __init__(self):
         self.name = 'moveto'
-        self.timesteps = 20
+        self.timesteps = 25
         et = self.timesteps - 1
         self.args = '(?robot - Robot ?can - Can ?target - Target ?sp - RobotPose ?gp - RobotPose ?g - Grasp ?end - Target)' 
         self.pre = [\
@@ -66,7 +66,7 @@ class MoveTo(Action):
                 ('(IsMP ?robot)', '0:{0}'.format(et-1)),
                 ('(forall (?w - Obstacle) (forall (?obj - Can) (not (Collides ?obj ?w))))', '0:{0}'.format(et-1)),
                 ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '0:{0}'.format(et-1)),
-                ('(forall (?obj - Can) (not (Obstructs ?robot ?target ?target ?obj)))', '0:0'),
+                ('(forall (?obj - Can) (not (Obstructs ?robot ?target ?target ?obj)))', '0:-1'),
                 ('(forall (?obj - Can) (not (WideObstructs ?robot ?target ?target ?obj)))', '1:{0}'.format(et-4)),
                 ('(forall (?obj - Can) (not (Obstructs ?robot ?target ?target ?obj)))', '{0}:{1}'.format(et-3, et-3)),
                 ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?target ?target ?obj ?can)))', '{0}:{1}'.format(et-2, et-1)),
@@ -84,7 +84,7 @@ class MoveTo(Action):
 class Transfer(Action):
     def __init__(self):
         self.name = 'transfer'
-        self.timesteps = 20
+        self.timesteps = 25
         et = self.timesteps - 1
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can ?t - Target ?g - Grasp ?init - Target)'
         self.pre = [\
@@ -104,6 +104,7 @@ class Transfer(Action):
                 ('(NearGraspAngle ?robot ?c)', '{0}:{0}'.format(et)),
                 ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?init ?t ?obj ?c)))', '0:{0}'.format(0)),
                 ('(forall (?obj - Can) (not (WideObstructsHolding ?robot ?init ?t ?obj ?c)))', '1:{0}'.format(et-2)),
+                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?init ?t ?obj ?c)))', '1:{0}'.format(et-2)),
                 ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?init ?t ?obj ?c)))', '{0}:{0}'.format(et-1)),
                 # ('(forall (?obj - Can ) (not (Obstructs ?robot ?init ?t ?obj)))', '0:0'),
                 ('(forall (?obj - Can) (StationaryNEq ?obj ?c))', '0:{0}'.format(et-1)), 
