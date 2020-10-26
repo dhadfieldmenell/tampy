@@ -15,7 +15,7 @@ from core.util_classes.viewer import OpenRAVEViewer
 
 MAX_PRIORITY=3
 BASE_MOVE_COEFF = 1.
-TRAJOPT_COEFF=1e1
+TRAJOPT_COEFF=5e0
 TRANSFER_COEFF = 1e-1
 FIXED_COEFF = 1e0
 INIT_TRAJ_COEFF = 1e-1
@@ -220,8 +220,8 @@ class BacktrackLLSolver(LLSolver):
             #     active_ts=active_ts, verbose=verbose)
             plan.initialized=True
 
-        if success or len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) == 0:
-            return True
+        #if success or len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) == 0:
+        #    return True
 
         for priority in self.solve_priorities:
             for attempt in range(n_resamples):
@@ -300,7 +300,7 @@ class BacktrackLLSolver(LLSolver):
             # import ipdb; ipdb.set_trace()
         else:
             self._bexpr_to_pred = {}
-            if self.col_coeff > 0: self._add_col_obj(plan, active_ts=active_ts)
+            if self.col_coeff > 0 and priority >= 0: self._add_col_obj(plan, active_ts=active_ts)
             if priority == -2:
                 """
                 Initialize an linear trajectory while enforceing the linear constraints in the intermediate step.

@@ -49,10 +49,10 @@ descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.for
 END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
 END_TARGETS.extend([(8, -4.),
                    (-8, -4.),
-                   (5, -6.),
-                   (-5, -6.),
-                   (3., 2.),
-                   (-3., 2.),
+                   (5.5, -5.5),
+                   (-5.5, -5.5),
+                   (4., 2.),
+                   (-4, 2.),
                    (8, 1.),
                    (-8, 1.),
                    ])
@@ -64,7 +64,7 @@ MAX_Y = 25
 
 # possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-50, -10, 2))))
 #possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-40, 0, 2))))
-possible_can_locs.extend(list(itertools.product(list(range(-60, 60, 2)), list(range(-50, 0, 4)))))
+possible_can_locs.extend(list(itertools.product(list(range(-55, 55, 4)), list(range(-45, 0, 4)))))
 # possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(6, 25, 4))))
 
 
@@ -234,6 +234,7 @@ def get_plans(use_tf=False):
     openrave_bodies = {}
     env = None
     params = None
+    sess = None
     for task in tasks:
         next_task_str = copy.deepcopy(tasks[task])
         for i in range(len(prim_options[utils.OBJ_ENUM])):
@@ -245,7 +246,7 @@ def get_plans(use_tf=False):
                     new_task_str = []
                     for step in next_task_str:
                         new_task_str.append(step.format(obj, targ, grasp))
-                    plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params)
+                    plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params, sess=sess, use_tf=use_tf)
                     plan.params['pr2'].gripper[0,0] = -GRIP_VAL
                     params = plan.params
                     plans[(task_ids.index(task), i, j, k)] = plan
@@ -256,6 +257,7 @@ def get_plans(use_tf=False):
                                 if not hasattr(param, 'openrave_body') or param.openrave_body is None:
                                     param.openrave_body = OpenRAVEBody(env, param.name, param.geom)
                                 openrave_bodies[param.name] = param.openrave_body
+                    sess = plan.sess
 
     return plans, openrave_bodies, env
 

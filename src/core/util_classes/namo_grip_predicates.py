@@ -89,6 +89,16 @@ if USE_TF:
         tf_cache['thetadir_tf_forgrads'] = thetadir_tf_forgrads
         thetadir_tf_revgrads = tf.gradients(thetadir_tf_opp, thetadir_tf_in)[0]
         tf_cache['thetadir_tf_revgrads'] = thetadir_tf_revgrads
+        
+        tf_cache['bump_in'] = tf.placeholder(float, (4,1), name='bump_in')
+        tf_cache['bump_radius'] = tf.placeholder(float, (), name='bump_radius')
+        pos1 = tf_cache['bump_in'][:2]
+        pos2 = tf_cache['bump_in'][2:]
+        tf_cache['bump_diff'] = tf.reduce_sum((pos1-pos2)**2)
+        tf_cache['bump_out'] = tf.exp(-1. * tf_cache['bump_radius'] / (tf_cache['bump_radius'] - tf_cache['bump_diff']))
+        tf_cache['bump_grads'] = tf.gradients(tf_cache['bump_out'], tf_cache['bump_in'])[0]
+        tf_cache['bump_hess'] = tf.hessians(tf_cache['bump_out'], tf_cache['bump_in'])[0]
+
 
 
 def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
@@ -2469,3 +2479,104 @@ class RevThetaDirValid(ThetaDirValid):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(RevThetaDirValid, self).__init__(name, params, expected_param_types, env, debug)
         self.reverse = True
+
+
+class ColObjPred(CollisionPredicate):
+    def __init__(self, name, params, expected_param_types, env=None, coeff=1e3, debug=False):
+        self._env = env
+        self.hl_ignore = True
+        self.r, self.c = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]),
+                                 (self.c, [("pose", np.array([0, 1], dtype=np.int))])])
+        self._param_to_body = {self.r: self.lazy_spawn_or_body(self.r, self.r.name, self.r.geom),
+                               self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom)}
+
+        self.rs_scale = RS_SCALE
+        self.radius = self.c.geom.radius + 2.
+        #f = lambda x: -self.distance_from_obj(x)[0]
+        #grad = lambda x: -self.distance_from_obj(x)[1]
+
+        neg_coeff = coeff
+        neg_grad_coeff = 1e-1 # 1e-3
+
+        def f(x):
+            xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
+            if hasattr(self, 'sess') and USE_TF:
+                cur_tensor = get_tf_graph('bump_out')
+                in_tensor = get_tf_graph('bump_in')
+                radius_tensor = get_tf_graph('bump_radius')
+                vals = []
+                for i in range(COL_TS+1):
+                    pt = xs[i]
+                    if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
+                        vals.append(0)
+                    else:
+                        val = np.array([self.sess.run(cur_tensor, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})])
+                        vals.append(val)
+                return np.sum(vals, axis=0)
+
+            col_vals = self.distance_from_obj(x)[0]
+            col_vals = np.clip(col_vals, 0., 4)
+            return -col_vals
+            #return -self.distance_from_obj(x)[0] # twostep_f([x[:4]], self.distance_from_obj, 2, pts=1)
+
+        def grad(x):
+            xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
+            if hasattr(self, 'sess') and USE_TF:
+                cur_grads = get_tf_graph('bump_grads')
+                in_tensor = get_tf_graph('bump_in')
+                radius_tensor = get_tf_graph('bump_radius')
+                vals = []
+                for i in range(COL_TS+1):
+                    pt = xs[i]
+                    if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
+                        vals.append(np.zeros((1,8)))
+                    else:
+                        v = self.sess.run(cur_grads, feed_dict={in_tensor: pt, radius_tensor: self.radius**2}).T
+                        v[np.isnan(v)] = 0.
+                        v[np.isinf(v)] = 0.
+                        curcoeff = float(COL_TS-i)/COL_TS
+                        vals.append(np.c_[curcoeff*v, (1-curcoeff)*v])
+                return np.sum(vals, axis=0)
+            return -coeff*self.distance_from_obj(x)[1] # twostep_f([x[:4]], self.distance_from_obj, 2, pts=1, grad=True)
+
+        def f_neg(x):
+            return -neg_coeff * f(x)
+
+        def grad_neg(x):
+            return -neg_grad_coeff * grad(x)
+
+        def hess_neg(x):
+            xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
+            if hasattr(self, 'sess') and USE_TF:
+                cur_hess = get_tf_graph('bump_hess')
+                in_tensor = get_tf_graph('bump_in')
+                radius_tensor = get_tf_graph('bump_radius')
+                vals = []
+                for i in range(COL_TS+1):
+                    pt = xs[i]
+                    if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
+                        vals.append(np.zeros((8,8)))
+                    else:
+                        v = self.sess.run(cur_hess, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})
+                        v[np.isnan(v)] = 0.
+                        v[np.isinf(v)] = 0.
+                        v = v.reshape((4,4))
+                        curcoeff = float(COL_TS-i)/COL_TS
+                        new_v = np.r_[np.c_[curcoeff*v, np.zeros((4,4))], np.c_[np.zeros((4,4)), (1-curcoeff)*v]]
+                        vals.append(new_v.reshape((8,8)))
+                return np.sum(vals, axis=0).reshape((8,8))
+            j = grad(x)
+            return j.T.dot(j)
+
+        col_expr = Expr(f, grad)
+        val = np.zeros((1,1))
+        e = LEqExpr(col_expr, val)
+
+        col_expr_neg = Expr(lambda x: coeff*f(x), lambda x: coeff*grad(x), lambda x: coeff*hess_neg(x))
+        self.neg_expr = LEqExpr(col_expr_neg, -val)
+
+        super(ColObjPred, self).__init__(name, e, attr_inds, params,
+                                        expected_param_types, ind0=0, ind1=1, active_range=(0,1))
+        self.dsafe = 2.
+

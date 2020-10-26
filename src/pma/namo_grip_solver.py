@@ -1,7 +1,7 @@
 import numpy as np
 
 from pma import backtrack_ll_solver
-from core.util_classes.namo_grip_predicates import RETREAT_DIST, dsafe, opposite_angle, gripdist
+from core.util_classes.namo_grip_predicates import RETREAT_DIST, dsafe, opposite_angle, gripdist, ColObjPred
 
 class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
@@ -168,3 +168,33 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             sco_var = self.create_variable(param_ll_grb_vars, cur_val)
             bexpr = BoundExpr(quad_expr, sco_var)
             transfer_objs.append(bexpr)
+
+    def _add_col_obj(self, plan, norm='min-vel', coeff=None, active_ts=None):
+        """
+            This function returns the expression e(x) = P|x - cur|^2
+            Which says the optimized trajectory should be close to the
+            previous trajectory.
+            Where P is the KT x KT matrix, where Px is the difference of parameter's attributes' current value and parameter's next timestep value
+        """
+        if active_ts is None:
+            active_ts = (0, plan.horizon-1)
+
+        start, end = active_ts
+        if coeff is None:
+            coeff = self.col_coeff
+
+        objs = []
+        robot = plan.params['pr2']
+        for param in plan.params.values():
+            if param._type != 'Can': continue
+            expected_param_types = ['Robot', 'Can']
+            params = [robot, param]
+            pred = ColObjPred('obstr', params, expected_param_types, plan.env, coeff=coeff)
+            pred.sess = plan.sess
+            for t in range(active_ts[0], active_ts[1]-1):
+                var = self._spawn_sco_var_for_pred(pred, t)
+                bexpr = BoundExpr(pred.neg_expr.expr, var)
+                objs.append(bexpr)
+                self._prob.add_obj_expr(bexpr)
+        return objs
+

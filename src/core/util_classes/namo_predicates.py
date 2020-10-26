@@ -5,6 +5,7 @@ from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import PredicateException
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 import numpy as np
+import tensorflow as tf
 
 from core.util_classes.common_constants import USE_OPENRAVE
 if USE_OPENRAVE:
@@ -46,6 +47,23 @@ ATTRMAP = {
     "Obstacle":  (("pose", np.array(list(range(2)), dtype=np.int)),),
     "Grasp":     (("value", np.array(list(range(2)), dtype=np.int)),),
 }
+
+USE_TF = True
+if USE_TF:
+    tf_cache = {}
+    def get_tf_graph(tf_name):
+        if tf_name not in tf_cache: init_tf_graph()
+        return tf_cache[tf_name]
+    
+    def init_tf_graph():
+        tf_cache['bump_in'] = tf.placeholder(float, (4,1), name='bump_in')
+        tf_cache['bump_radius'] = tf.placeholder(float, (), name='bump_radius')
+        pos1 = tf_cache['bump_in'][:2]
+        pos2 = tf_cache['bump_in'][2:]
+        tf_cache['bump_diff'] = tf.reduce_sum((pos1-pos2)**2)
+        tf_cache['bump_out'] = tf.exp(-1. * tf_cache['bump_radius'] / (tf_cache['bump_radius'] - tf_cache['bump_diff']))
+        tf_cache['bump_grads'] = tf.gradients(tf_cache['bump_out'], tf_cache['bump_in'])[0]
+        tf_cache['bump_hess'] = tf.hessians(tf_cache['bump_out'], tf_cache['bump_in'])[0]
 
 
 def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
@@ -1008,7 +1026,7 @@ class ColObjPred(CollisionPredicate):
                                self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom)}
 
         self.rs_scale = RS_SCALE
-
+        self.radius = self.c.geom.radius + 2.
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
@@ -1016,12 +1034,44 @@ class ColObjPred(CollisionPredicate):
         neg_grad_coeff = 1e-1 # 1e-3
 
         def f(x):
+            xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
+            if hasattr(self, 'sess') and USE_TF:
+                cur_tensor = get_tf_graph('bump_out')
+                in_tensor = get_tf_graph('bump_in')
+                radius_tensor = get_tf_graph('bump_radius')
+                vals = []
+                for i in range(COL_TS+1):
+                    pt = xs[i]
+                    if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
+                        vals.append(0)
+                    else:
+                        val = np.array([self.sess.run(cur_tensor, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})])
+                        vals.append(val)
+                return np.sum(vals, axis=0)
+
             col_vals = self.distance_from_obj(x)[0]
             col_vals = np.clip(col_vals, 0., 4)
             return -col_vals
             #return -self.distance_from_obj(x)[0] # twostep_f([x[:4]], self.distance_from_obj, 2, pts=1)
 
         def grad(x):
+            xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
+            if hasattr(self, 'sess') and USE_TF:
+                cur_grads = get_tf_graph('bump_grads')
+                in_tensor = get_tf_graph('bump_in')
+                radius_tensor = get_tf_graph('bump_radius')
+                vals = []
+                for i in range(COL_TS+1):
+                    pt = xs[i]
+                    if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
+                        vals.append(np.zeros((1,8)))
+                    else:
+                        v = self.sess.run(cur_grads, feed_dict={in_tensor: pt, radius_tensor: self.radius**2}).T
+                        v[np.isnan(v)] = 0.
+                        v[np.isinf(v)] = 0.
+                        curcoeff = float(COL_TS-i)/COL_TS
+                        vals.append(np.c_[curcoeff*v, (1-curcoeff)*v])
+                return np.sum(vals, axis=0)
             return -coeff*self.distance_from_obj(x)[1] # twostep_f([x[:4]], self.distance_from_obj, 2, pts=1, grad=True)
 
         def f_neg(x):
@@ -1031,6 +1081,25 @@ class ColObjPred(CollisionPredicate):
             return -neg_grad_coeff * grad(x)
 
         def hess_neg(x):
+            xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
+            if hasattr(self, 'sess') and USE_TF:
+                cur_hess = get_tf_graph('bump_hess')
+                in_tensor = get_tf_graph('bump_in')
+                radius_tensor = get_tf_graph('bump_radius')
+                vals = []
+                for i in range(COL_TS+1):
+                    pt = xs[i]
+                    if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
+                        vals.append(np.zeros((8,8)))
+                    else:
+                        v = self.sess.run(cur_hess, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})
+                        v[np.isnan(v)] = 0.
+                        v[np.isinf(v)] = 0.
+                        v = v.reshape((4,4))
+                        curcoeff = float(COL_TS-i)/COL_TS
+                        new_v = np.r_[np.c_[curcoeff*v, np.zeros((4,4))], np.c_[np.zeros((4,4)), (1-curcoeff)*v]]
+                        vals.append(new_v.reshape((8,8)))
+                return np.sum(vals, axis=0).reshape((8,8))
             j = grad(x)
             return j.T.dot(j)
 
@@ -1038,11 +1107,11 @@ class ColObjPred(CollisionPredicate):
         val = np.zeros((1,1))
         e = LEqExpr(col_expr, val)
 
-        col_expr_neg = Expr(lambda x: -coeff*f(x), lambda x: grad(x), lambda x: hess_neg(x))
+        col_expr_neg = Expr(lambda x: coeff*f(x), lambda x: coeff*grad(x), lambda x: coeff*hess_neg(x))
         self.neg_expr = LEqExpr(col_expr_neg, -val)
 
         super(ColObjPred, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=1, active_range=(0,0))
+                                        expected_param_types, ind0=0, ind1=1, active_range=(0,1))
         # self.priority=1
         self.dsafe = 2.
 
@@ -1186,7 +1255,7 @@ class Obstructs(CollisionPredicate):
 class WideObstructs(Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug=debug)
-        self.dsafe = 0.8
+        self.dsafe = 0.3 # 0.8
 
 def sample_pose(plan, pose, robot, rs_scale):
     targets  = plan.get_param('InContact', 2, {0: robot, 1:pose})
@@ -1455,7 +1524,7 @@ class ObstructsHolding(CollisionPredicate):
 class WideObstructsHolding(ObstructsHolding):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(WideObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.7
+        self.dsafe = 0.3 # 0.7
 
 
 class InGripper(ExprPredicate):
