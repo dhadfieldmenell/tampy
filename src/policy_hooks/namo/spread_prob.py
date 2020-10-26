@@ -47,14 +47,14 @@ descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.for
 #            (-2., -2.)]
 
 END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
-END_TARGETS.extend([(8, -4.),
-                   (-8, -4.),
-                   (5.5, -5.5),
-                   (-5.5, -5.5),
-                   (4., 2.),
-                   (-4, 2.),
-                   (8, 1.),
-                   (-8, 1.),
+END_TARGETS.extend([(7.5, -4.),
+                   (-7.5, -4.),
+                   (6, -5.5),
+                   (-6, -5.5),
+                   (3., 2.),
+                   (-3, 2.),
+                   (7.5, 1.),
+                   (-7.5, 1.),
                    ])
 
 n_aux = 4
@@ -64,7 +64,7 @@ MAX_Y = 25
 
 # possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-50, -10, 2))))
 #possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-40, 0, 2))))
-possible_can_locs.extend(list(itertools.product(list(range(-55, 55, 4)), list(range(-45, 0, 4)))))
+possible_can_locs.extend(list(itertools.product(list(range(-50, 50, 2)), list(range(-45, 0, 2)))))
 # possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(6, 25, 4))))
 
 
