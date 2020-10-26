@@ -46,6 +46,7 @@ from policy_hooks.utils.tamp_eval_funcs import *
 from policy_hooks.tamp_agent import TAMPAgent
 
 
+LOCAL_NEAR_TOL = 0.5
 MAX_SAMPLELISTS = 1000
 MAX_TASK_PATHS = 100
 GRIP_TOL = 0.
@@ -125,7 +126,7 @@ class NAMOSortingAgent(TAMPAgent):
             cur_color = colors.pop(0)
             items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 1.), 'rgba': tuple(cur_color)})
             if name != 'pr2':
-                items.append({'name': '{0}_end_target'.format(name), 'type': 'cylinder', 'is_fixed': True, 'pos': (0, 0, 2.5), 'dimensions': (NEAR_TOL, 0.05), 'rgba': tuple(cur_color), 'mass': 1.})
+                items.append({'name': '{0}_end_target'.format(name), 'type': 'cylinder', 'is_fixed': True, 'pos': (0, 0, 2.5), 'dimensions': (LOCAL_NEAR_TOL, 0.05), 'rgba': tuple(cur_color), 'mass': 1.})
             # items.append({'name': '{0}_end_target'.format(name), 'type': 'cylinder', 'is_fixed': False, 'pos': (10, 10, 0.5), 'dimensions': (0.8, 0.2), 'rgba': tuple(cur_color)})
         for i in range(len(wall_dims)):
             dim, next_trans = wall_dims[i]
@@ -871,7 +872,7 @@ class NAMOSortingAgent(TAMPAgent):
         if ATGOAL_ENUM in self._hyperparams['sensor_dims']:
             vec = np.zeros(len(prim_choices[OBJ_ENUM]))
             for i, o in enumerate(prim_choices[OBJ_ENUM]):
-                if np.all(np.abs(mp_state[self.state_inds[o, 'pose']] - targets[self.target_inds['{0}_end_target'.format(o), 'value']]) < NEAR_TOL):
+                if np.all(np.abs(mp_state[self.state_inds[o, 'pose']] - targets[self.target_inds['{0}_end_target'.format(o), 'value']]) < LOCAL_NEAR_TOL):
                     vec[i] = 1.
             sample.set(ATGOAL_ENUM, vec, t=t)
 
@@ -964,7 +965,7 @@ class NAMOSortingAgent(TAMPAgent):
         return tuple(task)
 
 
-    def goal_f(self, condition, state, targets=None, cont=False, anywhere=False, tol=NEAR_TOL):
+    def goal_f(self, condition, state, targets=None, cont=False, anywhere=False, tol=LOCAL_NEAR_TOL):
         if targets is None:
             targets = self.target_vecs[condition]
         cost = self.prob.NUM_OBJS
@@ -1389,20 +1390,21 @@ class NAMOSortingAgent(TAMPAgent):
         self.init_vecs[cond], self.targets[cond] = self.prob.get_random_initial_state_vec(self.config, self.targets, self.dX, self.state_inds, 1)
         self.init_vecs[cond], self.targets[cond] = self.init_vecs[cond][0], self.targets[cond][0]
         if self.master_config['easy']:
+            self.init_vecs[cond][self.state_inds['pr2', 'pose']] = [0, -2.]
             for pname, aname in self.state_inds:
                 inds = self.state_inds[pname, aname]
                 if '{0}_end_target'.format(pname) in self.targets[cond]:
                     x, y = self.targets[cond]['{0}_end_target'.format(pname)]
                     if x < -5:
-                        newx = x + np.random.uniform(1., 3.)
+                        newx = x + np.random.uniform(1.5, 3.5)
                     elif x > 5:
-                        newx = x - np.random.uniform(1., 3.)
+                        newx = x - np.random.uniform(1.5, 3.5)
                     else:
                         newx = x + np.random.uniform(-2, 2)
-                    if y < -6:
-                        newy = y + np.random.uniform(1., 3.)
+                    if y < -5:
+                        newy = y + np.random.uniform(1.5, 3.5)
                     elif y > 1:
-                        newy = y - np.random.uniform(1., 3.)
+                        newy = y - np.random.uniform(1.5, 3.5)
                     else:
                         newy = y + np.random.uniform(-2, 2)
                     self.init_vecs[cond][inds] = [newx, newy]
