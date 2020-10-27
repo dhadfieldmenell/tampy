@@ -51,10 +51,10 @@ END_TARGETS.extend([(6.5, 0.),
                    (-6.5, 0.),
                    (2.5, 0.),
                    (-2.5, 0.),
-                   (2.5, -6.),
-                   (-2.5, -6.),
-                   (6.5, -6.),
-                   (-6.5, -6.),
+                   (2.5, -5.),
+                   (-2.5, -5.),
+                   (6.5, -5.),
+                   (-6.5, -5.),
                    ])
 
 n_aux = 4
@@ -67,11 +67,11 @@ MAX_Y = 25
 #possible_can_locs.extend(list(itertools.product(list(range(-70, 70, 2)), list(range(-60, 10, 2)))))
 # possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(6, 25, 4))))
 possible_can_locs.extend(list(itertools.product(list(range(-55, -35, 2)), list(range(5, 20, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-55, -35, 2)), list(range(-45, -15, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-55, -35, 2)), list(range(-40, -15, 2)))))
 possible_can_locs.extend(list(itertools.product(list(range(-15, 15, 2)), list(range(5, 20, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-15, 15, 2)), list(range(-45, -15, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-15, 15, 2)), list(range(-40, -15, 2)))))
 possible_can_locs.extend(list(itertools.product(list(range(35, 55, 2)), list(range(5, 20, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-35, 55, 2)), list(range(-45, -15, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-35, 55, 2)), list(range(-40, -15, 2)))))
 
 
 for i in range(len(possible_can_locs)):

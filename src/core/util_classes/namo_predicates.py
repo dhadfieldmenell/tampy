@@ -1068,7 +1068,7 @@ class ColObjPred(CollisionPredicate):
                                self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom)}
 
         self.rs_scale = RS_SCALE
-        self.radius = self.c.geom.radius + 1.5
+        self.radius = self.c.geom.radius + 2.
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
