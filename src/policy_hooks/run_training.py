@@ -207,6 +207,7 @@ def main():
         args.load_render = old_args.load_render
         args.eta = old_args.eta
         args.descr = old_args.descr
+        args.easy = old_args.easy
         var_args = vars(args)
         old_vars = vars(old_args)
         for key in old_vars:
@@ -312,7 +313,7 @@ def argsparser():
     parser.add_argument('-render', '--load_render', action='store_true', default=False)
     parser.add_argument('-retime', '--retime', action='store_true', default=False)
     parser.add_argument('-local_retime', '--local_retime', action='store_true', default=False)
-    parser.add_argument('-vel', '--velocity', type=float, default=0.3)
+    parser.add_argument('-vel', '--velocity', type=float, default=0.5)
     parser.add_argument('-nocol', '--check_col', action='store_false', default=True)
     parser.add_argument('-cond', '--conditional', action='store_true', default=False)
     parser.add_argument('-easy', '--easy', action='store_true', default=False)

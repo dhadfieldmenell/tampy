@@ -46,7 +46,7 @@ from policy_hooks.utils.tamp_eval_funcs import *
 from policy_hooks.tamp_agent import TAMPAgent
 
 
-LOCAL_NEAR_TOL = 0.5
+LOCAL_NEAR_TOL = 0.3
 MAX_SAMPLELISTS = 1000
 MAX_TASK_PATHS = 100
 GRIP_TOL = 0.
@@ -126,7 +126,7 @@ class NAMOSortingAgent(TAMPAgent):
             cur_color = colors.pop(0)
             items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 1.), 'rgba': tuple(cur_color)})
             if name != 'pr2':
-                items.append({'name': '{0}_end_target'.format(name), 'type': 'cylinder', 'is_fixed': True, 'pos': (0, 0, 2.5), 'dimensions': (LOCAL_NEAR_TOL, 0.05), 'rgba': tuple(cur_color), 'mass': 1.})
+                items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (LOCAL_NEAR_TOL, LOCAL_NEAR_TOL, 0.05), 'rgba': tuple(cur_color), 'mass': 1.})
             # items.append({'name': '{0}_end_target'.format(name), 'type': 'cylinder', 'is_fixed': False, 'pos': (10, 10, 0.5), 'dimensions': (0.8, 0.2), 'rgba': tuple(cur_color)})
         for i in range(len(wall_dims)):
             dim, next_trans = wall_dims[i]
@@ -1202,7 +1202,7 @@ class NAMOSortingAgent(TAMPAgent):
                 self.mjc_env.set_item_pos(param_name, np.r_[pos, 0.5], mujoco_frame=False, forward=False)
                 if param_name != 'pr2':
                     targ = targets[self.target_inds['{0}_end_target'.format(param_name), 'value']]
-                    self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, 2.5], forward=False)
+                    self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, 1.5], forward=False)
         self.mjc_env.physics.forward()
 
 

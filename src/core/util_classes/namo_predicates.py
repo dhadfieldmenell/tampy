@@ -365,6 +365,48 @@ class CollisionPredicate(ExprPredicate):
                 self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01, color=(0, 0, 0)))
 
 
+class HLGraspFailed(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.pose = params[0]
+        if self.pose.is_symbol():
+            k = 'value'
+        else:
+            k = 'pose'
+        attr_inds = OrderedDict([(self.pose, [(k, np.array([0,1], dtype=np.int))])])
+
+        A = np.zeros((2,2))
+        b = np.zeros((2, 1))
+        val = np.zeros((2, 1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(HLPoseUsed, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        self.hl_info = True
+
+    def test(self, time, negated=False, tol=1e-4):
+        return True
+
+
+class HLTransferFailed(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.pose = params[0]
+        if self.pose.is_symbol():
+            k = 'value'
+        else:
+            k = 'pose'
+        attr_inds = OrderedDict([(self.pose, [(k, np.array([0,1], dtype=np.int))])])
+
+        A = np.zeros((2,2))
+        b = np.zeros((2, 1))
+        val = np.zeros((2, 1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(HLPoseUsed, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        self.hl_info = True
+
+    def test(self, time, negated=False, tol=1e-4):
+        return True
+
+
 class HLPoseUsed(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         ## At Can Target
@@ -1026,7 +1068,7 @@ class ColObjPred(CollisionPredicate):
                                self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom)}
 
         self.rs_scale = RS_SCALE
-        self.radius = self.c.geom.radius + 2.
+        self.radius = self.c.geom.radius + 1.5
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
