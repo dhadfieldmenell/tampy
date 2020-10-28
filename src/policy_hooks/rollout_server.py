@@ -896,6 +896,17 @@ class RolloutServer(object):
         self.set_policies()
         val = 1.
         i = 0
+        if mode == 'postcond':
+            x = self.agent.init_vecs[0]
+            targets = self.agent.target_vecs[0]
+            rlen = 3 * self.agent.num_objs if not self.retime else 6 * self.agent.num_objs
+            val, newpath, s, t = self.mcts[0].rollout_with_postcond(x, targets, rlen, 50, soft=True, eta=self.eta)
+            path = newpath
+            if val == 1:
+                print('Success with postcond enforcement')
+                self.agent.add_task_paths([newpath])
+            mode = 'random'
+
         while val >= 1. and i < 10:
             self.agent.replace_cond(0)
             self.agent.reset(0)
@@ -961,16 +972,6 @@ class RolloutServer(object):
                             if post_cost == 0:
                                 cur_s, cur_t = s, t
                 s, t = cur_s, cur_t
-            elif mode == 'postcond':
-                s, t = 0, 0
-                x = self.agent.init_vecs[0]
-                targets = self.agent.target_vecs[0]
-                val, newpath, s, t = self.mcts[0].rollout_with_postcond(x, targets, rlen, 50, soft=True, eta=self.eta)
-                path = newpath
-                if val == 1:
-                    print('Success with postcond enforcement')
-                    self.agent.add_task_paths([newpath])
-                    return
             else:
                 raise NotImplementedError
             x0 = path[s].get_X(t=t) # self.agent.x0[0]
@@ -978,6 +979,10 @@ class RolloutServer(object):
             self.agent.reset_to_state(x0)
             self.agent.store_x_hist(path[s].get(STATE_HIST_ENUM, t=t))
             val, path, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=False)
+            if val < 1-1e-3:
+                x0 = path[0].get_X(t=0) # self.agent.x0[0]
+                targets = path[0].targets # self.agent.target_vecs[0]
+                val, path, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=True)
 
             if augment and type(plan) is Plan:
                 self.agent.resample_hl_plan(plan, targets)
@@ -1548,10 +1553,10 @@ class RolloutServer(object):
     def run(self):
         step = 0
         ff_iters = self._hyperparams['warmup_iters']
-        if self._n_plans <= ff_iters:
-            n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
-            self._n_plans = n_plans.value
         while not self.stopped:
+            if self._n_plans <= ff_iters:
+                n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
+                self._n_plans = n_plans.value
             if self.cur_step == ff_iters:
                 for mcts in self.mcts:
                     mcts.ff_thresh = 1. if np.random.uniform() < self.config['ff_thresh'] else 0.
@@ -1730,7 +1735,7 @@ class RolloutServer(object):
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dOpts)), np.zeros((0))
         tgt_aux = np.zeros((0))
-        for sample in samples:
+        for ind, sample in enumerate(samples):
             mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
             tgt_mu = np.concatenate((tgt_mu, mu))
             st, et = 0, sample.T # st, et = sample.step * sample.T, (sample.step + 1) * sample.T
@@ -1739,7 +1744,7 @@ class RolloutServer(object):
             aux = int(sample.opt_strength) * np.ones(sample.T)
             tgt_aux = np.concatenate((tgt_aux, aux))
             wt = np.array([sample.prim_use_ts[t] * self.prim_decay**t for t in range(sample.T)])
-            if sample.task_start: wt[0] = self.prim_first_wt
+            if sample.task_start and ind > 0: wt[0] = self.prim_first_wt
             if sample.opt_strength < 1-1e-3: wt[:] *= self.explore_wt
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs = sample.get_prim_obs()

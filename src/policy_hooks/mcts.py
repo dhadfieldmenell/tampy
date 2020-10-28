@@ -447,7 +447,7 @@ class MCTS:
             path = []
         self.n_success += success
         self.val_per_run.append(success)
-        self.reset()
+        # self.reset()
         return success, path, plan
 
 
@@ -898,7 +898,7 @@ class MCTS:
         prev_tasks = []
         cur_run = [0]
         def task_f(s, t, curtask):
-            next_task = self.mcts[0].run_hl(s, t, curtask, s.targets, check_cost=False)
+            next_task = self.run_hl(s, t, curtask, s.targets, check_cost=False)
             if len(prev_tasks) and tuple(next_task) != tuple(prev_tasks[-1]):
                 postcost = self.agent.postcond_cost(s, prev_tasks[-1], t)
                 if postcost > 0:
@@ -918,7 +918,8 @@ class MCTS:
         old_soft = self._soft
         self._soft = soft
         old_eta = self.eta
-        if eta is not None: self.eta = eta 
+        if eta is not None: self.eta = eta
+        l = list(self.agent.plans.keys())[0]
         l = self.iter_labels(state, l, targets=targets, debug=False, check_cost=check_cost)
         s, t = 0, 0
         while t < max_t and val < 1-1e-2 and l is not None:
@@ -927,7 +928,7 @@ class MCTS:
             task_name = self.tasks[l[0]]
             pol = self.rollout_policy[task_name]
             plan = self.agent.plans[l]
-            s = self.agent.sample_task(pol, self.condition, state, l, task_f=task_f, skip_opt=skip_opt)
+            s = self.agent.sample_task(pol, self.condition, state, l, task_f=task_f, skip_opt=True)
             val = 1 - self.agent.goal_f(0, s.get_X(s.T-1), targets)
             t += 1
             state = s.end_state # s.get_X(s.T-1)

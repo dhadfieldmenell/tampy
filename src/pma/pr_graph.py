@@ -21,7 +21,8 @@ def p_mod_abs(hl_solver, ll_solver, domain, problem, initial=None, goal=None, su
     Q = PriorityQueue()
     Q.put((n0.heuristic(), n0))
     for cur_iter in range(max_iter):
-        n = Q.get()[1]
+        if Q.empty(): break
+        n = Q.get_nowait()[1]
         if n.is_hl_node():
             c_plan = n.plan(hl_solver)
             if c_plan == Plan.IMPOSSIBLE:
