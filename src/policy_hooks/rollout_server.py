@@ -978,7 +978,7 @@ class RolloutServer(object):
             targets = path[s].targets # self.agent.target_vecs[0]
             self.agent.reset_to_state(x0)
             self.agent.store_x_hist(path[s].get(STATE_HIST_ENUM, t=t))
-            val, path, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=False)
+            val, newpath, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=False)
             if val < 1-1e-3:
                 x0 = path[0].get_X(t=0) # self.agent.x0[0]
                 targets = path[0].targets # self.agent.target_vecs[0]
