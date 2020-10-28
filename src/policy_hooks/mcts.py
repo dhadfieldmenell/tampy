@@ -920,6 +920,7 @@ class MCTS:
         old_eta = self.eta
         if eta is not None: self.eta = eta 
         l = self.iter_labels(state, l, targets=targets, debug=False, check_cost=check_cost)
+        s, t = 0, 0
         while t < max_t and val < 1-1e-2 and l is not None:
             l = self.iter_labels(state, l, targets=targets, debug=False, check_cost=check_cost)
             if l is None: break
@@ -931,13 +932,25 @@ class MCTS:
             t += 1
             state = s.end_state # s.get_X(s.T-1)
             path.append(s)
-            if cur_run[-1] >= task_ts: break
+            if cur_run[-1] >= task_ts:
+                break
+        if val < 1-1e-3:
+            last_task = tuple(path[-1].get(FACTOREDTASK_ENUM, t=path[-1].T-1))
+            t = len(prev_tasks)-1
+            while t >= 0 and tuple(last_task) == tuple(prev_tasks[t]):
+                t -= 1
+            ind = 0
+            while t >= path[ind].T:
+                ind += 1
+                t -= path[ind].T
+            s, t = ind, t
+
         self.opt_strength = old_opt
         self.eta = old_eta
         self.log_path(path, -50)
         self._soft = old_soft
-        return val, path
-
+        # (s, t) indexes the switch where it failed postconditions
+        return val, path, s, t
 
 
     def test_run(self, state, targets, max_t=20, hl=False, soft=False, check_cost=True, eta=None):

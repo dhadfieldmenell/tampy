@@ -847,7 +847,7 @@ class RolloutServer(object):
 
         return x0
 
-    
+
     def plan_from_policy(self):
         N, ns = self.explore_n, self.explore_success
         self.agent.replace_cond(0)
@@ -961,6 +961,16 @@ class RolloutServer(object):
                             if post_cost == 0:
                                 cur_s, cur_t = s, t
                 s, t = cur_s, cur_t
+            elif mode == 'postcond':
+                s, t = 0, 0
+                x = self.agent.init_vecs[0]
+                targets = self.agent.target_vecs[0]
+                val, newpath, s, t = self.mcts[0].rollout_with_postcond(x, targets, rlen, 50, soft=True, eta=self.eta)
+                path = newpath
+                if val == 1:
+                    print('Success with postcond enforcement')
+                    self.agent.add_task_paths([newpath])
+                    return
             else:
                 raise NotImplementedError
             x0 = path[s].get_X(t=t) # self.agent.x0[0]
@@ -1146,7 +1156,7 @@ class RolloutServer(object):
             #n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
             #n_plans.value = n_plans.value + len(ref_paths)
             for path in ref_paths:
-                #self.save_video(path, lab='mp', annotate=False)
+                self.save_video(path, lab='mp', annotate=False)
                 self.update_primitive(path)
             if self._hyperparams.get('save_expert', False): self.update_expert_demos(ref_paths)
             if self.config.get('use_qfunc', False):
@@ -1267,6 +1277,8 @@ class RolloutServer(object):
 
     def save_video(self, rollout, success=None, ts=None, lab='', annotate=True):
         if not self.render: return
+        self.agent.image_height = 256
+        self.agent.image_width = 256
         suc_flag = ''
         if success is not None:
             suc_flag = 'succeeded' if success else 'failed'
