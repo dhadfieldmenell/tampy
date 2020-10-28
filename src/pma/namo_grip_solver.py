@@ -1,5 +1,6 @@
 import numpy as np
 
+from sco.expr import BoundExpr, QuadExpr, AffExpr
 from pma import backtrack_ll_solver
 from core.util_classes.namo_grip_predicates import RETREAT_DIST, dsafe, opposite_angle, gripdist, ColObjPred
 
@@ -69,6 +70,11 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 target = act.params[2]
                 grasp = act.params[5]
                 target_rot = -np.arctan2(target.value[0,0] - oldx, target.value[1,0] - oldy)
+                while target_rot < old_rot:
+                    target_rot += 2*np.pi
+                while target_rot > old_rot:
+                    target_rot -= 2*np.pi
+                if np.abs(target_rot-old_rot) > np.abs(target_rot-old_rot+2*np.pi): target_rot += 2*np.pi
                 # if np.abs(target_rot) > np.pi/2.:
                 #    target_rot = opposite_angle(target_rot)
                 dist = gripdist + dsafe
@@ -80,6 +86,11 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 target = act.params[4]
                 grasp = act.params[5]
                 target_rot = -np.arctan2(target.value[0,0] - oldx, target.value[1,0] - oldy)
+                while target_rot < old_rot:
+                    target_rot += 2*np.pi
+                while target_rot > old_rot:
+                    target_rot -= 2*np.pi
+                if np.abs(target_rot-old_rot) > np.abs(target_rot-old_rot+2*np.pi): target_rot += 2*np.pi
                 dist = -gripdist - dsafe
                 target_pos = target.value + [[-dist*np.sin(-target_rot)], [dist*np.cos(-target_rot)]]
                 target_pos = target.value + [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]

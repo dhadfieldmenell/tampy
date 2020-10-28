@@ -15,7 +15,7 @@
 };
 
 {
-    'moveto': 20,
-    'transfer': 20,
-    'place': 5,
+    'moveto': 25,
+    'transfer': 25,
+    'place': 7,
 }

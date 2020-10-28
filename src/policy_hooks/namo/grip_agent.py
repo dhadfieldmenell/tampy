@@ -130,7 +130,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             cur_color = colors.pop(0)
             # items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.4), 'rgba': tuple(cur_color), 'mass': 10.})
             items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 10.})
-            items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (LOCAL_NEAR_TOL, LOCAL_NEAR_TOL, 0.05), 'rgba': tuple(cur_color), 'mass': 1.})
+            items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (NEAR_TOL, NEAR_TOL, 0.05), 'rgba': tuple(cur_color), 'mass': 1.})
         for i in range(len(wall_dims)):
             dim, next_trans = wall_dims[i]
             next_trans[0,3] -= 3.5
@@ -397,15 +397,17 @@ class NAMOGripAgent(NAMOSortingAgent):
 
             obj_vec = np.zeros((len(prim_choices[OBJ_ENUM])), dtype='float32')
             targ_vec = np.zeros((len(prim_choices[TARG_ENUM])), dtype='float32')
+            obj_vec[task[1]] = 1.
+            targ_vec[task[2]] = 1.
             if self.task_list[task[0]] == 'moveto':
                 obj_vec[task[1]] = 1.
                 targ_vec[:] = 1. / len(targ_vec)
-            elif self.task_list[task[0]] == 'transfer':
-                obj_vec[:] = 1. / len(obj_vec)
-                targ_vec[task[2]] = 1.
-            elif self.task_list[task[0]] == 'place':
-                obj_vec[:] = 1. / len(obj_vec)
-                targ_vec[task[2]] = 1.
+            #elif self.task_list[task[0]] == 'transfer':
+            #    obj_vec[:] = 1. / len(obj_vec)
+            #    targ_vec[task[2]] = 1.
+            #elif self.task_list[task[0]] == 'place':
+            #    obj_vec[:] = 1. / len(obj_vec)
+            #    targ_vec[task[2]] = 1.
             sample.obj_ind = task[1]
             sample.targ_ind = task[2]
             sample.set(OBJ_ENUM, obj_vec, t)
@@ -459,7 +461,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
             sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
             targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
-            sample.set(OBJ_DELTA_ENUMS[i], rot.dot(mp_state[self.state_inds[obj, 'pose']]-ee_pose), t)
+            sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose, t)
             sample.set(TARG_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
 
         if INGRASP_ENUM in self._hyperparams['sensor_dims']:
@@ -518,7 +520,7 @@ class NAMOGripAgent(NAMOSortingAgent):
                 pos = mp_state[self.state_inds[param_name, 'pose']].copy()
                 targ = self.target_vecs[0][self.target_inds['{0}_end_target'.format(param_name), 'value']]
                 self.mjc_env.set_item_pos(param_name, np.r_[pos, 0.5], forward=False)
-                self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, 2.5], forward=False)
+                self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, 1.5], forward=False)
         self.mjc_env.physics.forward()
 
 

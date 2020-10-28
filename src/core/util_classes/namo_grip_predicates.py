@@ -25,9 +25,9 @@ from pma.ll_solver import NAMOSolver
 This file implements the predicates for the 2D NAMO domain.
 """
 
-dsafe = 1e-1
+dsafe = 1e-3
 # dmove = 1.1e0 # 5e-1
-dmove = 1.3e0 # 5e-1
+dmove = 1.2e0 # 5e-1
 contact_dist = 2e-1 # dsafe
 gripdist = 0.61 # 75
 
@@ -237,7 +237,7 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False, isrobot=False):
             if len(xs) == 2:
                 next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
                 if isrobot:
-                    next_pos[2] = min(xs[0][2], xs[1][2])
+                    next_pos[2] = -GRIP_VAL # min(xs[0][2], xs[1][2])
                     # next_pos[3] = np.arctan2(next_pos[0], next_pos[1])
             else:
                 next_pos = xs[0]
@@ -256,7 +256,7 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False, isrobot=False):
             if len(xs) == 2:
                 next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
                 if isrobot:
-                    next_pos[2] = min(xs[0][2], xs[1][2])
+                    next_pos[2] = -GRIP_VAL # min(xs[0][2], xs[1][2])
                     # next_pos[3] = np.arctan2(next_pos[0], next_pos[1])
             else:
                 next_pos = xs[0]
@@ -265,7 +265,7 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False, isrobot=False):
 
 
 class CollisionPredicate(ExprPredicate):
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1, active_range=(0,1), priority=2):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1, active_range=(0,1), priority=3):
         self._debug = debug
         # if self._debug:
         #     self._env.SetViewer("qtcoin")
@@ -1287,7 +1287,7 @@ class Obstructs(CollisionPredicate):
 class WideObstructs(Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.5
+        self.dsafe = 0.25
         self.check_aabb = False # True
 
 
@@ -1600,7 +1600,7 @@ class ObstructsHolding(CollisionPredicate):
 class WideObstructsHolding(ObstructsHolding):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(WideObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.5
+        self.dsafe = 0.25
         self.check_aabb = False # True
 
 
