@@ -69,8 +69,8 @@ class optimal_pol:
         if t < len(self.opt_traj) - 1:
             for param, attr in self.action_inds:
                 if attr == 'gripper':
-                    #u[self.action_inds[param, attr]] = self.opt_traj[t+1, self.state_inds[param, attr]]
-                    u[self.action_inds[param, attr]] = self.opt_traj[t, self.state_inds[param, attr]]
+                    u[self.action_inds[param, attr]] = self.opt_traj[t+1, self.state_inds[param, attr]]
+                    #u[self.action_inds[param, attr]] = self.opt_traj[t, self.state_inds[param, attr]]
                 elif attr == 'pose':
                     x, y = self.opt_traj[t+1, self.state_inds['pr2', 'pose']]
                     curx, cury = X[self.state_inds['pr2', 'pose']]
@@ -1634,7 +1634,7 @@ class NAMOSortingAgent(TAMPAgent):
             assert not np.any(np.isnan(xpts))
             assert not np.any(np.isnan(fpts))
             interp = scipy.interpolate.interp1d(xpts, fpts, axis=0, fill_value='extrapolate')
-            grip_interp = scipy.interpolate.interp1d(np.array(xpts), grippts, kind='previous', bounds_error=False, axis=0)
+            grip_interp = scipy.interpolate.interp1d(np.array(xpts), grippts, kind='next', bounds_error=False, axis=0)
 
             fix_pts = []
             if type(vel) is float:
