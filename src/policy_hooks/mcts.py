@@ -894,6 +894,52 @@ class MCTS:
         return value, samples[0]
 
 
+    def rollout_with_postcond(self, state, targets, max_t=10, task_ts=20, soft=False, eta=None):
+        prev_tasks = []
+        cur_run = [0]
+        def task_f(s, t, curtask):
+            next_task = self.mcts[0].run_hl(s, t, curtask, s.targets, check_cost=False)
+            if len(prev_tasks) and tuple(next_task) != tuple(prev_tasks[-1]):
+                postcost = self.agent.postcond_cost(s, prev_tasks[-1], t)
+                if postcost > 0:
+                    next_task = prev_tasks[-1]
+            if len(prev_tasks) and tuple(next_task) == tuple(prev_tasks[-1]):
+                cur_run.append(cur_run[-1]+1)
+            else:
+                cur_run.append(0)
+            prev_tasks.append(next_task)
+            return next_task
+
+        self.agent.reset_to_state(state)
+        old_opt = self.opt_strength
+        path = []
+        val = 0
+        t = 0
+        old_soft = self._soft
+        self._soft = soft
+        old_eta = self.eta
+        if eta is not None: self.eta = eta 
+        l = self.iter_labels(state, l, targets=targets, debug=False, check_cost=check_cost)
+        while t < max_t and val < 1-1e-2 and l is not None:
+            l = self.iter_labels(state, l, targets=targets, debug=False, check_cost=check_cost)
+            if l is None: break
+            task_name = self.tasks[l[0]]
+            pol = self.rollout_policy[task_name]
+            plan = self.agent.plans[l]
+            s = self.agent.sample_task(pol, self.condition, state, l, task_f=task_f, skip_opt=skip_opt)
+            val = 1 - self.agent.goal_f(0, s.get_X(s.T-1), targets)
+            t += 1
+            state = s.end_state # s.get_X(s.T-1)
+            path.append(s)
+            if cur_run[-1] >= task_ts: break
+        self.opt_strength = old_opt
+        self.eta = old_eta
+        self.log_path(path, -50)
+        self._soft = old_soft
+        return val, path
+
+
+
     def test_run(self, state, targets, max_t=20, hl=False, soft=False, check_cost=True, eta=None):
         self.agent.reset_to_state(state)
         old_opt = self.opt_strength
