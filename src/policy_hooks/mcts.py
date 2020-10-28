@@ -920,10 +920,10 @@ class MCTS:
         old_eta = self.eta
         if eta is not None: self.eta = eta
         l = list(self.agent.plans.keys())[0]
-        l = self.iter_labels(state, l, targets=targets, debug=False, check_cost=check_cost)
+        l = self.iter_labels(state, l, targets=targets, debug=False, check_cost=False)
         s, t = 0, 0
         while t < max_t and val < 1-1e-2 and l is not None:
-            l = self.iter_labels(state, l, targets=targets, debug=False, check_cost=check_cost)
+            l = self.iter_labels(state, l, targets=targets, debug=False, check_cost=False)
             if l is None: break
             task_name = self.tasks[l[0]]
             pol = self.rollout_policy[task_name]
