@@ -899,7 +899,7 @@ class RolloutServer(object):
         if mode == 'postcond':
             x = self.agent.init_vecs[0]
             targets = self.agent.target_vecs[0]
-            rlen = 3 * self.agent.num_objs if not self.retime else 6 * self.agent.num_objs
+            rlen = 3 * self.agent.num_objs if not self.agent.retime else 6 * self.agent.num_objs
             val, newpath, s, t = self.mcts[0].rollout_with_postcond(x, targets, rlen, 50, soft=True, eta=self.eta)
             path = newpath
             if val == 1:
