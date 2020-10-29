@@ -54,11 +54,14 @@ class LLSearchNode(SearchNode):
         self.keep_failed = keep_failed # If true, replanning is done from the end of the first failed action instead of the start
 
 
-    def parse_state(self, plan, failed_preds, ts):
+    def parse_state(self, plan, failed_preds, ts, all_preds=[]):
         new_preds = [p for p in failed_preds if p is not None]
         for a in plan.actions:
             a_st, a_et = a.active_timesteps
             if a_st > ts: break
+            preds = a.preds
+            for p in all_preds:
+                preds.append({'pred': p, 'active_timesteps':(0,0), 'hl_info':'hl_state', 'negated':False})
             for p in a.preds:
                 st, et = p['active_timesteps']
                 if p['pred'].hl_include: 
@@ -111,8 +114,8 @@ class LLSearchNode(SearchNode):
         state_timestep = last_action.active_timesteps[0]
         # state_timestep = 0
         preds = [failed_pred]
-        preds.extend(self.curr_plan.prob.init_state.preds)
-        state_preds = self.parse_state(self.curr_plan, [failed_pred], state_timestep)
+        init_preds = self.curr_plan.prob.init_state.preds
+        state_preds = self.parse_state(self.curr_plan, [failed_pred], state_timestep, init_preds)
         state_preds.extend(self.curr_plan.hl_preds)
         # state_preds = [p['pred'] for p in last_action.preds if p['hl_info'] != 'eff' and  p['negated'] == False and p['active_timesteps'][0]==a.active_timesteps[0]]
         # for p in state_preds:
