@@ -84,7 +84,7 @@ class LLSearchNode(SearchNode):
                                     aval = getattr(plan.params[param.name], attr)[:,check_ts]
                                 old_vals[param, attr] = getattr(param, attr)[:,0].copy()
                                 getattr(param, attr)[:,0] = aval
-                        if p['negated'] and p['pred'].hl_test(0, tol=1e-3, negated=True):
+                        if p['negated'] and not p['pred'].hl_test(0, tol=1e-3, negated=True):
                             new_preds.append(p['pred'])
                         elif not p['negated'] and p['pred'].hl_test(0, tol=1e-3):
                             new_preds.append(p['pred'])
@@ -93,7 +93,7 @@ class LLSearchNode(SearchNode):
                             getattr(param, attr)[:,0] = old_vals[param, attr]
                     elif not p['negated'] and p['pred'].hl_test(check_ts, tol=1e-3):
                         new_preds.append(p['pred'])
-                    elif p['negated'] and p['pred'].hl_test(check_ts, tol=1e-3, negated=True):
+                    elif p['negated'] and not p['pred'].hl_test(check_ts, tol=1e-3, negated=True):
                         new_preds.append(p['pred'])
         return new_preds
 
