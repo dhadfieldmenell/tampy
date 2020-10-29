@@ -170,7 +170,7 @@ class LLSearchNode(SearchNode):
 
         fail_step, fail_pred = self.get_failed_pred()
         if fail_pred is None:
-            return False
+            return True
 
         plan_prefix = tuple(self.curr_plan.prefix(fail_step))
         fail_pred_type = fail_pred.get_type()

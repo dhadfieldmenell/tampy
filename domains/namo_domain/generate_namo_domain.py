@@ -61,7 +61,7 @@ class MoveTo(Action):
                 ('(not (HLGraspFailed ?can ?g))', '0:-1'),
                 ('(forall (?gr - Grasp) (not (RobotAtGrasp ?robot ?can ?gr)))', '0:0'),
                 ('(forall (?w - Obstacle) (not (CanGraspCollides ?can ?w ?g)))', '0:0'),
-                ('(forall (?obj - Can) (not (CanCanGraspCollides ?can ?obj ?g)))', '0:0'),
+                #('(forall (?obj - Can) (not (CanCanGraspCollides ?can ?obj ?g)))', '0:0'),
                 ('(not (GripperClosed ?robot))', '1:{0}'.format(et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '0:{0}'.format(et-1)),
                 ('(forall (?w - Obstacle) (StationaryW ?w))', '0:{0}'.format(et-1)),

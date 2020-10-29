@@ -41,7 +41,7 @@ def p_mod_abs(hl_solver, ll_solver, domain, problem, initial=None, goal=None, su
                 return n.curr_plan, None
             # print('Failed iter', cur_iter, label)
             Q.put((n.heuristic(), n))
-            if n.gen_child():
+            if True: #n.gen_child():
                 # Expand the node
                 fail_step, fail_pred = n.get_failed_pred()
                 n_problem = n.get_problem(fail_step, fail_pred, suggester)
