@@ -46,7 +46,7 @@ descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.for
 #            (-4., -2.),
 #            (-2., -2.)]
 
-END_TARGETS =[(0., 5.5), (0., 4.)]
+END_TARGETS =[(0., 4.5), (0., 3.5)]
 END_TARGETS.extend([(1.6, 2.),
                    (-1.6, 2.),
                    (3., 0.),
@@ -136,7 +136,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         # x0[state_inds['pr2', 'pose']] = np.random.uniform([-3, -4], [3, -2]) # [0, -2]
         # x0[state_inds['pr2', 'pose']] = np.random.uniform([-3, -1], [3, 1])
         can_locs = copy.deepcopy(possible_can_locs)
-        targ_locs = copy.deepcopy(END_TARGETS)[:2]
+        targ_locs = copy.deepcopy(END_TARGETS)
         # can_locs = copy.deepcopy(END_TARGETS)
         locs = []
         pr2_loc = None
@@ -152,7 +152,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
             cur_locs = can_locs
             valid = [1 for _ in range(len(can_locs))]
             valid[0] = 0
-            if np.random.uniform() < 1.:
+            if np.random.uniform() < 0.5:
                 cur_locs = targ_locs
                 valid = [1 for _ in range(len(cur_locs))]
                 spacing = 0.
