@@ -792,13 +792,16 @@ class TargetGraspCollides(Collides):
         dist = 2.
         N_COLS = 8
         def f(x):
-            if self.held is not None and any([self.held.name == p.name for p in [self.c, self.w]]):
+            if self.held is not None and any([self.held.name == p.name for p in [self.c, self.w]]) \
+               or self.w is self.c:
                 return np.zeros((N_COLS, 1))
             disp = x[:2] + dist * x[4:6]
             new_x = np.concatenate([disp, x[2:4]])
             return -self.distance_from_obj(new_x)[0]
 
         def grad(x):
+            if self.w is self.c:
+                return np.zeros((N_COLS, 4))
             disp = x[:2] + dist * x[4:6]
             new_x = np.concatenate([disp, x[2:4]])
             jac = self.distance_from_obj(new_x)[1]
@@ -894,6 +897,9 @@ class RobotCanGraspCollides(Collides):
         # self.priority = 1
 
 class CanGraspCollides(TargetGraspCollides):
+    pass
+
+class CanCanGraspCollides(TargetGraspCollides):
     pass
 
 class TargetCanGraspCollides(TargetGraspCollides):
