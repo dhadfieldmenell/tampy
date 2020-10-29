@@ -61,7 +61,11 @@ class LLSearchNode(SearchNode):
             if a_st > ts: break
             for p in a.preds:
                 st, et = p['active_timesteps']
-                if p['pred'].hl_include: new_preds.append(p['pred'])
+                if p['pred'].hl_include: 
+                    new_preds.append(p['pred'])
+                    continue
+                if p['pred'].hl_ignore:
+                    continue
                 # Only check before the failed ts, previous actions fully checked while current only up to priority
                 # TODO: How to handle negated?
                 check_ts = ts - p['pred'].active_range[1]
