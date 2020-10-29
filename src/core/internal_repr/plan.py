@@ -31,6 +31,7 @@ class Plan(object):
         self._saved_free_attrs = {}
         self.sampling_trace = []
         self.sess = sess
+        self.hl_preds = []
         if determine_free:
             self._determine_free_attrs()
         if sess is not None:

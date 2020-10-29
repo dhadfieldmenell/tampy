@@ -413,6 +413,8 @@ class MCTS:
             p = prob.init_state.params[pname]
             if p.is_symbol(): continue
             getattr(p, attr)[:,0] = state[self.agent.state_inds[pname, attr]]
+        old_targs = self.agent.target_vecs[0]
+        self.agent.target_vecs[0] = targets
         for targ, attr in self.agent.target_inds:
             if targ in prob.init_state.params:
                 p = prob.init_state.params[targ]
@@ -443,10 +445,11 @@ class MCTS:
         else:
             self.agent.n_hl_fail += 1
             self.hl_fail += 1
-            print(('No plan found for', state, goal, targets, self.agent.process_id))
+            print(('No plan found for', state, goal, targets, self.agent.process_id, self.agent.hl_pol))
             path = []
         self.n_success += success
         self.val_per_run.append(success)
+        self.agent.target_vecs[0] = old_targs
         # self.reset()
         return success, path, plan
 

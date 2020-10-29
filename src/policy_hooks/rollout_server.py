@@ -119,6 +119,7 @@ class RolloutServer(object):
         self.permute_hl = hyperparams.get('permute_hl', 0)
         self.steps_to_replace = hyperparams.get('steps_to_replace', 1000)
         self.success_to_replace = hyperparams.get('success_to_replace', 1)
+        self.roll_post = hyperparams['rollout_post']
         self.alg_map = hyperparams['alg_map']
         for alg in list(self.alg_map.values()):
             alg.set_conditions(len(self.agent.x0))
@@ -219,6 +220,7 @@ class RolloutServer(object):
         self.hl_data = []
         self.td_errors = []
         self.fail_data = []
+        self.postcond_info = []
         self.last_hl_test = time.time()
         state_info = []
         params = list(self.agent.plans.values())[0].params
@@ -888,6 +890,29 @@ class RolloutServer(object):
             self.agent.add_task_paths([path])
             wts[np.argmax(wts)] = -np.inf
 
+
+    def rollout_postcond(self):
+        x = self.agent.x0[0]
+        targets = self.agent.target_vecs[0]
+        rlen = 3 * self.agent.num_objs if not self.agent.retime else 6 * self.agent.num_objs
+        val, newpath, s, t = self.mcts[0].rollout_with_postcond(x, targets, rlen, 50, soft=True, eta=self.explore_eta)
+        path = newpath
+        self.postcond_info.append(val)
+        if val == 1:
+            print('Success with postcond enforcement')
+            self.agent.add_task_paths([newpath])
+ 
+ 
+    def hl_feedback(self):
+        self.agent.hl_pol = True
+        x0 = self.agent.x0[0]
+        targets = self.agent.target_vecs[0]
+        val, newpath, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=True)
+        if val == 1:
+            print('Success with hl feedback')
+            self.agent.add_task_paths([newpath])
+        self.agent.hl_pol = False
+
         
     def plan_from_fail(self, augment=False, mode='start'):
         if mode == 'multistep':
@@ -896,17 +921,6 @@ class RolloutServer(object):
         self.set_policies()
         val = 1.
         i = 0
-        if mode == 'postcond':
-            x = self.agent.init_vecs[0]
-            targets = self.agent.target_vecs[0]
-            rlen = 3 * self.agent.num_objs if not self.agent.retime else 6 * self.agent.num_objs
-            val, newpath, s, t = self.mcts[0].rollout_with_postcond(x, targets, rlen, 50, soft=True, eta=self.explore_eta)
-            path = newpath
-            if val == 1:
-                print('Success with postcond enforcement')
-                self.agent.add_task_paths([newpath])
-            mode = 'random'
-
         while val >= 1. and i < 10:
             self.agent.replace_cond(0)
             self.agent.reset(0)
@@ -1412,6 +1426,8 @@ class RolloutServer(object):
                   anygoal_suc,
                   smallest_tol,
                   n_plans/(time.time()-self.start_t)))
+        if len(self.postcond_info):
+            s[0] = s[0] = (np.mean(self.postcond_info[-5:]),)
         if ckpt_ind is not None:
             s[0] = s[0] + (ckpt_ind,)
         res.append(s[0])
@@ -1452,7 +1468,7 @@ class RolloutServer(object):
             print('Saved video. Rollout success was: ', val > 0)
         self.last_hl_test = time.time()
         self.agent.debug = True
-        if not self.run_hl_test and self.explore_wt > 0:
+        if not self.run_hl_test and self.explore_wt > 0 and not self.roll_post:
             if self._hyperparams['hindsight']: self.agent.relabel_goal(path)
             if path[-1].success == 1:
                 print('Adding relabelled goal')
@@ -1553,14 +1569,21 @@ class RolloutServer(object):
     def run(self):
         step = 0
         ff_iters = self._hyperparams['warmup_iters']
+        self.agent.hl_pol = False
         while not self.stopped:
             if self._n_plans <= ff_iters:
                 n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
                 self._n_plans = n_plans.value
-            if self.cur_step == ff_iters:
-                for mcts in self.mcts:
-                    mcts.ff_thresh = 1. if np.random.uniform() < self.config['ff_thresh'] else 0.
-            n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
+            #if self.cur_step == ff_iters:
+            #    for mcts in self.mcts:
+            #        mcts.ff_thresh = 1. if np.random.uniform() < self.config['ff_thresh'] else 0.
+            #n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
+
+            if self._n_plans >= ff_iters:
+                if self.roll_post:
+                    self.rollout_postcond()
+                self.agent.hl_pol = self._hyperparams['hl_post']
+
             if not self.run_hl_test and \
                self._hyperparams.get('train_on_fail', False) and \
                self._n_plans > ff_iters and \
@@ -1878,12 +1901,14 @@ class RolloutServer(object):
             for key in self.expert_demos:
                 self.expert_demos[key].append([])
             for s in path:
-                self.expert_demos['acs'][-1].extend(s.get(ACTION_ENUM))
-                self.expert_demos['obs'][-1].extend(s.get_prim_obs())
-                self.expert_demos['ep_rets'][-1].extend(np.ones(s.T))
-                self.expert_demos['rews'][-1].extend(np.ones(s.T))
-                self.expert_demos['tasks'][-1].extend(s.get(FACTOREDTASK_ENUM))
-                self.expert_demos['use_mask'][-1].extend(s.use_ts)
+                for t in range(s.T):
+                    if not s.use_ts[t]: continue
+                    self.expert_demos['acs'][-1].append(s.get(ACTION_ENUM, t=t))
+                    self.expert_demos['obs'][-1].append(s.get_prim_obs(t=t))
+                    self.expert_demos['ep_rets'][-1].append(1)
+                    self.expert_demos['rews'][-1].append(1)
+                    self.expert_demos['tasks'][-1].append(s.get(FACTOREDTASK_ENUM, t=t))
+                    self.expert_demos['use_mask'][-1].append(s.use_ts[t])
         if self.cur_step % 5:
             np.save(self.expert_data_file, self.expert_demos)
 

@@ -181,6 +181,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.n_hl_fail = 0
         self.n_plans_run = 0
         self.n_plans_suc_run = 0
+        self.hl_pol = False # self.master_config['hl_post']
 
 
     def get_init_state(self, condition):
@@ -1015,8 +1016,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return success
 
 
-    def run_plan(self, plan, targets, tasks=None, reset=True, permute=False, save=True):
-        self.n_plans_run += 1
+    def run_plan(self, plan, targets, tasks=None, reset=True, permute=False, save=True, amin=0, amax=None, record=True):
+        if record: self.n_plans_run += 1
         path = []
         nzero = self.master_config.get('add_noop', 0)
         if tasks is None:
@@ -1031,7 +1032,9 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                     x0[self.state_inds[perm[pname], aname]] = getattr(plan.params[pname], aname)[:,0]
         if reset:
             self.reset_to_state(x0)
-        for a in range(len(plan.actions)):
+        if amax is None:
+            amax = len(plan.actions)-1
+        for a in range(amin, amax+1):
             # x0 = np.zeros_like(self.x0[0])
             st, et = plan.actions[a].active_timesteps
             # fill_vector(plan.params, self.state_inds, x0, st)
@@ -1115,9 +1118,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         if len(path) and path[-1].success > 0.99:
             for sample in path: sample.opt_strength = 1.
             if save: self.add_task_paths([path])
+            if record: self.n_plans_suc_run += 1
+        if len(path):
             for s in path:
                 self.optimal_samples[self.task_list[s.task[0]]].append(s)
-            self.n_plans_suc_run += 1
         print(('Plans run vs. success:', self.n_plans_run, self.n_plans_suc_run, self.process_id))
         return path
 

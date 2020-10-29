@@ -522,6 +522,52 @@ class HLPoseUsed(ExprPredicate):
         return super(HLPoseUsed, self).test(time, tol=tol)
 
 
+class HLGraspFailed(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.pose = params[0]
+        if self.pose.is_symbol():
+            k = 'value'
+        else:
+            k = 'pose'
+        attr_inds = OrderedDict([(self.pose, [(k, np.array([0,1], dtype=np.int))])])
+
+        A = np.zeros((2,2))
+        b = np.zeros((2, 1))
+        val = np.zeros((2, 1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(HLGraspFailed, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        self.hl_info = True
+
+    def test(self, time, negated=False, tol=1e-4):
+        return True
+
+
+class HLTransferFailed(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.pose = params[0]
+        if self.pose.is_symbol():
+            k = 'value'
+        else:
+            k = 'pose'
+        attr_inds = OrderedDict([(self.pose, [(k, np.array([0,1], dtype=np.int))])])
+
+        A = np.zeros((2,2))
+        b = np.zeros((2, 1))
+        val = np.zeros((2, 1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(HLTransferFailed, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        self.hl_info = True
+
+    def test(self, time, negated=False, tol=1e-4):
+        return True
+
+
+class HLPlaceFailed(HLTransferFailed):
+    pass
+
+
 class HLPoseAtGrasp(HLPoseUsed):
 
     # RobotAt Robot Can Grasp

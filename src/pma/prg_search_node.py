@@ -50,6 +50,7 @@ class LLSearchNode(SearchNode):
         self.concr_prob = prob
         self.child_record = {}
         self.priority = priority
+        self._solved = None
         self.keep_failed = keep_failed # If true, replanning is done from the end of the first failed action instead of the start
 
 
@@ -106,6 +107,7 @@ class LLSearchNode(SearchNode):
         state_timestep = last_action.active_timesteps[0]
         # state_timestep = 0
         state_preds = self.parse_state(self.curr_plan, [failed_pred], state_timestep)
+        state_preds.extend(self.curr_plan.hl_preds)
         # state_preds = [p['pred'] for p in last_action.preds if p['hl_info'] != 'eff' and  p['negated'] == False and p['active_timesteps'][0]==a.active_timesteps[0]]
         # for p in state_preds:
         #     arange = p.active_range
@@ -127,7 +129,9 @@ class LLSearchNode(SearchNode):
         return new_problem
 
     def solved(self):
-        return len(self.curr_plan.get_failed_preds()) == 0
+        if self._solved is None:
+            return len(self.curr_plan.get_failed_preds()) == 0
+        return self._solved
 
     def is_ll_node(self):
         return True
@@ -135,6 +139,7 @@ class LLSearchNode(SearchNode):
     def plan(self, solver, n_resamples=5):
         self.curr_plan.freeze_actions(self.curr_plan.start_action)
         success = solver._backtrack_solve(self.curr_plan, anum=self.curr_plan.start_action, n_resamples=n_resamples)
+        self._solved = success
 
     def get_failed_pred(self, forward_only=False):
         st = 0

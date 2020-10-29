@@ -379,7 +379,7 @@ class HLGraspFailed(ExprPredicate):
         val = np.zeros((2, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
-        super(HLPoseUsed, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        super(HLGraspFailed, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.hl_info = True
 
     def test(self, time, negated=False, tol=1e-4):
@@ -400,7 +400,7 @@ class HLTransferFailed(ExprPredicate):
         val = np.zeros((2, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
-        super(HLPoseUsed, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        super(HLTransferFailed, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.hl_info = True
 
     def test(self, time, negated=False, tol=1e-4):
@@ -474,6 +474,15 @@ class At(ExprPredicate):
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+
+
+class AtInit(At):
+    def test(self, time, negated=False, tol=1e-4):
+        return False
+
+    def hl_test(self, time, negated=False, tol=1e-4):
+        return True
+
 
 class AtStart(At):
     def get_param_vector(self, t):
@@ -1068,7 +1077,7 @@ class ColObjPred(CollisionPredicate):
                                self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom)}
 
         self.rs_scale = RS_SCALE
-        self.radius = self.c.geom.radius + 2.
+        self.radius = self.c.geom.radius + 1.5
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 

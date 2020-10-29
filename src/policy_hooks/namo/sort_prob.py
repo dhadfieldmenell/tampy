@@ -47,16 +47,14 @@ descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.for
 #            (-2., -2.)]
 
 END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
-END_TARGETS.extend([(1., 2.),
-                   (-1., 2.),
-                   (2.2, 2.),
-                   (-2.2, 2.),
-                   (-3.4, 2.),
-                   (3.4, 2.),
-                   (4.6, 2.),
-                   (-4.6, 2.),
-                   (5.8, 2.),
-                   (-5.8, 2.)
+END_TARGETS.extend([(0.8, 2.),
+                   (-0.8, 2.),
+                   (2.4, 2.),
+                   (-2.4, 2.),
+                   (-3.8, 2.),
+                   (3.8, 2.),
+                   (5.4, 2.),
+                   (-5.4, 2.),
                    ])
 
 n_aux = 4
@@ -236,6 +234,7 @@ def get_plans(use_tf=False):
     openrave_bodies = {}
     env = None
     params = None
+    sess = None
     for task in tasks:
         next_task_str = copy.deepcopy(tasks[task])
         for i in range(len(prim_options[utils.OBJ_ENUM])):
@@ -247,7 +246,7 @@ def get_plans(use_tf=False):
                     new_task_str = []
                     for step in next_task_str:
                         new_task_str.append(step.format(obj, targ, grasp))
-                    plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params)
+                    plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params, sess=sess, use_tf=use_tf)
                     plan.params['pr2'].gripper[0,0] = -GRIP_VAL
                     params = plan.params
                     plans[(task_ids.index(task), i, j, k)] = plan
@@ -258,6 +257,7 @@ def get_plans(use_tf=False):
                                 if not hasattr(param, 'openrave_body') or param.openrave_body is None:
                                     param.openrave_body = OpenRAVEBody(env, param.name, param.geom)
                                 openrave_bodies[param.name] = param.openrave_body
+                    sess = plan.sess
 
     return plans, openrave_bodies, env
 

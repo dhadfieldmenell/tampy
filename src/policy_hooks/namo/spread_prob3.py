@@ -47,14 +47,14 @@ descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.for
 #            (-2., -2.)]
 
 END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
-END_TARGETS.extend([(6.5, 0.),
-                   (-6.5, 0.),
+END_TARGETS.extend([(7., 0.),
+                   (-7., 0.),
                    (2.5, 0.),
                    (-2.5, 0.),
-                   (2.5, -6.),
-                   (-2.5, -6.),
-                   (6.5, -6.),
-                   (-6.5, -6.),
+                   (2.5, -6.5),
+                   (-2.5, -6.5),
+                   (7., -6.5),
+                   (-7., -6.5),
                    ])
 
 n_aux = 4
@@ -66,12 +66,12 @@ MAX_Y = 25
 #possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-40, 0, 2))))
 #possible_can_locs.extend(list(itertools.product(list(range(-70, 70, 2)), list(range(-60, 10, 2)))))
 # possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(6, 25, 4))))
-possible_can_locs.extend(list(itertools.product(list(range(-50, -35, 2)), list(range(10, 20, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-50, -35, 2)), list(range(-40, -15, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-15, 15, 2)), list(range(10, 20, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-15, 15, 2)), list(range(-40, -15, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(35, 50, 2)), list(range(10, 20, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-35, 50, 2)), list(range(-40, -15, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-55, -40, 2)), list(range(10, 22, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-55, -40, 2)), list(range(-40, -15, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-10, 10, 2)), list(range(10, 22, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-10, 10, 2)), list(range(-40, -15, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(40, 55, 2)), list(range(10, 20, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-40, 55, 2)), list(range(-40, -15, 2)))))
 
 
 for i in range(len(possible_can_locs)):
