@@ -29,7 +29,7 @@ import baxter_gym
 from baxter_gym.envs import MJCEnv
 
 import core.util_classes.items as items
-from core.util_classes.namo_grip_predicates import dsafe, NEAR_TOL, dmove
+from core.util_classes.namo_grip_predicates import dsafe, NEAR_TOL, dmove, HLGraspFailed, HLTransferFailed
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
 
@@ -827,5 +827,79 @@ class NAMOGripAgent(NAMOSortingAgent):
                     goal += '(Near {0} end_target_{1}) '.format(obj, ind)
                     break
         return goal
+
+
+    def backtrack_solve(self, plan, anum=0, n_resamples=5):
+        if self.hl_pol:
+            prim_opts = self.prob.get_prim_choices(self.task_list)
+            start = anum
+            plan.state_inds = self.state_inds
+            plan.action_inds = self.action_inds
+            plan.dX = self.symbolic_bound
+            plan.dU = self.dU
+            success = False
+            hl_success = True
+            targets = self.target_vecs[0]
+            for a in range(anum, len(plan.actions)):
+                x0 = np.zeros_like(self.x0[0])
+                st, et = plan.actions[a].active_timesteps
+                fill_vector(plan.params, self.state_inds, x0, st)
+                task = tuple(self.encode_action(plan.actions[a]))
+
+                traj = []
+                success = False
+                policy = self.policies[self.task_list[task[0]]]
+                path = []
+                x = x0
+                for i in range(3):
+                    sample = self.sample_task(policy, 0, x.copy(), task, skip_opt=True)
+                    path.append(sample)
+                    x = sample.get_X(sample.T-1)
+                    postcost = self.postcond_cost(sample, task, sample.T-1)
+                    if postcost < 1e-3: break
+                postcost = self.postcond_cost(sample, task, sample.T-1)
+                if postcost > 0:
+                    taskname = self.task_list[task[0]]
+                    objname = prim_opts[OBJ_ENUM][task[1]]
+                    targname = prim_opts[TARG_ENUM][task[2]]
+                    graspname = prim_opts[GRASP_ENUM][task[3]]
+                    obj = plan.params[objname]
+                    targ = plan.params[targname]
+                    grasp = plan.params[graspname]
+                    if taskname.find('moveto') >= 0:
+                        pred = HLGraspFailed('hlgraspfailed', [obj], ['Can', 'Grasp'])
+                    elif taskname.find('transfer') >= 0:
+                        pred = HLTransferFailed('hltransferfailed', [obj, targ], ['Can', 'Target', 'Grasp'])
+                    plan.hl_preds.append(pred)
+                    hl_success = False
+                    sucess = False
+                    print('POSTCOND FAIL', plan.hl_preds)
+                else:
+                    print('POSTCOND SUCCESS')
+
+                fill_vector(plan.params, self.state_inds, x0, st)
+                self.set_symbols(plan, task, anum=a)
+                try:
+                    success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=traj)
+                except Exception as e:
+                    traceback.print_exception(*sys.exc_info())
+                    print(('Exception in full solve for', x0, task, plan.actions[a]))
+                    success = False
+                self.n_opt[task] = self.n_opt.get(task, 0) + 1
+
+                if not success:
+                    failed = plan.get_failed_preds((0, et))
+                    if not len(failed):
+                        continue
+                    print(('Graph failed solve on', x0, task, plan.actions[a], 'up to {0}'.format(et), failed, self.process_id))
+                    self.n_fail_opt[task] = self.n_fail_opt.get(task, 0) + 1
+                    return False
+                self.run_plan(plan, targets, amin=a, amax=a, record=False)
+                if not hl_success: return False
+                plan.hl_preds = []
+            
+            print('SUCCESS WITH LL POL + PR GRAPH')
+            return True
+        return super(NAMOSortingAgent, self).backtrack_solve(plan, anum, n_resamples)
 
 
