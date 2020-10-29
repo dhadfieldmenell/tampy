@@ -1726,11 +1726,13 @@ class NAMOSortingAgent(TAMPAgent):
                     if taskname.find('moveto') >= 0:
                         pred = HLGraspFailed('hlgraspfailed', [obj, grasp], ['Can', 'Grasp'])
                     elif taskname.find('transfer') >= 0:
-                        pred = HLTransferFailed('hltransferfailed', [targ, grasp], ['Target', 'Grasp'])
+                        pred = HLTransferFailed('hltransferfailed', [obj, targ, grasp], ['Can', 'Target', 'Grasp'])
                     plan.hl_preds.append(pred)
                     hl_success = False
                     sucess = False
-                    #print('POSTCOND FAIL', plan.hl_preds)
+                    print('POSTCOND FAIL', plan.hl_preds)
+                else:
+                    print('POSTCOND SUCCESS')
 
                 fill_vector(plan.params, self.state_inds, x0, st)
                 self.set_symbols(plan, task, anum=a)
@@ -1749,10 +1751,11 @@ class NAMOSortingAgent(TAMPAgent):
                     print(('Graph failed solve on', x0, task, plan.actions[a], 'up to {0}'.format(et), failed, self.process_id))
                     self.n_fail_opt[task] = self.n_fail_opt.get(task, 0) + 1
                     return False
-                self.run_plan(plan, targets, amin=a, amax=a)
+                self.run_plan(plan, targets, amin=a, amax=a, record=False)
                 if not hl_success: return False
                 plan.hl_preds = []
-
+            
+            print('SUCCESS WITH LL POL + PR GRAPH')
             return True
         return super(NAMOSortingAgent, self).backtrack_solve(plan, anum, n_resamples)
 

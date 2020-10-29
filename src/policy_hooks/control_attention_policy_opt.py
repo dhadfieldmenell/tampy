@@ -430,10 +430,10 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 else:
                     self.update(obs, mu, prc, wt, net, aux=aux)
                 self.store_scope_weights(scopes=[net])
-                if time.time() - self.last_pkl_t > 180:
-                    self.store_scope_weights(scopes=[net], lab='_{0}'.format(self.cur_pkl))
-                    self.cur_pkl += 1
-                    self.last_pkl_t = time.time()
+                #if time.time() - self.last_pkl_t > 180:
+                #    self.store_scope_weights(scopes=[net], lab='_{0}'.format(self.cur_pkl))
+                #    self.cur_pkl += 1
+                #    self.last_pkl_t = time.time()
 
                 self.update_count = 0
                 updated = True

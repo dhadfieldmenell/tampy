@@ -1427,7 +1427,10 @@ class RolloutServer(object):
                   smallest_tol,
                   n_plans/(time.time()-self.start_t)))
         if len(self.postcond_info):
-            s[0] = s[0] = (np.mean(self.postcond_info[-5:]),)
+            s[0] = s[0] + (np.mean(self.postcond_info[-5:]),)
+        else:
+            s[0] = s[0] + (0,)
+
         if ckpt_ind is not None:
             s[0] = s[0] + (ckpt_ind,)
         res.append(s[0])
