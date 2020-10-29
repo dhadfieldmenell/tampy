@@ -136,10 +136,11 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         # x0[state_inds['pr2', 'pose']] = np.random.uniform([-3, -4], [3, -2]) # [0, -2]
         # x0[state_inds['pr2', 'pose']] = np.random.uniform([-3, -1], [3, 1])
         can_locs = copy.deepcopy(possible_can_locs)
-        targ_locs = copy.deepcopy(END_TARGETS)
+        targ_locs = copy.deepcopy(END_TARGETS)[:2]
         # can_locs = copy.deepcopy(END_TARGETS)
         locs = []
         pr2_loc = None
+        cur_spacing = 2.5
         spacing = 2.5
         valid = [1 for _ in range(len(can_locs))]
         while len(locs) < config['num_objs'] + 1:
@@ -151,19 +152,19 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
             cur_locs = can_locs
             valid = [1 for _ in range(len(can_locs))]
             valid[0] = 0
-            if np.random.uniform() < 0.5:
+            if np.random.uniform() < 1.:
                 cur_locs = targ_locs
                 valid = [1 for _ in range(len(cur_locs))]
-                cur_spacing = 0.
+                spacing = 0.
             else:
-                spacing = 2.4
+                spacing = cur_spacing
                 cur_locs = can_locs[1:]
             valid = [1 for _ in range(len(cur_locs))]
             for m in range(0, len(cur_locs)):
                 if np.linalg.norm(np.array(pr2_loc) - np.array(cur_locs[m])) < spacing:
                     valid[m] = 0
             for j in range(config['num_objs']):
-                for n in range(1, len(cur_locs)):
+                for n in range(0, len(cur_locs)):
                     if valid[n]:
                         locs.append(cur_locs[n])
                         valid[n] = 0
@@ -172,7 +173,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
                             if np.linalg.norm(np.array(cur_locs[n]) - np.array(cur_locs[m])) < spacing:
                                 valid[m] = 0
                         break
-            spacing -= 0.1
+            cur_spacing -= 0.1
 
         for l in range(len(locs)):
             locs[l] = np.array(locs[l])
