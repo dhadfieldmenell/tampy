@@ -130,7 +130,7 @@ class Transfer(Action):
                 ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?init ?t ?c ?obj)))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can) (not (WideObstructsHolding ?robot ?init ?t ?c ?obj)))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
-                ('(forall (?gr - Grasp) (forall (?obj - Can) (not (RobotAtGrasp ?robot ?obj ?g))))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?gr - Grasp) (forall (?obj - Can / ?c) (not (RobotAtGrasp ?robot ?obj ?g))))', '{0}:{1}'.format(et, et-1)),
         ]
 
 actions = [MoveTo(), Transfer()]
