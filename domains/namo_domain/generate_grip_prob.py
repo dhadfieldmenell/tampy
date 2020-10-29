@@ -89,6 +89,8 @@ def main():
 
                 for i in range(NUM_CANS):
                     s += "(At can{} can{}_init_target), ".format(i, i)
+                    s += "(AtInit can{} can{}_init_target), ".format(i, i)
+                    s += "(AtInit can{} can{}_end_target), ".format(i, i)
                     s += "(Near can{} can{}_init_target), ".format(i, i)
                     s += "(Stationary can{}), ".format(i)
                     for j in range(NUM_CANS):

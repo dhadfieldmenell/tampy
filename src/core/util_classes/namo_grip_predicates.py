@@ -633,6 +633,15 @@ class AtNEq(ExprPredicate):
         e = EqExpr(aff_e, val)
         super(AtNEq, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
 
+
+class AtInit(At):
+    def test(self, time, negated=False, tol=1e-4):
+        return True
+
+    def hl_test(self, time, negated=False, tol=1e-4):
+        return True
+
+
 class RobotAt(At):
 
     # RobotAt Robot RobotPose

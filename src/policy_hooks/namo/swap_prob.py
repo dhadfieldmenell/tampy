@@ -154,7 +154,12 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
             if np.random.uniform() < 0.5:
                 cur_locs = targ_locs
                 valid = [1 for _ in range(len(cur_locs))]
-            for m in range(1, len(cur_locs)):
+                cur_spacing = 0.
+            else:
+                spacing = 2.4
+                cur_locs = can_locs[1:]
+            valid = [1 for _ in range(len(cur_locs))]
+            for m in range(0, len(cur_locs)):
                 if np.linalg.norm(np.array(pr2_loc) - np.array(cur_locs[m])) < spacing:
                     valid[m] = 0
             for j in range(config['num_objs']):
@@ -169,9 +174,16 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
                         break
             spacing -= 0.1
 
+        for l in range(len(locs)):
+            locs[l] = np.array(locs[l])
+        x0[state_inds['pr2', 'pose']] = locs[0]
+        for o in range(config['num_objs']):
+            x0[state_inds['can{0}'.format(o), 'pose']] = locs[o+1]
+        x0[state_inds['pr2', 'gripper']] = -1.
+        x0s.append(x0)
+
         spacing = 2.5
         targs = []
-        can_targs = [can_locs[i] for i in range(len(can_locs)) if (valid[i] or not NO_COL)]
         old_valid = copy.copy(valid)
         targ_range = list(range(config['num_objs'] - config['num_targs']))
         inds = list(range(len(END_TARGETS))) if CONST_TARGETS else np.random.permutation(list(range(len(END_TARGETS))))
