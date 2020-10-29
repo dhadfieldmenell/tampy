@@ -93,7 +93,7 @@ class LLSearchNode(SearchNode):
                             getattr(param, attr)[:,0] = old_vals[param, attr]
                     elif not p['negated'] and p['pred'].hl_test(check_ts, tol=1e-3):
                         new_preds.append(p['pred'])
-                    elif p['negated'] and not p['pred'].hl_test(check_ts, tol=1e-3, negated=True):
+                    elif p['negated'] and p['pred'].hl_test(check_ts, tol=1e-3, negated=True):
                         new_preds.append(p['pred'])
         return new_preds
 
