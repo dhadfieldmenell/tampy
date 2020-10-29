@@ -29,7 +29,7 @@ import baxter_gym
 from baxter_gym.envs import MJCEnv
 
 import core.util_classes.items as items
-from core.util_classes.namo_grip_predicates import dsafe, NEAR_TOL, dmove, HLGraspFailed, HLTransferFailed
+from core.util_classes.namo_grip_predicates import dsafe, NEAR_TOL, dmove, HLGraspFailed, HLTransferFailed, HLPlaceFailed
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
 
@@ -867,9 +867,11 @@ class NAMOGripAgent(NAMOSortingAgent):
                     targ = plan.params[targname]
                     grasp = plan.params[graspname]
                     if taskname.find('moveto') >= 0:
-                        pred = HLGraspFailed('hlgraspfailed', [obj], ['Can', 'Grasp'])
+                        pred = HLGraspFailed('hlgraspfailed', [obj], ['Can'])
                     elif taskname.find('transfer') >= 0:
-                        pred = HLTransferFailed('hltransferfailed', [obj, targ], ['Can', 'Target', 'Grasp'])
+                        pred = HLTransferFailed('hltransferfailed', [obj, targ], ['Can', 'Target'])
+                    elif taskname.find('place') >= 0:
+                        pred = HLTransferFailed('hlplacefailed', [targ], ['Target'])
                     plan.hl_preds.append(pred)
                     hl_success = False
                     sucess = False
