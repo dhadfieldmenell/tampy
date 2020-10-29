@@ -107,7 +107,7 @@ class LLSearchNode(SearchNode):
         """
         state_name = "state_{}".format(self.priority)
         state_params = self.curr_plan.params.copy()
-        if not len(self.curr_plan.actions) or self.curr_plans.actions[-1].active_timesteps[1] < i:
+        if not len(self.curr_plan.actions) or self.curr_plan.actions[-1].active_timesteps[1] < i:
             print('BAD GET PROBLEM', failed_pred)
             state_timestep = 0
         else:
