@@ -1141,6 +1141,7 @@ class RCollides(CollisionPredicate):
         super(RCollides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1)
         self.n_cols = N_COLS
+        self.hl_ignore = True
 
         # self.priority = 1
 
@@ -1191,7 +1192,7 @@ class Obstructs(CollisionPredicate):
 
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self._env = env
-        self.hl_ignore = True
+        #self.hl_ignore = True
         self.r, self.startp, self.endp, self.c = params
 
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int)),

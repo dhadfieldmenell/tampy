@@ -1013,6 +1013,7 @@ class RCollides(CollisionPredicate):
         super(RCollides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1)
         self.n_cols = N_COLS
+        self.hl_ignore = True
 
         # self.priority = 1
 
