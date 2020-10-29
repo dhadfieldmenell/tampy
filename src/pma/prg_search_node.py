@@ -107,13 +107,16 @@ class LLSearchNode(SearchNode):
         """
         state_name = "state_{}".format(self.priority)
         state_params = self.curr_plan.params.copy()
-        anum, last_action = [(a_ind, a) for a_ind, a in enumerate(self.curr_plan.actions) if a.active_timesteps[0] <= i and a.active_timesteps[1] >= i][0]
-        if self.keep_failed:
-            anum += 1
-            last_action = self.curr_plan.actions[anum]
-        state_timestep = last_action.active_timesteps[0]
-        # state_timestep = 0
-        preds = [failed_pred]
+        if not len(self.curr_plan.actions) or self.curr_plans.actions[-1].active_timesteps[1] < i:
+            print('BAD GET PROBLEM', failed_pred)
+            state_timestep = 0
+        else:
+            anum, last_action = [(a_ind, a) for a_ind, a in enumerate(self.curr_plan.actions) if a.active_timesteps[0] <= i and a.active_timesteps[1] >= i][0]
+            if self.keep_failed:
+                anum += 1
+                last_action = self.curr_plan.actions[anum]
+            state_timestep = last_action.active_timesteps[0]
+            # state_timestep = 0
         init_preds = self.curr_plan.prob.init_state.preds
         state_preds = self.parse_state(self.curr_plan, [failed_pred], state_timestep, init_preds)
         state_preds.extend(self.curr_plan.hl_preds)
