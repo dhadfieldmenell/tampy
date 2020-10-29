@@ -478,7 +478,7 @@ class At(ExprPredicate):
 
 class AtInit(At):
     def test(self, time, negated=False, tol=1e-4):
-        return False
+        return True
 
     def hl_test(self, time, negated=False, tol=1e-4):
         return True
