@@ -219,13 +219,12 @@ class FFSolver(HLSolver):
         for param in list(concr_prob.init_state.params.values()):
             prob_str += "%s - %s\n"%(param.name, param.get_type())
         prob_str += ")\n\n(:init\n"
-        if initial is None:
-            for pred in concr_prob.init_state.preds:
-                prob_str += "(%s "%pred.get_type()
-                for param in pred.params:
-                    prob_str += "%s "%param.name
-                prob_str += ")\n"
-        else:
+        for pred in concr_prob.init_state.preds:
+            prob_str += "(%s "%pred.get_type()
+            for param in pred.params:
+                prob_str += "%s "%param.name
+            prob_str += ")\n"
+        if initial is not None:
             initial = set(initial)
             for pred in initial:
                 prob_str += pred

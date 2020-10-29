@@ -167,7 +167,7 @@ class Plan(object):
         return res
 
     #@profile
-    def get_failed_pred(self, active_ts=None, priority = MAX_PRIORITY, tol=1e-3, incl_negated=True):
+    def get_failed_pred(self, active_ts=None, priority = MAX_PRIORITY, tol=1e-3, incl_negated=True, hl_ignore=False):
         #just return the first one for now
         t_min = self.horizon+1
         pred = None
@@ -180,7 +180,7 @@ class Plan(object):
 
             for pr in range(priority+1):
                 for n, p, t in self.get_failed_preds(active_ts=(st,et), priority=pr, tol=tol, incl_negated=incl_negated):
-                    if t < t_min:
+                    if t < t_min and (not hl_ignore or not p.hl_ignore):
                         t_min = t
                         pred = p
                         negated = n

@@ -80,7 +80,7 @@ class LLSearchNode(SearchNode):
                                     aval = getattr(plan.params[param.name], attr)[:,check_ts]
                                 old_vals[param, attr] = getattr(param, attr)[:,0].copy()
                                 getattr(param, attr)[:,0] = aval
-                        if p['negated'] and not p['pred'].hl_test(0, tol=1e-3, negated=True):
+                        if p['negated'] and p['pred'].hl_test(0, tol=1e-3, negated=True):
                             new_preds.append(p['pred'])
                         elif not p['negated'] and p['pred'].hl_test(0, tol=1e-3):
                             new_preds.append(p['pred'])
@@ -106,6 +106,8 @@ class LLSearchNode(SearchNode):
             last_action = self.curr_plan.actions[anum]
         state_timestep = last_action.active_timesteps[0]
         # state_timestep = 0
+        preds = [failed_pred]
+        preds.extend(self.curr_plan.prob.init_state.preds)
         state_preds = self.parse_state(self.curr_plan, [failed_pred], state_timestep)
         state_preds.extend(self.curr_plan.hl_preds)
         # state_preds = [p['pred'] for p in last_action.preds if p['hl_info'] != 'eff' and  p['negated'] == False and p['active_timesteps'][0]==a.active_timesteps[0]]
@@ -147,7 +149,7 @@ class LLSearchNode(SearchNode):
             anum = self.curr_plan.start_action
             st = self.curr_plan.actions[anum].active_timesteps[0]
         et = self.curr_plan.horizon - 1
-        failed_pred = self.curr_plan.get_failed_pred(active_ts=(st,et))
+        failed_pred = self.curr_plan.get_failed_pred(active_ts=(st,et), hl_ignore=True)
         if hasattr(failed_pred[1], 'hl_ignore') and failed_pred[1].hl_ignore:
             return failed_pred[2], None
         return failed_pred[2], failed_pred[1]
