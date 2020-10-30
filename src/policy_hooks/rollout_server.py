@@ -1785,8 +1785,8 @@ class RolloutServer(object):
 
         lab = samples[0].source_label
         if lab in self.policy_opt.buf_sizes:
-            self.policy_opt.buf_sizes[lab].get_lock():
-                self.policy_opt.buf_size[lab].value += 1
+            with self.policy_opt.buf_sizes[lab].get_lock():
+                self.policy_opt.buf_sizes[lab].value += 1
             samples[0].source_label = ''
         for ind, sample in enumerate(samples):
             mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
