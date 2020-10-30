@@ -203,6 +203,10 @@ class NAMOGripAgent(NAMOSortingAgent):
             sample.set(NOISE_ENUM, noise_full, t)
             # U_full = np.clip(U_full, -MAX_STEP, MAX_STEP)
             suc, col = self.run_policy_step(U_full, cur_state)
+            objname = prim_choices[OBJ_ENUM][task[1]]
+            tname = prim_choices[TASK_ENUM][task[0]]
+            if tname.find('transfer') and len(self._col) == 1 and self._col[0] == objanme:
+                col = 0
             col_ts[t] = col
 
             if self.master_config['local_retime']:
@@ -293,6 +297,11 @@ class NAMOGripAgent(NAMOSortingAgent):
 
     #def run_policy_step(self, u, x, plan, t, obj, grasp=None):
     def run_policy_step(self, u, x):
+        self._col = []
+        poses = {}
+        for pname, aname in self.state_inds:
+            if aname != 'pose' or pname.find('can') < 0: continue
+            poses[pname] = self.mjc_env.get_item_pos(pname)
         cmd_theta = u[self.action_inds['pr2', 'theta']][0]
         if ('pr2', 'pose') not in self.action_inds:
             cmd_vel = u[self.action_inds['pr2', 'vel']]
@@ -325,7 +334,15 @@ class NAMOGripAgent(NAMOSortingAgent):
         self.mjc_env.step(ctrl_vec, mode='velocity')
         self.mjc_env.step(ctrl_vec, mode='velocity')
 
-        return True, 0.
+        new_poses = {}
+        for pname, aname in self.state_inds:
+            if aname != 'pose' or pname.find('can') < 0: continue
+            new_poses[pname] = self.mjc_env.get_item_pos(pname)
+        for pname in poses:
+            if np.any(np.abs(poses[pname]-new_poses[pname])) > 5e-2:
+                self._col.append(pname)
+        col = 1 if self(self._col > 0) else 0
+        return True, col
 
 
     def get_state(self):

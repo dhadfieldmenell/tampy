@@ -899,7 +899,7 @@ class MCTS:
         return value, samples[0]
 
 
-    def rollout_with_postcond(self, state, targets, max_t=10, task_ts=20, soft=False, eta=None):
+    def rollout_with_postcond(self, state, targets, max_t=10, task_ts=20, soft=False, eta=None, mode=''):
         prev_tasks = []
         cur_run = [0]
         def task_f(s, t, curtask):
@@ -928,6 +928,7 @@ class MCTS:
         l = list(self.agent.plans.keys())[0]
         l = self.iter_labels(state, l, targets=targets, debug=False, check_cost=False)
         s, t = 0, 0
+        col_s, col_ts = -1, -1
         while t < max_t and val < 1-1e-2 and l is not None:
             l = self.iter_labels(state, l, targets=targets, debug=False, check_cost=False)
             if l is None: break
@@ -936,11 +937,33 @@ class MCTS:
             plan = self.agent.plans[l]
             s = self.agent.sample_task(pol, self.condition, state, l, task_f=task_f, skip_opt=True)
             val = 1 - self.agent.goal_f(0, s.get_X(s.T-1), targets)
-            t += 1
             state = s.end_state # s.get_X(s.T-1)
             path.append(s)
+            if mode == 'collision' and 1 in s.col_ts:
+                col_s = t
+                col_t = s.col_ts.index(1)
+            t += 1
             if cur_run[-1] >= task_ts:
                 break
+
+        if col_ts >= 0:
+            task = tuple(path[col_ts].get(FACTOREDTASK_ENUM, t=col_ts))
+            ts = col_ts - 2
+            if ts < 0:
+                col_s -= 1
+                if col_s < 0:
+                    col_s, col_ts = 0, 0
+                else:
+                    ts = path[col_s].T + ts - 1
+            x = path[col_s].get_X(t=ts)
+            plan = self.agent.plans[task]
+            success = self.agent.backtrack_solve(plan, x0=x)
+            if success:
+                new_samples = self.agent.run_plan(plan, targets, record=False, save=False)
+                for s in new_samples:
+                    self.optimal_samples[self.agent.task_list[task[0]]].append(s)
+            print('OPT on collision in rollout:', success, task, x)
+
         if val < 1-1e-3:
             last_task = tuple(path[-1].get(FACTOREDTASK_ENUM, t=path[-1].T-1))
             t = len(prev_tasks)-1

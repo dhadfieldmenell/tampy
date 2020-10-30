@@ -950,7 +950,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return self.backtrack_solve(plan, anum=anum, n_resamples=n_resamples)
 
 
-    def backtrack_solve(self, plan, anum=0, n_resamples=5):
+    def backtrack_solve(self, plan, anum=0, n_resamples=5, x0=None):
         # Handle to make PR Graph integration easier
         start = anum
         plan.state_inds = self.state_inds
@@ -958,10 +958,12 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         plan.dX = self.symbolic_bound
         plan.dU = self.dU
         success = False
+        xsaved = x0
         for a in range(anum, len(plan.actions)):
-            x0 = np.zeros_like(self.x0[0])
-            st, et = plan.actions[a].active_timesteps
-            fill_vector(plan.params, self.state_inds, x0, st)
+            if xsaved is None or a > anum:
+                x0 = np.zeros_like(self.x0[0])
+                st, et = plan.actions[a].active_timesteps
+                fill_vector(plan.params, self.state_inds, x0, st)
             task = tuple(self.encode_action(plan.actions[a]))
 
             traj = []
@@ -991,7 +993,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 '''
 
             if not success:
-                fill_vector(plan.params, self.state_inds, x0, st)
+                if a > anum or xsaved is None:
+                    fill_vector(plan.params, self.state_inds, x0, st)
                 self.set_symbols(plan, task, anum=a)
                 try:
                     success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=traj)

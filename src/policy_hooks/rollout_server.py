@@ -900,7 +900,8 @@ class RolloutServer(object):
         rlen = 3 * self.agent.num_objs if not self.agent.retime else 6 * self.agent.num_objs
         ts = 100 if self.agent.retime else 50
         self.adj_eta = True
-        val, newpath, s, t = self.mcts[0].rollout_with_postcond(x, targets, rlen, ts, soft=True, eta=self.explore_eta)
+        mode = self._hyperparams['fail_mode']
+        val, newpath, s, t = self.mcts[0].rollout_with_postcond(x, targets, rlen, ts, soft=True, eta=self.explore_eta, mode=mode)
         self.adj_eta = False
         path = newpath
         self.postcond_info.append(val)
