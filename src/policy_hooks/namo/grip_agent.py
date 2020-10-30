@@ -191,6 +191,14 @@ class NAMOGripAgent(NAMOSortingAgent):
 
             X = cur_state.copy()
             U_full = policy.act(X, sample.get_obs(t=t).copy(), t, noise_full)
+            U_nogrip = U_full.copy()
+            U_nogrip[self.action_inds['pr2', 'gripper']] = 0.
+            if np.all(np.abs(U_nogrip)) < 1e-2:
+                self._noops += 1
+                self.eta_scale = 1. / np.log(self._noops+2)
+            else:
+                self._noops = 0
+                self.eta_scale = 1.
             if len(self._prev_U): self._prev_U = np.r_[self._prev_U[1:], [U_full]]
             sample.set(NOISE_ENUM, noise_full, t)
             # U_full = np.clip(U_full, -MAX_STEP, MAX_STEP)
@@ -508,6 +516,8 @@ class NAMOGripAgent(NAMOSortingAgent):
         self._prev_U = np.zeros((self.hist_len, self.dU))
         self._x_delta = np.zeros((self.hist_len+1, self.dX))
         self._x_delta[:] = x.reshape((1,-1))
+        self.eta_scale = 1.
+        self._noops = 0
         self.mjc_env.reset()
         xval, yval = mp_state[self.state_inds['pr2', 'pose']]
         grip = x[self.state_inds['pr2', 'gripper']][0]

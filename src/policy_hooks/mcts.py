@@ -403,6 +403,7 @@ class MCTS:
         else:
             if self.agent.goal_f(self.condition, state) == 0:
                 print(('WARNING! Init state success', state, targets))
+                print(state[self.agent.state_inds['can0', 'pose']])
                 plan = 'EMPTY PLAN'
             initial, goal = self.agent.get_hl_info(state, cond=self.condition, targets=targets)
             # initial = None
@@ -420,7 +421,7 @@ class MCTS:
                 p = prob.init_state.params[targ]
                 getattr(p, attr)[:,0] = targets[self.agent.target_inds[targ, attr]].copy()
         if plan is None:
-            max_iter = 4 * self.agent.num_objs
+            max_iter = 10 * self.agent.num_objs
             plan, descr = p_mod_abs(self.agent.hl_solver, self.agent, domain, prob, initial=initial, goal=goal, label=self.agent.process_id, n_resamples=5, max_iter=max_iter)
             if self._n_plans is not None:
                 with self._n_plans.get_lock():
@@ -901,8 +902,9 @@ class MCTS:
         prev_tasks = []
         cur_run = [0]
         def task_f(s, t, curtask):
-            next_task = self.run_hl(s, t, curtask, s.targets, check_cost=False)
+            next_task = self.run_hl(s, t, curtask, targets, check_cost=False)
             if len(prev_tasks) and tuple(next_task) != tuple(prev_tasks[-1]):
+                s.targets = targets
                 postcost = self.agent.postcond_cost(s, prev_tasks[-1], t)
                 if postcost > 0:
                     next_task = prev_tasks[-1]

@@ -92,9 +92,9 @@ def main():
                     s += "(AtInit can{} can{}_init_target), ".format(i, i)
                     s += "(AtInit can{} can{}_end_target), ".format(i, i)
                     s += "(Near can{} can{}_init_target), ".format(i, i)
-                    s += "(Stationary can{}), ".format(i)
-                    for j in range(NUM_CANS):
-                        s += "(StationaryNEq can{} can{}), ".format(i, j)
+                    #s += "(Stationary can{}), ".format(i)
+                    #for j in range(NUM_CANS):
+                    #    s += "(StationaryNEq can{} can{}), ".format(i, j)
                 s += "(RobotAt pr2 robot_init_pose), "
                 s += "(IsMP pr2), "
                 s += "(StationaryW obs0) \n\n"

@@ -151,6 +151,7 @@ class RolloutServer(object):
         self.n_received_probs = 0
         self.traj_costs = []
         self.latest_traj_costs = {}
+        self.adj_eta = False
         self.rollout_opt_pairs = {task: [] for task in self.task_list}
         self.max_sample_queue = int(hyperparams['max_sample_queue'])
         self.max_opt_sample_queue = int(hyperparams['max_opt_sample_queue'])
@@ -425,6 +426,7 @@ class RolloutServer(object):
     def primitive_call(self, prim_obs, soft=False, eta=1., t=-1, task=None):
         # print 'Entering primitive call:', datetime.now()
         if self.use_local:
+            if self.adj_eta: eta *= self.agent.eta_scale
             distrs = self.policy_opt.task_distr(prim_obs, eta)
             if task is not None and t % self.check_prim_t:
                 for i in range(len(distrs)):
@@ -892,10 +894,14 @@ class RolloutServer(object):
 
 
     def rollout_postcond(self):
+        self.set_policies()
         x = self.agent.x0[0]
         targets = self.agent.target_vecs[0]
         rlen = 3 * self.agent.num_objs if not self.agent.retime else 6 * self.agent.num_objs
-        val, newpath, s, t = self.mcts[0].rollout_with_postcond(x, targets, rlen, 50, soft=True, eta=self.explore_eta)
+        ts = 100 if self.agent.retime else 50
+        self.adj_eta = True
+        val, newpath, s, t = self.mcts[0].rollout_with_postcond(x, targets, rlen, ts, soft=True, eta=self.explore_eta)
+        self.adj_eta = False
         path = newpath
         self.postcond_info.append(val)
         if val == 1:
@@ -1396,6 +1402,12 @@ class RolloutServer(object):
                 rlen = 3*n
         self.agent.T = 20 # self.config['task_durations'][self.task_list[0]]
         val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], check_cost=self.check_precond, eta=eta)
+        if self.agent.eta_scale != 1. and not self.adj_eta:
+            self.adj_eta = True
+            adj_val, adj_path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], check_cost=self.check_precond, eta=eta)
+            self.adj_eta = False
+        else:
+            adj_val = val
         true_disp = np.min(np.min([[self.agent.goal_f(0, step.get(STATE_ENUM, t), targets, cont=True) for t in range(step.T)] for step in path]))
         true_val = np.max(np.max([[1-self.agent.goal_f(0, step.get(STATE_ENUM, t), targets) for t in range(step.T)] for step in path]))
         smallest_tol = 2.
@@ -1430,7 +1442,7 @@ class RolloutServer(object):
             s[0] = s[0] + (np.mean(self.postcond_info[-5:]),)
         else:
             s[0] = s[0] + (0,)
-
+        s[0] = s[0] + (adj_val,)
         if ckpt_ind is not None:
             s[0] = s[0] + (ckpt_ind,)
         res.append(s[0])

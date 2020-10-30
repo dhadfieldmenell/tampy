@@ -1,6 +1,7 @@
 from core.internal_repr.state import State
 from core.internal_repr.problem import Problem
 from core.util_classes.learning import PostLearner
+import copy
 import random
 
 class SearchNode(object):
@@ -56,13 +57,17 @@ class LLSearchNode(SearchNode):
 
     def parse_state(self, plan, failed_preds, ts, all_preds=[]):
         new_preds = [p for p in failed_preds if p is not None]
+        reps = [p.get_rep() for p in new_preds]
         for a in plan.actions:
             a_st, a_et = a.active_timesteps
             if a_st > ts: break
-            preds = a.preds
+            preds = copy.copy(a.preds)
             for p in all_preds:
                 preds.append({'pred': p, 'active_timesteps':(0,0), 'hl_info':'hl_state', 'negated':False})
-            for p in a.preds:
+            for p in preds:
+                if p['pred'].get_rep() in reps:
+                    continue
+                reps.append(p['pred'].get_rep())
                 st, et = p['active_timesteps']
                 if p['pred'].hl_include: 
                     new_preds.append(p['pred'])
@@ -101,7 +106,7 @@ class LLSearchNode(SearchNode):
         return new_preds
 
 
-    def get_problem(self, i, failed_pred, suggester):
+    def get_problem(self, i, failed_pred, failed_negated, suggester):
         """
         Returns a representation of the search problem which starts from the end state of step i and goes to the same goal.
         """
@@ -119,7 +124,10 @@ class LLSearchNode(SearchNode):
             state_timestep = last_action.active_timesteps[0]
             # state_timestep = 0
         init_preds = self.curr_plan.prob.init_state.preds
-        state_preds = self.parse_state(self.curr_plan, [failed_pred], state_timestep, init_preds)
+        preds = []
+        if failed_negated:
+            preds = [failed_pred]
+        state_preds = self.parse_state(self.curr_plan, preds, state_timestep, init_preds)
         state_preds.extend(self.curr_plan.hl_preds)
         # state_preds = [p['pred'] for p in last_action.preds if p['hl_info'] != 'eff' and  p['negated'] == False and p['active_timesteps'][0]==a.active_timesteps[0]]
         # for p in state_preds:
@@ -162,8 +170,8 @@ class LLSearchNode(SearchNode):
         et = self.curr_plan.horizon - 1
         failed_pred = self.curr_plan.get_failed_pred(active_ts=(st,et), hl_ignore=True)
         if hasattr(failed_pred[1], 'hl_ignore') and failed_pred[1].hl_ignore:
-            return failed_pred[2], None
-        return failed_pred[2], failed_pred[1]
+            return failed_pred[2], None, failed_pred[0]
+        return failed_pred[2], failed_pred[1], failed_pred[0]
 
     def gen_child(self):
         """
@@ -172,7 +180,7 @@ class LLSearchNode(SearchNode):
             encountered so far.
         """
 
-        fail_step, fail_pred = self.get_failed_pred()
+        fail_step, fail_pred, fail_negated = self.get_failed_pred()
         if fail_pred is None:
             return True
 

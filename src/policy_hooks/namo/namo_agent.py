@@ -234,6 +234,12 @@ class NAMOSortingAgent(TAMPAgent):
             U_full = policy.act(sample.get_X(t=t), sample.get_obs(t=t).copy(), t, cur_noise)
             U_nogrip = U_full.copy()
             U_nogrip[self.action_inds['pr2', 'gripper']] = 0.
+            if np.all(np.abs(U_nogrip)) < 1e-2:
+                self._noops += 1
+                self.eta_scale = 1. / np.log(self._noops+2)
+            else:
+                self._noops = 0
+                self.eta_scale = 1.
             assert not np.any(np.isnan(U_full))
             sample.set(NOISE_ENUM, noise_full, t)
 
@@ -1190,6 +1196,8 @@ class NAMOSortingAgent(TAMPAgent):
         self._done = 0.
         self._prev_U = np.zeros((self.hist_len, self.dU))
         self._x_delta = np.zeros((self.hist_len+1, self.dX))
+        self.eta_scale = 1.
+        self._noops = 0
         self._x_delta[:] = x.reshape((1,-1))
         self._prev_task = np.zeros((self.task_hist_len, self.dPrimOut))
         self.cur_state = x.copy()

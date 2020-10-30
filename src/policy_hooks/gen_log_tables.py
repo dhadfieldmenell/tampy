@@ -84,7 +84,7 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False,
                             # print(('Loading data from', fname, full_dir))
                             try:
                                 data.append(np.load(cur_dir+'/'+fname))
-                            except:
+                            except Exception as e:
                                 print('Skipping', fname, full_dir)
                                 continue
 
@@ -100,6 +100,8 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False,
                                     all_data[k][full_exp][cur_dir][cur_dir][-1]['any target'] = pt[13]
                                 if len(pt) > 14:
                                     all_data[k][full_exp][cur_dir][cur_dir][-1]['smallest tolerance'] = pt[14]
+                                if len(pt) > 15:
+                                    all_data[k][full_exp][cur_dir][cur_dir][-1]['success with postcond'] = pt[15]
                                 # all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta+1)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'description': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9], 'number of plans': pt[10]})
 
                     i += 1
@@ -794,14 +796,14 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
     # yvar_labs = np.concatenate([[v+'{0}'.format('_'+str(i) if inds_to_var.get(v, 0) > 1 else '') for i in range(inds_to_var.get(v, 1))] for v in yvars])
     plot(data, ['description', 'key', 'exp id']+xvars+flat_yvar_labs, '{0}_vs_{1}'.format(xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind, inter=inter, rolling=rolling, window=window, ylim=ylim)
 
-include=['spreadtargets']
-gen_data_plots(xvar='time', yvar=['collision'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='collisionspreadtargs', exclude=[], split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
-gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='spreadtargs', exclude=[], split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
-include=['hightol', 'init_near', 'nocol', 'newdom_obsdeltas_train_from_random']
-for key in include:
-    gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='compsplit{0}newtimeagainrolling'.format(key), exclude=[], split_runs=True, include=[key], inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
-gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='compnewtimeagainrolling', exclude=[], split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
-gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs4'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='compnewplansagainrolling', exclude=[], split_runs=False, include=include, inter=5, window=500, ylim=[(0.,1.), (0.,1.), (0, 1.)])
+include=['postcond']
+exclude=['oldprob']
+gen_data_plots(xvar='time', yvar=['success with postcond', 'subgoals anywhere'], keywords=['objs3'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='postcollisionspreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0,1), (0,1)])
+gen_data_plots(xvar='time', yvar=['number of plans'], keywords=['objs3'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='ratepostcollisionspreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300)
+gen_data_plots(xvar='time', yvar=['collision'], keywords=['objs3'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='3objcollisionspreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
+gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=['objs3'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='3objspreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
+gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs3'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='3objcompnewplansagainrolling', exclude=exclude, split_runs=False, include=include, inter=5, window=500, ylim=[(0.,1.), (0.,1.), (0, 1.)])
+gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=['objs3'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='3objlossesspreadtargs', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
 
 
 
