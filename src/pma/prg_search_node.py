@@ -110,6 +110,7 @@ class LLSearchNode(SearchNode):
         if not len(self.curr_plan.actions) or self.curr_plan.actions[-1].active_timesteps[1] < i:
             print('BAD GET PROBLEM', failed_pred)
             state_timestep = 0
+            anum = 0
         else:
             anum, last_action = [(a_ind, a) for a_ind, a in enumerate(self.curr_plan.actions) if a.active_timesteps[0] <= i and a.active_timesteps[1] >= i][0]
             if self.keep_failed:
