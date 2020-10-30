@@ -35,6 +35,15 @@ class NAMO(Robot):
         self.dof_map = {'xpos': 0, 'ypos': 1, 'robot_theta': 2, 'left_grip': 6, 'right_grip': 4}
 
 
+class TwoArm(Robot):
+    def __init__(self):
+        self._type = "robot"
+        self.file_type = 'mjcf'
+        self.radius = 0.3
+        self.shape = baxter_gym.__path__[0]+'/robot_info/lidar_arm.xml'
+        self.dof_map = {'joint1': 0, 'joint2': 1, 'wrist': 2, 'left_grip': 6, 'right_grip': 4}
+
+
 class PR2(Robot):
     """
     Defines geometry used in the PR2 domain.

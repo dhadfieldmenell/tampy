@@ -2,7 +2,7 @@ import baxter_gym
 from baxter_gym.envs import MJCEnv
 
 #import policy_hooks.namo.sorting_prob_11 as prob
-import policy_hooks.namo.sort_prob as prob
+import policy_hooks.namo.spread_prob as prob
 prob.NUM_OBJS = 2
 prob.FIX_TARGETS = True
 prob.NUM_TARGS = 8
@@ -30,9 +30,10 @@ for p in list(plan.params.values()):
     if p.openrave_body is not None:
         p.openrave_body.set_pose([20,20])
 
-can0_pose = [-3.4, -6.]
-can1_pose = [-3.4, -3.]
-pr2_pose = [0, -5.]
+targ = 'end_target_4'
+can0_pose = [0, 0.]
+can1_pose = (can0_pose + plan.params[targ].value[:,0]) / 2.
+pr2_pose = [0, -3.]
 plan.params['pr2'].pose[:,0] = pr2_pose
 plan.params['pr2'].gripper[:,0] = -0.1
 plan.params['robot_init_pose'].value[:,0] = pr2_pose
@@ -61,7 +62,7 @@ for param in list(state.params.values()):
 
 solver = NAMOSolver()
 bt_ll.DEBUG = True
-bt_ll.TRAJOPT_COEFF = 1e-4
+bt_ll.TRAJOPT_COEFF = 1e-1
 hl_solver = FFSolver(plan.d_c)
 # solver.backtrack_solve(plan)
 abs_domain = hl_solver.abs_domain
@@ -84,10 +85,11 @@ state.params['can1'].pose[:,0] = can1_pose
 state.params['can1_init_target'].value[:,0] = can1_pose
 goal = '(and (Near can0 end_target_3) (Near can1 end_target_4))'
 goal = '(Near can0 end_target_4)'
+goal = '(Near can0 end_target_0)'
 initial = parse_state(plan, [], 0)
 initial = list(set([p.get_rep() for p in initial]))
 plans = []
-for coeff in [0, 1e0, 5e-1, 5, 10]:
+for coeff in [1e-1, 1e-2, 5e-2, 1e-1, 5e-1, 1e0, 5e-1, 5, 10]:
     bt_ll.COL_COEFF = coeff
     solver = NAMOSolver()
     solver.col_coeff = coeff
