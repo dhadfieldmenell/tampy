@@ -341,7 +341,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         for pname in poses:
             if np.any(np.abs(poses[pname]-new_poses[pname])) > 5e-2:
                 self._col.append(pname)
-        col = 1 if self(self._col > 0) else 0
+        col = 1 if len(self._col > 0) else 0
         return True, col
 
 
