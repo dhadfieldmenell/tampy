@@ -29,6 +29,7 @@ class Sample(object):
         self.dVal = self.agent.dVal
         self.success = 0
         self.opt_suc = 0
+        self.source_label = ''
 
         self._X = np.empty((self.T, self.dX))
         self._X.fill(np.nan)

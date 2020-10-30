@@ -423,9 +423,9 @@ class MCTS:
         if plan is None:
             max_iter = 10 * self.agent.num_objs
             plan, descr = p_mod_abs(self.agent.hl_solver, self.agent, domain, prob, initial=initial, goal=goal, label=self.agent.process_id, n_resamples=5, max_iter=max_iter)
-            if self._n_plans is not None:
-                with self._n_plans.get_lock():
-                    self._n_plans.value = self._n_plans.value + 1
+            #if self._n_plans is not None:
+            #    with self._n_plans.get_lock():
+            #        self._n_plans.value = self._n_plans.value + 1
         self.n_runs += 1
         self.agent.n_hl_plan += 1
         success = 0
@@ -433,6 +433,7 @@ class MCTS:
         if plan is not None and type(plan) is not str:
             assert len(plan.get_failed_preds(tol=1e-3)) == 0
             path = self.agent.run_plan(plan, targets=targets, reset=reset, save=save)#, permute=self._permute>0)
+            for s in path: s.source_label = 'n_plans'
             if len(path): success = path[-1].success
             self.hl_suc += 1
             self.log_path(path, 10)

@@ -231,6 +231,9 @@ class PolicyServer(object):
                 'n_data': self.policy_opt.N,
                 'tf_iter': self.policy_opt.tf_iter,
                 'N': self.policy_opt.N,
+                'n_plans': self.policy_opt['n_plans'].value,
+                'n_postcond': self.policy_opt['n_postcond'].value,
+                'n_explore': self.policy_opt['n_explore'].value,
                 }
         self.log_infos.append(info)
         return self.log_infos

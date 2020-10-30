@@ -906,7 +906,16 @@ class RolloutServer(object):
         self.postcond_info.append(val)
         if val == 1:
             print('Success with postcond enforcement')
+            for s in newpath: s.source_label = 'n_postcond'
             self.agent.add_task_paths([newpath])
+        else:
+            x0 = path[s].get_X(t=t) # self.agent.x0[0]
+            targets = path[s].targets # self.agent.target_vecs[0]
+            self.agent.reset_to_state(x0)
+            self.agent.store_x_hist(path[s].get(STATE_HIST_ENUM, t=t))
+            val, newpath, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=False)
+ 
+        return s, t
  
  
     def hl_feedback(self):
@@ -1486,7 +1495,7 @@ class RolloutServer(object):
         if not self.run_hl_test and self.explore_wt > 0 and not self.roll_post:
             if self._hyperparams['hindsight']: self.agent.relabel_goal(path)
             if path[-1].success == 1:
-                print('Adding relabelled goal')
+                for s in path: s.source_label = 'n_explore'
                 self.agent.add_task_paths([path])
         # print('TESTED HL')
         return val, path
@@ -1773,6 +1782,12 @@ class RolloutServer(object):
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dOpts)), np.zeros((0))
         tgt_aux = np.zeros((0))
+
+        lab = samples[0].source_label
+        if lab in self.policy_opt.buf_sizes:
+            self.policy_opt.buf_sizes[lab].get_lock():
+                self.policy_opt.buf_size[lab].value += 1
+            samples[0].source_label = ''
         for ind, sample in enumerate(samples):
             mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
             tgt_mu = np.concatenate((tgt_mu, mu))
