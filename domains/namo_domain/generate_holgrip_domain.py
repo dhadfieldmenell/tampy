@@ -140,15 +140,15 @@ class Place(Action):
         et = self.timesteps - 1
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can ?t - Target ?g - Grasp ?init - Target)'
         self.pre = [\
-                ('(At ?c ?init)', '0:0'),
+                ('(At ?c ?t)', '0:0'),
                 ('(Near ?c ?t)', '0:0'),
                 # ('(forall (?obj - Can) (not (TargetCanGraspCollides ?t ?obj ?g)))', '0:0'),
                 # ('(forall (?w - Obstacle) (not (TargetGraspCollides ?t ?w ?g)))', '0:0'),
                 ('(forall (?w - Obstacle) (not (Collides ?c ?w)))', '0:0'),
                 ('(NearGraspAngle ?robot ?c)', '0:-1'),
                 ('(not (GripperClosed ?robot))', '1:{0}'.format(et-1)),
-                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?init ?t ?obj ?c)))', '0:{0}'.format(et-1)),
-                ('(forall (?obj - Can ) (not (Obstructs ?robot ?init ?t ?obj)))', '2:{0}'.format(et-1)),
+                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?t ?t ?obj ?c)))', '0:{0}'.format(et-1)),
+                ('(forall (?obj - Can ) (not (Obstructs ?robot ?t ?t ?obj)))', '2:{0}'.format(et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '0:{0}'.format(et-1)), 
                 ('(forall (?w - Obstacle) (StationaryW ?w))', '0:{0}'.format(et-1)), 
                 ('(IsMP ?robot)', '0:{0}'.format(et-1)),
