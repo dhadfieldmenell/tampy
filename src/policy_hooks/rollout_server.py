@@ -1783,11 +1783,12 @@ class RolloutServer(object):
         tgt_prc, tgt_wt = np.zeros((0, dOpts)), np.zeros((0))
         tgt_aux = np.zeros((0))
 
-        lab = samples[0].source_label
-        if lab in self.policy_opt.buf_sizes:
-            with self.policy_opt.buf_sizes[lab].get_lock():
-                self.policy_opt.buf_sizes[lab].value += 1
-            samples[0].source_label = ''
+        if len(samples):
+            lab = samples[0].source_label
+            if lab in self.policy_opt.buf_sizes:
+                with self.policy_opt.buf_sizes[lab].get_lock():
+                    self.policy_opt.buf_sizes[lab].value += 1
+                samples[0].source_label = ''
         for ind, sample in enumerate(samples):
             mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
             tgt_mu = np.concatenate((tgt_mu, mu))
