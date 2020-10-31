@@ -603,6 +603,17 @@ class NAMOSortingAgent(TAMPAgent):
                 if plan.params[pname].is_symbol(): continue
                 getattr(plan.params[pname], aname)[:,t] = old_state[self.state_inds[pname, aname]]
 
+            new_state = np.zeros((plan.symbolic_bound))
+            for pname, aname in self.state_inds:
+                p = plan.params[pname]
+                if p.is_symbol(): continue
+                aval = getattr(p, aname)[:,min(t+1, sample.T-1)]
+                if np.any(np.isnan(aval)):
+                    print(('NAN in:', pname, aname, t+1))
+                    aval[:] = getattr(p, aname)[:,t]
+                new_state[self.state_inds[pname, aname]] = aval
+            self.cur_state = new_state
+
         return True, col
 
 
