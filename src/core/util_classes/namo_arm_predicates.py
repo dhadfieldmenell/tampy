@@ -35,7 +35,7 @@ retreatdist = 1.2
 RS_SCALE = 0.5
 N_DIGS = 5
 GRIP_VAL = 0.3
-COL_TS = 5 # 3
+COL_TS = 3 # 3
 N_COLS = 8
 RETREAT_DIST = 1.2
 
@@ -623,6 +623,27 @@ class AtInit(At):
         return True
 
 
+class RobotInBounds(At):
+
+    # RobotAt Robot RobotPose
+
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
+        ## At Robot RobotPose
+        self.r,  = params
+        attr_inds = OrderedDict([(self.r, [
+                                            ("joint2", np.array([0], dtype=np.int)),
+                                            ("wrist", np.array([0], dtype=np.int)),
+                                            ]),
+                                            ])
+
+        A = np.r_[np.eye(2), -np.eye(2)]
+        b = np.zeros((4, 1))
+        val = np.array([3.1, 3.1, 3.1, 3.1]).reshape((4,1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+
 class RobotAt(At):
 
     # RobotAt Robot RobotPose
@@ -1036,8 +1057,8 @@ class Obstructs(CollisionPredicate):
 
         self.rs_scale = RS_SCALE
 
-        neg_coeff = 1e2 # 1e3
-        neg_grad_coeff = 1e-2 # 1e-3
+        neg_coeff = 1e3 # 1e3
+        neg_grad_coeff = 1e0 # 1e-3
 
         def f(x):
             val = -twostep_f([x[:6], x[6:12]], self.distance_from_obj, 6)
@@ -1177,8 +1198,8 @@ class ObstructsHolding(CollisionPredicate):
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
-        neg_coeff = 1e2 # 1e3
-        neg_grad_coeff = 1e-2 # 1e-3
+        neg_coeff = 1e3 # 1e3
+        neg_grad_coeff = 1e0 # 1e-3
         ## so we have an expr for the negated predicate
         #f_neg = lambda x: neg_coeff*self.distance_from_obj(x)[0]
         #grad_neg = lambda x: neg_grad_coeff*self.distance_from_obj(x)[1]

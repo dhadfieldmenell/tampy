@@ -16,7 +16,7 @@ Predicates Import Path: core.util_classes.namo_arm_predicates
 prim_pred_str = 'Primitive Predicates: geom, Can, RedCircle; pose, Can, Vector2d; geom, Target, BlueCircle; value, Target, Vector2d; pose, Robot, Vector2d; value, RobotPose, Vector2d; gripper, RobotPose, Vector1d; geom, RobotPose, BlueCircle; geom, Robot, TwoLinkArm; joint1, Robot, Vector1d; joint2, Robot, Vector1d; wrist, Robot, Vector1d; joint1, RobotPose, Vector1d; joint2, RobotPose, Vector1d; wrist, RobotPose, Vector1d; gripper, Robot, Vector1d; value, Grasp, Vector2d; geom, Obstacle, Wall; pose, Obstacle, Vector2d; value, Rotation, Vector1d' 
 dom_str += prim_pred_str + '\n\n'
 
-der_pred_str = 'Derived Predicates: At, Can, Target; AtInit, Can, Target; InGripper, Robot, Can, Grasp; Obstructs, Robot, Can, Can, Can; ObstructsHolding, Robot, Target, Target, Can, Can; WideObstructsHolding, Robot, Target, Target, Can, Can; StationaryWrist, Robot; StationaryRot, Robot; Stationary, Can; RobotStationary, Robot; StationaryNEq, Can, Can; IsMP, Robot; GripperClosed, Robot; Near, Can, Target; WideObstructs, Robot, Can, Can, Can; AtNEq, Can, Can, Target; TargetCanGraspCollides, Target, Can, Grasp; HLAtGrasp, Robot, Can, Grasp; InGraspAngle, Robot, Can; ApproachGraspAngle, Robot, Can;  NearGraspAngle, Robot, Can; ThetaDirValid, Robot; ForThetaDirValid, Robot; RevThetaDirValid, Robot; ScalarVelValid, Robot; HLGraspFailed, Can; HLTransferFailed, Can, Target; HLPlaceFailed, Target'
+der_pred_str = 'Derived Predicates: At, Can, Target; AtInit, Can, Target; InGripper, Robot, Can, Grasp; Obstructs, Robot, Can, Can, Can; ObstructsHolding, Robot, Target, Target, Can, Can; WideObstructsHolding, Robot, Target, Target, Can, Can; StationaryWrist, Robot; StationaryRot, Robot; Stationary, Can; RobotStationary, Robot; StationaryNEq, Can, Can; IsMP, Robot; GripperClosed, Robot; Near, Can, Target; WideObstructs, Robot, Can, Can, Can; AtNEq, Can, Can, Target; TargetCanGraspCollides, Target, Can, Grasp; HLAtGrasp, Robot, Can, Grasp; InGraspAngle, Robot, Can; ApproachGraspAngle, Robot, Can;  NearGraspAngle, Robot, Can; ThetaDirValid, Robot; ForThetaDirValid, Robot; RevThetaDirValid, Robot; ScalarVelValid, Robot; HLGraspFailed, Can; HLTransferFailed, Can, Target; HLPlaceFailed, Target; RobotInBounds, Robot'
 dom_str += der_pred_str + '\n'
 
 dom_str += """
@@ -62,7 +62,8 @@ class MoveTo(Action):
                 ('(not (GripperClosed ?robot))', '1:{0}'.format(et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '0:{0}'.format(et-1)),
                 ('(IsMP ?robot)', '0:{0}'.format(et-1)),
-                #('(ApproachGraspAngle ?robot ?can)', '{0}:{1}'.format(et-2, et-2)),
+                ('(RobotInBounds ?robot)', '0:{0}'.format(et-1)),
+                ('(ApproachGraspAngle ?robot ?can)', '{0}:{1}'.format(et-2, et-2)),
                 ('(forall (?obj - Can) (not (Obstructs ?robot ?can ?can ?obj)))', '0:-1'),
                 ('(forall (?obj - Can) (not (WideObstructs ?robot ?can ?can ?obj)))', '0:-1'),
                 ('(forall (?obj - Can) (not (WideObstructs ?robot ?can ?can ?obj)))', '1:{0}'.format(et-4)),
@@ -86,6 +87,7 @@ class Transfer(Action):
         self.pre = [\
                 ('(At ?c ?init)', '0:0'),
                 ('(forall (?obj - Can) (not (AtInit ?obj ?t)))', '0:-1'),
+                ('(RobotInBounds ?robot)', '0:{0}'.format(et-1)),
                 ('(RobotStationary ?robot)', '0:0'),
                 ('(NearGraspAngle ?robot ?c)', '0:0'),
                 ('(forall (?obj - Can) (not (Near ?obj ?t)))', '0:0'),
@@ -93,10 +95,10 @@ class Transfer(Action):
                 ('(not (GripperClosed ?robot))', '{0}:{0}'.format(et-1)),
                 ('(NearGraspAngle ?robot ?c)', '{0}:{0}'.format(et-1)),
                 ('(RobotStationary ?robot)', '{0}:{0}'.format(et-2)),
-                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?init ?t ?obj ?c)))', '0:{0}'.format(0)),
-                ('(forall (?obj - Can) (not (WideObstructsHolding ?robot ?init ?t ?obj ?c)))', '2:{0}'.format(et-2)),
-                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?init ?t ?obj ?c)))', '1:{0}'.format(et-2)),
-                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?init ?t ?obj ?c)))', '{0}:{0}'.format(et-1)),
+                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?t ?t ?obj ?c)))', '0:{0}'.format(0)),
+                ('(forall (?obj - Can) (not (WideObstructsHolding ?robot ?t ?t ?obj ?c)))', '2:{0}'.format(et-2)),
+                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?t ?t ?obj ?c)))', '1:{0}'.format(et-2)),
+                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?t ?t ?obj ?c)))', '{0}:{0}'.format(et-1)),
                 ('(forall (?obj - Can) (StationaryNEq ?obj ?c))', '0:{0}'.format(et-1)), 
                 ('(IsMP ?robot)', '0:{0}'.format(et-1)),
                 ('(StationaryWrist ?robot)', '{0}:{0}'.format(et-1)),

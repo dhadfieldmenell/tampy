@@ -44,7 +44,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         return rs_param
 
     def freeze_rs_param(self, act):
-        return True
+        return False # True
 
     def obj_pose_suggester(self, plan, anum, resample_size=1):
         robot_pose = []
@@ -89,7 +89,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             elif act.name == 'transfer' or act.name == 'new_quick_place_at':
                 target = act.params[2]
                 target_rot = -np.arctan2(target.value[0,0], target.value[1,0])
-                dist = - dsafe - retreatdist
+                dist = -dsafe - retreatdist
                 target_pos = target.value + [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
                 quat = [0, 0, np.sin(target_rot/2.), np.cos(target_rot/2.)]
                 jnts = P.calculateInverseKinematics(robot_body.body_id, ee_link, np.r_[target_pos.flatten(), [0.5]], quat)
