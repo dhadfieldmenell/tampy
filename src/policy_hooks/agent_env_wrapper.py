@@ -186,6 +186,8 @@ class AgentEnvWrapper(Env):
 
     def render(self, mode='rgb_array'):
         if self.agent is not None:
+            x = self.agent.get_state()
+            self.agent.reset_mjc_env(x, self.agent.target_vecs[0])
             return self.sub_env.render(camera_id=self.agent.main_camera_id, mode=mode, view=False)
         else:
             return self.sub_env.render(mode=mode, view=False)
