@@ -40,17 +40,17 @@ RETREAT_DIST = 1.2
 
 ATTRMAP = {
     "Robot":     (("pose", np.array(list(range(2)), dtype=np.int)),
-                  ("gripper", np.array(list(range(1)), dtype=np.int)),
-                  ("theta", np.array(list(range(1)), dtype=np.int)),
-                  ("vel", np.array(list(range(1)), dtype=np.int)),
-                  ("acc", np.array(list(range(1)), dtype=np.int))),
+                  ("joint1", np.array(list(range(1)), dtype=np.int)),
+                  ("joint2", np.array(list(range(1)), dtype=np.int)),
+                  ("wrist", np.array(list(range(1)), dtype=np.int)),
+                  ("gripper", np.array(list(range(1)), dtype=np.int))),
     "Can":       (("pose", np.array(list(range(2)), dtype=np.int)),),
     "Target":    (("value", np.array(list(range(2)), dtype=np.int)),),
     "RobotPose": (("value", np.array(list(range(2)), dtype=np.int)),
-                  ("theta", np.array(list(range(1)), dtype=np.int)),
-                  ("gripper", np.array(list(range(1)), dtype=np.int)),
-                  ("vel", np.array(list(range(1)), dtype=np.int)),
-                  ("acc", np.array(list(range(1)), dtype=np.int))),
+                  ("joint1", np.array(list(range(1)), dtype=np.int)),
+                  ("joint2", np.array(list(range(1)), dtype=np.int)),
+                  ("wrist", np.array(list(range(1)), dtype=np.int)),
+                  ("gripper", np.array(list(range(1)), dtype=np.int))),
     "Obstacle":  (("pose", np.array(list(range(2)), dtype=np.int)),),
     "Grasp":     (("value", np.array(list(range(2)), dtype=np.int)),),
     "Rotation":     (("value", np.array(list(range(1)), dtype=np.int)),),
@@ -80,6 +80,10 @@ if USE_TF:
         tf_ee_disp = tf.concat([[tf_ee_x, tf_ee_y] - tf_xy_pos, tf_xy_pos - [tf_ee_x, tf_ee_y]])
         tf_rot = tf.placeholder(float, (1,), name='rot')
         tf_rot_disp = tf.concat([tf_rot-tf_ee_theta, tf_ee_theta-tf_rot])
+
+        tf_obj_pos = tf.placeholder(float, (2,), name='obj_pos')
+        tf_ee_grasp = [tf_ee_x - 0.6*tf.cos(tf_ee_theta), tf_ee_y + 0.6*tf.sin(tf_ee_theta)]
+        tf_ingrasp = tf.concat([tf_obj_pos-tf_ee_grasp, -tf_obj_pos + tf_ee_grasp])
 
         thetadir_tf_in = tf.placeholder(float, (8,1), name='thetadir_in')
         tf_cache['thetadir_tf_in'] = thetadir_tf_in
@@ -253,8 +257,7 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False, isrobot=False):
             if len(xs) == 2:
                 next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
                 if isrobot:
-                    next_pos[2] = -GRIP_VAL # min(xs[0][2], xs[1][2])
-                    # next_pos[3] = np.arctan2(next_pos[0], next_pos[1])
+                    next_pos[3] = -GRIP_VAL # min(xs[0][2], xs[1][2])
             else:
                 next_pos = xs[0]
             cur_jac = dist(next_pos)[1]
@@ -272,7 +275,7 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False, isrobot=False):
             if len(xs) == 2:
                 next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
                 if isrobot:
-                    next_pos[2] = -GRIP_VAL # min(xs[0][2], xs[1][2])
+                    next_pos[3] = -GRIP_VAL # min(xs[0][2], xs[1][2])
                     # next_pos[3] = np.arctan2(next_pos[0], next_pos[1])
             else:
                 next_pos = xs[0]
@@ -313,14 +316,6 @@ class CollisionPredicate(ExprPredicate):
             ## this happens with an invalid time
             raise PredicateException("Out of range time for predicate '%s'."%self)
 
-    def plot_cols(self, env, t):
-        _debug = self._debug
-        self._env = env
-        self._debug = True
-        self.distance_from_obj(self.get_param_vector(t))
-        self._debug = _debug
-
-
     # @profile
     def _set_robot_pos(self, x):
         flattened = tuple(x.round(N_DIGS).flatten())
@@ -331,15 +326,12 @@ class CollisionPredicate(ExprPredicate):
         if b0.isrobot():
             robot = b0
             obj = b1
-        #elif b1.isrobot():
-        #    robot = b1
-        #    obj = b0
         else:
             raise Exception('Should not call this without the robot!')
         pose1 = x[4:6]
         b0.set_dof({'joint1': x[0], 'joint2': x[1], 'wrist': x[2], 'left_grip': x[3], 'right_grip': x[3]})
         b1.set_pose(pose1)
-        return pose0, pose1
+        return x[:4], pose1
 
 
     def set_pos(self, x):
@@ -362,44 +354,6 @@ class CollisionPredicate(ExprPredicate):
         b1.set_pose(pose1)
         return pose0, pose1
 
-    def _check_robot_aabb(self, b0, b1):
-        vals = np.zeros((self.n_cols, 1))
-        jacs = np.zeros((self.n_cols, 4))
-        (x1, y1, z1), (x2, y2, z2) = p.getAABB(b0.body_id, 5)
-        (x3, y3, z3), (x4, y4, z4) = p.getAABB(b0.body_id, 7)
-        (x5, y5, z5), (x6, y6, z6) = p.getAABB(b0.body_id, 3)
-        grip_aabb = [(min(x1, x3, x5), min(y1, y3, y5), min(z1, z3, z5)), (max(x4, x2, x6), max(y4, y2, y6), max(z4, z2, z6))]
-        minpt, maxpt = grip_aabb
-        overlaps = p.getOverlappingObjects(grip_aabb[0], grip_aabb[1])
-        if overlaps is not None and len(overlaps):
-            ind = 0
-            for body_id, link in overlaps:
-                if body_id != b1.body_id: continue
-                cur_minpt, cur_maxpt = p.getAABB(body_id, link)
-                d1, d2 = cur_minpt[0] - maxpt[0], minpt[0] - cur_maxpt[0]
-                d3, d4 = cur_minpt[1] - maxpt[1], minpt[1] - cur_maxpt[1]
-                if d1 <= self.dsafe and d2 <= self.dsafe and d3 <= self.dsafe and d4 <= self.dsafe:
-                    xd = max(d1, d2)
-                    yd = max(d3, d4)
-                    if xd > yd:
-                        vals[ind] = self.dsafe - xd
-                        if d1 < d2:
-                            jacs[ind, 0] = -1
-                            jacs[ind, 2] = 1
-                        else:
-                            jacs[ind, 0] = 1
-                            jacs[ind, 2] = -1
-                    else:
-                        vals[ind] = self.dsafe - yd
-                        if d3 < d4:
-                            jacs[ind, 1] = -1
-                            jacs[ind, 3] = 1
-                        else:
-                            jacs[ind, 1] = 1
-                            jacs[ind, 3] = -1
-                ind += 1
-        return vals, jacs
-
 
     def distance_from_obj(self, x, n_steps=0):
         pose0, pose1 = self.set_pos(x)
@@ -408,18 +362,11 @@ class CollisionPredicate(ExprPredicate):
         b0 = self._param_to_body[p0]
         b1 = self._param_to_body[p1]
         vals = np.zeros((self.n_cols, 1))
-        jacs = np.zeros((self.n_cols, 4))
+        jacs = np.zeros((self.n_cols, 6))
         #if self.check_aabb:
         #    vals, jacs = self._check_robot_aabb(b0, b1)
 
-        if USE_OPENRAVE:
-            assert b0.env_body.GetEnv() == b1.env_body.GetEnv()
-
-            self._cc.SetContactDistance(np.Inf)
-            collisions = self._cc.BodyVsBody(b0.env_body, b1.env_body)
-        else:
-            collisions = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
-
+        collisions = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)[:self.n_cols]
         col_val, jac01 = self._calc_grad_and_val(p0.name, p1.name, pose0, pose1, collisions)
         final_val = col_val
         final_jac = jac01
@@ -427,80 +374,49 @@ class CollisionPredicate(ExprPredicate):
             if final_val[i] < vals[i]:
                 final_val[i] = vals[i]
                 final_jac[i] = jacs[i]
-        # self._cache[flattened] = (val.copy(), jac.copy())
-        if b0.isrobot():
-            if len(collisions):
-                pose0, pose1 = np.r_[pose0, [[0]]], np.r_[pose1, [[0]]]
-                colvec = np.array([c[5] for c in collisions])
-                axisvec = np.array([[0,0,1] for _ in collisions])
-                pos0vec = np.array([pose0.flatten() for _ in collisions])
-                crosstorque = np.cross(colvec-pos0vec, [0,0,1])
-                rotjac = np.dot(crosstorque, pose1-pose0)
-                rotjac = 0*np.r_[rotjac, np.zeros((len(final_jac)-len(collisions), 1))]
-            else:
-                rotjac = np.zeros((final_jac.shape[0], 1))
-            final_jac = np.c_[final_jac[:,:2], np.zeros_like(rotjac), rotjac, final_jac[:,2:]]
         return final_val, final_jac
-
-
-    def _calc_rot_grad(self, rpose, objpose, colpos):
-        jntaxis = np.array([0, 0, 1])
-        return np.dot(objpose-rpose, np.cross(colpos-rpos, jntaxis))
-
 
     # @profile
     def _calc_grad_and_val(self, name0, name1, pose0, pose1, collisions):
         vals = np.zeros((self.n_cols, 1))
-        jacs = np.zeros((self.n_cols, 4))
+        jacs = np.zeros((self.n_cols, 6))
 
         val = -1 * float("inf")
         results = []
         n_cols = len(collisions)
         assert n_cols <= self.n_cols
-        jac = np.zeros((1, 4))
-
         p0 = next(filter(lambda p: p.name == name0, list(self._param_to_body.keys())))
         p1 = next(filter(lambda p: p.name == name1, list(self._param_to_body.keys())))
 
         b0 = self._param_to_body[p0]
         b1 = self._param_to_body[p1]
         for i, c in enumerate(collisions):
-            if USE_OPENRAVE:
-                linkA = c.GetLinkAParentName()
-                linkB = c.GetLinkBParentName()
-
-                if linkA == name0 and linkB == name1:
-                    pt0 = c.GetPtA()
-                    pt1 = c.GetPtB()
-                elif linkB == name0 and linkA == name1:
-                    pt0 = c.GetPtB()
-                    pt1 = c.GetPtA()
-                else:
-                    continue
-
-                distance = c.GetDistance()
-                normal = c.GetNormal()
+            linkA, linkB = c[3], c[4]
+            linkAParent, linkBParent = c[1], c[2]
+            sign = 0
+            if linkAParent == b0.body_id and linkBParent == b1.body_id:
+                pt0, pt1 = c[5], c[6]
+                linkRobot, linkObj = linkA, linkB
+                sign = -1
+            elif linkBParent == b0.body_id and linkAParent == b1.body_id:
+                pt1, pt0 = c[5], c[6]
+                linkRobot, linkObj = linkB, linkA
+                sign = 1
             else:
-                linkA, linkB = c[3], c[4]
-                linkAParent, linkBParent = c[1], c[2]
-                sign = 0
-                if linkAParent == b0.body_id and linkBParent == b1.body_id:
-                    pt0, pt1 = c[5], c[6]
-                    linkRobot, linkObj = linkA, linkB
-                    sign = -1
-                elif linkBParent == b0.body_id and linkAParent == b1.body_id:
-                    pt1, pt0 = c[5], c[6]
-                    linkRobot, linkObj = linkB, linkA
-                    sign = 1
-                else:
-                    continue
+                continue
 
-                distance = c[8] # c.contactDistance
-                normal = np.array(c[7]) # c.contactNormalOnB # Pointing towards A
+            distance = c[8] # c.contactDistance
+            normal = np.array(c[7]) # c.contactNormalOnB # Pointing towards A
             results.append((pt0, pt1, distance))
             vals[i, 0] = self.dsafe - distance
-            jacs[i, :2] = -1*normal[:2]
-            jacs[i, 2:] = normal[:2]
+            axis = [0, 0, 1]
+
+            jac = []
+            for jnt in [0, 2, 4]:
+                jntpos = P.getLinkState(b0.body_id, jnt)
+                jac.append(np.dot(normal, np.cross(axis, np.r_[pose1, 0.5]-jntpos)))
+            jacs[i] = jac
+            jacs[i, -2:] = normal[:2]
         return np.array(vals).reshape((self.n_cols, 1)), np.array(jacs).reshape((self.n_cols, 4))
 
     def _plot_collision(self, ptA, ptB, distance):
@@ -663,32 +579,23 @@ class RobotAt(At):
     def __init__(self, name, params, expected_param_types, env=None, sess=None):
         ## At Robot RobotPose
         self.r, self.rp = params
-        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
-                                 (self.rp, [("value", np.array([0,1], dtype=np.int))])])
+        attr_inds = OrderedDict([(self.r, [
+                                            ("joint1", np.array([0], dtype=np.int)),
+                                            ("joint2", np.array([0], dtype=np.int)),
+                                            ("wrist", np.array([0], dtype=np.int)),
+                                            ]),
+                                 (self.rp, [
+                                            ("joint1", np.array([0], dtype=np.int)),
+                                            ("joint2", np.array([0], dtype=np.int)),
+                                            ("wrist", np.array([0], dtype=np.int)),
+                                            ])])
 
-        A = np.c_[np.eye(2), -np.eye(2)]
-        b = np.zeros((2, 1))
-        val = np.zeros((2, 1))
+        A = np.c_[np.eye(3), -np.eye(3)]
+        b = np.zeros((3, 1))
+        val = np.zeros((3, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
-
-class RobotAtRot(At):
-    def __init__(self, name, params, expected_param_types, env=None, sess=None):
-        self.r, self.rot = params
-        attr_inds = OrderedDict([(self.r, [("theta", np.array([0], dtype=np.int))]),
-                                 (self.rot, [("value", np.array([0], dtype=np.int))])])
-
-        A = np.c_[np.eye(1), -np.eye(1)]
-        b = np.zeros((1, 1))
-        val = np.zeros((1, 1))
-        aff_e = AffExpr(A, b)
-        e = EqExpr(aff_e, val)
-        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
-
-class BoxAt(At):
-    pass
-
 class Near(At):
     def __init__(self, name, params, expected_param_types, env=None, sess=None):
         self.r, self.c = params
@@ -698,132 +605,6 @@ class Near(At):
         A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
         b = np.zeros((4, 1))
         val = NEAR_TOL * np.ones((4, 1))
-        aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
-        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
-
-class RobotNearTarget(At):
-
-
-    def __init__(self, name, params, expected_param_types, env=None, sess=None):
-        ## At Robot RobotPose
-        self.r, self.t = params
-        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
-                                 (self.t, [("value", np.array([0,1], dtype=np.int))])])
-
-        A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
-        b = np.zeros((4, 1))
-        val = 0.25 * np.ones((4, 1))
-        aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
-        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
-
-class RobotNear(At):
-
-    # RobotAt Robot Can
-
-    def __init__(self, name, params, expected_param_types, env=None, sess=None):
-        ## At Robot RobotPose
-        self.r, self.c = params
-        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
-                                 (self.c, [("pose", np.array([0,1], dtype=np.int))])])
-
-        A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
-        b = np.zeros((4, 1))
-        val = 2 * np.ones((4, 1))
-        aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
-        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
-
-class NotRobotNear(At):
-
-    # RobotAt Robot Can
-
-    def __init__(self, name, params, expected_param_types, env=None, sess=None):
-        ## At Robot RobotPose
-        self.r, self.c = params
-        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
-                                 (self.c, [("pose", np.array([0,1], dtype=np.int))])])
-
-        A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
-        b = np.zeros((4, 1))
-        val = -2 * np.ones((4, 1))
-        aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
-        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
-
-class RobotWithinBounds(At):
-
-    # RobotAt Robot Can
-
-    def __init__(self, name, params, expected_param_types, env=None, sess=None):
-        ## At Robot RobotPose
-        self.r, self.c = params
-        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))])])
-
-        A = np.c_[np.eye(2), -np.eye(2)]
-        b = np.zeros((4, 1))
-        val = 1.5e1 * np.ones((4, 1))
-        aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
-        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
-
-class RobotNearGrasp(At):
-
-    # RobotAt Robot Can Grasp
-
-    def __init__(self, name, params, expected_param_types, env=None, sess=None):
-        ## At Robot RobotPose
-        self.r, self.c, self.g = params
-        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
-                                 (self.c, [("pose", np.array([0,1], dtype=np.int))]),
-                                 (self.g, [("value", np.array([0,1], dtype=np.int))])])
-
-        A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
-        b = np.zeros((4, 1))
-        val = 1.5 * np.ones((4, 1))
-        aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
-        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
-
-class RobotAtGrasp(At):
-
-    # RobotAt Robot Can Grasp
-
-    def __init__(self, name, params, expected_param_types, env=None, sess=None):
-        ## At Robot RobotPose
-        self.r, self.c, self.g = params
-        k = "pose" if not self.r.is_symbol() else "value"
-        attr_inds = OrderedDict([(self.r, [(k, np.array([0,1], dtype=np.int))]),
-                                 (self.c, [("pose", np.array([0,1], dtype=np.int))]),
-                                 (self.g, [("value", np.array([0,1], dtype=np.int))])])
-
-        A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
-        # A[:,4:6] *= 1.75
-        #A[:,4:6] *= 2.5
-        #A[:,4:6] *= 1.5
-        b = np.zeros((4, 1))
-        val = NEAR_TOL * np.ones((4, 1))
-        aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
-        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
-
-class RobotPoseAtGrasp(At):
-    pass
-
-class RobotWithinReach(At):
-
-    # RobotAt Robot Target
-
-    def __init__(self, name, params, expected_param_types, env=None, sess=None):
-        ## At Robot RobotPose
-        self.r, self.t = params
-        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
-                                 (self.t, [("value", np.array([0,1], dtype=np.int))])])
-
-        A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
-        b = np.zeros((4, 1))
-        val = 20 * np.ones((4, 1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -850,31 +631,6 @@ class GripperClosed(ExprPredicate):
             return self.neg_expr
         else:
             return self.expr
-
-class InContact(CollisionPredicate):
-
-    # InContact, Robot, RobotPose, Target
-
-    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
-        self._env = env
-        self.robot, self.rp, self.targ = params
-        attr_inds = OrderedDict([(self.rp, [("value", np.array([0,1], dtype=np.int))]),
-                                 (self.targ, [("value", np.array([0,1], dtype=np.int))])])
-        self._param_to_body = {self.rp: self.lazy_spawn_or_body(self.rp, self.rp.name, self.rp.geom),
-                               self.targ: self.lazy_spawn_or_body(self.targ, self.targ.name, self.targ.geom)}
-
-        INCONTACT_COEFF = 1e1
-        f = lambda x: INCONTACT_COEFF*self.distance_from_obj(x)[0]
-        grad = lambda x: INCONTACT_COEFF*self.distance_from_obj(x)[1]
-
-        col_expr = Expr(f, grad)
-        val = np.ones((1, 1))*dsafe*INCONTACT_COEFF
-        # val = np.zeros((1, 1))
-        e = EqExpr(col_expr, val)
-        super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, debug=debug, ind0=1, ind1=2, active_range=(0,0))
-
-    def test(self, time, negated=False, tol=1e-4):
-        return super(CollisionPredicate, self).test(time, negated, tol)
 
 class Collides(CollisionPredicate):
 
@@ -1218,9 +974,10 @@ class Obstructs(CollisionPredicate):
         #self.hl_ignore = True
         self.r, self.startp, self.endp, self.c = params
 
-        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int)),
-                                           ("gripper", np.array([0], dtype=np.int)),
-                                           ("theta", np.array([0],   dtype=np.int))]),
+        attr_inds = OrderedDict([(self.r, [("joint1", np.array([0], dtype=np.int)),
+                                           ("joint2", np.array([0], dtype=np.int)),
+                                           ("wrist", np.array([0], dtype=np.int)),
+                                           ("gripper", np.array([0], dtype=np.int))]),
                                  (self.c, [("pose", np.array([0, 1], dtype=np.int))])])
         self._param_to_body = {self.r: self.lazy_spawn_or_body(self.r, self.r.name, self.r.geom),
                                self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom)}
@@ -1235,8 +992,6 @@ class Obstructs(CollisionPredicate):
 
         def grad(x):
             grad = -twostep_f([x[:6], x[6:12]], self.distance_from_obj, 6, grad=True)
-            rotjac = np.arctan2(grad[:,0] - grad[:,6], grad[:,1] - grad[:,7])
-            grad[:,3] = -rotjac
             return grad
 
         def f_neg(x):
@@ -1446,9 +1201,10 @@ class ObstructsHolding(CollisionPredicate):
 
         self.rs_scale = RS_SCALE
 
-        attr_inds = OrderedDict([(r, [("pose", np.array([0, 1], dtype=np.int)),
-                                      ("gripper", np.array([0], dtype=np.int)),
-                                      ("theta", np.array([0],   dtype=np.int))]),
+        attr_inds = OrderedDict([(r, [("joint1", np.array([0], dtype=np.int)),
+                                       ("joint2", np.array([0], dtype=np.int)),
+                                       ("wrist", np.array([0], dtype=np.int)),
+                                       ("gripper", np.array([0], dtype=np.int))]),
                                  (obstr, [("pose", np.array([0, 1], dtype=np.int))]),
                                  (held, [("pose", np.array([0, 1], dtype=np.int))])
                                  ])
@@ -1479,8 +1235,6 @@ class ObstructsHolding(CollisionPredicate):
                 return grad
             else:
                 grad = -twostep_f([x[:8], x[8:16]], self.distance_from_obj, 8, grad=True)
-                rotjac = np.arctan2(grad[:,0] - grad[:,8], grad[:,1] - grad[:,9])
-                grad[:,3] = -rotjac
                 return grad
 
         def f_neg(x):
@@ -1600,21 +1354,12 @@ class ObstructsHolding(CollisionPredicate):
 
     def distance_from_obj(self, x, n_steps=0):
         # x = [rpx, rpy, obstrx, obstry, heldx, heldy]
-        pose_r = x[:2]
+        pose_r = x[:4]
         pose_obstr = x[4:6]
         b0 = self._param_to_body[self.r]
         b1 = self._param_to_body[self.obstr]
         pose0, pose1 = self.set_pos(x[:6])
-        aabb_vals = np.zeros((self.n_cols,1))
-        aabb_jacs = np.zeros((self.n_cols,4))
-        if USE_OPENRAVE:
-            assert b0.env_body.GetEnv() == b1.env_body.GetEnv()
-
-            self._cc.SetContactDistance(np.Inf)
-            collisions1 = self._cc.BodyVsBody(b0.env_body, b1.env_body)
-        else:
-            collisions1 = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
-
+        collisions1 = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
         col_val1, jac01 = self._calc_grad_and_val(self.r.name, self.obstr.name, pose_r, pose_obstr, collisions1)
 
         if self.obstr.name == self.held.name:
@@ -1625,18 +1370,11 @@ class ObstructsHolding(CollisionPredicate):
             jac = jac01
             collisions = collisions1
         else:
-            #if self.check_aabb:
-            #    aabb_vals, aabb_jacs = self._check_robot_aabb(b0, b1)
             b2 = self._param_to_body[self.held]
             pose_held = x[6:8]
             b2.set_pose(pose_held)
-
-            if USE_OPENRAVE:
-                collisions2 = self._cc.BodyVsBody(b2.env_body, b1.env_body)
-            else:
-                collisions2 = p.getClosestPoints(b2.body_id, b1.body_id, contact_dist)
-
-            col_val2, jac21 = self._calc_grad_and_val(self.held.name, self.obstr.name, pose_held, pose_obstr, collisions2)
+            collisions2 = p.getClosestPoints(b2.body_id, b1.body_id, contact_dist)
+            col_val2, jac21 = self._calc_obj_grad_and_val(self.held.name, self.obstr.name, pose_held, pose_obstr, collisions2)
 
             if np.max(col_val1) > np.max(col_val2):
                 val = np.array(col_val1)
@@ -1646,23 +1384,6 @@ class ObstructsHolding(CollisionPredicate):
                 val = np.array(col_val2)
                 jac = np.c_[np.zeros((N_COLS, 2)), jac21[:, 2:], jac21[:, :2]].reshape((N_COLS, 6))
                 collisions = collisions2
-
-            #if np.max(aabb_vals) > np.max(val):
-            #    val = aabb_vals
-            #    jac = aabb_jacs
-
-        if b0.isrobot():
-            if len(collisions):
-                pose0, pose1 = np.r_[pose0, [[0]]], np.r_[pose1, [[0]]]
-                colvec = np.array([c[5] for c in collisions])
-                axisvec = np.array([[0,0,1] for _ in collisions])
-                pos0vec = np.array([pose0.flatten() for _ in collisions])
-                crosstorque = np.cross(colvec-pos0vec, [0,0,1])
-                rotjac = np.dot(crosstorque, pose1-pose0)
-                rotjac = 0*np.r_[rotjac, np.zeros((len(jac)-len(collisions), 1))]
-            else:
-                rotjac = np.zeros((jac.shape[0], 1))
-            jac = np.c_[jac[:,:2], rotjac, np.zeros_like(rotjac), jac[:,2:]]
 
         return val, jac
 

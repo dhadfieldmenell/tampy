@@ -941,7 +941,7 @@ class MCTS:
             path.append(s)
             if mode == 'collision' and 1 in s.col_ts:
                 col_s = t
-                col_t = s.col_ts.index(1)
+                col_t = s.col_ts.tolist().index(1)
             t += 1
             if cur_run[-1] >= task_ts:
                 break

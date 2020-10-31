@@ -518,6 +518,11 @@ class NAMOGripAgent(NAMOSortingAgent):
                 im = self.mjc_env.render(height=self.image_height, width=self.image_width)
                 sample.set(IM_ENUM, im.flatten(), t)
 
+    
+    def reset_mjc_env(x, targets):
+        # this is elsewhere
+        pass
+
 
     def reset_to_sample(self, sample):
         self.reset_to_state(sample.get_X(sample.T-1))

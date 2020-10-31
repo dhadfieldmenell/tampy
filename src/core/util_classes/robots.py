@@ -44,6 +44,7 @@ class TwoLinkArm(Robot):
         self.dof_map = {'joint1': 0, 'joint2': 2, 'wrist': 4, 'left_grip': 9, 'right_grip': 6}
         self.link_to_ind = {'link1': 1, 'link2': 3, 'ee': 5, 'right_finger': 7, 'right_finger_tip': 8, 'left_finger': 10, 'left_finger_tip': 11}
         self.ind_to_link = {v:k for k, v in self.link_to_ind.items()}
+        self.jnt_to_body = {0:0, 2:2, 4:4}
 
 
 class PR2(Robot):
