@@ -1204,6 +1204,10 @@ class NAMOSortingAgent(TAMPAgent):
         self.reset_mjc_env(mp_state)
 
 
+    def get_state(self):
+        return self.cur_state.copy()
+
+
     def reset_mjc_env(self, x, targets=None):
         if targets is None:
             targets = self.target_vecs[0]
