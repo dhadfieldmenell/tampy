@@ -106,6 +106,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             for target_name in self.targets[condition]:
                 target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
             self.target_vecs.append(target_vec)
+        self.cur_state = self.x0[0]
         self.goals = self.target_vecs
         self.task_to_onehot = {}
         for i, task in enumerate(self.plans.keys()):
