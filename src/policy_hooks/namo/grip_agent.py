@@ -205,7 +205,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             suc, col = self.run_policy_step(U_full, cur_state)
             objname = prim_choices[OBJ_ENUM][task[1]]
             tname = prim_choices[TASK_ENUM][task[0]]
-            if tname.find('transfer') and len(self._col) == 1 and self._col[0] == objanme:
+            if tname.find('transfer') and len(self._col) == 1 and self._col[0] == objname:
                 col = 0
             col_ts[t] = col
 

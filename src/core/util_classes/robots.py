@@ -35,13 +35,15 @@ class NAMO(Robot):
         self.dof_map = {'xpos': 0, 'ypos': 1, 'robot_theta': 2, 'left_grip': 6, 'right_grip': 4}
 
 
-class TwoArm(Robot):
+class TwoLinkArm(Robot):
     def __init__(self):
         self._type = "robot"
         self.file_type = 'mjcf'
         self.radius = 0.3
         self.shape = baxter_gym.__path__[0]+'/robot_info/lidar_arm.xml'
-        self.dof_map = {'joint1': 0, 'joint2': 1, 'wrist': 2, 'left_grip': 6, 'right_grip': 4}
+        self.dof_map = {'joint1': 0, 'joint2': 2, 'wrist': 4, 'left_grip': 9, 'right_grip': 6}
+        self.link_to_ind = {'link1': 1, 'link2': 3, 'ee': 5, 'right_finger': 7, 'right_finger_tip': 8, 'left_finger': 10, 'left_finger_tip': 11}
+        self.ind_to_link = {v:k for k, v in self.link_to_ind.items()}
 
 
 class PR2(Robot):
