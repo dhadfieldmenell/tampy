@@ -128,8 +128,11 @@ class Transfer(Action):
                 ('(Near ?c ?t)', '{0}:{0}'.format(et)),
                 ('(not (Near ?c ?init))', '{0}:{1}'.format(et, et-1)),
                 ('(not (At ?c ?init))', '{0}:{1}'.format(et, et-1)),
-                ('(not (Obstructs ?robot ?start ?end ?c))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Can) (not (Obstructs ?robot ?obj ?obj ?c)))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Can) (not (WideObstructs ?robot ?obj ?obj ?c)))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Can) (forall (?targ - Target) (not (WideObstructsHolding ?robot ?targ ?targ ?c ?obj))))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Can) (forall (?targ - Target) (not (ObstructsHolding ?robot ?targ ?targ ?c ?obj))))', '{0}:{1}'.format(et, et-1)),
         ]
 
 class Place(Action):

@@ -29,7 +29,7 @@ dsafe = 1e-3
 # dmove = 1.1e0 # 5e-1
 dmove = 1.5e0 # 5e-1
 contact_dist = 2e-1 # dsafe
-gripdist = 0.61 # 75
+gripdist = 0.51 # 75
 retreatdist = 1.2
 
 RS_SCALE = 0.5
@@ -66,7 +66,7 @@ if USE_TF:
         return tf_cache[tf_name]
 
     def init_tf_graph():
-        linklen = 1.
+        linklen = 2.
         tf_jnts = tf.placeholder(float, (4,), name='jnts')
         tf_theta1 = tf_jnts[0]
         tf_theta2 = tf_jnts[1]
@@ -1269,7 +1269,7 @@ class ObstructsHolding(CollisionPredicate):
 class WideObstructsHolding(ObstructsHolding):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(WideObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.15
+        self.dsafe = 0.05
         self.check_aabb = False # True
 
 
@@ -1401,7 +1401,7 @@ class ApproachGraspAngle(InGraspAngle):
 class NearGraspAngle(InGraspAngle):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.r, self.can = params
-        self.tol = 5e-2
+        self.tol = 1e-1 # 5e-2
         self.dist = gripdist
         if self.r.is_symbol():
             k = 'value'
@@ -1422,10 +1422,6 @@ class NearGraspAngle(InGraspAngle):
             disttf = get_tf_graph('dist')
             valtf = get_tf_graph('ingrasp')
             val = self.sess.run(valtf, feed_dict={jntstf: x[:4], objtf: x[4:6], disttf: dist})
-            #val2 = self.sess.run(get_tf_graph('ee_grasp'), feed_dict={jntstf: x[:4], objtf: x[4:6], disttf: dist})
-            #val3 = self.sess.run(get_tf_graph('ee_xy'), feed_dict={jntstf: x[:4], objtf: x[4:6], disttf: dist})
-            #print(x, val, val2, val3)
-            #import ipdb; ipdb.set_trace()
             return val.reshape((-1,1))
         
         def grad(x):

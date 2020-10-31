@@ -66,7 +66,7 @@ class optimal_pol:
         if t < len(self.opt_traj) - 1:
             for param, attr in self.action_inds:
                 if attr == 'gripper':
-                    u[self.action_inds[param, attr]] = self.opt_traj[t, self.state_inds[param, attr]]
+                    u[self.action_inds[param, attr]] = self.opt_traj[t+1, self.state_inds[param, attr]]
                 else:
                     u[self.action_inds[param, attr]] = self.opt_traj[t+1, self.state_inds[param, attr]] - X[self.state_inds[param, attr]]
         else:
@@ -221,10 +221,11 @@ class NAMOArmAgent(NAMOSortingAgent):
             gripper = 0.3
         cur_x, cur_y, _ = self.mjc_env.get_item_pos('pr2') # x[self.state_inds['pr2', 'pose']]
         
-        for n in range(nsteps+1):
-            x = cur_x + float(n)/nsteps * cmd_x
-            y = cur_y + float(n)/nsteps * cmd_y
-            theta = cur_theta + float(n)/nsteps * cmd_theta
+        for n in range(-1, nsteps+1):
+            ratio = float(max(0,n))/nsteps
+            x = cur_x + ratio * cmd_x
+            y = cur_y + ratio * cmd_y
+            theta = cur_theta + ratio * cmd_theta
             ctrl_vec = np.array([x, y, theta, 5*gripper, 5*gripper])
             self.mjc_env.step(ctrl_vec, mode='velocity')
         self.mjc_env.step(ctrl_vec, mode='velocity')
