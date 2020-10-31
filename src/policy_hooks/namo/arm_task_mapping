@@ -1,0 +1,15 @@
+{
+    'moveto': [
+        '0: MOVETO PR2 {0} {0}_INIT_TARGET {1}',
+    ],
+
+    'transfer': [
+        '0: TRANSFER PR2 {0} {1} {0}_INIT_TARGET'
+    ],
+
+};
+
+{
+    'moveto': 25,
+    'transfer': 25,
+}

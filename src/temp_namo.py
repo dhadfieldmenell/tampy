@@ -1,18 +1,15 @@
 import baxter_gym
 from baxter_gym.envs import MJCEnv
 
-#import policy_hooks.namo.sorting_prob_11 as prob
-import policy_hooks.namo.spread_prob as prob
+import policy_hooks.namo.arm_prob as prob
 prob.NUM_OBJS = 2
 prob.FIX_TARGETS = True
 prob.NUM_TARGS = 8
 prob.N_GRASPS = 4
 prob.n_aux = 0
 prob.END_TARGETS = prob.END_TARGETS[:8]
-prob.domain_file = "../domains/namo_domain/namo_current_holgrip.domain"
-prob.domain_file = "../domains/namo_domain/namo_current.domain"
-#from pma.namo_grip_solver import *
-from pma.namo_solver import *
+prob.domain_file = "../domains/namo_domain/namo_current_arm.domain"
+from pma.namo_arm_solver import *
 from pma.hl_solver import *
 from pma.pr_graph import *
 from pma import backtrack_ll_solver as bt_ll
@@ -20,23 +17,18 @@ from policy_hooks.utils.load_task_definitions import parse_state
 from core.util_classes.namo_grip_predicates import angle_diff
 
 plans = prob.get_plans(use_tf=True)
-plan = plans[0][(1,0,6,3)]
-plan = plans[0][(0,0,7,2)]
-# plan = plans[0][(1,0,0,2)]
+plan = plans[0][(0,0,0,2)]
 domain = plan.domain
 problem = plan.prob
 state = problem.init_state
 for p in list(plan.params.values()):
-    if p.openrave_body is not None:
+    if p.openrave_body is not None and p.name != 'pr2':
         p.openrave_body.set_pose([20,20])
 
 targ = 'end_target_4'
-can0_pose = [0, 0.]
-can1_pose = (can0_pose + plan.params[targ].value[:,0]) / 2.
-pr2_pose = [0, -3.]
-plan.params['pr2'].pose[:,0] = pr2_pose
-plan.params['pr2'].gripper[:,0] = -0.1
-plan.params['robot_init_pose'].value[:,0] = pr2_pose
+can0_pose = [1.5, 0.8]
+can1_pose = [-5,5.]
+plan.params['pr2'].gripper[:,0] = -0.3
 plan.params['end_target_0'].value[:,0] = prob.END_TARGETS[0]
 plan.params['end_target_1'].value[:,0] = prob.END_TARGETS[1]
 plan.params['end_target_2'].value[:,0] = prob.END_TARGETS[2]
@@ -66,10 +58,7 @@ bt_ll.TRAJOPT_COEFF = 1e-1
 hl_solver = FFSolver(plan.d_c)
 # solver.backtrack_solve(plan)
 abs_domain = hl_solver.abs_domain
-import ipdb; ipdb.set_trace()
 
-state.params['pr2'].pose[:,0] = pr2_pose
-state.params['robot_init_pose'].value[:,0] = pr2_pose
 state.params['end_target_0'].value[:,0] = prob.END_TARGETS[0]
 state.params['end_target_1'].value[:,0] = prob.END_TARGETS[1]
 state.params['end_target_2'].value[:,0] = prob.END_TARGETS[2]
@@ -89,7 +78,7 @@ goal = '(Near can0 end_target_0)'
 initial = parse_state(plan, [], 0)
 initial = list(set([p.get_rep() for p in initial]))
 plans = []
-for coeff in [1e-1, 1e-2, 5e-2, 1e-1, 5e-1, 1e0, 5e-1, 5, 10]:
+for coeff in [0]: #[1e-1, 1e-2, 5e-2, 1e-1, 5e-1, 1e0, 5e-1, 5, 10]:
     bt_ll.COL_COEFF = coeff
     solver = NAMOSolver()
     solver.col_coeff = coeff
@@ -98,61 +87,43 @@ for coeff in [1e-1, 1e-2, 5e-2, 1e-1, 5e-1, 1e0, 5e-1, 5, 10]:
     min_dist = np.inf
     ts = -1
     dists = []
-    for t in range(1, 39):
-        dist = np.linalg.norm(plan.params['pr2'].pose[:,t] - plan.params['can1'].pose[:,0])
-        if dist < min_dist:
-            min_dist = dist
-            ts = t
-        dists.append(dist)
-    print('Closest dist at coeff', coeff, 'is', min_dist, 'at', ts)
-    print(np.mean(dists))
 import ipdb; ipdb.set_trace()
 
 fpath = baxter_gym.__path__[0]
 view = False
-act_jnts = ['robot_x', 'robot_y', 'robot_theta', 'left_finger_joint', 'right_finger_joint']
+act_jnts = ['joint1', 'joint2', 'wrist', 'left_finger_joint', 'right_finger_joint']
 items = []
-fname = fpath+'/robot_info/lidar_namo.xml'
-items.append({'name': 'can0', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 1.5, 0.5), 'dimensions': (0.3, 0.4), 'mass': 5.})
-items.append({'name': 'can1', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 1.5, 0.5), 'dimensions': (0.3, 0.4), 'mass': 5.})
+fname = fpath+'/robot_info/lidar_arm.xml'
+items.append({'name': 'can0', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 1.5, 0.5), 'dimensions': (0.25, 0.4), 'mass': 5.})
+items.append({'name': 'can1', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 1.5, 0.5), 'dimensions': (0.25, 0.4), 'mass': 5.})
 config = {'include_files': [fname], 'sim_freq': 50, 'include_items': items, 'act_jnts': act_jnts, 'step_mult': 1e1, 'view': view, 'timestep': 0.002, 'load_render':False}
 env = MJCEnv.load_config(config)
-xval, yval = pr2_pose
-grip = -0.1
-theta = 0.
-env.set_joints({'robot_x': xval, 'robot_y': yval, 'left_finger_joint': grip, 'right_finger_joint': grip, 'robot_theta': theta}, forward=False)
+grip = -0.3
+env.set_joints({'joint1': 0, 'joint2': 0, 'wrist': 0, 'left_finger_joint': -0.3, 'right_finger_joint': -0.3}, forward=False)
 env.set_item_pos('can0', np.r_[can0_pose, 0.5])
 env.set_item_pos('can1', np.r_[can1_pose, 0.5])
 
 pr2 = plan.params['pr2']
 act = 0
 for t in range(plan.horizon-1):
-    cmdx, cmdy = pr2.pose[:,t+1] - pr2.pose[:,t]
-    theta = env.get_joints(['robot_theta'])['robot_theta'][0]
-    x, y, _ = env.get_item_pos('pr2')
-    vel = np.linalg.norm(pr2.pose[:,t+1]-[x,y])
-    if pr2.vel[0,t+1] < 0: vel *= -1
-    cmdtheta = pr2.theta[0,t+1] - theta
-    cmdtheta = angle_diff(pr2.theta[0,t+1], theta)
-    # cmdx, cmdy = -pr2.vel[0,t+1]*np.sin(theta), pr2.vel[0,t+1]*np.cos(theta)
-    cmdx, cmdy = -vel*np.sin(theta), vel*np.cos(theta)
-    nsteps = int(max(abs(cmdx), abs(cmdy)) / 0.20) + 1
+    jnt1 = pr2.joint1[0,t]
+    jnt2 = pr2.joint2[0,t]
+    wrist = pr2.wrist[0,t]
+    cmd1 = pr2.joint1[0,t+1] - pr2.joint1[0,t]
+    cmd2 = pr2.joint2[0,t+1] - pr2.joint2[0,t]
+    cmdwrist = pr2.wrist[0,t+1] -  pr2.wrist[0,t]
+    nsteps = 10
     grip = pr2.gripper[0,t] * 5
     # x, y = pr2.pose[:,t]
     for n in range(nsteps+1):
-        curx = x + float(n)/nsteps * cmdx
-        cury = y + float(n)/nsteps * cmdy
-        curtheta = theta + float(n)/nsteps * cmdtheta
-        ctrl = [curx, cury, curtheta, grip, grip]
+        cur1 = jnt1 + float(n)/nsteps * cmd1
+        cur2 = jnt2 + float(n)/nsteps * cmd2
+        curwrist = wrist + float(n)/nsteps * cmdwrist
+        ctrl = [cur1, cur2, curwrist, grip, grip]
         env.step(ctrl, mode='velocity')
     env.step(ctrl, mode='velocity')
     env.step(ctrl, mode='velocity')
     env.step(ctrl, mode='velocity')
-    print((t, env.get_item_pos('can0')))
-    print((t, env.get_item_pos('can1')))
-    print((t, env.get_item_pos('pr2'), env.get_joints(['robot_theta'])))
-    print((t, (env.get_item_pos('left_finger')+env.get_item_pos('right_finger'))/2.))
-    print('\n\n')
     if t == plan.actions[act].active_timesteps[1]:
         act += 1
         import ipdb; ipdb.set_trace()
