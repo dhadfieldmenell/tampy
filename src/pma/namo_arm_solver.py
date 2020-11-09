@@ -3,7 +3,7 @@ import pybullet as P
 
 from sco.expr import BoundExpr, QuadExpr, AffExpr
 from pma import backtrack_ll_solver
-from core.util_classes.namo_arm_predicates import RETREAT_DIST, dsafe, opposite_angle, gripdist, ColObjPred, retreatdist
+from core.util_classes.namo_arm_predicates import RETREAT_DIST, dsafe, opposite_angle, gripdist, ColObjPred, RETREAT_DIST
 
 class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
@@ -44,7 +44,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         return rs_param
 
     def freeze_rs_param(self, act):
-        return False # True
+        return True
 
     def obj_pose_suggester(self, plan, anum, resample_size=1):
         robot_pose = []
@@ -67,6 +67,18 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             'right_grip': robot.gripper[:, start_ts],
             })
         ee_pos = P.getLinkState(robot_body.body_id, 5)[0][:2]
+        ul = robot_body._geom.upper_bounds
+        ll = robot_body._geom.lower_bounds
+        jnt_rng = ul-ll
+        ul = ul.tolist()
+        ll = ll.tolist()
+        jnt_rng = jnt_rng.tolist()
+        rest_pos = np.array([robot.joint1[:,  start_ts], \
+                             robot.joint2[:,  start_ts], \
+                             robot.wrist[:,   start_ts], \
+                             robot.gripper[:, start_ts], \
+                             robot.gripper[:, start_ts]]).flatten().tolist()
+
         for i in range(resample_size):
             if next_act != None and (next_act.name == 'grasp' or next_act.name == 'putdown'):
                 target = next_act.params[2]
@@ -75,10 +87,22 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             elif act.name == 'moveto' or act.name == 'new_quick_movetograsp' or act.name == 'quick_moveto':
                 target = act.params[2]
                 target_rot = -np.arctan2(target.value[0,0]-ee_pos[0], target.value[1,0]-ee_pos[1])
-                dist = gripdist + dsafe
+                dist = gripdist
                 target_pos = target.value - [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
                 quat = [0, 0, np.sin(target_rot/2.), np.cos(target_rot/2.)]
-                jnts = P.calculateInverseKinematics(robot_body.body_id, ee_link, np.r_[target_pos.flatten(), [0.5]], quat)
+                jnts = P.calculateInverseKinematics(robot_body.body_id, \
+                                                    ee_link, \
+                                                    np.r_[target.value.flatten(), [0.5]], \
+                                                    lowerLimits=ll, \
+                                                    upperLimits=ul, \
+                                                    jointRanges=jnt_rng, \
+                                                    restPoses=rest_pos)
+                dof_map = {'joint1': jnts[0], 'joint2': jnts[1], 'wrist': jnts[2]}
+                robot_body.set_dof(dof_map)
+                new_pos = P.getLinkState(robot_body.body_id, robot_body._geom.ee_link)[0][:2]
+                if np.any(np.abs(target.value.flatten() - np.array(new_pos)) > 0.01):
+                    print('WARNING! IK SOLVE FAILED', new_pos, target.value.flatten())
+
                 robot_pose.append({
                     'joint1': np.array(jnts[0]).reshape((1,1)),
                     'joint2': np.array(jnts[1]).reshape((1,1)),
@@ -89,10 +113,23 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             elif act.name == 'transfer' or act.name == 'new_quick_place_at':
                 target = act.params[2]
                 target_rot = -np.arctan2(target.value[0,0], target.value[1,0])
-                dist = -dsafe - retreatdist
-                target_pos = target.value + [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
+                dist = RETREAT_DIST
+                dist = gripdist
+                target_pos = target.value - [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
                 quat = [0, 0, np.sin(target_rot/2.), np.cos(target_rot/2.)]
-                jnts = P.calculateInverseKinematics(robot_body.body_id, ee_link, np.r_[target_pos.flatten(), [0.5]], quat)
+                jnts = P.calculateInverseKinematics(robot_body.body_id, \
+                                                    ee_link, \
+                                                    np.r_[target.value.flatten(), [0.5]], \
+                                                    lowerLimits=ll, \
+                                                    upperLimits=ul, \
+                                                    jointRanges=jnt_rng, \
+                                                    restPoses=rest_pos)
+                dof_map = {'joint1': jnts[0], 'joint2': jnts[1], 'wrist': jnts[2]}
+                robot_body.set_dof(dof_map)
+                new_pos = P.getLinkState(robot_body.body_id, robot_body._geom.ee_link)[0][:2]
+                if np.any(np.abs(target.value.flatten() - np.array(new_pos)) > 0.01):
+                    print('WARNING! IK SOLVE FAILED', new_pos, target.value.flatten())
+                
                 robot_pose.append({
                     'joint1': np.array(jnts[0]).reshape((1,1)),
                     'joint2': np.array(jnts[1]).reshape((1,1)),
@@ -104,9 +141,10 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 grasp = act.params[5]
                 target_rot = old_rot
                 dist = -gripdist - dsafe - 1.4
-                target_pos = target.value + [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
+                target_pos = target.value - [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
                 quat = [0, 0, np.sin(target_rot/2.), np.cos(target_rot/2.)]
                 jnts = P.calculateInverseKinematics(robot_body.body_id, ee_link, target_pos, quat)
+                jnts = P.calculateInverseKinematics(robot_body.body_id, ee_link, np.r_[target.value.flatten(), [0.5]])
                 robot_pose.append({
                     'joint1': np.array(jnts[0]).reshape((1,1)),
                     'joint2': np.array(jnts[1]).reshape((1,1)),
@@ -197,6 +235,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             previous trajectory.
             Where P is the KT x KT matrix, where Px is the difference of parameter's attributes' current value and parameter's next timestep value
         """
+        return None
         if active_ts is None:
             active_ts = (0, plan.horizon-1)
 

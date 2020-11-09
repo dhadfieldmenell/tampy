@@ -41,10 +41,17 @@ class TwoLinkArm(Robot):
         self.file_type = 'mjcf'
         self.radius = 0.3
         self.shape = baxter_gym.__path__[0]+'/robot_info/lidar_arm.xml'
-        self.dof_map = {'joint1': 0, 'joint2': 2, 'wrist': 4, 'left_grip': 9, 'right_grip': 6}
-        self.link_to_ind = {'link1': 1, 'link2': 3, 'ee': 5, 'right_finger': 7, 'right_finger_tip': 8, 'left_finger': 10, 'left_finger_tip': 11}
+        self.dof_map = {'joint1': 0, 'joint2': 2, 'wrist': 4, 'left_grip': 11, 'right_grip': 8}
+        self.link_to_ind = {'link1': 1, 'link2': 3, 'wrist': 5, 'ee': 6, 'ee_far': 7, 'right_finger': 8, 'right_finger_tip': 9, 'left_finger': 11, 'left_finger_tip': 12}
         self.ind_to_link = {v:k for k, v in self.link_to_ind.items()}
         self.jnt_to_body = {0:0, 2:2, 4:4}
+        self.upper_bounds = np.array([10, 3.1, 3.1, 0.4, 0.4])
+        self.lower_bounds = np.array([-10, -3.1, -3.1, -0.4, -0.4])
+        self.arm_links = [1, 3, 5]
+        self.ee_link = 6
+        self.far_ee_link = 7
+        self.ee_links = [6, 7, 8, 9, 11, 12]
+        self.col_links = [1, 3, 8, 9, 10, 11, 12, 13] # [1, 3, 8, 10]
 
 
 class PR2(Robot):

@@ -544,7 +544,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
     # pd_frame = pd_frame.groupby(['time', 'description', 'problem', 'ind'], as_index=False).mean()
     sns.set()
     sns.set_context('paper', font_scale=1.5)
-    plt.title('3 objects with 3 goals')
+    plt.title('3 object with 3 goals')
     fig = plt.figure(figsize=(10,6))
     axs = fig.subplots(ncols=3)
     sns_plot = sns.relplot(x=xvar, y='value', hue='description', row='problem', kind='line', data=pd_frame)
@@ -798,12 +798,12 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
 
 include=['adjusteta']
 exclude=['oldprob']
-gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=['objs3'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='3objspreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
-gen_data_plots(xvar='time', yvar=['success with postcond', 'subgoals anywhere'], keywords=['objs3'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='postcollisionspreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0,1), (0,1)])
-gen_data_plots(xvar='time', yvar=['number of plans'], keywords=['objs3'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='ratepostcollisionspreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300)
-gen_data_plots(xvar='time', yvar=['collision'], keywords=['objs3'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='3objcollisionspreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
-gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['objs3'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='3objcompnewplansagainrolling', exclude=exclude, split_runs=False, include=include, inter=5, window=500, ylim=[(0.,1.), (0.,1.), (0, 1.)])
-gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=['objs3'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='3objlossesspreadtargs', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
+gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=['adjusteta'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='3objspreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
+gen_data_plots(xvar='time', yvar=['success with postcond', 'subgoals anywhere'], keywords=['adjusteta'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='postcollisionspreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0,1), (0,1)])
+gen_data_plots(xvar='time', yvar=['number of plans'], keywords=['adjusteta'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='ratepostcollisionspreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300)
+gen_data_plots(xvar='time', yvar=['collision'], keywords=['adjusteta'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='3objcollisionspreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
+gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['adjusteta'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='3objcompnewplansagainrolling', exclude=exclude, split_runs=False, include=include, inter=5, window=500, ylim=[(0.,1.), (0.,1.), (0, 1.)])
+gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=['adjusteta'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='3objlossesspreadtargs', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
 
 
 

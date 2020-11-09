@@ -329,7 +329,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             y = cur_y + float(n)/nsteps * cmd_y
             theta = cur_theta + float(n)/nsteps * cmd_theta
             ctrl_vec = np.array([x, y, theta, 5*gripper, 5*gripper])
-            self.mjc_env.step(ctrl_vec, mode='velocity')
+            self.mjc_env.step(ctrl_vec, mode='velocity', gen_obs=False)
         self.mjc_env.step(ctrl_vec, mode='velocity')
         self.mjc_env.step(ctrl_vec, mode='velocity')
         self.mjc_env.step(ctrl_vec, mode='velocity')

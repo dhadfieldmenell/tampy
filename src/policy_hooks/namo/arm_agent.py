@@ -41,7 +41,7 @@ from policy_hooks.utils.tamp_eval_funcs import *
 # from policy_hooks.namo.sorting_prob_4 import *
 from policy_hooks.namo.namo_agent import NAMOSortingAgent
 
-
+NEAR_TOL = 0.5
 MAX_SAMPLELISTS = 1000
 MAX_TASK_PATHS = 100
 GRIP_TOL = 0.
@@ -266,9 +266,13 @@ class NAMOArmAgent(NAMOSortingAgent):
         if targets is None:
             targets = self.target_vecs[cond].copy()
 
+        jnt1 = mp_state[self.state_inds['pr2', 'joint1']]
+        jnt2 = mp_state[self.state_inds['pr2', 'joint2']]
+        wrist = mp_state[self.state_inds['pr2', 'wrist']]
+        #ee_x = -linklen * (np.sin(jnt1) + np.sin(jnt1 + jnt2))
+        #ee_y = linklen * (np.cos(jnt1) + np.cos(jnt1 + jnt2))
+        ee_pose = self.mjc_env.get_item_pos('ee')[:2]
         sample.set(EE_ENUM, ee_pose, t)
-        theta = mp_state[self.state_inds['pr2', 'theta']][0]
-        dirvec = np.array([-np.sin(theta), np.cos(theta)])
         sample.set(STATE_ENUM, mp_state, t)
         sample.set(GRIPPER_ENUM, mp_state[self.state_inds['pr2', 'gripper']], t)
         if self.hist_len > 0:
@@ -298,12 +302,6 @@ class NAMOArmAgent(NAMOSortingAgent):
         grasp = np.array([0, -0.601])
         if self.discrete_prim:
             sample.set(FACTOREDTASK_ENUM, np.array(task), t)
-            if GRASP_ENUM in prim_choices:
-                grasp = self.set_grasp(grasp, task[3])
-                grasp_vec = np.zeros(self._hyperparams['sensor_dims'][GRASP_ENUM])
-                grasp_vec[task[3]] = 1.
-                sample.set(GRASP_ENUM, grasp_vec, t)
-
             obj_vec = np.zeros((len(prim_choices[OBJ_ENUM])), dtype='float32')
             targ_vec = np.zeros((len(prim_choices[TARG_ENUM])), dtype='float32')
             obj_vec[task[1]] = 1.
@@ -324,8 +322,8 @@ class NAMOArmAgent(NAMOSortingAgent):
 
             obj_name = list(prim_choices[OBJ_ENUM])[obj_ind]
             targ_name = list(prim_choices[TARG_ENUM])[targ_ind]
-            obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - mp_state[self.state_inds['pr2', 'pose']]
-            targ_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds['pr2', 'pose']]
+            obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - ee_pose
+            targ_pose = targets[self.target_inds[targ_name, 'value']] - ee_pose 
             targ_off_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds[obj_name, 'pose']]
         else:
             obj_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
@@ -369,7 +367,7 @@ class NAMOArmAgent(NAMOSortingAgent):
         if INGRASP_ENUM in self._hyperparams['sensor_dims']:
             vec = np.zeros(len(prim_choices[OBJ_ENUM]))
             for i, o in enumerate(prim_choices[OBJ_ENUM]):
-                if np.all(np.abs(mp_state[self.state_inds[o, 'pose']] - mp_state[self.state_inds['pr2', 'pose']] - grasp) < NEAR_TOL):
+                if np.all(np.abs(mp_state[self.state_inds[o, 'pose']] - ee_pose) < NEAR_TOL):
                     vec[i] = 1.
             sample.set(INGRASP_ENUM, vec, t=t)
 
@@ -448,6 +446,7 @@ class NAMOArmAgent(NAMOSortingAgent):
 
 
     def sample_optimal_trajectory(self, state, task, condition, opt_traj=[], traj_mean=[], targets=[], run_traj=True):
+        raise Exception('This should no longer be called')
         if not len(opt_traj):
             return self.solve_sample_opt_traj(state, task, condition, traj_mean, targets=targets)
         if not len(targets):
@@ -508,6 +507,7 @@ class NAMOArmAgent(NAMOSortingAgent):
 
 
     def solve_sample_opt_traj(self, state, task, condition, traj_mean=[], inf_f=None, mp_var=0, targets=[], x_only=False, t_limit=60, n_resamples=5, out_coeff=None, smoothing=False, attr_dict=None):
+        raise Exception('This should no longer be called')
         success = False
         old_targets = self.target_vecs[condition]
         if not len(targets):

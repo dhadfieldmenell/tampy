@@ -15,11 +15,11 @@ from core.util_classes.viewer import OpenRAVEViewer
 
 MAX_PRIORITY=3
 BASE_MOVE_COEFF = 1.
-TRAJOPT_COEFF=2e1
+TRAJOPT_COEFF=5e1
 TRANSFER_COEFF = 1e-1
-FIXED_COEFF = 1e1
+FIXED_COEFF = 1e3
 INIT_TRAJ_COEFF = 1e-1
-RS_COEFF = 1e0 # 1e2
+RS_COEFF = 1e2 # 1e2
 COL_COEFF = 0
 SAMPLE_SIZE = 5
 BASE_SAMPLE_SIZE = 5
@@ -243,7 +243,7 @@ class BacktrackLLSolver(LLSolver):
 
                 if DEBUG:
                     print(("resample attempt: {} at priority {}".format(attempt, priority)))
-                    print((plan.get_failed_preds(active_ts, priority=priority)))
+                    print((plan.get_failed_preds(active_ts, priority=priority, tol=1e-3)))
 
                 # import ipdb; ipdb.set_trace()
                 # assert not (success and not len(plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)) == 0)
@@ -285,12 +285,12 @@ class BacktrackLLSolver(LLSolver):
             ## a high value on matching the resampled values
             # failed_preds = plan.get_failed_preds(active_ts = (active_ts[0]+1, active_ts[1]-1), priority=priority, tol = tol)
             # failed_preds = plan.get_failed_preds(active_ts = (active_ts[0], active_ts[1]-1), priority=priority, tol = tol)
-            failed_preds = plan.get_failed_preds(active_ts = (active_ts[0], active_ts[1]), priority=priority, tol = tol)
-            rs_obj = self._resample(plan, failed_preds, sample_all = True)
+            failed_preds = plan.get_failed_preds(active_ts = (active_ts[0], active_ts[1]), priority=priority, tol=tol)
+            rs_obj = self._resample(plan, failed_preds, sample_all=False)
             # import ipdb; ipdb.set_trace()
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
             obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
-            obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
+            #obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
 
             self._add_all_timesteps_of_actions(plan, priority=priority,
                 add_nonlin=True, active_ts= active_ts, verbose=verbose)
@@ -339,14 +339,12 @@ class BacktrackLLSolver(LLSolver):
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
 
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
-        if priority >= 0 or priority == MAX_PRIORITY:
-            self._update_ll_params()
-            success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
-            #if not success:
-            #    self._update_ll_params()
-            #    success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
-        else:
-            self._update_ll_params()
+        #if priority >= 0 or priority == MAX_PRIORITY:
+        self._update_ll_params()
+        if priority == MAX_PRIORITY:
+            #success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
+            if not success:
+                success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
 
 
         '''
