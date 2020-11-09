@@ -341,10 +341,8 @@ class BacktrackLLSolver(LLSolver):
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
         #if priority >= 0 or priority == MAX_PRIORITY:
         self._update_ll_params()
-        if priority == MAX_PRIORITY:
-            #success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
-            if not success:
-                success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
+        if not success and priority >= 0: # priority == MAX_PRIORITY:
+            success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
 
 
         '''

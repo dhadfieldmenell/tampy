@@ -44,7 +44,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         return rs_param
 
     def freeze_rs_param(self, act):
-        return True
+        return False
 
     def obj_pose_suggester(self, plan, anum, resample_size=1):
         robot_pose = []
