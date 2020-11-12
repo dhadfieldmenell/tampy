@@ -14,7 +14,7 @@ def p_mod_abs(hl_solver, ll_solver, domain, problem, initial=None, goal=None, su
     #hl_solver, ll_solver = ParseSolversConfig.parse(solvers_config, domain_config)
     #domain = ParseDomainConfig.parse(domain_config)
     #problem = ParseProblemConfig.parse(problem_config, domain)
-    if problem.goal_test():
+    if goal is None and problem.goal_test():
         return None, "Goal is already satisfied. No planning done."
 
     n0 = HLSearchNode(hl_solver.translate_problem(problem, initial, goal), domain, problem, priority=0, label=label)

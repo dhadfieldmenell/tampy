@@ -102,7 +102,7 @@ if USE_TF:
         tf_cache['obj_pose'] = tf_obj_pos
         tf_ee_grasp = tf.stack([tf_ee_x - tf_dist*tf.sin(tf_ee_theta), tf_ee_y + tf_dist*tf.cos(tf_ee_theta)], axis=0)
         tf_cache['ee_grasp'] = tf_ee_grasp
-        tf_ingrasp = 1e-1 * tf.reduce_sum((tf_obj_pos-tf_ee_grasp)**2)
+        tf_ingrasp = tf.reduce_sum((tf_obj_pos-tf_ee_grasp)**2)
         tf_cache['ingrasp'] = tf_ingrasp
         tf_cache['ingrasp_gradients'] = tf.gradients(tf_cache['ingrasp'], [tf_cache['jnts'], tf_cache['obj_pose']])
 
@@ -253,7 +253,7 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False, isrobot=False):
             if len(xs) == 2:
                 next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
                 if isrobot:
-                    next_pos[3] = -GRIP_VAL # min(xs[0][2], xs[1][2])
+                    next_pos[3] = -0.4 if min(xs[0][3], xs[1][3]) < 0 else 0
             else:
                 next_pos = xs[0]
             cur_jac = dist(next_pos)[1]
@@ -271,8 +271,7 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False, isrobot=False):
             if len(xs) == 2:
                 next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
                 if isrobot:
-                    next_pos[3] = -GRIP_VAL # min(xs[0][2], xs[1][2])
-                    # next_pos[3] = np.arctan2(next_pos[0], next_pos[1])
+                    next_pos[3] = -0.4 if min(xs[0][3], xs[1][3]) < 0 else 0
             else:
                 next_pos = xs[0]
             res.append(dist(next_pos)[0])
@@ -1434,6 +1433,8 @@ class InGraspAngle(ExprPredicate):
         self.r, self.can = params
         self.dist = gripdist
         self.ee_link = self.r.geom.ee_link
+        self.coeff = 1e-1
+
         if self.r.is_symbol():
             k = 'value'
         else:
@@ -1454,7 +1455,7 @@ class InGraspAngle(ExprPredicate):
             disttf = get_tf_graph('dist')
             valtf = get_tf_graph('ingrasp')
             val = self.sess.run(valtf, feed_dict={jntstf: x[:4], objtf: x[4:6], disttf: dist})
-            return np.array([[val]])
+            return self.coeff*np.array([[val]])
         
         def grad(x):
             x = x.flatten()
@@ -1465,7 +1466,7 @@ class InGraspAngle(ExprPredicate):
             grads = get_tf_graph('ingrasp_gradients')
             robot_jacs, obj_jacs = np.array(self.sess.run(grads, feed_dict={jntstf: x[:4], objtf: x[4:6], disttf: dist})).reshape((-1,1))
             jac = np.r_[robot_jacs[0], obj_jacs[0]].reshape((1,6))
-            return jac
+            return self.coeff*jac
 
         self.f = f
         self.grad = grad
@@ -1502,7 +1503,8 @@ class InGraspAngle(ExprPredicate):
                                             lowerLimits=ll.tolist(), \
                                             upperLimits=ul.tolist(), \
                                             jointRanges=jnt_rng.tolist(), \
-                                            restPoses = x1[:4].tolist() + [x1[3]])
+                                            restPoses = x1[:4].tolist() + [x1[3]], \
+                                            maxNumIterations=500)
         add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('joint1', np.array([jnts[0]]))])
         add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('joint2', np.array([jnts[1]]))])
         add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('wrist',  np.array([jnts[2]]))])
@@ -1511,6 +1513,10 @@ class InGraspAngle(ExprPredicate):
             'joint2': jnts[1],
             'wrist':  jnts[2]})
         return res, attr_inds
+
+
+class TargetInGraspAngle(InGraspAngle):
+    pass
 
 
 class NearGraspAngle(InGraspAngle):
@@ -1562,6 +1568,12 @@ class ApproachGraspAngle(InGraspAngle):
         super(ApproachGraspAngle, self).__init__(name, params, expected_param_types, env, sess, debug)
         self.dist = RETREAT_DIST
         self.ee_link = self.r.geom.far_ee_link
+        self.coeff = 5e-3
+
+
+class TargetApproachGraspAngle(ApproachGraspAngle):
+    pass
+
 
 class RobotStationary(ExprPredicate):
 
@@ -1671,8 +1683,8 @@ class IsMP(ExprPredicate):
                       [0, -1, 0, 0, 1, 0],
                       [0, 0, -1, 0, 0, 1]])
         b = np.zeros((6, 1))
-        dmove = np.pi / 6.
-        drot = np.pi / 3.
+        dmove = np.pi / 8.
+        drot = np.pi / 8.
         e = LEqExpr(AffExpr(A, b), np.array([dmove, dmove, drot, dmove, dmove, drot]).reshape((6,1)))
         super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
 

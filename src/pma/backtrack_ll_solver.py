@@ -231,7 +231,8 @@ class BacktrackLLSolver(LLSolver):
                                 init_traj=init_traj)
                 # success = len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) == 0
 
-                if success:
+                # No point in resampling if the endpoints or linear constraints can't be satisfied
+                if success or priority < 0:
                     break
 
                 # failed_preds = plan.get_failed_preds(active_ts=active_ts, tol=1e-3)
@@ -244,6 +245,9 @@ class BacktrackLLSolver(LLSolver):
                 if DEBUG:
                     print(("resample attempt: {} at priority {}".format(attempt, priority)))
                     print((plan.get_failed_preds(active_ts, priority=priority, tol=1e-3)))
+                
+                if success:
+                    break
 
                 # import ipdb; ipdb.set_trace()
                 # assert not (success and not len(plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)) == 0)
@@ -622,14 +626,15 @@ class BacktrackLLSolver(LLSolver):
         bexprs = []
         val, attr_inds = None, None
         pred_type = {}
+        random.shuffle(preds)
         for negated, pred, t in preds:
             ## returns a vector of new values and an
             ## attr_inds (OrderedDict) that gives the mapping
             ## to parameter attributes
-            # if pred_type.get(pred.get_type, False):
-            #     continue
+            if pred_type.get(pred.get_type, False):
+                continue
             val, attr_inds = pred.resample(negated, t, plan)
-            # if val is not None: pred_type[pred.get_type] = True
+            if val is not None: pred_type[pred.get_type] = True
             ## if no resample defined for that pred, continue
             if val is not None:
                 for p in attr_inds:

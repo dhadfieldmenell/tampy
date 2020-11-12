@@ -44,7 +44,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         return rs_param
 
     def freeze_rs_param(self, act):
-        return False
+        return True # False
 
     def obj_pose_suggester(self, plan, anum, resample_size=1):
         robot_pose = []
@@ -90,17 +90,25 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 dist = gripdist
                 target_pos = target.value - [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
                 quat = [0, 0, np.sin(target_rot/2.), np.cos(target_rot/2.)]
-                jnts = P.calculateInverseKinematics(robot_body.body_id, \
-                                                    ee_link, \
-                                                    np.r_[target.value.flatten(), [0.5]], \
-                                                    lowerLimits=ll, \
-                                                    upperLimits=ul, \
-                                                    jointRanges=jnt_rng, \
-                                                    restPoses=rest_pos)
-                dof_map = {'joint1': jnts[0], 'joint2': jnts[1], 'wrist': jnts[2]}
-                robot_body.set_dof(dof_map)
-                new_pos = P.getLinkState(robot_body.body_id, robot_body._geom.ee_link)[0][:2]
-                if np.any(np.abs(target.value.flatten() - np.array(new_pos)) > 0.01):
+                poses = [np.random.normal([0,0,0,0,0], [3, 1, 1, 0.1, 0.1]).tolist() for _ in range(3)]
+                for pos in [rest_pos, np.zeros_like(rest_pos).tolist()] + poses:
+                    jnts = P.calculateInverseKinematics(robot_body.body_id, \
+                                                        ee_link, \
+                                                        np.r_[target.value.flatten(), [0.5]], \
+                                                        lowerLimits=ll, \
+                                                        upperLimits=ul, \
+                                                        jointRanges=jnt_rng, \
+                                                        restPoses=pos, \
+                                                        maxNumIterations=500)
+                    dof_map = {'joint1': jnts[0], 'joint2': jnts[1], 'wrist': jnts[2]}
+                    robot_body.set_dof(dof_map)
+                    new_pos = P.getLinkState(robot_body.body_id, robot_body._geom.ee_link)[0][:2]
+                    if np.all(np.abs(target.value.flatten() - np.array(new_pos)) < 0.001):
+                        break
+                    dof_map = {'joint1': pos[0], 'joint2': pos[1], 'wrist': pos[2]}
+                    robot_body.set_dof(dof_map)
+
+                if np.any(np.abs(target.value.flatten() - np.array(new_pos)) > 0.001):
                     print('WARNING! IK SOLVE FAILED', new_pos, target.value.flatten())
 
                 robot_pose.append({
@@ -117,17 +125,25 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 dist = gripdist
                 target_pos = target.value - [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
                 quat = [0, 0, np.sin(target_rot/2.), np.cos(target_rot/2.)]
-                jnts = P.calculateInverseKinematics(robot_body.body_id, \
-                                                    ee_link, \
-                                                    np.r_[target.value.flatten(), [0.5]], \
-                                                    lowerLimits=ll, \
-                                                    upperLimits=ul, \
-                                                    jointRanges=jnt_rng, \
-                                                    restPoses=rest_pos)
-                dof_map = {'joint1': jnts[0], 'joint2': jnts[1], 'wrist': jnts[2]}
-                robot_body.set_dof(dof_map)
-                new_pos = P.getLinkState(robot_body.body_id, robot_body._geom.ee_link)[0][:2]
-                if np.any(np.abs(target.value.flatten() - np.array(new_pos)) > 0.01):
+                poses = [np.random.normal([0,0,0,0,0], [3, 1, 1, 0.1, 0.1]).tolist() for _ in range(3)]
+                for pos in [rest_pos, np.zeros_like(rest_pos).tolist()] + poses:
+                    jnts = P.calculateInverseKinematics(robot_body.body_id, \
+                                                        ee_link, \
+                                                        np.r_[target.value.flatten(), [0.5]], \
+                                                        lowerLimits=ll, \
+                                                        upperLimits=ul, \
+                                                        jointRanges=jnt_rng, \
+                                                        restPoses=pos, \
+                                                        maxNumIterations=500)
+                    dof_map = {'joint1': jnts[0], 'joint2': jnts[1], 'wrist': jnts[2]}
+                    robot_body.set_dof(dof_map)
+                    new_pos = P.getLinkState(robot_body.body_id, robot_body._geom.ee_link)[0][:2]
+                    if np.all(np.abs(target.value.flatten() - np.array(new_pos)) < 0.001):
+                        break
+                    dof_map = {'joint1': pos[0], 'joint2': pos[1], 'wrist': pos[2]}
+                    robot_body.set_dof(dof_map)
+
+                if np.any(np.abs(target.value.flatten() - np.array(new_pos)) > 0.001):
                     print('WARNING! IK SOLVE FAILED', new_pos, target.value.flatten())
                 
                 robot_pose.append({

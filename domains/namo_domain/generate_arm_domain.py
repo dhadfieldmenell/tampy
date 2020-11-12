@@ -72,7 +72,9 @@ class MoveTo(Action):
         ]
         self.eff = [\
                 ('(InGraspAngle ?robot ?can)', '{0}:{1}'.format(et, et)),
+                ('(NearGraspAngle ?robot ?can)', '{0}:{1}'.format(et, et)),
                 ('(forall (?obj - Can / ?can) (not (NearGraspAngle ?robot ?obj)))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Can / ?can) (not (InGraspAngle ?robot ?obj)))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
                 #('(StationaryRot ?robot)', '{0}:{1}'.format(et-2, et-1)),
                 ('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
@@ -90,6 +92,7 @@ class Transfer(Action):
                 ('(RobotInBounds ?robot)', '0:{0}'.format(et)),
                 ('(RobotStationary ?robot)', '0:0'),
                 ('(InGraspAngle ?robot ?c)', '0:0'),
+                ('(NearGraspAngle ?robot ?c)', '0:0'),
                 ('(forall (?obj - Can) (not (Near ?obj ?t)))', '0:0'),
                 ('(GripperClosed ?robot)', '1:{0}'.format(et-2)),
                 ('(not (GripperClosed ?robot))', '{0}:{0}'.format(et-1)),

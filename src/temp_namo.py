@@ -27,10 +27,14 @@ for p in list(plan.params.values()):
         p.openrave_body.set_pose([20,20])
 
 init_poses = []
-init_poses.extend(list(itertools.product(list(range(-55, -30)), list(range(-55, 55)))))
-init_poses.extend(list(itertools.product(list(range(30, 55)), list(range(-55, 55)))))
-#init_poses.extend(list(itertools.product(list(range(-35, 35)), list(range(20, 35)))))
-init_poses.extend(list(itertools.product(list(range(-55, 55)), list(range(-55, -35)))))
+init_poses.extend(list(itertools.product(list(range(-40, -15)), list(range(-40, -15)))))
+init_poses.extend(list(itertools.product(list(range(-40, -15)), list(range(15, 40)))))
+init_poses.extend(list(itertools.product(list(range(15, 40)), list(range(15, 40)))))
+init_poses.extend(list(itertools.product(list(range(15, 40)), list(range(-40, -15)))))
+
+init_poses.extend(list(itertools.product(list(range(-60, -40)), list(range(-10, 10)))))
+init_poses.extend(list(itertools.product(list(range(40, 60)), list(range(-10, 10)))))
+init_poses.extend(list(itertools.product(list(range(-10, 10)), list(range(-60, -40)))))
 
 ind1 = np.random.randint(len(init_poses))
 ind2 = np.random.randint(len(init_poses))
@@ -82,7 +86,6 @@ state.params['can0_init_target'].value[:,0] = can0_pose
 state.params['can1'].pose[:,0] = can1_pose
 state.params['can1_init_target'].value[:,0] = can1_pose
 goal = '(and (Near can0 end_target_3) (Near can1 end_target_0))'
-goal = '(Near can0 end_target_3)'
 initial = parse_state(plan, [], 0)
 initial = list(set([p.get_rep() for p in initial]))
 plans = []

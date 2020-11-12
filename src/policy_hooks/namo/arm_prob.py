@@ -35,20 +35,20 @@ pddl_file = "../domains/namo_domain/arm_domain.pddl"
 
 descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.format(NUM_OBJS, SORT_CLOSET, USE_PERTURB, OPT_MCTS_FEEDBACK)
 
-END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
+END_TARGETS = []
 END_TARGETS.extend([
-                   (-3.5, 1.2),
-                   (1.2, 3.5),
-                   (-1.2, 3.5),
-                   (3.5, 1.2),
+                   (4.5, 4.5),
+                   (-4.5, 4.5),
+                   (-4.5, -4.5),
+                   (4.5, -4.5),
                    ])
 
 n_aux = 4
-possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
+possible_can_locs = []
 MAX_Y = 25
-#possible_can_locs.extend(list(itertools.product(list(range(-45, 45, 4)), list(range(-40, -10, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-60, 60, 2)), list(range(-60, -10, 2)))))
-
+possible_can_locs.extend(list(itertools.product(list(range(-40, -10)), list(range(-35, 35)))))
+possible_can_locs.extend(list(itertools.product(list(range(10, 40)), list(range(-35, 35)))))
+possible_can_locs.extend(list(itertools.product(list(range(-35, 35)), list(range(-40, -10)))))
 
 for i in range(len(possible_can_locs)):
     loc = list(possible_can_locs[i])
