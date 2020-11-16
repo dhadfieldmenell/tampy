@@ -1,9 +1,5 @@
 from .action import Action
 import numpy as np
-try:
-    import tensorflow as tf
-except:
-    pass
 
 MAX_PRIORITY = 3
 
@@ -30,19 +26,10 @@ class Plan(object):
         self._free_attrs = {}
         self._saved_free_attrs = {}
         self.sampling_trace = []
-        self.sess = sess
         self.hl_preds = []
+        self.start = 0
         if determine_free:
             self._determine_free_attrs()
-        if sess is not None:
-            self.tf_vars = []
-            for act in self.actions:
-                for pred in act.preds:
-                    p = pred['pred']
-                    p.sess = sess
-                    self.tf_vars.extend(p.tf_vars)
-            self.init_op = tf.initialize_variables(self.tf_vars)
-            # sess.run(self.init_op)
 
 
     @staticmethod
@@ -290,3 +277,23 @@ class Plan(object):
         for a in self.actions:
             res.extend([p['pred'] for p in a.preds if p['hl_info'] != 'hl_state' and p['pred'].get_type() == pred_name])
         return res
+
+    def fill(self, plan, amin=0, amax=None):
+        """
+            fill self with trajectory from plan
+        """
+        if amax < 0 : return
+        if amax is None:
+            amax = len(self.actions)-1
+        active_ts = self.actions[amin].active_timesteps[0], self.actions[amax].active_timesteps[1]
+        for pname, param in self.params.items():
+            if pname not in plan.params:
+                raise AttributeError('Reference plan does not contain {0}'.format(pname))
+            if param.is_symbol():
+                st, et = 0, 1
+            else:
+                st, et = active_ts
+            for attr in p.attrs:
+                getattr(param, attr)[:, st:et] = getattr(plan.params[pname], attr)[:, st:et]
+        self.start = amax
+

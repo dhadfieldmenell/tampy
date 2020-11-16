@@ -162,7 +162,6 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             expected_param_types = ['Robot', 'Can']
             params = [robot, param]
             pred = ColObjPred('obstr', params, expected_param_types, plan.env, coeff=coeff)
-            pred.sess = plan.sess
             for t in range(active_ts[0], active_ts[1]-1):
                 var = self._spawn_sco_var_for_pred(pred, t)
                 bexpr = BoundExpr(pred.neg_expr.expr, var)

@@ -19,6 +19,7 @@ class Parameter(object):
         self.openrave_body = None
         self._free_attrs = {}
         self._saved_free_attrs = {}
+        self.attrs = []
 
         if attr_types is not None:
             self._attr_types = attr_types.copy()
@@ -28,6 +29,7 @@ class Parameter(object):
 
         if attrs is not None:
             for attr_name, arg in list(attrs.items()):
+                self.attrs.append(attr_name)
                 if "undefined" in arg:
                     setattr(self, attr_name, "undefined")
                 else:
@@ -47,6 +49,8 @@ class Parameter(object):
             return dict
         elif attr_name == '_saved_free_attrs':
             return dict
+        elif attr_name == 'attrs':
+            return list
 
         try:
             attr = self._attr_types[attr_name]

@@ -14,6 +14,7 @@ else:
     import pybullet as p
 
 from collections import OrderedDict
+import os
 
 from pma.ll_solver import NAMOSolver
 
@@ -50,12 +51,22 @@ ATTRMAP = {
 
 USE_TF = True
 if USE_TF:
+    TF_SESS = [None]
     tf_cache = {}
     def get_tf_graph(tf_name):
         if tf_name not in tf_cache: init_tf_graph()
         return tf_cache[tf_name]
     
     def init_tf_graph():
+        cuda_vis = os.environ.get("CUDA_VISIBLE_DEVICES", "")
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        config = tf.ConfigProto(inter_op_parallelism_threads=1, \
+                                intra_op_parallelism_threads=1, \
+                                allow_soft_placement=True)
+        config.gpu_options.allow_growth = True
+        TF_SESS[0] = tf.Session(config=config)
+        os.environ["CUDA_VISIBLE_DEVICES"] = cuda_vis
+
         tf_cache['bump_in'] = tf.placeholder(float, (4,1), name='bump_in')
         tf_cache['bump_radius'] = tf.placeholder(float, (), name='bump_radius')
         pos1 = tf_cache['bump_in'][:2]
@@ -1093,7 +1104,7 @@ class ColObjPred(CollisionPredicate):
 
         def f(x):
             xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
-            if hasattr(self, 'sess') and USE_TF:
+            if USE_TF:
                 cur_tensor = get_tf_graph('bump_out')
                 in_tensor = get_tf_graph('bump_in')
                 radius_tensor = get_tf_graph('bump_radius')
@@ -1103,7 +1114,7 @@ class ColObjPred(CollisionPredicate):
                     if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
                         vals.append(0)
                     else:
-                        val = np.array([self.sess.run(cur_tensor, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})])
+                        val = np.array([TF_SESS[0].run(cur_tensor, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})])
                         vals.append(val)
                 return np.sum(vals, axis=0)
 
@@ -1114,7 +1125,7 @@ class ColObjPred(CollisionPredicate):
 
         def grad(x):
             xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
-            if hasattr(self, 'sess') and USE_TF:
+            if USE_TF:
                 cur_grads = get_tf_graph('bump_grads')
                 in_tensor = get_tf_graph('bump_in')
                 radius_tensor = get_tf_graph('bump_radius')
@@ -1124,7 +1135,7 @@ class ColObjPred(CollisionPredicate):
                     if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
                         vals.append(np.zeros((1,8)))
                     else:
-                        v = self.sess.run(cur_grads, feed_dict={in_tensor: pt, radius_tensor: self.radius**2}).T
+                        v = TF_SESS[0].run(cur_grads, feed_dict={in_tensor: pt, radius_tensor: self.radius**2}).T
                         v[np.isnan(v)] = 0.
                         v[np.isinf(v)] = 0.
                         curcoeff = float(COL_TS-i)/COL_TS
@@ -1140,7 +1151,7 @@ class ColObjPred(CollisionPredicate):
 
         def hess_neg(x):
             xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
-            if hasattr(self, 'sess') and USE_TF:
+            if USE_TF:
                 cur_hess = get_tf_graph('bump_hess')
                 in_tensor = get_tf_graph('bump_in')
                 radius_tensor = get_tf_graph('bump_radius')
@@ -1150,7 +1161,7 @@ class ColObjPred(CollisionPredicate):
                     if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
                         vals.append(np.zeros((8,8)))
                     else:
-                        v = self.sess.run(cur_hess, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})
+                        v = TF_SESS[0].run(cur_hess, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})
                         v[np.isnan(v)] = 0.
                         v[np.isinf(v)] = 0.
                         v = v.reshape((4,4))

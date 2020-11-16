@@ -14,7 +14,7 @@ TWINDOW = 300
 TDELTA = 600 # 300
 MIN_FRAME = 30
 nan = np.nan
-LOG_DIR = 'tf_saved/'
+LOG_DIR = 'experiment_logs/'
 prefix = os.path.expanduser('~')
 SAVE_DIR = prefix+'/Dropbox/'
 X_VARS = ['time', 'n_opt_calls', 'n_runs', 'n_learning_iters']
@@ -722,7 +722,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
                    label_vars=[], ylabel='value', separate=True, keyind=3, 
                    exclude=[], include=[], split_runs=False,
                    pre=False, rolling=True, window=100, ylim=None):
-    if not len(keywords): keywords.append('tf_saved')
+    if not len(keywords): keywords.append(LOG_DIR)
     if lab == 'rollout':
         rd = get_rollout_data(keywords, exclude=exclude)
     elif lab == 'test':

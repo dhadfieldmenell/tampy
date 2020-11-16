@@ -1,3 +1,4 @@
+import copy
 import main
 import numpy as np
 
@@ -17,7 +18,7 @@ def plan_from_str(ll_plan_str, prob, domain, env, openrave_bodies, params=None, 
     hls = FFSolver(d_c)
     p_c = main.parse_file_to_dict(prob)
     problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, env, openrave_bodies, reuse_params=params, use_tf=use_tf, sess=sess)
-    plan = hls.get_plan(ll_plan_str, domain, problem)
+    plan = hls.get_plan(ll_plan_str, domain, problem, reuse_params=params)
     plan.d_c = d_c
     return plan
 
@@ -71,19 +72,74 @@ def parse_hl_plan(hl_plan):
         for param in action[2:]:
             params.append(param.lower())
 
-def parse_state(plan, failed_preds, ts):
-    new_preds = failed_preds
+#def parse_state(plan, failed_preds, ts):
+#    new_preds = failed_preds
+#    for a in plan.actions:
+#        a_st, a_et = a.active_timesteps
+#        # if a_st > ts: break
+#        for p in a.preds:
+#            st, et = p['active_timesteps']
+#            if p['pred'].hl_include: new_preds.append(p['pred'])
+#            # Only check before the failed ts, previous actions fully checked while current only up to priority
+#            # TODO: How to handle negated?
+#            check_ts = ts - p['pred'].active_range[1]
+#            if p['pred'].hl_info: continue
+#            if check_ts >= 0 and et >= st:
+#                # hl_state preds aren't tied to ll state
+#                if p['pred'].hl_include:
+#                    new_preds.append(p['pred'])
+#                elif p['hl_info'] == 'hl_state':
+#                    if p['pred'].active_range[1] > 0: continue
+#                    old_vals = {}
+#                    for param in p['pred'].attr_inds:
+#                        for attr, _ in p['pred'].attr_inds[param]:
+#                            if param.is_symbol():
+#                                aval = getattr(plan.params[param.name], attr)[:,0]
+#                            else:
+#                                aval = getattr(plan.params[param.name], attr)[:,check_ts]
+#                            old_vals[param, attr] = getattr(param, attr)[:,0].copy()
+#                            getattr(param, attr)[:,0] = aval
+#                    if p['negated'] and not p['pred'].hl_test(0, tol=1e-3, negated=True):
+#                        new_preds.append(p['pred'])
+#                    elif not p['negated'] and p['pred'].hl_test(0, tol=1e-3):
+#                        new_preds.append(p['pred'])
+#
+#                    for param, attr in old_vals:
+#                        getattr(param, attr)[:,0] = old_vals[param, attr]
+#                elif not p['negated'] and p['pred'].hl_test(check_ts, tol=1e-3):
+#                    new_preds.append(p['pred'])
+#                elif p['negated'] and not p['pred'].hl_test(check_ts, tol=1e-3, negated=True):
+#                    new_preds.append(p['pred'])
+#    return new_preds
+
+
+def parse_state(plan, failed_preds, ts, all_preds=[]):
+    new_preds = [p for p in failed_preds if p is not None]
+    reps = [p.get_rep() for p in new_preds]
     for a in plan.actions:
         a_st, a_et = a.active_timesteps
-        # if a_st > ts: break
-        for p in a.preds:
+        if a_st > ts: break
+        preds = copy.copy(a.preds)
+        for p in all_preds:
+            if type(p) is dict:
+                preds.append(p)
+            else:
+                preds.append({'pred': p, 'active_timesteps':(0,0), 'hl_info':'hl_state', 'negated':False})
+
+        for p in preds:
+            if p['pred'].get_rep() in reps:
+                continue
+            reps.append(p['pred'].get_rep())
             st, et = p['active_timesteps']
-            if p['pred'].hl_include: new_preds.append(p['pred'])
+            if p['pred'].hl_include: 
+                new_preds.append(p['pred'])
+                continue
+            if p['pred'].hl_ignore:
+                continue
             # Only check before the failed ts, previous actions fully checked while current only up to priority
             # TODO: How to handle negated?
             check_ts = ts - p['pred'].active_range[1]
-            if p['pred'].hl_info: continue
-            if check_ts >= 0 and et >= st:
+            if st <= ts and check_ts >= 0 and et >= st:
                 # hl_state preds aren't tied to ll state
                 if p['pred'].hl_include:
                     new_preds.append(p['pred'])
@@ -110,3 +166,4 @@ def parse_state(plan, failed_preds, ts):
                 elif p['negated'] and not p['pred'].hl_test(check_ts, tol=1e-3, negated=True):
                     new_preds.append(p['pred'])
     return new_preds
+

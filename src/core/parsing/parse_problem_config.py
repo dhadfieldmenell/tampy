@@ -24,15 +24,6 @@ class ParseProblemConfig(object):
     def parse(problem_config, domain, env=None, openrave_bodies={}, reuse_params=None, initial=None, use_tf=False, sess=None):
         # create parameter objects
         params = {}
-        if use_tf and sess is None:
-            cuda_vis = os.environ.get("CUDA_VISIBLE_DEVICES", "")
-            os.environ["CUDA_VISIBLE_DEVICES"] = ""
-            config = tf.ConfigProto(inter_op_parallelism_threads=1, \
-                                    intra_op_parallelism_threads=1, \
-                                    allow_soft_placement=True)
-            config.gpu_options.allow_growth = True
-            sess = tf.Session(config=config)
-            os.environ["CUDA_VISIBLE_DEVICES"] = cuda_vis
         if env is None:
             if USE_OPENRAVE:
                 env = Environment()

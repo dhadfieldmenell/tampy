@@ -6,16 +6,7 @@ import time
 import queue
 import numpy as np
 
-from software_constants import USE_ROS
-
-if USE_ROS:
-    import rospy
-    from std_msgs.msg import Float32MultiArray, String
-    from tamp_ros.msg import *
-    from tamp_ros.srv import *
-
 from policy_hooks.control_attention_policy_opt import ControlAttentionPolicyOpt
-from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 from policy_hooks.msg_classes import *
 
 
@@ -36,7 +27,6 @@ class PolicyServer(object):
         self.permute = hyperparams['permute_hl'] > 0
         hyperparams['policy_opt']['scope'] = self.task
         hyperparams['policy_opt']['split_hl_loss'] = hyperparams['split_hl_loss']
-        if USE_ROS: rospy.init_node(self.task+'_update_server_{0}'.format(self.group_id))
         hyperparams['agent']['master_config'] = hyperparams
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
         self.policy_opt = hyperparams['policy_opt']['type'](
@@ -52,17 +42,8 @@ class PolicyServer(object):
         # self.policy_opt.hyperparams['scope'] = task
         self.stopped = False
         self.warmup = hyperparams['tf_warmup_iters']
-        if USE_ROS:
-            # self.prob_service = rospy.Service(self.task+'_policy_prob', PolicyProb, self.prob)
-            # self.act_service = rospy.Service(self.task+'_policy_act', PolicyAct, self.act)
-            self.weight_publisher = rospy.Publisher('tf_weights_{0}'.format(self.group_id), UpdateTF, queue_size=1)
-            self.stop = rospy.Subscriber('terminate', String, self.end)
-            self.time_log = 'tf_saved/' + hyperparams['weight_dir']+'/timing_info.txt'
-            self.log_timing = hyperparams['log_timing']
-            # self.log_publisher = rospy.Publisher('log_update', String, queue_size=1)
-            self.update_listener = rospy.Subscriber('{0}_update_{1}'.format(self.task, self.group_id), PolicyUpdate, self.update, queue_size=2, buff_size=2**25)
-        else:
-            self.queues = hyperparams['queues']
+        self.queues = hyperparams['queues']
+        self.in_queue = hyperparams['hl_queue'] if self.task == 'primitive' else hyperparams['ll_queue']
         self.policy_opt_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_log.txt'.format(self.task)
         self.policy_info_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_info.txt'.format(self.task)
         self.data_file = 'tf_saved/' + hyperparams['weight_dir'] + '/{0}_data.pkl'.format(self.task)
@@ -82,7 +63,7 @@ class PolicyServer(object):
 
     def run(self):
         while not self.stopped:
-            if not USE_ROS: self.parse_data()
+            self.parse_data()
             self.parse_update_queue()
             self.update_network()
             #if time.time() - self.start_t > self.config['time_limit']:
@@ -97,14 +78,15 @@ class PolicyServer(object):
 
 
     def parse_data(self):
-        q = self.queues['{0}_pol'.format(self.task)]
+        q = self.in_queue
         i = 0
         retrieved = False
+        msgs = []
         while i < q._maxsize and not q.empty():
             i += 1
             try:
                 msg = q.get_nowait()
-                self.update(msg)
+                msgs.append(msg)
                 retrieved = True
             except queue.Empty:
                 break
@@ -112,10 +94,13 @@ class PolicyServer(object):
         if not retrieved:
             try:
                 msg = q.get(block=True, timeout=0.1)
-                self.update(msg)
+                msgs.append(msg)
                 retrieved = True
             except queue.Empty:
                 pass
+
+        for msg in msgs:
+            self.update(msg)
 
 
     def update(self, msg):
@@ -187,13 +172,7 @@ class PolicyServer(object):
         # print('Weights updated:', update, self.task)
         if update:
             self.n_updates += n_updates
-            if not USE_ROS or self.policy_opt.share_buffers:
-                self.policy_opt.write_shared_weights([self.task])
-            else:
-                msg = UpdateTF()
-                msg.scope = str(self.task)
-                msg.data = self.policy_opt.serialize_weights([self.task])
-                self.weight_publisher.publish(msg)
+            self.policy_opt.write_shared_weights([self.task])
             self.update_t = time.time()
             # print(('Updated weights for {0}'.format(self.task)))
 

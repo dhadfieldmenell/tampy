@@ -1,16 +1,19 @@
 from core.internal_repr.predicate import Predicate
 from core.internal_repr.plan import Plan
+from core.util_classes.common_constants import USE_OPENRAVE
 from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.namo_predicates import NEAR_TOL
 from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import PredicateException
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
+
 import numpy as np
 import tensorflow as tf
+
+import os
 import sys
 import traceback
 
-from core.util_classes.common_constants import USE_OPENRAVE
 if USE_OPENRAVE:
     import ctrajoptpy
 else:
@@ -59,12 +62,22 @@ ATTRMAP = {
 
 USE_TF = True
 if USE_TF:
+    TF_SESS = [None]
     tf_cache = {}
     def get_tf_graph(tf_name):
         if tf_name not in tf_cache: init_tf_graph()
         return tf_cache[tf_name]
 
     def init_tf_graph():
+        cuda_vis = os.environ.get("CUDA_VISIBLE_DEVICES", "")
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        config = tf.ConfigProto(inter_op_parallelism_threads=1, \
+                                intra_op_parallelism_threads=1, \
+                                allow_soft_placement=True)
+        config.gpu_options.allow_growth = True
+        TF_SESS[0] = tf.Session(config=config)
+        os.environ["CUDA_VISIBLE_DEVICES"] = cuda_vis
+
         thetadir_tf_in = tf.placeholder(float, (8,1), name='thetadir_in')
         tf_cache['thetadir_tf_in'] = thetadir_tf_in
         thetadir_tf_disp = thetadir_tf_in[4:6] - thetadir_tf_in[:2]
@@ -2352,19 +2365,18 @@ class ThetaDirValid(ExprPredicate):
                                            ("vel", np.array([0], dtype=np.int))]),
                                 ])
 
-        self.sess = sess
         if USE_TF:
             def f(x):
                 cur_tensor = get_tf_graph('thetadir_tf_both')
                 if self.forward: cur_tensor = get_tf_graph('thetadir_tf_off')
                 if self.reverse: cur_tensor = get_tf_graph('thetadir_tf_opp')
-                return np.array([self.sess.run(cur_tensor, feed_dict={get_tf_graph('thetadir_tf_in'): x})])
+                return np.array([TF_SESS[0].run(cur_tensor, feed_dict={get_tf_graph('thetadir_tf_in'): x})])
 
             def grad(x):
                 cur_grads = get_tf_graph('thetadir_tf_grads')
                 if self.forward: cur_grads = get_tf_graph('thetadir_tf_forgrads')
                 if self.reverse: cur_grads = get_tf_graph('thetadir_tf_revgrads')
-                v = self.sess.run(cur_grads, feed_dict={get_tf_graph('thetadir_tf_in'): x}).T
+                v = TF_SESS[0].run(cur_grads, feed_dict={get_tf_graph('thetadir_tf_in'): x}).T
                 v[np.isnan(v)] = 0.
                 v[np.isinf(v)] = 0.
                 return v
@@ -2557,7 +2569,7 @@ class ColObjPred(CollisionPredicate):
 
         def f(x):
             xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
-            if hasattr(self, 'sess') and USE_TF:
+            if USE_TF:
                 cur_tensor = get_tf_graph('bump_out')
                 in_tensor = get_tf_graph('bump_in')
                 radius_tensor = get_tf_graph('bump_radius')
@@ -2567,7 +2579,7 @@ class ColObjPred(CollisionPredicate):
                     if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
                         vals.append(0)
                     else:
-                        val = np.array([self.sess.run(cur_tensor, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})])
+                        val = np.array([TF_SESS[0].run(cur_tensor, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})])
                         vals.append(val)
                 return np.sum(vals, axis=0)
 
@@ -2578,7 +2590,7 @@ class ColObjPred(CollisionPredicate):
 
         def grad(x):
             xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
-            if hasattr(self, 'sess') and USE_TF:
+            if USE_TF:
                 cur_grads = get_tf_graph('bump_grads')
                 in_tensor = get_tf_graph('bump_in')
                 radius_tensor = get_tf_graph('bump_radius')
@@ -2588,7 +2600,7 @@ class ColObjPred(CollisionPredicate):
                     if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
                         vals.append(np.zeros((1,8)))
                     else:
-                        v = self.sess.run(cur_grads, feed_dict={in_tensor: pt, radius_tensor: self.radius**2}).T
+                        v = TF_SESS[0].run(cur_grads, feed_dict={in_tensor: pt, radius_tensor: self.radius**2}).T
                         v[np.isnan(v)] = 0.
                         v[np.isinf(v)] = 0.
                         curcoeff = float(COL_TS-i)/COL_TS
@@ -2604,7 +2616,7 @@ class ColObjPred(CollisionPredicate):
 
         def hess_neg(x):
             xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
-            if hasattr(self, 'sess') and USE_TF:
+            if USE_TF:
                 cur_hess = get_tf_graph('bump_hess')
                 in_tensor = get_tf_graph('bump_in')
                 radius_tensor = get_tf_graph('bump_radius')
@@ -2614,7 +2626,7 @@ class ColObjPred(CollisionPredicate):
                     if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
                         vals.append(np.zeros((8,8)))
                     else:
-                        v = self.sess.run(cur_hess, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})
+                        v = TF_SESS[0].run(cur_hess, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})
                         v[np.isnan(v)] = 0.
                         v[np.isinf(v)] = 0.
                         v = v.reshape((4,4))

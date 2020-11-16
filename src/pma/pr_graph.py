@@ -45,7 +45,15 @@ def p_mod_abs(hl_solver, ll_solver, domain, problem, initial=None, goal=None, su
                 # Expand the node
                 fail_step, fail_pred, fail_negated = n.get_failed_pred()
                 n_problem = n.get_problem(fail_step, fail_pred, fail_negated, suggester)
-                c = HLSearchNode(hl_solver.translate_problem(n_problem, goal=goal), domain, n_problem, priority=n.priority + 1, prefix=n.curr_plan.prefix(fail_step), label=label)
+                abs_prob = hl_solver.translate_problem(n_problem, goal=goal)
+                prefix = n.curr_plan.prefix(fail_step)
+                c = HLSearchNode(abs_prob, 
+                                 domain, 
+                                 n_problem, 
+                                 priority=n.priority+1, 
+                                 prefix=prefix, 
+                                 label=label, 
+                                 llnode=n)
                 Q.put((c.heuristic(), c))
 
         if debug:

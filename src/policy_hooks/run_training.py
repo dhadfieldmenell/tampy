@@ -16,7 +16,7 @@ if USE_BASELINES:
     from policy_hooks.baselines.argparse import argsparser as baseline_argsparser
 
 
-DIR_KEY = 'tf_saved/'
+DIR_KEY = 'experiment_logs/'
 
 def get_dir_name(base, no, nt, ind, descr, args=None):
     dir_name = base + 'objs{0}_{1}/{2}'.format(no, nt, descr)
@@ -268,57 +268,28 @@ def main():
 
 def argsparser():
     parser = argparse.ArgumentParser()
+
+    # General setup
     parser.add_argument('-c', '--config', type=str, default='config')
     parser.add_argument('-test', '--test', type=str, default='')
     parser.add_argument('-no', '--nobjs', type=int, default=0)
     parser.add_argument('-nt', '--ntargs', type=int, default=0)
+    parser.add_argument('-motion', '--num_motion', type=int, default=16)
+    parser.add_argument('-task', '--num_task', type=int, default=16)
+    parser.add_argument('-rollout', '--num_rollout', type=int, default=16)
     parser.add_argument('-hist_len', '--hist_len', type=int, default=1)
     parser.add_argument('-task_hist_len', '--task_hist_len', type=int, default=1)
     parser.add_argument('-obs_del', '--add_obs_delta', action='store_true', default=False)
     parser.add_argument('-act_hist', '--add_action_hist', action='store_true', default=False)
     parser.add_argument('-task_hist', '--add_task_hist', action='store_true', default=False)
     parser.add_argument('-smooth', '--traj_smooth', action='store_true', default=False)
-    parser.add_argument('-hl_retrain', '--hl_retrain', action='store_true', default=False)
     parser.add_argument('-seq', '--seq', action='store_true', default=False)
-    parser.add_argument('-hl_only_retrain', '--hl_only_retrain', action='store_true', default=False)
-
-    # Old
-    parser.add_argument('-p', '--pretrain', action='store_true', default=False)
-    parser.add_argument('-nf', '--nofull', action='store_true', default=False)
-    parser.add_argument('-n', '--nconds', type=int, default=0)
-    parser.add_argument('-hlt', '--hl_timeout', type=int, default=0)
-    parser.add_argument('-k', '--killall', action='store_true', default=True)
-    parser.add_argument('-r', '--remote', action='store_true', default=False)
-    parser.add_argument('-t', '--timing', action='store_true', default=False)
-
-    # Server specs
-    parser.add_argument('-mcts', '--mcts_server', action='store_true', default=False)
-    parser.add_argument('-mp', '--mp_server', action='store_true', default=False)
-    parser.add_argument('-pol', '--policy_server', action='store_true', default=False)
-    parser.add_argument('-log', '--log_server', action='store_true', default=False)
-    parser.add_argument('-vs', '--view_server', action='store_true', default=False)
-    parser.add_argument('-all', '--all_servers', action='store_true', default=False)
-    parser.add_argument('-ps', '--pretrain_steps', type=int, default=0)
-    parser.add_argument('-v', '--viewer', action='store_true', default=False)
-    parser.add_argument('-id', '--server_id', type=str, default='')
-
-    # Exp config misc
     parser.add_argument('-f', '--file', type=str, default='')
     parser.add_argument('-descr', '--descr', type=str, default='')
-    parser.add_argument('-her', '--her', action='store_true', default=False)
-    parser.add_argument('-hindsight', '--hindsight', action='store_true', default=False)
-    parser.add_argument('-e', '--expand_process', action='store_true', default=False)
-    parser.add_argument('-neg', '--negative', action='store_true', default=False)
-    parser.add_argument('-oht', '--onehot_task', action='store_true', default=False)
+    parser.add_argument('-save_exp', '--save_expert', action='store_true', default=False)
     parser.add_argument('-render', '--load_render', action='store_true', default=False)
     parser.add_argument('-retime', '--retime', action='store_true', default=False)
-    parser.add_argument('-local_retime', '--local_retime', action='store_true', default=False)
     parser.add_argument('-vel', '--velocity', type=float, default=0.3)
-    parser.add_argument('-nocol', '--check_col', action='store_false', default=True)
-    parser.add_argument('-cond', '--conditional', action='store_true', default=False)
-    parser.add_argument('-easy', '--easy', action='store_true', default=False)
-    parser.add_argument('-save_exp', '--save_expert', action='store_true', default=False)
-    parser.add_argument('-ind', '--index', type=int, default=-1)
 
     # Previous policy directories
     parser.add_argument('-llpol', '--ll_policy', type=str, default='')
@@ -326,10 +297,6 @@ def argsparser():
     parser.add_argument('-hldata', '--hl_data', type=str, default='')
     parser.add_argument('-hlsamples', '--hl_samples', type=str, default='')
     parser.add_argument('-ref_dir', '--reference_dir', type=str, default='')
-
-    # Curric args
-    parser.add_argument('-cur', '--curric_thresh', type=int, default=-1)
-    parser.add_argument('-ncur', '--n_thresh', type=int, default=10)
 
     # NN args
     parser.add_argument('-spl', '--split_nets', action='store_false', default=True)
@@ -352,11 +319,14 @@ def argsparser():
 
     # HL args
     parser.add_argument('-check_t', '--check_prim_t', type=int, default=1)
+    parser.add_argument('-n_resample', '--n_resample', type=int, default=1)
     parser.add_argument('-ff', '--ff_thresh', type=float, default=0)
     parser.add_argument('-hlfeed', '--hl_feedback_thresh', type=float, default=0.)
     parser.add_argument('-ff_only', '--ff_only', action='store_true', default=False)
     parser.add_argument('-hl_post', '--hl_post', action='store_true', default=False)
     parser.add_argument('-roll_post', '--rollout_post', action='store_true', default=False)
+    parser.add_argument('-roll_ll', '--ll_rollout_opt', action='store_true', default=False)
+    parser.add_argument('-roll_hl', '--hl_rollout_opt', action='store_true', default=False)
     parser.add_argument('-fail', '--train_on_fail', action='store_true', default=False)
     parser.add_argument('-failmode', '--fail_mode', type=str, default='start')
     parser.add_argument('-aughl', '--augment_hl', action='store_true', default=False)
@@ -369,6 +339,7 @@ def argsparser():
     parser.add_argument('-goal_type', '--goal_type', type=str, default='default')
     parser.add_argument('-softev', '--soft_eval', action='store_true', default=False)
     parser.add_argument('-pre', '--check_precond', action='store_true', default=False)
+    parser.add_argument('-post', '--check_postcond', action='store_true', default=False)
     parser.add_argument('-mask', '--hl_mask', action='store_false', default=True)
     parser.add_argument('-rs', '--rollout_seed', action='store_true', default=False)
     parser.add_argument('-switch', '--use_switch', action='store_true', default=False)
@@ -382,6 +353,39 @@ def argsparser():
     parser.add_argument('-expl_suc', '--explore_success', type=int, default=5)
     parser.add_argument('-warmup', '--warmup_iters', type=int, default=300)
     parser.add_argument('-tfwarmup', '--tf_warmup_iters', type=int, default=0)
+
+    # Old
+    parser.add_argument('-her', '--her', action='store_true', default=False)
+    parser.add_argument('-hindsight', '--hindsight', action='store_true', default=False)
+    parser.add_argument('-e', '--expand_process', action='store_true', default=False)
+    parser.add_argument('-neg', '--negative', action='store_true', default=False)
+    parser.add_argument('-oht', '--onehot_task', action='store_true', default=False)
+    parser.add_argument('-local_retime', '--local_retime', action='store_true', default=False)
+    parser.add_argument('-nocol', '--check_col', action='store_false', default=True)
+    parser.add_argument('-cond', '--conditional', action='store_true', default=False)
+    parser.add_argument('-easy', '--easy', action='store_true', default=False)
+    parser.add_argument('-ind', '--index', type=int, default=-1)
+    parser.add_argument('-p', '--pretrain', action='store_true', default=False)
+    parser.add_argument('-nf', '--nofull', action='store_true', default=False)
+    parser.add_argument('-n', '--nconds', type=int, default=0)
+    parser.add_argument('-hlt', '--hl_timeout', type=int, default=0)
+    parser.add_argument('-k', '--killall', action='store_true', default=True)
+    parser.add_argument('-r', '--remote', action='store_true', default=False)
+    parser.add_argument('-t', '--timing', action='store_true', default=False)
+    parser.add_argument('-mcts', '--mcts_server', action='store_true', default=False)
+    parser.add_argument('-mp', '--mp_server', action='store_true', default=False)
+    parser.add_argument('-pol', '--policy_server', action='store_true', default=False)
+    parser.add_argument('-log', '--log_server', action='store_true', default=False)
+    parser.add_argument('-vs', '--view_server', action='store_true', default=False)
+    parser.add_argument('-all', '--all_servers', action='store_true', default=False)
+    parser.add_argument('-ps', '--pretrain_steps', type=int, default=0)
+    parser.add_argument('-v', '--viewer', action='store_true', default=False)
+    parser.add_argument('-id', '--server_id', type=str, default='')
+    parser.add_argument('-hl_retrain', '--hl_retrain', action='store_true', default=False)
+    parser.add_argument('-hl_only_retrain', '--hl_only_retrain', action='store_true', default=False)
+    parser.add_argument('-cur', '--curric_thresh', type=int, default=-1)
+    parser.add_argument('-ncur', '--n_thresh', type=int, default=10)
+
 
     # Q learn args
     parser.add_argument('-qimwt', '--q_imwt', type=float, default=0)

@@ -617,10 +617,11 @@ class NAMOSortingAgent(TAMPAgent):
         return True, col
 
 
-    def set_symbols(self, plan, task, anum=0, cond=0):
+    def set_symbols(self, plan, task, anum=0, cond=0, targets=None):
         plan.params['obs0'].pose[:] = plan.params['obs0'].pose[:,0].reshape((-1,1))
         st, et = plan.actions[anum].active_timesteps
-        targets = self.target_vecs[cond].copy()
+        if targets is None:
+            targets = self.target_vecs[cond].copy()
         prim_choices = self.prob.get_prim_choices(self.task_list)
         act = plan.actions[anum]
         params = act.params
@@ -1709,7 +1710,7 @@ class NAMOSortingAgent(TAMPAgent):
     def compare_tasks(self, t1, t2):
         return t1[0] == t2[0] and t1[1] == t2[1]
 
-    def backtrack_solve(self, plan, anum=0, n_resamples=5):
+    def backtrack_solve(self, plan, anum=0, n_resamples=5, rollout=False):
         if self.hl_pol:
             prim_opts = self.prob.get_prim_choices(self.task_list)
             start = anum
@@ -1780,6 +1781,6 @@ class NAMOSortingAgent(TAMPAgent):
             
             print('SUCCESS WITH LL POL + PR GRAPH')
             return True
-        return super(NAMOSortingAgent, self).backtrack_solve(plan, anum, n_resamples)
+        return super(NAMOSortingAgent, self).backtrack_solve(plan, anum, n_resamples, rollout)
 
 

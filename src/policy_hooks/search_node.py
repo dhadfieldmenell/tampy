@@ -2,8 +2,10 @@ from core.internal_repr.state import State
 from core.internal_repr.problem import Problem
 from core.util_classes.learning import PostLearner
 import copy
+import functools
 import random
 
+@functools.total_ordering
 class SearchNode(object):
     """
     There are two types of nodes in the plan refinement graph (PRGraph). High-level search
@@ -18,7 +20,10 @@ class SearchNode(object):
         """
         The node with the highest heuristic value is selected at each iteration of p_mod_abs.
         """
-        return -self.priority
+        return 0 # -self.priority
+
+    def __lt__(self, node):
+        self.heuristic() < node.heuristic()
 
     def is_hl_node(self):
         return False
@@ -30,7 +35,7 @@ class SearchNode(object):
         raise NotImplementedError("Override this.")
 
 class HLSearchNode(SearchNode):
-    def __init__(self, abs_prob, domain, concr_prob, priority=0, prefix=None, label='', llnode=None):
+    def __init__(self, abs_prob, domain, concr_prob, priority=0, prefix=None, label='', llnode=None, x0=None, targets=None, expansions=0):
         self.abs_prob = abs_prob
         self.domain = domain
         self.concr_prob = concr_prob
@@ -38,7 +43,10 @@ class HLSearchNode(SearchNode):
         self.priority = priority
         self.label = label
         self.ref_plan = llnode.curr_plan if llnode is not None else None
-        self.expansions = 0
+        self.targets = targets
+        self.x0 = x0
+        self.expansions = expansions
+        self.llnode = llnode
 
     def is_hl_node(self):
         return True
@@ -55,14 +63,23 @@ class HLSearchNode(SearchNode):
         return plan_obj
 
 class LLSearchNode(SearchNode):
-    def __init__(self, plan, prob, priority=1, keep_failed=False):
-        self.curr_plan = plan
+    def __init__(self, plan_str, domain, prob, initial, priority=1, keep_failed=False, ref_plan=None, x0=None, targets=None, expansions=0):
+        self.curr_plan = 'no plan'
+        self.plan_str = plan_str
+        self.domain = domain
+        self.initial = initial
         self.concr_prob = prob
         self.child_record = {}
         self.priority = priority
         self._solved = None
-        self.keep_failed = keep_failed # If true, replanning is done from the end of the first failed action instead of the start
-        self.expansions = 0
+        self.targets = targets
+        self.ref_plan = ref_plan
+        self.x0 = x0
+
+        # If true, replanning is done from the end of the first failed action instead of the start
+        # This is useful if trajectories are rolled out online and you do not wish to perform state resets
+        self.keep_failed = keep_failed
+        self.expansions = expansions
 
 
     def parse_state(self, plan, failed_preds, ts, all_preds=[]):
@@ -116,14 +133,13 @@ class LLSearchNode(SearchNode):
         return new_preds
 
 
-    def get_problem(self, i, failed_pred, failed_negated, suggester):
+    def get_problem(self, i, failed_pred, failed_negated, suggester=None):
         """
         Returns a representation of the search problem which starts from the end state of step i and goes to the same goal.
         """
         state_name = "state_{}".format(self.priority)
         state_params = self.curr_plan.params.copy()
         if not len(self.curr_plan.actions) or self.curr_plan.actions[-1].active_timesteps[1] < i:
-            print('BAD GET PROBLEM', failed_pred, i, self.curr_plan.actions)
             state_timestep = 0
             anum = 0
         else:
@@ -132,30 +148,16 @@ class LLSearchNode(SearchNode):
                 anum += 1
                 last_action = self.curr_plan.actions[anum]
             state_timestep = last_action.active_timesteps[0]
-            # state_timestep = 0
+        self.curr_plan.start = anum
         init_preds = self.curr_plan.prob.init_state.preds
         preds = []
         if failed_negated:
             preds = [failed_pred]
         state_preds = self.parse_state(self.curr_plan, preds, state_timestep, init_preds)
         state_preds.extend(self.curr_plan.hl_preds)
-        # state_preds = [p['pred'] for p in last_action.preds if p['hl_info'] != 'eff' and  p['negated'] == False and p['active_timesteps'][0]==a.active_timesteps[0]]
-        # for p in state_preds:
-        #     arange = p.active_range
-        #     p.active_range = (arange[0], max(arange[1], state_timestep))
-        # state_preds.append(failed_pred)
         new_state = State(state_name, state_params, state_preds, state_timestep)
-        """
-        Suggester should sampling based on biased Distribution according to learned theta for each parameter.
-        """
-        if suggester != None:
-            feature_fun = None
-            resampled_action = suggester.sample(state, feature_fun)
-        """
-        End of Suggester
-        """
         goal_preds = self.concr_prob.goal_preds.copy()
-        new_problem = Problem(new_state, goal_preds, self.concr_prob.env, False, start_action=anum, sess=self.curr_plan.sess)
+        new_problem = Problem(new_state, goal_preds, self.concr_prob.env, False, start_action=anum)
 
         return new_problem
 
@@ -167,11 +169,12 @@ class LLSearchNode(SearchNode):
     def is_ll_node(self):
         return True
 
-    def gen_plan(self, hl_solver):
-        self.curr_plan = hl_solver.get_plan(self.plan_str, self.domain, self.prob, self.initial)
+    def gen_plan(self, hl_solver, bodies):
+        self.curr_plan = hl_solver.get_plan(self.plan_str, self.domain, self.concr_prob, self.initial)
         if type(self.curr_plan) is str: return
         if self.ref_plan is not None:
-            self.curr_plan.fill(self.ref_plan, amax=len(self.ref_plan.actions)-1)
+            plan.start = self.ref_plan.start
+            self.curr_plan.fill(self.ref_plan, amax=self.ref_plan.start-1)
 
     def plan(self, solver, n_resamples=5):
         self.curr_plan.freeze_actions(self.curr_plan.start)

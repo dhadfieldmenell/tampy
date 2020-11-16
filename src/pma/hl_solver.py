@@ -258,6 +258,17 @@ class FFSolver(HLSolver):
             prob_str = clean_str
         return prob_str
 
+    def run_planner(self, abs_prob, domain, prefix=None, label=''):
+        plan_str = self._run_planner(self.abs_domain, abs_prob, label=label)
+        if plan_str == Plan.IMPOSSIBLE:
+            return plan_str
+        if prefix:
+            for i in range(len(plan_str)):
+                step, action = plan_str[i].split(':')
+                plan_str[i] = str(len(prefix) + int(step)) + ':' + action
+            plan_str = prefix + plan_str
+        return plan_str
+
     def solve(self, abs_prob, domain, concr_prob, prefix=None, label=''):
         """
         Argument:
@@ -268,15 +279,7 @@ class FFSolver(HLSolver):
         Return:
             Plan Object for ll_solver to optimize. (internal_repr/plan)
         """
-        plan_str = self._run_planner(self.abs_domain, abs_prob, label=label)
-        if plan_str == Plan.IMPOSSIBLE:
-            return plan_str
-
-        if prefix:
-            for i in range(len(plan_str)):
-                step, action = plan_str[i].split(':')
-                plan_str[i] = str(len(prefix) + int(step)) + ':' + action
-            plan_str = prefix + plan_str
+        plan_str = self.run_planner(abs_prob, self.abs_domain, prefix=prefix, label=label)
         plan = self.get_plan(plan_str, domain, concr_prob, concr_prob.initial)
         if type(plan) is not str:
             plan.plan_str = plan_str
@@ -284,7 +287,7 @@ class FFSolver(HLSolver):
             plan.initial = concr_prob.initial
         return plan
 
-    def get_plan(self, plan_str, domain, concr_prob, initial=None):
+    def get_plan(self, plan_str, domain, concr_prob, initial=None, reuse_params=None):
         """
         Argument:
             plan_str: list of high level plan. (List(String))
@@ -301,12 +304,16 @@ class FFSolver(HLSolver):
         openrave_env = concr_prob.env
         sess = concr_prob.sess
         plan_horizon = self._extract_horizon(plan_str, domain)
-        params = self._spawn_plan_params(concr_prob, plan_horizon)
+        if reuse_params is None:
+            params = self._spawn_plan_params(concr_prob, plan_horizon)
+        else:
+            params = reuse_params
+
         actions = self._spawn_actions(plan_str, domain, params,
                                       plan_horizon, concr_prob, openrave_env,
                                       initial)
         plan = Plan(params, actions, plan_horizon, openrave_env, sess=sess)
-        plan.start_action = concr_prob.start_action
+        plan.start = concr_prob.start_action
         plan.prob = concr_prob
         plan.domain = domain
         return plan
@@ -346,7 +353,7 @@ class FFSolver(HLSolver):
 
     def _spawn_actions(self, plan_str, domain, params,
                                        plan_horizon, concr_prob, env,
-                                       initial=None):
+                                       initial=[]):
         """
         Argument:
             plan_str: list of high level plan. (List(String))
@@ -371,24 +378,26 @@ class FFSolver(HLSolver):
             var_names, expected_types = list(zip(*a_schema.params))
             bindings = dict(list(zip(var_names, list(zip(a_args, expected_types)))))
             preds = []
-            if initial is not None and curr_h == 0:
-                for i, pred in enumerate(initial):
-                    spl = list(map(str.strip, pred.strip("() ").split()))
-                    p_name, p_args = spl[0], spl[1:]
-                    p_objs = []
-                    for n in p_args:
-                        try:
-                            p_objs.append(params[n])
-                        except KeyError:
-                            raise ProblemConfigException("Parameter '%s' for predicate type '%s' not defined in domain file."%(n, p_name))
+            init_preds = [pred.get_rep() for pred in concr_prob.init_state.preds]
+            if curr_h == 0 and initial is not None:
+                init_preds += initial
+            for i, pred in enumerate(init_preds):
+                spl = list(map(str.strip, pred.strip("() ").split()))
+                p_name, p_args = spl[0], spl[1:]
+                p_objs = []
+                for n in p_args:
                     try:
-                        init_pred = domain.pred_schemas[p_name].pred_class(name="initpred%d"%i,
-                                                                              params=p_objs,
-                                                                              expected_param_types=domain.pred_schemas[p_name].expected_params,
-                                                                              env=env)
-                        preds.append({'negated': False, 'pred': init_pred, 'hl_info': 'hl_state', 'active_timesteps': (0,0)})
-                    except TypeError as e:
-                        print(("type error for {}".format(pred)))
+                        p_objs.append(params[n])
+                    except KeyError:
+                        raise ProblemConfigException("Parameter '%s' for predicate type '%s' not defined in domain file."%(n, p_name))
+                try:
+                    init_pred = domain.pred_schemas[p_name].pred_class(name="initpred%d"%i,
+                                                                          params=p_objs,
+                                                                          expected_param_types=domain.pred_schemas[p_name].expected_params,
+                                                                          env=env)
+                    preds.append({'negated': False, 'pred': init_pred, 'hl_info': 'hl_state', 'active_timesteps': (0,0)})
+                except TypeError as e:
+                    print(("type error for {}".format(pred)))
 
 
             for p_d in a_schema.preds:
@@ -418,11 +427,6 @@ class FFSolver(HLSolver):
                     pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params, env=env)
                     ts = (p_d["active_timesteps"][0] + curr_h, p_d["active_timesteps"][1] + curr_h)
                     preds.append({"negated": p_d["negated"], "hl_info": p_d["hl_info"], "active_timesteps": ts, "pred": pred})
-            # adding predicates from the hl state to action's preds
-            action_pred_rep = [HLState.get_rep(pred_dict["pred"]) for pred_dict in preds]
-            for pred in hl_state.get_preds():
-                if HLState.get_rep(pred) not in action_pred_rep:
-                    preds.append({"negated": False, "hl_info": "hl_state", "active_timesteps": (curr_h, curr_h + a_schema.horizon - 1), "pred": pred})
             # updating hl_state
             hl_state.update(preds)
             actions.append(Action(step, a_name, (curr_h, curr_h + a_schema.horizon - 1), [params[arg] for arg in a_args], preds))

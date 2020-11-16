@@ -820,9 +820,10 @@ class NAMOGripAgent(NAMOSortingAgent):
         return new_traj
 
 
-    def set_symbols(self, plan, task, anum=0, cond=0):
+    def set_symbols(self, plan, task, anum=0, cond=0, targets=None):
         st, et = plan.actions[anum].active_timesteps
-        targets = self.target_vecs[cond].copy()
+        if targets is None:
+            targets = self.target_vecs[cond].copy()
         prim_choices = self.prob.get_prim_choices(self.task_list)
         act = plan.actions[anum]
         params = act.params
@@ -861,7 +862,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         return goal
 
 
-    def backtrack_solve(self, plan, anum=0, n_resamples=5):
+    def backtrack_solve(self, plan, anum=0, n_resamples=5, rollout=False):
         if self.hl_pol:
             prim_opts = self.prob.get_prim_choices(self.task_list)
             start = anum
@@ -934,6 +935,6 @@ class NAMOGripAgent(NAMOSortingAgent):
             
             print('SUCCESS WITH LL POL + PR GRAPH')
             return True
-        return super(NAMOSortingAgent, self).backtrack_solve(plan, anum, n_resamples)
+        return super(NAMOSortingAgent, self).backtrack_solve(plan, anum, n_resamples, rollout)
 
 

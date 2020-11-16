@@ -257,7 +257,6 @@ def get_plans(use_tf=False):
                                 if not hasattr(param, 'openrave_body') or param.openrave_body is None:
                                     param.openrave_body = OpenRAVEBody(env, param.name, param.geom)
                                 openrave_bodies[param.name] = param.openrave_body
-                    sess = plan.sess
 
     return plans, openrave_bodies, env
 
