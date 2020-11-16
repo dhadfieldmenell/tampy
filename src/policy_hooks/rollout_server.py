@@ -162,10 +162,10 @@ class RolloutServer(Server):
         self.postcond_info.append(val)
         if val >= 0.999:
             print('Success in rollout. Pre: {} Post: {}'.format(self.check_precond, self.check_postcond))
-            for step in path: step.source_label = 'n_postcond'
+            for step in path: step.source_label = 'n_rollout'
             self.agent.add_task_paths([path])
  
-        for step in path: step.source_label = 'n_explore'
+        for step in path: step.source_label = 'n_rollout'
         return val, path, max(0, s-last_switch), 0
  
         
@@ -399,9 +399,9 @@ class RolloutServer(Server):
         if save:
             if all([s.opt_strength == 0 for s in path]): self.hl_data.append(res)
             if val > 1-1e-2:
-                print(('Rollout succeeded in test! With pre?', self.check_precond))
+                print(('Rollout succeeded in test!'))
             # if self.use_qfunc: self.log_td_error(path)
-            np.save(self.hl_test_log.format('pre_' if self.check_precond else '', 'rerun_' if ckpt_ind is not None else ''), np.array(self.hl_data))
+            np.save(self.hl_test_log.format('', 'rerun_' if ckpt_ind is not None else ''), np.array(self.hl_data))
 
         if val < 1:
             fail_pt = {'time': time.time() - self.start_t,

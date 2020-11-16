@@ -379,6 +379,8 @@ class MultiProcessMain(object):
         buf_sizes['n_postcond'].value = 0
         buf_sizes['n_explore'] = mp.Value('i')
         buf_sizes['n_explore'].value = 0
+        buf_sizes['n_rollout'] = mp.Value('i')
+        buf_sizes['n_rollout'].value = 0
         config['share_buffer'] = True
         config['policy_opt']['share_buffer'] = True
         config['policy_opt']['buffers'] = buffers
