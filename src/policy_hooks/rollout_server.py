@@ -160,12 +160,12 @@ class RolloutServer(Server):
             val = 0
         self.adj_eta = False
         self.postcond_info.append(val)
-        if val == 1:
-            print('Success with postcond enforcement')
-            for s in newpath: s.source_label = 'n_postcond'
-            self.agent.add_task_paths([newpath])
+        if val >= 0.999:
+            print('Success in rollout. Pre: {} Post: {}'.format(self.check_precond, self.check_postcond))
+            for step in path: step.source_label = 'n_postcond'
+            self.agent.add_task_paths([path])
  
-        for s in path: s.source_label = 'n_explore'
+        for step in path: step.source_label = 'n_explore'
         return val, path, max(0, s-last_switch), 0
  
         
