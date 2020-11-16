@@ -428,13 +428,13 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
     def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None):
         raise NotImplementedError
 
-    def sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, skip_opt=False):
+    def sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, skip_opt=False, hor=None):
         if not skip_opt and policy is not None and self.policy_initialized(policy): # Policy is uninitialized
             s, failed, success = self.solve_sample_opt_traj(state, task, condition)
             s.opt_strength = 1.
             s.opt_suc = success
             return s
-        s = self._sample_task(policy, condition, state, task, save_global=save_global, noisy=noisy, task_f=task_f)
+        s = self._sample_task(policy, condition, state, task, save_global=save_global, noisy=noisy, task_f=task_f, hor=hor)
         s.opt_strength = 0.
         s.opt_suc = False
         return s
