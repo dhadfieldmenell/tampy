@@ -52,7 +52,6 @@ class MotionServer(Server):
         plan.freeze_actions(plan.start)
         init_t = time.time()
         success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=True)
-        print('Time to refine:', time.time() - start_t, time.time() - init_t)
         if success:
             path = self.agent.run_plan(plan, node.targets)
             print(self.id, 'Successful refine.', path[-1].success)
