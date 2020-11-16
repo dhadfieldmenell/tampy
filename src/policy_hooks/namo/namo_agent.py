@@ -901,14 +901,14 @@ class NAMOSortingAgent(TAMPAgent):
         if fill_obs:
             if LIDAR_ENUM in self._hyperparams['obs_include']:
                 plan = list(self.plans.values())[0]
-                set_params_attrs(plan.params, plan.state_inds, mp_state, t)
-                lidar = self.dist_obs(plan, t)
+                set_params_attrs(plan.params, plan.state_inds, mp_state, 0)
+                lidar = self.dist_obs(plan, 0)
                 sample.set(LIDAR_ENUM, lidar.flatten(), t)
 
             if OBJ_LIDAR_ENUM in self._hyperparams['obs_include']:
                 plan = list(self.plans.values())[0]
-                set_params_attrs(plan.params, plan.state_inds, mp_state, t)
-                lidar = self.dist_obs(plan, t, center=self._in_gripper)
+                set_params_attrs(plan.params, plan.state_inds, mp_state, 0)
+                lidar = self.dist_obs(plan, 0, center=self._in_gripper)
                 sample.set(OBJ_LIDAR_ENUM, lidar.flatten(), t)
 
 
