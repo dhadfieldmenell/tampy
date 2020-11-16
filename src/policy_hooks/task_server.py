@@ -38,11 +38,12 @@ class TaskServer(Server):
 
         node.expansions += 1
         plan_str = self.agent.hl_solver.run_planner(node.abs_prob, node.domain, node.prefix, label=self.id)
+        if plan_str == Plan.IMPOSSIBLE: return
         new_node = LLSearchNode(plan_str, 
                                 prob=node.concr_prob, 
                                 domain=node.domain,
                                 initial=node.concr_prob.initial,
-                                priority=node.priority+1,
+                                priority=node.priority,
                                 ref_plan=node.ref_plan,
                                 targets=node.targets,
                                 x0 = node.x0,

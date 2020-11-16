@@ -54,6 +54,7 @@ class MotionServer(Server):
         success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=True)
         if success:
             path = self.agent.run_plan(plan, node.targets)
+            for step in path: step.source_label = 'n_plans'
             print(self.id, 'Successful refine.', path[-1].success)
         if not success and node.gen_child():
             fail_step, fail_pred, fail_negated = node.get_failed_pred()

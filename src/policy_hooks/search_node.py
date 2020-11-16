@@ -20,7 +20,7 @@ class SearchNode(object):
         """
         The node with the highest heuristic value is selected at each iteration of p_mod_abs.
         """
-        return 0 # -self.priority
+        return -self.priority
 
     def __lt__(self, node):
         self.heuristic() < node.heuristic()

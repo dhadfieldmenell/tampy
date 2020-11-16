@@ -22,6 +22,8 @@ from policy_hooks.server import *
 from policy_hooks.search_node import *
 
 
+ROLL_PRIORITY = 5
+
 class RolloutServer(Server):
     def __init__(self, hyperparams):
         super(RolloutServer, self).__init__(hyperparams)
@@ -112,6 +114,22 @@ class RolloutServer(Server):
 
 
     def rollout(self, x, targets):
+        switch_pts = [(0,0)]
+        counts = [0]
+        cur_ids = [0]
+        def task_f(sample, t, curtask):
+            task = self.get_task(sample.get_X(t=t), sample.targets, curtask, self.soft)
+            if task != curtask and self.check_postcond:
+                postcost = self.agent.postcond_cost(sample, curtask, t)
+                if postcost > 1e-3:
+                    task = curtask
+            if task == curtask:
+                counts.append(counts[-1]+1)
+            else:
+                counts.append(0)
+                switch_pts.append((cur_ids[0], t))
+            return task
+
         rlen = 3 * self.agent.num_objs if not self.agent.retime else 6 * self.agent.num_objs
         ts = 100 if self.agent.retime else 50
         t_per_task = 30
@@ -135,24 +153,26 @@ class RolloutServer(Server):
             sample = self.agent.sample_task(pol, 0, state, l, skip_opt=True, hor=t_per_task)
             path.append(sample)
             state = sample.get(STATE_ENUM, t=sample.T-1)
-            next_l = self.get_task(state, targets, l, self.soft)
-            if self.check_postcond:
-                postcost = self.agent.postcond_cost(sample, l)
-                if postcost > 1e-3:
-                    next_l = l
+            #next_l = self.get_task(state, targets, l, self.soft)
+            #if self.check_postcond:
+            #    postcost = self.agent.postcond_cost(sample, l)
+            #    if postcost > 1e-3:
+            #        next_l = l
 
-            if tuple(l) != tuple(next_l):
-                for step in path[-last_switch-1:]:
-                    self.agent.optimal_samples[self.agent.task_list[l[0]]].append(step)
-                last_switch = 0
-            else:
-                last_switch += 1
+            #if tuple(l) != tuple(next_l):
+            #    for step in path[-last_switch-1:]:
+            #        self.agent.optimal_samples[self.agent.task_list[l[0]]].append(step)
+            #    last_switch = 0
+            #else:
+            #    last_switch += 1
 
-            l = next_l
+            #l = next_l
             s += 1
+            cur_ids.append(s)
             val = 1 - self.agent.goal_f(0, sample.get_X(sample.T-1), targets)
-            if last_switch >= s_per_task:
-                break
+            #if last_switch >= s_per_task:
+            #    break
+            if counts[-1] > t_per_task: break
 
         if len(path):
             val = 1 - self.agent.goal_f(0, path[-1].get_X(path[-1].T-1), targets)
@@ -160,13 +180,13 @@ class RolloutServer(Server):
             val = 0
         self.adj_eta = False
         self.postcond_info.append(val)
+        for step in path: step.source_label = 'n_rollout'
         if val >= 0.999:
             print('Success in rollout. Pre: {} Post: {}'.format(self.check_precond, self.check_postcond))
-            for step in path: step.source_label = 'n_rollout'
             self.agent.add_task_paths([path])
  
-        for step in path: step.source_label = 'n_rollout'
-        return val, path, max(0, s-last_switch), 0
+        #return val, path, max(0, s-last_switch), 0
+        return val, path, switch_pts[-1][0], switch_pts[-1][1]
  
         
     def plan_from_fail(self, augment=False, mode='start'):
@@ -326,6 +346,7 @@ class RolloutServer(Server):
         if ckpt_ind is not None:
             print(('Rolling out for index', ckpt_ind))
 
+        self.set_policies()
         if restore:
             self.policy_opt.restore_ckpts(ckpt_ind)
         elif self.policy_opt.share_buffers:
@@ -351,10 +372,10 @@ class RolloutServer(Server):
             else:
                 rlen = 3*n
         self.agent.T = 20 # self.config['task_durations'][self.task_list[0]]
-        val, path = self.test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], eta=eta)
-        if self.agent.eta_scale != 1. and not self.adj_eta:
+        val, path = self.test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], eta=eta, lab=-5)
+        if not self.adj_eta:
             self.adj_eta = True
-            adj_val, adj_path = self.test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], eta=eta)
+            adj_val, adj_path = self.test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], eta=eta, lab=-10)
             self.adj_eta = False
         else:
             adj_val = val
@@ -447,14 +468,14 @@ class RolloutServer(Server):
                 self.agent.reset(0)
                 self.test_hl()
 
-            if self.run_hl_test: continue
+            if self.run_hl_test or self._n_plans < ff_iters: continue
             new_node = self.spawn_problem()
             self.push_queue(new_node, self.rollout_queue)
             node = self.pop_queue(self.rollout_queue)
             x0 = node.x0
             targets = node.targets
             val, path, s, t = self.rollout(x0, targets)
-            if val < 1 and self._n_plans >= ff_iters:
+            if val < 1:
                 state = x0
                 if len(path):
                     state = path[s].get(STATE_ENUM, t)
@@ -464,7 +485,7 @@ class RolloutServer(Server):
                 hlnode = HLSearchNode(abs_prob,
                                       node.domain,
                                       concr_prob,
-                                      priority=node.priority,
+                                      priority=ROLL_PRIORITY,
                                       prefix=None,
                                       llnode=None,
                                       expansions=node.expansions,
@@ -482,7 +503,7 @@ class RolloutServer(Server):
         self.policy_opt.sess.close()
 
 
-    def test_run(self, state, targets, max_t=20, hl=False, soft=False, check_cost=True, eta=None):
+    def test_run(self, state, targets, max_t=20, hl=False, soft=False, check_cost=True, eta=None, lab=0):
         def task_f(sample, t, curtask):
             return self.get_task(sample.get_X(t=t), sample.targets, curtask, soft)
         self.agent.reset_to_state(state)
@@ -505,7 +526,7 @@ class RolloutServer(Server):
             state = s.end_state # s.get_X(s.T-1)
             path.append(s)
         self.eta = old_eta
-        self.log_path(path, -5)
+        self.log_path(path, lab)
         return val, path
 
 

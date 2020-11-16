@@ -10,6 +10,7 @@ from policy_hooks.control_attention_policy_opt import ControlAttentionPolicyOpt
 from policy_hooks.msg_classes import *
 
 
+LOG_DIR = 'experiment_logs/'
 MAX_QUEUE_SIZE = 100
 UPDATE_TIME = 60
 
@@ -44,11 +45,11 @@ class PolicyServer(object):
         self.warmup = hyperparams['tf_warmup_iters']
         self.queues = hyperparams['queues']
         self.in_queue = hyperparams['hl_queue'] if self.task == 'primitive' else hyperparams['ll_queue']
-        self.policy_opt_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_log.txt'.format(self.task)
-        self.policy_info_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_info.txt'.format(self.task)
-        self.data_file = 'tf_saved/' + hyperparams['weight_dir'] + '/{0}_data.pkl'.format(self.task)
+        self.policy_opt_log = LOG_DIR + hyperparams['weight_dir'] + '/policy_{0}_log.txt'.format(self.task)
+        self.policy_info_log = LOG_DIR + hyperparams['weight_dir'] + '/policy_{0}_info.txt'.format(self.task)
+        self.data_file = LOG_DIR + hyperparams['weight_dir'] + '/{0}_data.pkl'.format(self.task)
         self.expert_demos = {'acs':[], 'obs':[], 'ep_rets':[], 'rews':[]}
-        self.expert_data_file = 'tf_saved/'+hyperparams['weight_dir']+'/'+str(self.task)+'_exp_data.npy'
+        self.expert_data_file = LOG_DIR+hyperparams['weight_dir']+'/'+str(self.task)+'_exp_data.npy'
         self.n_updates = 0
         self.update_t = time.time()
         self.n_data = []
