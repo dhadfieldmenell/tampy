@@ -209,7 +209,7 @@ class NAMOSortingAgent(TAMPAgent):
             for pname, aname in self.state_inds:
                 p = plan.params[pname]
                 if p.is_symbol(): continue
-                aval = getattr(p, aname)[:,t]
+                aval = getattr(p, aname)[:,0]
                 if np.any(np.isnan(aval)):
                     print(('NAN in:', pname, aname, t, task_f is None))
                     aval[:] = 0.
@@ -252,7 +252,7 @@ class NAMOSortingAgent(TAMPAgent):
             assert not np.any(np.isnan(U_full))
             sample.set(ACTION_ENUM, U_full, t)
             obj = self.prob.get_prim_choices(self.task_list)[OBJ_ENUM][task[1]]
-            suc, col = self.run_policy_step(U_full, cur_state, plan, t, obj, grasp=grasp)
+            suc, col = self.run_policy_step(U_full, cur_state, plan, 0, obj, grasp=grasp)
             col_ts[t] = col
 
             new_state = np.zeros((plan.symbolic_bound))
@@ -260,10 +260,11 @@ class NAMOSortingAgent(TAMPAgent):
             for pname, aname in self.state_inds:
                 p = plan.params[pname]
                 if p.is_symbol(): continue
-                aval = getattr(p, aname)[:,min(t+1, sample.T-1)]
+                aval = getattr(p, aname)[:,1]
                 if np.any(np.isnan(aval)):
                     print(('NAN in:', pname, aname, t+1))
-                    aval[:] = getattr(p, aname)[:,t]
+                    aval[:] = getattr(p, aname)[:,0]
+                getattr(p, aname)[:,0] = aval
                 new_state[self.state_inds[pname, aname]] = aval
             self.cur_state = new_state
             if len(self._prev_U): self._prev_U = np.r_[self._prev_U[1:], [U_nogrip]]
