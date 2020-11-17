@@ -31,6 +31,8 @@ class RolloutServer(Server):
         self.out_queue = self.motion_queue
         self.check_precond = hyperparams['check_precond']
         self.check_postcond = hyperparams['check_postcond']
+        self.fail_plan = hyperparams['train_on_fail']
+        self.fail_mode = hyperparams['fail_mode']
         self.current_id = 0
         self.cur_step = 0
         self.adj_eta = False
@@ -117,6 +119,7 @@ class RolloutServer(Server):
         switch_pts = [(0,0)]
         counts = [0]
         cur_ids = [0]
+        cur_tasks = []
         def task_f(sample, t, curtask):
             task = self.get_task(sample.get_X(t=t), sample.targets, curtask, self.soft)
             if task != curtask and self.check_postcond:
@@ -128,6 +131,7 @@ class RolloutServer(Server):
             else:
                 counts.append(0)
                 switch_pts.append((cur_ids[0], t))
+            cur_tasks.append(task)
             return task
 
         rlen = 3 * self.agent.num_objs if not self.agent.retime else 6 * self.agent.num_objs
@@ -136,21 +140,23 @@ class RolloutServer(Server):
         s_per_task = 3
         self.adj_eta = True
         l = list(self.agent.plans.keys())[0]
+        l = self.get_task(x, targets, l, self.soft)
+        cur_tasks.append(l)
         s, t = 0, 0
         val = 0
         state = x
         path = []
         last_switch = 0
         while val < 1 and s < rlen:
-            if self.check_precond:
-                precost = self.agent.cost_f(state, l, 0, active_ts=(0,0), targets=targets)
-                if precost > 1e-3:
-                    break
+            #if self.check_precond:
+            #    precost = self.agent.cost_f(state, l, 0, active_ts=(0,0), targets=targets)
+            #    if precost > 1e-3:
+            #        break
 
             task_name = self.task_list[l[0]]
             pol = self.agent.policies[task_name]
             plan = self.agent.plans[l]
-            sample = self.agent.sample_task(pol, 0, state, l, skip_opt=True, hor=t_per_task)
+            sample = self.agent.sample_task(pol, 0, state, cur_tasks[-1], skip_opt=True, hor=t_per_task, task_f=task_f)
             path.append(sample)
             state = sample.get(STATE_ENUM, t=sample.T-1)
             #next_l = self.get_task(state, targets, l, self.soft)
@@ -172,7 +178,7 @@ class RolloutServer(Server):
             val = 1 - self.agent.goal_f(0, sample.get_X(sample.T-1), targets)
             #if last_switch >= s_per_task:
             #    break
-            if counts[-1] > t_per_task: break
+            if counts[-1] > s_per_task * t_per_task: break
 
         if len(path):
             val = 1 - self.agent.goal_f(0, path[-1].get_X(path[-1].T-1), targets)
@@ -184,14 +190,13 @@ class RolloutServer(Server):
         if val >= 0.999:
             print('Success in rollout. Pre: {} Post: {}'.format(self.check_precond, self.check_postcond))
             self.agent.add_task_paths([path])
- 
+
+        self.log_path(path, -20)
         #return val, path, max(0, s-last_switch), 0
         return val, path, switch_pts[-1][0], switch_pts[-1][1]
  
         
     def plan_from_fail(self, augment=False, mode='start'):
-        if mode == 'multistep':
-            return self.plan_from_policy()
         self.cur_step += 1
         val = 1.
         i = 0
@@ -262,18 +267,24 @@ class RolloutServer(Server):
                 s, t = cur_s, cur_t
             else:
                 raise NotImplementedError
+
             x0 = path[s].get_X(t=t) # self.agent.x0[0]
             targets = path[s].targets # self.agent.target_vecs[0]
-            self.agent.reset_to_state(x0)
-            self.agent.store_x_hist(path[s].get(STATE_HIST_ENUM, t=t))
-            val, newpath, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=False)
-            if val < 1-1e-3:
-                x0 = path[0].get_X(t=0) # self.agent.x0[0]
-                targets = path[0].targets # self.agent.target_vecs[0]
-                val, path, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=True)
 
-            if augment and type(plan) is Plan:
-                self.agent.resample_hl_plan(plan, targets)
+            initial, goal = self.agent.get_hl_info(x0, targets)
+            plan = self.agent.plans[tuple(path[s].get(FACTOREDTASK_ENUM, t=t))]
+            prob = plan.prob
+            domain = plan.domain
+            abs_prob = self.agent.hl_solver.translate_problem(prob, goal=goal, initial=initial)
+            hlnode = HLSearchNode(abs_prob,
+                                 domain,
+                                 prob,
+                                 priority=ROLL_PRIORITY,
+                                 x0=x0,
+                                 targets=targets,
+                                 expansions=0,
+                                 label=self.id)
+            self.push_queue(hlnode, self.task_queue)
 
 
     def save_image(self, rollout, success=None, ts=0):
@@ -469,31 +480,36 @@ class RolloutServer(Server):
                 self.test_hl()
 
             if self.run_hl_test or self._n_plans < ff_iters: continue
-            new_node = self.spawn_problem()
-            self.push_queue(new_node, self.rollout_queue)
-            node = self.pop_queue(self.rollout_queue)
-            x0 = node.x0
-            targets = node.targets
-            val, path, s, t = self.rollout(x0, targets)
-            if val < 1:
-                state = x0
-                if len(path):
-                    state = path[s].get(STATE_ENUM, t)
-                initial, goal = self.agent.get_hl_info(state, targets)
-                concr_prob = node.concr_prob
-                abs_prob = self.agent.hl_solver.translate_problem(concr_prob, initial=initial, goal=goal)
-                hlnode = HLSearchNode(abs_prob,
-                                      node.domain,
-                                      concr_prob,
-                                      priority=ROLL_PRIORITY,
-                                      prefix=None,
-                                      llnode=None,
-                                      expansions=node.expansions,
-                                      label=node.label,
-                                      x0=state,
-                                      targets=targets)
-                self.push_queue(hlnode, self.task_queue)
-            
+
+            if self.check_precond or self.check_postcond:
+                new_node = self.spawn_problem()
+                self.push_queue(new_node, self.rollout_queue)
+                node = self.pop_queue(self.rollout_queue)
+                x0 = node.x0
+                targets = node.targets
+                val, path, s, t = self.rollout(x0, targets)
+                if val < 1:
+                    state = x0
+                    if len(path):
+                        state = path[s].get(STATE_ENUM, t)
+                    initial, goal = self.agent.get_hl_info(state, targets)
+                    concr_prob = node.concr_prob
+                    abs_prob = self.agent.hl_solver.translate_problem(concr_prob, initial=initial, goal=goal)
+                    hlnode = HLSearchNode(abs_prob,
+                                          node.domain,
+                                          concr_prob,
+                                          priority=ROLL_PRIORITY,
+                                          prefix=None,
+                                          llnode=None,
+                                          expansions=node.expansions,
+                                          label=node.label,
+                                          x0=state,
+                                          targets=targets)
+                    self.push_queue(hlnode, self.task_queue)
+           
+            if self.fail_plan:
+                self.plan_from_fail(mode=self.fail_mode)
+
             for task in self.alg_map:
                 data = self.agent.get_opt_samples(task, clear=True)
                 if len(data) and self.ll_rollout_opt:

@@ -214,6 +214,7 @@ class PolicyServer(object):
                 'n_plans': self.policy_opt.buf_sizes['n_plans'].value,
                 'n_postcond': self.policy_opt.buf_sizes['n_postcond'].value,
                 'n_explore': self.policy_opt.buf_sizes['n_explore'].value,
+                'n_rollout': self.policy_opt.buf_sizes['n_rollout'].value,
                 }
         self.log_infos.append(info)
         return self.log_infos

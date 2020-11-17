@@ -10,15 +10,14 @@ do
                                                        -hist_len 2 -prim_first_wt 5 -lr 0.0002 \
                                                        -hllr 0.0004 -lldec 0.0001 -hldec 0.0002 \
                                                        -add_noop 3 --permute_hl 1 \
-                                                       -fail --fail_mode random \
                                                        -post \
-                                                       -expl_wt 5 -expl_eta 4 \
+                                                       -expl_wt 10 -expl_eta 4 \
                                                        -col_coeff 0.01 \
                                                        -motion 32 \
                                                        -task 4 \
                                                        -rollout 12 \
                                                        -roll_hl \
-                                                       -descr refactor_postonly & 
+                                                       -descr refactor_postonly_tighttol & 
         sleep 3h
         pkill -f run_train -9
         pkill -f ros -9
