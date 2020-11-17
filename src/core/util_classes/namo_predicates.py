@@ -736,23 +736,8 @@ class Collides(CollisionPredicate):
         self._param_to_body = {self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom),
                                self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
 
-        neg_coeff = 1e4
-        neg_grad_coeff = 1e-3
-
-        def f(x):
-            if self.c is self.w: return np.zeros((COL_TS*8,1))
-            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
-
-        def grad(x):
-            if self.c is self.w: return np.zeros((COL_TS*8, 4))
-            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
-
-        def f_neg(x):
-            return -neg_coeff*f(x)
-
-        def grad_neg(x):
-            return -neg_grad_coeff*grad(x)
-
+        self.neg_coeff = 1e4
+        self.neg_grad_coeff = 1e-3
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
@@ -764,17 +749,32 @@ class Collides(CollisionPredicate):
 
         N_COLS = 8
 
-        col_expr = Expr(f, grad)
+        col_expr = Expr(self.f, self.grad)
         val = np.zeros((COL_TS*N_COLS,1))
         e = LEqExpr(col_expr, val)
 
-        col_expr_neg = Expr(f_neg, grad_neg)
+        col_expr_neg = Expr(self.f_neg, self.grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, -val)
 
         super(Collides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1)
         self.n_cols = N_COLS
         # self.priority = 1
+
+    def f(self, x):
+        if self.c is self.w: return np.zeros((COL_TS*8,1))
+        return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
+
+    def grad(self, x):
+        if self.c is self.w: return np.zeros((COL_TS*8, 4))
+        return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
+
+    def f_neg(self, x):
+        return -self.neg_coeff*self.f(x)
+
+    def grad_neg(self, x):
+        return -self.neg_grad_coeff*self.grad(x)
+
 
     def get_expr(self, negated):
         if negated:
@@ -800,30 +800,8 @@ class TargetGraspCollides(Collides):
         self._param_to_body = {self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom),
                                self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
 
-        dist = 2.
+        self.dist = 2.
         N_COLS = 8
-        def f(x):
-            if self.held is not None and any([self.held.name == p.name for p in [self.c, self.w]]) \
-               or self.w is self.c:
-                return np.zeros((N_COLS, 1))
-            disp = x[:2] + dist * x[4:6]
-            new_x = np.concatenate([disp, x[2:4]])
-            return -self.distance_from_obj(new_x)[0]
-
-        def grad(x):
-            if self.w is self.c:
-                return np.zeros((N_COLS, 4))
-            disp = x[:2] + dist * x[4:6]
-            new_x = np.concatenate([disp, x[2:4]])
-            jac = self.distance_from_obj(new_x)[1]
-            return np.c_[np.zeros((8,2)), jac]
-
-        def f_neg(x):
-            return -f(x)
-
-        def grad_neg(x):
-            return grad(x)
-
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
@@ -833,11 +811,11 @@ class TargetGraspCollides(Collides):
         #     # print self.distance_from_obj(x)
         #     return -self.distance_from_obj(x)[1]
 
-        col_expr = Expr(f, grad)
+        col_expr = Expr(self.f, self.grad)
         val = np.zeros((N_COLS,1))
         e = LEqExpr(col_expr, val)
 
-        col_expr_neg = Expr(f_neg, grad_neg)
+        col_expr_neg = Expr(self.f_neg, self.grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, -val)
 
         super(Collides, self).__init__(name, e, attr_inds, params,
@@ -845,6 +823,28 @@ class TargetGraspCollides(Collides):
                                         active_range=(0,0), priority=1)
         self.n_cols = N_COLS
         # self.priority = 1
+
+    def f(self, x):
+        if self.held is not None and any([self.held.name == p.name for p in [self.c, self.w]]) \
+           or self.w is self.c:
+            return np.zeros((self.n_cols, 1))
+        disp = x[:2] + self.dist * x[4:6]
+        new_x = np.concatenate([disp, x[2:4]])
+        return -self.distance_from_obj(new_x)[0]
+
+    def grad(self, x):
+        if self.w is self.c:
+            return np.zeros((self.n_cols, 4))
+        disp = x[:2] + self.dist * x[4:6]
+        new_x = np.concatenate([disp, x[2:4]])
+        jac = self.distance_from_obj(new_x)[1]
+        return np.c_[np.zeros((8,2)), jac]
+
+    def f_neg(self, x):
+        return -self.f(x)
+
+    def grad_neg(self, x):
+        return self.grad(x)
 
 
 class CanCollides(Collides):
@@ -982,13 +982,13 @@ class RCollides(CollisionPredicate):
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
-        neg_coeff = 1e4
-        neg_grad_coeff = 1e-3
+        self.neg_coeff = 1e4
+        self.neg_grad_coeff = 1e-3
 
         '''
         ## so we have an expr for the negated predicate
         def f_neg(x):
-            d = neg_coeff * self.distance_from_obj(x)[0]
+            d = self.neg_coeff * self.distance_from_obj(x)[0]
             # if np.any(d > 0):
             #     import ipdb; ipdb.set_trace()
             #     self.distance_from_obj(x)
@@ -996,34 +996,19 @@ class RCollides(CollisionPredicate):
 
         def grad_neg(x):
             # print self.distance_from_obj(x)
-            return -neg_grad_coeff * self.distance_from_obj(x)[1]
+            return -self.neg_grad_coeff * self.distance_from_obj(x)[1]
         '''
-
-        def f(x):
-            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
-
-        def grad(x):
-            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
-
-
-        def f_neg(x):
-            return -neg_coeff * f(x)
-
-        def grad_neg(x):
-            return -neg_grad_coeff * grad(x)
-
-
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
 
 
         N_COLS = 8
-        col_expr = Expr(f, grad)
+        col_expr = Expr(self.f, self.grad)
         val = np.zeros((COL_TS*N_COLS,1))
         e = LEqExpr(col_expr, val)
 
-        col_expr_neg = Expr(f_neg, grad_neg)
+        col_expr_neg = Expr(self.f_neg, self.grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, -val)
 
 
@@ -1033,6 +1018,18 @@ class RCollides(CollisionPredicate):
         self.hl_ignore = True
 
         # self.priority = 1
+
+    def f(self, x):
+        return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
+
+    def grad(self, x):
+        return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
+
+    def f_neg(self, x):
+        return -self.neg_coeff * self.f(x)
+
+    def grad_neg(self, x):
+        return -self.neg_grad_coeff * self.grad(x)
 
     def resample(self, negated, time, plan):
         assert negated
@@ -1099,90 +1096,89 @@ class ColObjPred(CollisionPredicate):
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
-        neg_coeff = coeff
-        neg_grad_coeff = 1e-1 # 1e-3
-
-        def f(x):
-            xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
-            if USE_TF:
-                cur_tensor = get_tf_graph('bump_out')
-                in_tensor = get_tf_graph('bump_in')
-                radius_tensor = get_tf_graph('bump_radius')
-                vals = []
-                for i in range(COL_TS+1):
-                    pt = xs[i]
-                    if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
-                        vals.append(0)
-                    else:
-                        val = np.array([TF_SESS[0].run(cur_tensor, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})])
-                        vals.append(val)
-                return np.sum(vals, axis=0)
-
-            col_vals = self.distance_from_obj(x)[0]
-            col_vals = np.clip(col_vals, 0., 4)
-            return -col_vals
-            #return -self.distance_from_obj(x)[0] # twostep_f([x[:4]], self.distance_from_obj, 2, pts=1)
-
-        def grad(x):
-            xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
-            if USE_TF:
-                cur_grads = get_tf_graph('bump_grads')
-                in_tensor = get_tf_graph('bump_in')
-                radius_tensor = get_tf_graph('bump_radius')
-                vals = []
-                for i in range(COL_TS+1):
-                    pt = xs[i]
-                    if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
-                        vals.append(np.zeros((1,8)))
-                    else:
-                        v = TF_SESS[0].run(cur_grads, feed_dict={in_tensor: pt, radius_tensor: self.radius**2}).T
-                        v[np.isnan(v)] = 0.
-                        v[np.isinf(v)] = 0.
-                        curcoeff = float(COL_TS-i)/COL_TS
-                        vals.append(np.c_[curcoeff*v, (1-curcoeff)*v])
-                return np.sum(vals, axis=0)
-            return -coeff*self.distance_from_obj(x)[1] # twostep_f([x[:4]], self.distance_from_obj, 2, pts=1, grad=True)
-
-        def f_neg(x):
-            return -neg_coeff * f(x)
-
-        def grad_neg(x):
-            return -neg_grad_coeff * grad(x)
-
-        def hess_neg(x):
-            xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
-            if USE_TF:
-                cur_hess = get_tf_graph('bump_hess')
-                in_tensor = get_tf_graph('bump_in')
-                radius_tensor = get_tf_graph('bump_radius')
-                vals = []
-                for i in range(COL_TS+1):
-                    pt = xs[i]
-                    if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
-                        vals.append(np.zeros((8,8)))
-                    else:
-                        v = TF_SESS[0].run(cur_hess, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})
-                        v[np.isnan(v)] = 0.
-                        v[np.isinf(v)] = 0.
-                        v = v.reshape((4,4))
-                        curcoeff = float(COL_TS-i)/COL_TS
-                        new_v = np.r_[np.c_[curcoeff*v, np.zeros((4,4))], np.c_[np.zeros((4,4)), (1-curcoeff)*v]]
-                        vals.append(new_v.reshape((8,8)))
-                return np.sum(vals, axis=0).reshape((8,8))
-            j = grad(x)
-            return j.T.dot(j)
-
-        col_expr = Expr(f, grad)
+        self.neg_coeff = coeff
+        self.neg_grad_coeff = 1e-1 # 1e-3
+        col_expr = Expr(self.f, self.grad)
         val = np.zeros((1,1))
         e = LEqExpr(col_expr, val)
 
-        col_expr_neg = Expr(lambda x: coeff*f(x), lambda x: coeff*grad(x), lambda x: coeff*hess_neg(x))
+        col_expr_neg = Expr(self.f, self.grad, self.hess_neg)
         self.neg_expr = LEqExpr(col_expr_neg, -val)
 
         super(ColObjPred, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1, active_range=(0,1))
         # self.priority=1
         self.dsafe = 2.
+
+    def f(self, x):
+        xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
+        if USE_TF:
+            cur_tensor = get_tf_graph('bump_out')
+            in_tensor = get_tf_graph('bump_in')
+            radius_tensor = get_tf_graph('bump_radius')
+            vals = []
+            for i in range(COL_TS+1):
+                pt = xs[i]
+                if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
+                    vals.append(0)
+                else:
+                    val = np.array([TF_SESS[0].run(cur_tensor, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})])
+                    vals.append(val)
+            return self.neg_coeff*np.sum(vals, axis=0)
+
+        col_vals = self.distance_from_obj(x)[0]
+        col_vals = np.clip(col_vals, 0., 4)
+        return -col_vals
+        #return -self.distance_from_obj(x)[0] # twostep_f([x[:4]], self.distance_from_obj, 2, pts=1)
+
+    def grad(self, x):
+        xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
+        if USE_TF:
+            cur_grads = get_tf_graph('bump_grads')
+            in_tensor = get_tf_graph('bump_in')
+            radius_tensor = get_tf_graph('bump_radius')
+            vals = []
+            for i in range(COL_TS+1):
+                pt = xs[i]
+                if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
+                    vals.append(np.zeros((1,8)))
+                else:
+                    v = TF_SESS[0].run(cur_grads, feed_dict={in_tensor: pt, radius_tensor: self.radius**2}).T
+                    v[np.isnan(v)] = 0.
+                    v[np.isinf(v)] = 0.
+                    curcoeff = float(COL_TS-i)/COL_TS
+                    vals.append(np.c_[curcoeff*v, (1-curcoeff)*v])
+            return self.neg_coeff*np.sum(vals, axis=0)
+        return self.distance_from_obj(x)[1] # twostep_f([x[:4]], self.distance_from_obj, 2, pts=1, grad=True)
+
+    def f_neg(self, x):
+        return -self.neg_coeff * self.f(x)
+
+    def grad_neg(self, x):
+        return -self.neg_grad_coeff * self.grad(x)
+
+    def hess_neg(self, x):
+        xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
+        if USE_TF:
+            cur_hess = get_tf_graph('bump_hess')
+            in_tensor = get_tf_graph('bump_in')
+            radius_tensor = get_tf_graph('bump_radius')
+            vals = []
+            for i in range(COL_TS+1):
+                pt = xs[i]
+                if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
+                    vals.append(np.zeros((8,8)))
+                else:
+                    v = TF_SESS[0].run(cur_hess, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})
+                    v[np.isnan(v)] = 0.
+                    v[np.isinf(v)] = 0.
+                    v = v.reshape((4,4))
+                    curcoeff = float(COL_TS-i)/COL_TS
+                    new_v = np.r_[np.c_[curcoeff*v, np.zeros((4,4))], np.c_[np.zeros((4,4)), (1-curcoeff)*v]]
+                    vals.append(new_v.reshape((8,8)))
+            return self.neg_coeff*np.sum(vals, axis=0).reshape((8,8))
+        j = self.grad(x)
+        return j.T.dot(j)
 
 
 class Obstructs(CollisionPredicate):
@@ -1203,38 +1199,38 @@ class Obstructs(CollisionPredicate):
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
-        neg_coeff = 1e4
-        neg_grad_coeff = 1e-1 # 1e-3
+        self.neg_coeff = 1e4
+        self.neg_grad_coeff = 1e-1 # 1e-3
         '''
         ## so we have an expr for the negated predicate
-        f_neg = lambda x: neg_coeff*self.distance_from_obj(x)[0]
+        f_neg = lambda x: self.neg_coeff*self.distance_from_obj(x)[0]
         def grad_neg(x):
             # print self.distance_from_obj(x)
-            return neg_grad_coeff*self.distance_from_obj(x)[1]
+            return self.neg_grad_coeff*self.distance_from_obj(x)[1]
         '''
-
-        def f(x):
-            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
-
-        def grad(x):
-            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
-
-        def f_neg(x):
-            return -neg_coeff * f(x)
-
-        def grad_neg(x):
-            return -neg_grad_coeff * grad(x)
-
-        col_expr = Expr(f, grad)
+        col_expr = Expr(self.f, self.grad)
         val = np.zeros((1,1))
         e = LEqExpr(col_expr, val)
 
-        col_expr_neg = Expr(f_neg, grad_neg)
+        col_expr_neg = Expr(self.f_neg, self.grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, -val)
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=3)
         # self.priority=1
+
+    def f(self, x):
+        return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
+
+    def grad(self, x):
+        return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
+
+    def f_neg(self, x):
+        return -self.neg_coeff * self.f(x)
+
+    def grad_neg(self, x):
+        return -self.neg_grad_coeff * self.grad(x)
+
 
     def resample(self, negated, time, plan):
         assert negated
@@ -1415,46 +1411,40 @@ class ObstructsHolding(CollisionPredicate):
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
-        neg_coeff = 1e4
-        neg_grad_coeff = 1e-1
+        self.neg_coeff = 1e4
+        self.neg_grad_coeff = 1e-1
         ## so we have an expr for the negated predicate
-        #f_neg = lambda x: neg_coeff*self.distance_from_obj(x)[0]
-        #grad_neg = lambda x: neg_grad_coeff*self.distance_from_obj(x)[1]
-
-        def f(x):
-            if self.obstr.name == self.held.name:
-                return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
-            else:
-                return -twostep_f([x[:6], x[6:12]], self.distance_from_obj, 6)
-
-
-        def grad(x):
-            if self.obstr.name == self.held.name:
-                return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
-            else:
-                return -twostep_f([x[:6], x[6:12]], self.distance_from_obj, 6, grad=True)
-
-        def f_neg(x):
-            return -neg_coeff * f(x)
-
-        def grad_neg(x):
-            return -neg_grad_coeff * grad(x)
-
-
-        col_expr = Expr(f, grad)
+        #f_neg = lambda x: self.neg_coeff*self.distance_from_obj(x)[0]
+        #grad_neg = lambda x: self.neg_grad_coeff*self.distance_from_obj(x)[1]
+        col_expr = Expr(self.f, self.grad)
         val = np.zeros((1,1))
         e = LEqExpr(col_expr, val)
 
-        if self.held != self.obstr:
-            col_expr_neg = Expr(f_neg, grad_neg)
-        else:
-            new_f_neg = lambda x: 0. * f(x)#self.distance_from_obj(x)[0]
-            new_grad_neg = lambda x: -grad(x) # self.distance_from_obj(x)[1]
-            col_expr_neg = Expr(new_f_neg, new_grad_neg)
+        if self.held == self.obstr:
+            self.neg_coeff = 0
+        col_expr_neg = Expr(self.f_neg, self.grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
         # self.priority=1
+
+    def f(self, x):
+        if self.obstr.name == self.held.name:
+            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
+        else:
+            return -twostep_f([x[:6], x[6:12]], self.distance_from_obj, 6)
+
+    def grad(self, x):
+        if self.obstr.name == self.held.name:
+            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
+        else:
+            return -twostep_f([x[:6], x[6:12]], self.distance_from_obj, 6, grad=True)
+
+    def f_neg(self, x):
+        return -self.neg_coeff * self.f(x)
+
+    def grad_neg(self, x):
+        return -self.neg_grad_coeff * self.grad(x)
 
     def resample(self, negated, time, plan):
         assert negated

@@ -46,7 +46,7 @@ class MotionServer(Server):
         ts = (0, plan.actions[plan.start].active_timesteps[0])
         failed_prefix = plan.get_failed_preds(active_ts=ts, tol=1e-3)
         if len(failed_prefix):
-            print('BAD PREFIX! -->', plan.actions[:plan.start], 'FAILED', failed_prefix, node.label)
+            print('BAD PREFIX! -->', plan.actions[:plan.start], 'FAILED', failed_prefix)
             plan.start = 0
 
         plan.freeze_actions(plan.start)
@@ -54,6 +54,7 @@ class MotionServer(Server):
         success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=True)
         if success:
             path = self.agent.run_plan(plan, node.targets)
+            self.log_path(path, 10)
             for step in path: step.source_label = 'n_plans'
             print(self.id, 'Successful refine.', path[-1].success)
         if not success and node.gen_child():

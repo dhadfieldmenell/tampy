@@ -21,7 +21,6 @@ from pma.namo_solver import NAMOSolver
 # from policy_hooks.namo.multi_task_main import GPSMain
 from policy_hooks.namo.vector_include import *
 from policy_hooks.utils.load_task_definitions import *
-from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 from policy_hooks.namo.namo_agent import NAMOSortingAgent
 # import policy_hooks.namo.namo_hyperparams as namo_hyperparams
 # import policy_hooks.namo.namo_optgps_hyperparams as namo_hyperparams

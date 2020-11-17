@@ -914,7 +914,7 @@ class NAMOSortingAgent(TAMPAgent):
 
             if IM_ENUM in self._hyperparams['obs_include'] or \
                IM_ENUM in self._hyperparams['prim_obs_include']:
-                self.reset_mjc_env(sample.get_X(t=t), targets)
+                self.reset_mjc_env(sample.get_X(t=t), targets, draw_targets=False)
                 im = self.mjc_env.render(height=self.image_height, width=self.image_width)
                 sample.set(IM_ENUM, im.flatten(), t)
 
@@ -1221,7 +1221,7 @@ class NAMOSortingAgent(TAMPAgent):
         return self.cur_state.copy()
 
 
-    def reset_mjc_env(self, x, targets=None):
+    def reset_mjc_env(self, x, targets=None, draw_targets=True):
         if targets is None:
             targets = self.target_vecs[0]
         mp_state = x[self._x_data_idx[STATE_ENUM]]
@@ -1231,7 +1231,8 @@ class NAMOSortingAgent(TAMPAgent):
                 self.mjc_env.set_item_pos(param_name, np.r_[pos, 0.5], mujoco_frame=False, forward=False)
                 if param_name != 'pr2':
                     targ = targets[self.target_inds['{0}_end_target'.format(param_name), 'value']]
-                    self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, 1.5], forward=False)
+                    pos = np.r_[targ, 1.5] if draw_targets else [0, 0, -1]
+                    self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), pos, forward=False)
         self.mjc_env.physics.forward()
 
 
