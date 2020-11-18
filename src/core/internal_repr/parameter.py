@@ -116,6 +116,14 @@ class Parameter(object):
         for attr in self._free_attrs:
             self._free_attrs[attr][:,active_ts[0]:active_ts[1]+1] = 1
 
+    def fill(self, param, active_ts):
+        if self.is_symbol(): active_ts = (0, 0)
+        st, et = active_ts
+        for attr_name, v in list(self.__dict__.items()):
+            attr_type = self.get_attr_type(attr_name)
+            if issubclass(attr_type, Vector):
+                getattr(self, attr_name)[:,st:et+1] = getattr(param, attr_name)[:,st:et+1]
+
     def __repr__(self):
         return "%s - %s"%(self.name, self.get_type())
 

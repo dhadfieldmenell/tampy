@@ -53,12 +53,6 @@ class RolloutServer(Server):
         self.fail_log = LOG_DIR+hyperparams['weight_dir']+'/'+str(self.id)+'_'+'failure_{0}_log.txt'.format(self.id)
         self.fail_data_file = LOG_DIR+hyperparams['weight_dir']+'/'+str(self.id)+'_'+'failure_{0}_data.txt'.format(self.id)
         self.expert_data_file = LOG_DIR+hyperparams['weight_dir']+'/'+str(self.id)+'_exp_data.npy'
-        self.render = hyperparams.get('load_render', False)
-        if self.render:
-            self.cur_vid_id = 0
-            if not os.path.isdir(LOG_DIR+hyperparams['weight_dir']+'/videos'):
-                os.makedirs(LOG_DIR+hyperparams['weight_dir']+'/videos')
-            self.video_dir = LOG_DIR+hyperparams['weight_dir']+'/videos'
         self.hl_data = []
         self.fail_data = []
         self.postcond_info = []
@@ -285,44 +279,6 @@ class RolloutServer(Server):
                                  expansions=0,
                                  label=self.id)
             self.push_queue(hlnode, self.task_queue)
-
-
-    def save_image(self, rollout, success=None, ts=0):
-        if not self.render: return
-        suc_flag = ''
-        if success is not None:
-            suc_flag = 'succeeded' if success else 'failed'
-        fname = '/home/michaelmcdonald/Dropbox/videos/{0}_{1}_{2}_{3}.png'.format(self.id, self.group_id, self.cur_vid_id, suc_flag)
-        self.cur_vid_id += 1
-        im = self.agent.get_annotated_image(rollout, ts)
-        im = Image.fromarray(im)
-        im.save(fname)
-
-
-    def save_video(self, rollout, success=None, ts=None, lab='', annotate=True):
-        if not self.render: return
-        self.agent.image_height = 256
-        self.agent.image_width = 256
-        suc_flag = ''
-        if success is not None:
-            suc_flag = 'succeeded' if success else 'failed'
-        fname = self.video_dir + '/{0}_{1}_{2}_{3}{4}.npy'.format(self.id, self.group_id, self.cur_vid_id, suc_flag, lab)
-        self.cur_vid_id += 1
-        buf = []
-        for step in rollout:
-            if not step.draw: continue
-            if ts is None: 
-                ts_range = range(step.T)
-            else:
-                ts_range = range(ts[0], ts[1])
-            for t in ts_range:
-                if annotate:
-                    im = self.agent.get_annotated_image(step, t)
-                else:
-                    self.agent.target_vecs[0] = step.targets
-                    im = self.agent.get_image(step.get_X(t=t))
-                buf.append(im)
-        np.save(fname, np.array(buf))
 
 
     def check_hl_statistics(self, xvar=None, thresh=0):

@@ -43,6 +43,13 @@ class Server(object):
         self.agent.solver = self.solver
         self.prob = self.agent.prob
         self.solver.agent = self.agent
+        
+        self.render = hyperparams.get('load_render', False)
+        if self.render:
+            self.cur_vid_id = 0
+            if not os.path.isdir(LOG_DIR+hyperparams['weight_dir']+'/videos'):
+                os.makedirs(LOG_DIR+hyperparams['weight_dir']+'/videos')
+            self.video_dir = LOG_DIR+hyperparams['weight_dir']+'/videos'
 
         self.task_queue = hyperparams['task_queue']
         self.motion_queue = hyperparams['motion_queue']
@@ -385,6 +392,45 @@ class Server(object):
             pp_info = pprint.pformat(info, depth=120, width=120)
             f.write(pp_info)
             f.write('\n')
+
+
+    def save_image(self, rollout, success=None, ts=0):
+        if not self.render: return
+        suc_flag = ''
+        if success is not None:
+            suc_flag = 'succeeded' if success else 'failed'
+        fname = '/home/michaelmcdonald/Dropbox/videos/{0}_{1}_{2}.png'.format(self.id, self.cur_vid_id, suc_flag)
+        self.cur_vid_id += 1
+        self.agent.target_vecs[0][:] = rollout.targets
+        im = self.agent.get_image(rollout.get_X(t=ts))
+        im = Image.fromarray(im)
+        im.save(fname)
+
+
+    def save_video(self, rollout, success=None, ts=None, lab='', annotate=True):
+        if not self.render: return
+        self.agent.image_height = 256
+        self.agent.image_width = 256
+        suc_flag = ''
+        if success is not None:
+            suc_flag = 'succeeded' if success else 'failed'
+        fname = self.video_dir + '/{0}_{1}_{2}_{3}{4}.npy'.format(self.id, self.group_id, self.cur_vid_id, suc_flag, lab)
+        self.cur_vid_id += 1
+        buf = []
+        for step in rollout:
+            if not step.draw: continue
+            if ts is None: 
+                ts_range = range(step.T)
+            else:
+                ts_range = range(ts[0], ts[1])
+            for t in ts_range:
+                if annotate:
+                    im = self.agent.get_annotated_image(step, t)
+                else:
+                    self.agent.target_vecs[0] = step.targets
+                    im = self.agent.get_image(step.get_X(t=t))
+                buf.append(im)
+        np.save(fname, np.array(buf))
 
 
 class DummyPolicy:

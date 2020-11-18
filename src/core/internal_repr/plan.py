@@ -289,11 +289,6 @@ class Plan(object):
         for pname, param in self.params.items():
             if pname not in plan.params:
                 raise AttributeError('Reference plan does not contain {0}'.format(pname))
-            if param.is_symbol():
-                st, et = 0, 1
-            else:
-                st, et = active_ts
-            for attr in param.attrs:
-                getattr(param, attr)[:, st:et] = getattr(plan.params[pname], attr)[:, st:et]
+            param.fill(plan.params[pname], active_ts)
         self.start = amax
 

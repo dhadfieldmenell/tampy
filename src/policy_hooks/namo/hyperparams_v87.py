@@ -19,7 +19,7 @@ from core.util_classes.namo_predicates import ATTRMAP
 from pma.namo_solver import NAMOSolver
 from policy_hooks.namo.namo_agent import NAMOSortingAgent
 from policy_hooks.namo.namo_policy_solver import NAMOPolicySolver
-import policy_hooks.namo.spread_prob_2 as prob
+import policy_hooks.namo.sort_prob as prob
 prob.NUM_OBJS = NUM_OBJS
 prob.NUM_TARGS = NUM_TARGS
 from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer
@@ -41,7 +41,7 @@ N_ROLLOUT_SERVERS = 32
 N_ALG_SERVERS = 0
 N_OPTIMIZERS = 0
 N_DIRS = 16
-N_GRASPS = 4
+N_GRASPS = 1
 TIME_LIMIT = 14400
 
 
@@ -312,7 +312,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         config['sensor_dims'][utils.OBJ_ENUMS[o]] = 2
         config['sensor_dims'][utils.TARG_ENUMS[o]] = 2
         #config['prim_obs_include'].append(utils.OBJ_ENUMS[o])
-        config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
+        #config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
         config['prim_obs_include'].append(utils.TARG_ENUMS[o])
     return config
 
