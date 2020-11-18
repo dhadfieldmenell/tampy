@@ -293,7 +293,7 @@ class Plan(object):
                 st, et = 0, 1
             else:
                 st, et = active_ts
-            for attr in p.attrs:
+            for attr in param.attrs:
                 getattr(param, attr)[:, st:et] = getattr(plan.params[pname], attr)[:, st:et]
         self.start = amax
 
