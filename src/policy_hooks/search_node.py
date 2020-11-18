@@ -173,7 +173,7 @@ class LLSearchNode(SearchNode):
         self.curr_plan = hl_solver.get_plan(self.plan_str, self.domain, self.concr_prob, self.initial)
         if type(self.curr_plan) is str: return
         if self.ref_plan is not None:
-            self.cirr_plan.start = self.ref_plan.start
+            self.curr_plan.start = self.ref_plan.start
             self.curr_plan.fill(self.ref_plan, amax=self.ref_plan.start-1)
         return self.curr_plan
 
