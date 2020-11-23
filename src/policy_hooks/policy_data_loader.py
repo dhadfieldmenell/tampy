@@ -57,7 +57,7 @@ class DataLoader(object):
         dct = self.val_items if val else self.items
         if label is not None and label not in dct: return [], [], []
 
-        labels = list(dct.keys())  if label is None else [label]
+        labels = list(dct.keys()) if label is None else [label]
         if sum([len(dct[lab]) for lab in labels]) < size: return [], [], []
 
         n_per = size // len(labels) + 1
@@ -74,7 +74,7 @@ class DataLoader(object):
                 n -= 1
                 continue
             ind = np.random.randint(len(dct[lab]))
-            if (lab, ind) in used:
+            if not val and (lab, ind) in used:
                 n -= 1
                 continue
             used.append((lab,ind))
@@ -128,6 +128,12 @@ class DataLoader(object):
         self.policy.scale = self.scale
         self.policy.bias = self.bias
         return self.scale, self.bias
+
+
+    def get_size(self, label=None, val=False):
+        dct = self.items if not val else self.val_items
+        labels = [label] if label is not None else list(dct.keys())
+        return sum([len(dct[lab]) for lab in labels])
 
 
     def gen_load(self):

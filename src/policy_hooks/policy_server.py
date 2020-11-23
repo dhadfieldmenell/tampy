@@ -96,16 +96,19 @@ class PolicyServer(object):
         while not self.stopped:
             self.iters += 1
             self.policy_opt.update(self.task)
-            print('Ran update', self.task)
             self.n_updates += 1
             mu, obs, prc = self.data_gen.get_batch(val=True)
-            if len(mu): self.val_losses['all'].append(self.policy_opt.check_validation(mu, obs, prc))
+            if len(mu): self.val_losses['all'].append(self.policy_opt.check_validation(mu, obs, prc, task=self.task))
 
             for lab in ['optimal', 'rollout']:
                 mu, obs, prc = self.data_gen.get_batch(label=lab, val=True)
-                if len(mu): self.val_losses[lab].append(self.policy_opt.check_validation(mu, obs, prc))
+                if len(mu): self.val_losses[lab].append(self.policy_opt.check_validation(mu, obs, prc, task=self.task))
             self.policy_opt.write_shared_weights([self.task])
 
+            if not self.iters % 10:
+                n_train = self.data_gen.get_size()
+                n_val = self.data_gen.get_size(val=True)
+                print('Ran', self.iters, 'updates on', self.task, 'with', n_train, 'train and', n_val, 'val')
             if not self.iters % 10 and len(self.val_losses['all']):
                 with open(self.policy_opt_log, 'w+') as f:
                     info = self.get_log_info()
