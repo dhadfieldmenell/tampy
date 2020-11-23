@@ -60,6 +60,7 @@ class Server(object):
         self.pol_cls = DummyPolicy
         self.opt_cls = DummyPolicyOpt
 
+        self.label_type = 'base'
         self._n_plans = 0
         n_plans = hyperparams['policy_opt']['buffer_sizes']['n_plans']
         self.alg_map = hyperparams['alg_map']
@@ -157,7 +158,7 @@ class Server(object):
 
 
 
-    def update(self, obs, mu, prc, wt, task, rollout_len=0, acts=[], ref_acts=[], terminal=[], aux=[]):
+    def update(self, obs, mu, prc, wt, task, label, acts=[], ref_acts=[], terminal=[], aux=[]):
         assert(len(mu) == len(obs))
 
         prc[np.where(prc > 1e10)] = 1e10
@@ -171,35 +172,13 @@ class Server(object):
         assert not np.any(np.isinf(obs))
         obs[np.where(np.abs(obs) > 1e10)] = 0
 
-        opts = self.agent.prob.get_prim_choices()
-        msg = PolicyUpdate() if USE_ROS else DummyMSG()
-        msg.obs = obs.flatten().tolist()
-        msg.mu = mu.flatten().tolist()
-        msg.prc = prc.flatten().tolist()
-        msg.wt = wt.flatten().tolist()
-        if len(acts):
-            msg.acts = acts.flatten().tolist()
-            msg.ref_acts = ref_acts.flatten().tolist()
-            msg.terminal = terminal
-        if len(aux):
-            msg.aux = list(aux)
-        msg.dO = self.agent.dO
-        msg.dPrimObs = self.agent.dPrim
-        msg.dOpts = len(list(self.agent.prob.get_prim_choices().keys()))
-        msg.dValObs = self.agent.dVal
-        msg.dAct = np.sum([len(opts[e]) for e in opts])
-        msg.nActs = np.prod([len(opts[e]) for e in opts])
-        msg.dU = mu.shape[-1]
-        msg.n = len(mu)
-        msg.rollout_len = mu.shape[1] if rollout_len < 1 else rollout_len
-        msg.task = str(task)
-
+        data = (obs, mu, prc, wt, aux, task, label)
         if task == 'primitive':
             q = self.hl_queue
         else:
             q = self.ll_queue
 
-        self.push_queue(msg, q)
+        self.push_queue(data, q)
 
 
     def policy_call(self, x, obs, t, noise, task, opt_s=None):
@@ -210,7 +189,7 @@ class Server(object):
             alg_key = task
         if self.policy_opt.task_map[alg_key]['policy'].scale is None:
             if opt_s is not None:
-                return opt_s.get_U(t) + self.alg_map[task].cur[0].traj_distr.chol_pol_covar[t].T.dot(noise)
+                return opt_s.get_U(t) # + self.alg_map[task].cur[0].traj_distr.chol_pol_covar[t].T.dot(noise)
             t = min(t, self.alg_map[task].cur[0].traj_distr.T-1)
             return self.alg_map[task].cur[0].traj_distr.act(x.copy(), obs.copy(), t, noise)
         return self.policy_opt.task_map[alg_key]['policy'].act(x.copy(), obs.copy(), t, noise)
@@ -286,14 +265,13 @@ class Server(object):
             else:
                 task_name = task
 
-            if self.policy_opt.task_map[task_name]['policy'].scale is None:
-                chol_pol_covar[task] = np.eye(self.agent.dU) # self.alg_map[task].cur[0].traj_distr.chol_pol_covar
-            else:
-                chol_pol_covar[task] = self.policy_opt.task_map[task_name]['policy'].chol_pol_covar
+            #if self.policy_opt.task_map[task_name]['policy'].scale is None:
+            #    chol_pol_covar[task] = np.eye(self.agent.dU) # self.alg_map[task].cur[0].traj_distr.chol_pol_covar
+            #else:
+            #    chol_pol_covar[task] = self.policy_opt.task_map[task_name]['policy'].chol_pol_covar
 
         rollout_policies = {task: DummyPolicy(task,
                                               self.policy_call,
-                                              chol_pol_covar=chol_pol_covar[task],
                                               scale=self.policy_opt.task_map[task if task in self.policy_opt.valid_scopes else 'control']['policy'].scale)
                                   for task in self.agent.task_list}
         self.agent.policies = rollout_policies
@@ -326,6 +304,7 @@ class Server(object):
 
         if len(samples):
             lab = samples[0].source_label
+            lab = 'n_plans' if lab == 'optimal' else 'n_rollout'
             if lab in self.policy_opt.buf_sizes:
                 with self.policy_opt.buf_sizes[lab].get_lock():
                     self.policy_opt.buf_sizes[lab].value += 1
@@ -353,7 +332,7 @@ class Server(object):
             tgt_prc = np.concatenate((tgt_prc, prc))
         if len(tgt_mu):
             # print('Sending update to primitive net')
-            self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', 1, aux=tgt_aux)
+            self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', self.label_type, aux=tgt_aux)
 
 
     def get_path_data(self, path, n_fixed=0, verbose=False):
@@ -394,7 +373,7 @@ class Server(object):
             f.write('\n')
 
 
-    def save_image(self, rollout, success=None, ts=0):
+    def save_image(self, rollout, success=None, ts=0, render=True):
         if not self.render: return
         suc_flag = ''
         if success is not None:
@@ -402,7 +381,11 @@ class Server(object):
         fname = '/home/michaelmcdonald/Dropbox/videos/{0}_{1}_{2}.png'.format(self.id, self.cur_vid_id, suc_flag)
         self.cur_vid_id += 1
         self.agent.target_vecs[0][:] = rollout.targets
-        im = self.agent.get_image(rollout.get_X(t=ts))
+        if render:
+            im = self.agent.get_image(rollout.get_X(t=ts))
+        else:
+            im = rollout.get(IM_ENUM, t=ts).reshape((self.agent.image_height, self.agent.image_width, 3))
+            im = im.astype(np.uint8)
         im = Image.fromarray(im)
         im.save(fname)
 

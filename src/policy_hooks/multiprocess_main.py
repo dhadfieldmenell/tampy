@@ -256,21 +256,10 @@ class MultiProcessMain(object):
                 'image_channels': self.config['image_channels'],
                 'sensor_dims': self.sensor_dims,
                 'n_layers': self.config['n_layers'],
-                'num_filters': [5,10],
+                'num_filters': [8,8,8],
                 'q_imwt': 1,
                 'dim_hidden': self.config['dim_hidden'],
             },
-            # 'image_network_params': {
-            #     'obs_include': ['image'],
-            #     'obs_image_data': [OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
-            #     'image_width': self.config['image_width'],
-            #     'image_height': self.config['image_height'],
-            #     'image_channels': self.config['image_channels'],
-            #     'sensor_dims': sensor_dims,
-            #     'n_fc_layers': self.config['n_layers'],
-            #     'num_filters': [5,10],
-            #     'fc_layer_size': self.config['dim_hidden'],
-            # },
             'primitive_network_params': {
                 'obs_include': self.config['agent']['prim_obs_include'],
                 'obs_image_data': [IM_ENUM, OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
@@ -283,26 +272,10 @@ class MultiProcessMain(object):
                 'dim_hidden': self.config['prim_dim_hidden'],
                 'output_boundaries': self.prim_bounds,
             },
-            'value_network_params': {
-                'obs_include': self.config['agent']['val_obs_include'],
-                # 'obs_vector_data': [utils.STATE_ENUM],
-                'obs_image_data': [IM_ENUM, OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
-                'image_width': self.config['image_width'],
-                'image_height': self.config['image_height'],
-                'image_channels': self.config['image_channels'],
-                'sensor_dims': self.sensor_dims,
-                'n_layers': self.config['val_n_layers'],
-                'num_filters': [5,10],
-                'dim_hidden': self.config['val_dim_hidden'],
-            },
             'lr': self.config['lr'],
             'hllr': self.config['hllr'],
             'network_model': tf_network,
-            'distilled_network_model': tf_network,
             'primitive_network_model': primitive_network_model,
-            'value_network_model': tf_value_network,
-            'switch_network_model': tf_classification_network,
-            'image_network_model': multi_modal_network_fp if 'image' in self.config['agent']['obs_include'] else None,
             'iterations': self.config['train_iterations'],
             'batch_size': self.config['batch_size'],
             'weight_decay': self.config['weight_decay'],
@@ -356,17 +329,14 @@ class MultiProcessMain(object):
             for scope in self.task_list:
                 buffers[scope] = mp.Array(ctypes.c_char, 20 * (2**20))
                 buf_sizes[scope] = mp.Value('i')
+                buf_sizes[scope].value = 0
         else:
             buffers['control'] = mp.Array(ctypes.c_char, 20 * (2**20))
             buf_sizes['control'] = mp.Value('i')
-        buffers['image'] = mp.Array(ctypes.c_char, 20 * (2**20))
+            buf_sizes['control'].value = 0
         buffers['primitive'] = mp.Array(ctypes.c_char, 20 * (2**20))
-        buffers['value'] = mp.Array(ctypes.c_char, 20 * (2**20))
-        buffers['switch'] = mp.Array(ctypes.c_char, 20 * (2**20))
-        buf_sizes['image'] = mp.Value('i')
         buf_sizes['primitive'] = mp.Value('i')
-        buf_sizes['value'] = mp.Value('i')
-        buf_sizes['switch'] = mp.Value('i')
+        buf_sizes['primitive'].value = 0
         buf_sizes['n_data'] = mp.Value('i')
         buf_sizes['n_data'].value = 0
         buf_sizes['n_plans'] = mp.Value('i')
@@ -638,7 +608,7 @@ class MultiProcessMain(object):
         config['task_queue'] = self.queue_manager.PriorityQueue(queue_size)
         config['rollout_queue'] = self.queue_manager.PriorityQueue(queue_size)
 
-        for task in self.pol_list+('value', 'primitive', 'switch'):
+        for task in self.pol_list+('primitive',):
             queues['{0}_pol'.format(task)] = Queue(queue_size)
         config['queues'] = queues
         return queues

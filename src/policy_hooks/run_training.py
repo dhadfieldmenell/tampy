@@ -171,9 +171,11 @@ def setup_dirs(c, args):
         with open(DIR_KEY+c['weight_dir']+'/__init__.py', 'w+') as f:
             f.write('')
         with open(DIR_KEY+c['weight_dir']+'/args.pkl', 'wb+') as f:
-            pickle.dump(args, f)
+            pickle.dump(args, f, protocol=0)
+        with open(DIR_KEY+c['weight_dir']+'/args.txt', 'w+') as f:
+            f.write(str(vars(args)))
     else:
-        time.sleep(0.5) # Give others a chance to let base set up dirrs
+        time.sleep(0.1) # Give others a chance to let base set up dirs
     return current_id
 
 

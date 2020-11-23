@@ -225,7 +225,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         prior.update(samples, self.local_policy_opt, mode, self.task)
 
 
-    def _update_policy_no_cost(self, optimal_samples=[]):
+    def _update_policy_no_cost(self, optimal_samples=[], label='optimal'):
         """ Compute the new policy. """
         if not len(self.cur): return
 
@@ -307,7 +307,11 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
                 tgt_prc = np.concatenate((tgt_prc, prc))
                 tgt_wt = np.concatenate((tgt_wt, wt))
                 obs_data = np.concatenate((obs_data, obs))
+        obs_data = obs_data.reshape((-1, dO))
+        tgt_mu = tgt_mu.reshape((-1, dU))
+        tgt_wt = tgt_wt.reshape((-1, 1))
+        tgt_prc = tgt_prc.reshape((-1, dU, dU))
         if len(tgt_mu):
-            self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task)
+            self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task, label)
         else:
             print('Update no cost called with no data.')

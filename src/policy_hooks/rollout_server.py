@@ -35,6 +35,7 @@ class RolloutServer(Server):
         self.fail_mode = hyperparams['fail_mode']
         self.current_id = 0
         self.cur_step = 0
+        self.label_type = 'rollout'
         self.adj_eta = False
         self.run_hl_test = hyperparams.get('run_hl_test', False)
         self.prim_decay = hyperparams.get('prim_decay', 1.)
@@ -57,21 +58,6 @@ class RolloutServer(Server):
         self.fail_data = []
         self.postcond_info = []
         self.last_hl_test = time.time()
-
-
-    def policy_call(self, x, obs, t, noise, task, opt_s=None):
-        # print 'Entering policy call:', datetime.now()
-        if noise is None: noise = np.zeros(self.agent.dU)
-        if 'control' in self.policy_opt.task_map:
-            alg_key = 'control'
-        else:
-            alg_key = task
-        if self.policy_opt.task_map[alg_key]['policy'].scale is None:
-            if opt_s is not None:
-                return opt_s.get_U(t) + self.alg_map[task].cur[0].traj_distr.chol_pol_covar[t].T.dot(noise)
-            t = min(t, self.alg_map[task].cur[0].traj_distr.T-1)
-            return self.alg_map[task].cur[0].traj_distr.act(x.copy(), obs.copy(), t, noise)
-        return self.policy_opt.task_map[alg_key]['policy'].act(x.copy(), obs.copy(), t, noise)
 
 
     def hl_log_prob(self, path):
@@ -180,7 +166,7 @@ class RolloutServer(Server):
             val = 0
         self.adj_eta = False
         self.postcond_info.append(val)
-        for step in path: step.source_label = 'n_rollout'
+        for step in path: step.source_label = 'rollout'
         if val >= 0.999:
             print('Success in rollout. Pre: {} Post: {}'.format(self.check_precond, self.check_postcond))
             self.agent.add_task_paths([path])
@@ -469,7 +455,7 @@ class RolloutServer(Server):
             for task in self.alg_map:
                 data = self.agent.get_opt_samples(task, clear=True)
                 if len(data) and self.ll_rollout_opt:
-                    self.alg_map[task]._update_policy_no_cost(data)
+                    self.alg_map[task]._update_policy_no_cost(data, label='rollout')
             if self.hl_rollout_opt: self.run_hl_update()
             step += 1
         self.policy_opt.sess.close()

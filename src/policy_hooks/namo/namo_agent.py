@@ -110,7 +110,7 @@ class NAMOSortingAgent(TAMPAgent):
             'obs_include': ['overhead_camera'],
             'include_files': [],
             'include_items': [
-                {'name': 'pr2', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.4, 1.), 'rgba': (0, 0, 0, 1)},
+                {'name': 'pr2', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.4, 1.), 'rgba': (1, 1, 1, 1)},
             ],
             'view': False,
             'image_dimensions': (hyperparams['image_width'], hyperparams['image_height'])
@@ -1519,6 +1519,7 @@ class NAMOSortingAgent(TAMPAgent):
 
 
     def permute_hl_data(self, hl_mu, hl_obs, hl_wt, hl_prc, aux):
+        print('-> Permuting data')
         assert len(hl_mu) == len(hl_obs)
         start_t = time.time()
         idx = self._prim_out_data_idx[OBJ_ENUM]

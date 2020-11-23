@@ -150,10 +150,11 @@ def tf_classification_network(dim_input=27, dim_output=2, batch_size=25, network
         dim_hidden = copy(dim_hidden)
     dim_hidden.append(dim_output)
 
-    nn_input, action, precision = get_input_layer(dim_input, dim_output, len(boundaries))
+    if input_layer is None:
+        nn_input, action, precision = get_input_layer(dim_input, dim_output, len(boundaries))
+    else:
+        nn_input, action, precision = input_layer 
     fc_input = nn_input
-    if input_layer is not None:
-        nn_input = tf.concat(input_layer, nn_input)
     mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, n_layers, dim_hidden)
     scaled_mlp_applied = mlp_applied
     if eta is not None:
@@ -333,7 +334,10 @@ def multi_modal_class_network(dim_input=27, dim_output=2, batch_size=25, network
             x_idx = x_idx + list(range(i, i+dim))
         i += dim
 
-    nn_input, action, precision = get_input_layer(dim_input, dim_output, len(boundaries))
+    if input_layer is None:
+        nn_input, action, precision = get_input_layer(dim_input, dim_output, len(boundaries))
+    else:
+        nn_input, action, precision = input_layer
 
     state_input = nn_input[:, 0:x_idx[-1]+1]
     image_input = nn_input[:, x_idx[-1]+1:img_idx[-1]+1]

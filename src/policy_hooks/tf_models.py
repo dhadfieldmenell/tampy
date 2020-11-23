@@ -88,10 +88,11 @@ def tf_network(dim_input=27, dim_output=7, batch_size=25, network_config=None, i
         dim_hidden = copy(dim_hidden)
     dim_hidden.append(dim_output)
 
-    nn_input, action, precision = get_input_layer(dim_input, dim_output)
+    if input_layer is None:
+        nn_input, action, precision = get_input_layer(dim_input, dim_output)
+    else:
+        nn_input, action, precision = input_layer 
     fc_input = nn_input
-    if input_layer is not None:
-        nn_input = tf.concat(input_layer, nn_input)
     # conv = tf.nn.conv1d(tf.reshape(nn_input, [None, dim_input, 1]), tf.Variable([[[0.1], [-0.1], [0.1]]], name='conv_filter'), 1)
     mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, n_layers, dim_hidden)
     fc_vars = weights_FC + biases_FC

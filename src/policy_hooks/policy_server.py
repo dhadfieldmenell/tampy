@@ -8,7 +8,7 @@ import numpy as np
 
 from policy_hooks.control_attention_policy_opt import ControlAttentionPolicyOpt
 from policy_hooks.msg_classes import *
-
+from policy_hooks.policy_data_loader import DataLoader
 
 LOG_DIR = 'experiment_logs/'
 MAX_QUEUE_SIZE = 100
@@ -30,21 +30,49 @@ class PolicyServer(object):
         hyperparams['policy_opt']['split_hl_loss'] = hyperparams['split_hl_loss']
         hyperparams['agent']['master_config'] = hyperparams
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
+        self.stopped = False
+        self.warmup = hyperparams['tf_warmup_iters']
+        self.queues = hyperparams['queues']
+        self.min_buffer = hyperparams['prim_update_size'] if self.task == 'primitive' else hyperparams['update_size']
+        self.in_queue = hyperparams['hl_queue'] if self.task == 'primitive' else hyperparams['ll_queue']
+        self.batch_size = hyperparams['batch_size']
+        normalize = self.task != 'primitive'
+        self.data_gen = DataLoader(hyperparams, self.task, self.in_queue, self.batch_size, normalize, min_buffer=self.min_buffer)
+      
+        hyperparams['dPrim'] = len(hyperparams['prim_bounds'])
+        dO = hyperparams['dPrimObs'] if self.task == 'primitive' else hyperparams['dO']
+        dU = hyperparams['prim_bounds'][-1][-1] if self.task == 'primitive' else hyperparams['dU']
+        dP = hyperparams['dPrim'] if self.task == 'primitive' else hyperparams['dU']
+        precShape = tf.TensorShape([None, dP]) if self.task == 'primitive' else tf.TensorShape([None, dP, dP])
+        data = tf.data.Dataset.from_tensor_slices([0, 1, 2])
+        self.load_f = lambda x: tf.data.Dataset.from_generator(self.data_gen.gen_load, \
+                                                         output_types=tf.int32, \
+                                                         args=())
+        data = data.interleave(self.load_f, \
+                                 cycle_length=3, \
+                                 block_length=1)
+        self.gen_f = lambda x: tf.data.Dataset.from_generator(self.data_gen.gen_items, \
+                                                         output_types=(tf.float32, tf.float32, tf.float32), \
+                                                         output_shapes=(tf.TensorShape([None, dO]), tf.TensorShape([None, dU]), precShape),
+                                                         args=(x,))
+        self.data = data.interleave(self.gen_f, \
+                                     cycle_length=3, \
+                                     block_length=1)
+        self.input, self.act, self.prc = self.data.make_one_shot_iterator().get_next()
+
         self.policy_opt = hyperparams['policy_opt']['type'](
             hyperparams['policy_opt'],
             hyperparams['dO'],
             hyperparams['dU'],
             hyperparams['dPrimObs'],
             hyperparams['dValObs'],
-            hyperparams['prim_bounds']
+            hyperparams['prim_bounds'],
+            (self.input, self.act, self.prc),
         )
         self.policy_opt.lr_policy = hyperparams['lr_policy']
-        # self.policy_opt = policy_opt
-        # self.policy_opt.hyperparams['scope'] = task
-        self.stopped = False
-        self.warmup = hyperparams['tf_warmup_iters']
-        self.queues = hyperparams['queues']
-        self.in_queue = hyperparams['hl_queue'] if self.task == 'primitive' else hyperparams['ll_queue']
+        self.data_gen.x_idx = self.policy_opt.x_idx if self.task != 'primitive' else self.policy_opt.prim_x_idx
+        self.data_gen.policy = self.policy_opt.get_policy(self.task)
+
         self.policy_opt_log = LOG_DIR + hyperparams['weight_dir'] + '/policy_{0}_log.txt'.format(self.task)
         self.policy_info_log = LOG_DIR + hyperparams['weight_dir'] + '/policy_{0}_info.txt'.format(self.task)
         self.data_file = LOG_DIR + hyperparams['weight_dir'] + '/{0}_data.pkl'.format(self.task)
@@ -56,6 +84,7 @@ class PolicyServer(object):
         self.update_queue = []
         self.policy_var = {}
         self.policy_loss = []
+        self.val_losses = {'all': [], 'optimal':[], 'rollout':[]}
         self.policy_component_loss = []
         self.log_infos = []
         with open(self.policy_opt_log, 'w+') as f:
@@ -63,149 +92,39 @@ class PolicyServer(object):
 
 
     def run(self):
+        self.iters = 0
         while not self.stopped:
-            self.parse_data()
-            self.parse_update_queue()
-            self.update_network()
-            #if time.time() - self.start_t > self.config['time_limit']:
-            #    break
-        self.policy_opt.sess.close()
+            self.iters += 1
+            self.policy_opt.update(self.task)
+            print('Ran update', self.task)
+            self.n_updates += 1
+            mu, obs, prc = self.data_gen.get_batch(val=True)
+            if len(mu): self.val_losses['all'].append(self.policy_opt.check_validation(mu, obs, prc))
 
-
-    def end(self, msg):
-        print('SHUTTING DOWN')
-        self.stopped = True
-        # rospy.signal_shutdown('Received notice to terminate.')
-
-
-    def parse_data(self):
-        q = self.in_queue
-        i = 0
-        retrieved = False
-        msgs = []
-        while i < q._maxsize and not q.empty():
-            i += 1
-            try:
-                msg = q.get_nowait()
-                msgs.append(msg)
-                retrieved = True
-            except queue.Empty:
-                break
-
-        if not retrieved:
-            try:
-                msg = q.get(block=True, timeout=0.1)
-                msgs.append(msg)
-                retrieved = True
-            except queue.Empty:
-                pass
-
-        for msg in msgs:
-            self.update(msg)
-
-
-    def update(self, msg):
-        mu = np.array(msg.mu)
-        mu_dims = (msg.n, msg.rollout_len, msg.dU)
-        mu = mu.reshape(mu_dims)
-
-        obs = np.array(msg.obs)
-        if msg.task == "value":
-            obs_dims = (msg.n, msg.rollout_len, msg.dValObs)
-        elif msg.task == "primitive":
-            obs_dims = (msg.n, msg.rollout_len, msg.dPrimObs)
-        else:
-            obs_dims = (msg.n, msg.rollout_len, msg.dO)
-        obs = obs.reshape(obs_dims)
-
-        prc = np.array(msg.prc)
-        if msg.task == "primitive":
-            prc_dims = (msg.n, msg.dOpts) # Use prc as the masking
-        elif msg.task == "switch" or msg.task == "value":
-            prc_dims = (msg.n, 1)
-        else:
-            prc_dims = (msg.n, msg.rollout_len, msg.dU, msg.dU)
-        prc = prc.reshape(prc_dims)
-
-        wt_dims = (msg.n, msg.rollout_len, 1) if msg.rollout_len > 1 else (msg.n,1)
-        wt = np.array(msg.wt).reshape(wt_dims)
-        aux = msg.aux if hasattr(msg, 'aux') and len(msg.aux) else None
-        if msg.task == 'value':
-            act_dims = (msg.n, msg.rollout_len, msg.dAct)
-            acts = np.reshape(msg.acts, act_dims)
-            ref_act_dims = (msg.n, msg.rollout_len, msg.nActs, msg.dAct)
-            ref_acts = np.reshape(msg.ref_acts, ref_act_dims)
-            done = np.reshape(msg.terminal, (msg.n,1))
-            self.update_queue.append((obs, mu, prc, wt, msg.task, aux, acts, ref_acts, done))
-        else:
-            self.update_queue.append((obs, mu, prc, wt, msg.task, aux))
-        self.update_queue = self.update_queue[-MAX_QUEUE_SIZE:]
-
-
-    def parse_update_queue(self):
-        queue_len = len(self.update_queue)
-        for i in range(queue_len):
-            if self.task == 'value':
-                obs, mu, prc, wt, task_name, aux, acts, ref_acts, done = self.update_queue.pop()
-            else:
-                obs, mu, prc, wt, task_name, aux = self.update_queue.pop()
-            start_time = time.time()
-            self.n_data.append(self.policy_opt.N)
-            if self.task == 'value':
-                update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)), acts=acts, ref_acts=ref_acts, done=done, aux=aux)
-            else:
-                update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)), val_ratio=0.1, aux=aux)
-                #if self.config.get('save_expert', False):
-                #    self.update_expert_demos(obs, mu)
-            end_time = time.time()
-
-
-    def update_network(self, n_updates=5):
-        for _ in range(n_updates):
-            start_t = time.time()
-            aug_f = None
-            niters = self.config['policy_opt']['buffer_sizes']['n_plans'].value
-            if self.task == 'primitive' and self.permute and niters > self.warmup:
-                aug_f = self.agent.permute_hl_data
-                #print('Time to aug:', time.time() - start_t)
-            update = self.policy_opt.run_update([self.task], aug_f=aug_f)
-            #print('Time to update:', time.time() - start_t)
-        # print('Weights updated:', update, self.task)
-        if update:
-            self.n_updates += n_updates
+            for lab in ['optimal', 'rollout']:
+                mu, obs, prc = self.data_gen.get_batch(label=lab, val=True)
+                if len(mu): self.val_losses[lab].append(self.policy_opt.check_validation(mu, obs, prc))
             self.policy_opt.write_shared_weights([self.task])
-            self.update_t = time.time()
-            # print(('Updated weights for {0}'.format(self.task)))
 
-            incr = 10
-            if len(self.policy_opt.average_losses) and len(self.policy_opt.average_val_losses):
-                losses = (self.policy_opt.average_losses[-1], self.policy_opt.average_val_losses[-1])
-                self.policy_loss.append((np.sum(losses[0]), np.sum(losses[1])))
-                self.policy_component_loss.append(losses)
-
-                for net in self.policy_opt.mu:
-                    if net not in self.policy_var:
-                        self.policy_var[net] = []
-                    data = np.concatenate(list(self.policy_opt.mu[net].values()), axis=0)
-                    self.policy_var[net].append(np.var(data))
-
+            if not self.iters % 10 and len(self.val_losses['all']):
                 with open(self.policy_opt_log, 'w+') as f:
                     info = self.get_log_info()
                     pp_info = pprint.pformat(info, depth=60)
                     f.write(str(pp_info))
-            # if not self.n_updates % 20:
-            #     with open(self.data_file, 'w+') as f:
-            #         pickle.dump(self.policy_opt.get_data(), f)
+        self.policy_opt.sess.close()
 
 
     def get_log_info(self):
+        test_acc, train_acc = -1, -1
+        if self.task == 'primitive':
+            test_acc = self.policy_opt.task_acc(val=True)
+            train_acc = self.policy_opt.task_acc()
         info = {
                 'time': time.time() - self.start_t,
-                'var': {net: self.policy_var[net][-1] for net in self.policy_var},
-                'train_loss': self.policy_loss[-1][0],
-                'train_component_loss': self.policy_component_loss[-1][0],
-                'val_loss': self.policy_loss[-1][1],
-                'val_component_loss': self.policy_component_loss[-1][1],
+                'train_loss': np.mean(self.policy_opt.average_losses[-10:]),
+                'train_component_loss': np.mean(self.policy_opt.average_losses[-10:], axis=0),
+                'val_loss': np.mean(self.val_losses['all'][-10:]),
+                'val_component_loss': np.mean(self.val_losses['all'][-10:], axis=0),
                 'scope': self.task,
                 'n_updates': self.n_updates,
                 'n_data': self.policy_opt.N,
@@ -216,67 +135,17 @@ class PolicyServer(object):
                 'n_explore': self.policy_opt.buf_sizes['n_explore'].value,
                 'n_rollout': self.policy_opt.buf_sizes['n_rollout'].value,
                 }
+        if len(self.val_losses['rollout']):
+            info['rollout_val_loss'] = np.mean(self.val_losses['rollout'][-10:]),
+            info['rollout_val_component_loss'] = np.mean(self.val_losses['rollout'][-10:], axis=0),
+        if len(self.val_losses['optimal']):
+            info['optimal_val_loss'] = np.mean(self.val_losses['optimal'][-10:]),
+            info['optimal_val_component_loss'] = np.mean(self.val_losses['optimal'][-10:], axis=0),
+        if test_acc >= 0:
+            info['test_accuracy'] = test_acc
+            info['train_accuracy'] = train_acc
         self.log_infos.append(info)
         return self.log_infos
-
-
-    def prob(self, req):
-        obs = np.array([req.obs[i].data for i in range(len(req.obs))])
-        mu_out, sigma_out, _, _ = self.policy_opt.prob(np.array([obs]), task)
-        mu, sigma = [], []
-        for i in range(len(mu_out[0])):
-            next_line = Float32MultiArray()
-            next_line.data = mu[0, i]
-            mu.append(next_line)
-
-            next_line = Float32MultiArray()
-            next_line.data = np.diag(sigma[0, i])
-
-        return PolicyProbResponse(mu, sigma)
-
-
-    def act(self, req):
-        # Assume time invariant policy
-        obs = np.array(req.obs)
-        noise = np.array(req.noise)
-        policy = self.policy_opt.task_map[self.task]['policy']
-        if policy.scale is None:
-            policy.scale = 0.01
-            policy.bias = 0
-            act = policy.act([], obs, 0, noise)
-            policy.scale = None
-            policy.bias = None
-        else:
-            act = policy.act([], obs, 0, noise)
-        return PolicyActResponse(act)
-
-
-    def get_prim_update(self, samples):
-        dP, dO = self.agent.dPrimOut, self.agent.dPrim
-        ### Compute target mean, cov, and weight for each sample.
-        obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
-        tgt_prc, tgt_wt = np.zeros((0, dP, dP)), np.zeros((0, 1))
-        for sample in samples:
-            mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
-            tgt_mu = np.concatenate((tgt_mu, mu))
-            wt = np.ones((sample.T,1)) # np.array([self.prim_decay**t for t in range(sample.T)])
-            wt[0] *= 1. # self.prim_first_wt
-            tgt_wt = np.concatenate((tgt_wt, wt))
-            obs = sample.get_prim_obs()
-            obs_data = np.concatenate((obs_data, obs))
-            prc = np.tile(np.eye(dP), (sample.T,1,1))
-            tgt_prc = np.concatenate((tgt_prc, prc))
-            if False: # self.add_negative:
-                mu = self.find_negative_ex(sample)
-                tgt_mu = np.concatenate((tgt_mu, mu))
-                wt = -np.ones((sample.T,))
-                tgt_wt = np.concatenate((tgt_wt, wt))
-                obs = sample.get_prim_obs()
-                obs_data = np.concatenate((obs_data, obs))
-                prc = np.tile(np.eye(dP), (sample.T,1,1))
-                tgt_prc = np.concatenate((tgt_prc, prc))
-
-        return obs_data, tgt_mu, tgt_prc, tgt_wt
 
 
     def update_expert_demos(self, obs, acs, rew=None):

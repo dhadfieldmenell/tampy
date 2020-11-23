@@ -1,0 +1,159 @@
+import numpy as np
+import queue
+import time
+
+
+MAX_BUFFER = 10**5
+
+class DataLoader(object):
+    def __init__(self, config, task, in_queue, batch_size, normalize=False, policy=None, x_idx=None, aug_f=None, min_buffer=10**3):
+        self.config = config
+        self.in_queue = in_queue
+        self.task = task
+        self.min_buffer = min_buffer
+        self.label_ratio = None
+        self.normalize = normalize
+        self.x_idx = x_idx
+        self.batch_size = batch_size
+        self.policy = policy
+        self.aug_f = aug_f
+
+        self.scale, self.bias = None, None
+        self.items = {}
+        self.val_items = {}
+
+
+    def pop_queue(self):
+        try:
+            data = self.in_queue.get_nowait()
+        except queue.Empty:
+            data = None
+
+        return data 
+
+
+    def load_data(self, val_ratio=0.1):
+        data = self.pop_queue()
+        if data is None: return 0
+
+        start_t = time.time()
+        dct = self.items if np.random.uniform() > val_ratio else self.val_items
+        label = data[-1]
+        if label not in dct: dct[label] = []
+        obs, mu, prc, wt, aux, task, label = data
+        for i in range(len(obs)):
+            if len(aux):
+                dct[label].append((obs[i], mu[i], prc[i], wt[i], aux[i], task, label))
+            else:
+                dct[label].append((obs[i], mu[i], prc[i], wt[i], [], task, label))
+        if len(dct[label]) > MAX_BUFFER: dct[label] = dct[label][-MAX_BUFFER:]
+        #print('Time to load:', time.time() - start_t, label, self.task)
+        return 1
+
+
+    def get_batch(self, size=None, label=None, val=False):
+        if size is None: size = self.batch_size
+        start_t = time.time()
+        dct = self.val_items if val else self.items
+        if label is not None and label not in dct: return [], [], []
+
+        labels = list(dct.keys())  if label is None else [label]
+        if sum([len(dct[lab]) for lab in labels]) < size: return [], [], []
+
+        n_per = size // len(labels) + 1
+        obs, mu, prc, wt = [], [], [], []
+        aux = []
+        used = []
+        n = 0
+        true_n = 0
+        while n < size:
+            n += 1
+            true_n += 1
+            lab = np.random.choice(list(self.items.keys()))
+            if not len(dct[lab]):
+                n -= 1
+                continue
+            ind = np.random.randint(len(dct[lab]))
+            if (lab, ind) in used:
+                n -= 1
+                continue
+            used.append((lab,ind))
+            obs.append(dct[lab][ind][0])
+            mu.append(dct[lab][ind][1])
+            prc.append(dct[lab][ind][2])
+            wt.append(dct[lab][ind][3])
+            aux.append(dct[lab][ind][4])
+        obs = np.array(obs)
+        mu = np.array(mu)
+        prc = np.array(prc)
+        wt = np.array(wt)
+        if len(prc.shape) > 2:
+            wt = wt.reshape((-1,1,1))
+        else:
+            wt = wt.reshape((-1,1))
+        aux = np.array(aux)
+        if self.aug_f is not None:
+            mu, obs, wt, prc = aug_f(mu, obs, wt, prc, aux)
+        prc = wt * prc
+        if self.scale is None: self.set_scale()
+        if self.normalize:
+            obs[:, self.x_idx] = obs[:, self.x_idx].dot(self.scale) + self.bias
+        #print('Time to get batch:', time.time() - start_t, self.task, obs.shape)
+        return obs, mu, prc
+
+
+    def gen_items(self, label=None, val=False):
+        while True:
+            #print('Waiting for batch to train on', self.task)
+            while self.wait_for_data():
+                time.sleep(0.01)
+            
+            #print('Sending batch to train on', self.task)
+            yield self.get_batch()
+
+
+    def set_scale(self):
+        obs = []
+        for label in self.items:
+            for item in self.items[label]:
+                obs.append(item[0])
+        obs = np.array(obs)
+
+        if not self.normalize:
+            self.scale = np.eye(len(self.x_idx))
+            self.bias = np.zeros(len(self.x_idx))
+        else:
+            self.scale = np.diag(1.0 / np.maximum(np.std(obs[:, self.x_idx], axis=0), 1e-1))
+            self.bias = -np.mean(obs[:, self.x_idx].dot(self.scale), axis=0)
+        self.policy.scale = self.scale
+        self.policy.bias = self.bias
+        return self.scale, self.bias
+
+
+    def gen_load(self):
+        while True:
+            yield self.load_data()
+
+
+    def wait_for_data(self):
+        data = list(self.items.values())
+        data_len = sum([len(d) for d in data]) if len(data) else 0
+        if data_len < self.min_buffer:
+            self.load_data()
+        return data_len < self.min_buffer
+
+    
+    def set_labels(self, labels):
+        for lab in labels:
+            if lab not in self.items:
+                self.items[lab] = []
+                self.val_items[lab] = []
+
+    
+    def get_labels(self):
+        return list(self.items.keys())
+
+
+    def count_labels(self):
+        return {key: len(data) for key, data in self.items.items()}
+

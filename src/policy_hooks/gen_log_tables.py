@@ -798,12 +798,14 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
 
 include=['refactor']
 exclude=['oldprob']
+gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=['refactor'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='losseslossesspreadtargs', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
 gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=['refactor'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='preadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
 gen_data_plots(xvar='time', yvar=['success with postcond', 'subgoals anywhere'], keywords=['refactor'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='postcollisionspreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0,1), (0,1)])
 gen_data_plots(xvar='time', yvar=['number of plans'], keywords=['refactor'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='ratepostcollisionspreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300)
 gen_data_plots(xvar='time', yvar=['collision'], keywords=['refactor'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='3objcollisionspreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
 gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['refactor'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='3objcompnewplansagainrolling', exclude=exclude, split_runs=False, include=include, inter=5, window=500, ylim=[(0.,1.), (0.,1.), (0, 1.)])
 gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=['refactor'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='3objlossesspreadtargs', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
+gen_data_plots(xvar='time', yvar=[['train_accuracy', 'test_accuracy']], keywords=['refactor'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='3objlossesspreadtargs', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
 
 
 

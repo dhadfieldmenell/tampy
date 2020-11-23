@@ -27,6 +27,7 @@ class MotionServer(Server):
         super(MotionServer, self).__init__(hyperparams)
         self.in_queue = self.motion_queue
         self.out_queue = self.task_queue
+        self.label_type = 'optimal'
 
 
     def refine_plan(self):
@@ -54,8 +55,11 @@ class MotionServer(Server):
         success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=True)
         if success:
             path = self.agent.run_plan(plan, node.targets)
+            #s = np.random.randint(len(path))
+            #t = np.random.randint(path[s].T)
+            #self.save_image(path[s], ts=t, render=False)
             self.log_path(path, 10)
-            for step in path: step.source_label = 'n_plans'
+            for step in path: step.source_label = 'optimal'
             print(self.id, 'Successful refine.', path[-1].success)
         if not success and node.gen_child():
             fail_step, fail_pred, fail_negated = node.get_failed_pred()
@@ -85,7 +89,7 @@ class MotionServer(Server):
             self.refine_plan()
             for task in self.alg_map:
                 data = self.agent.get_opt_samples(task, clear=True)
-                if len(data): self.alg_map[task]._update_policy_no_cost(data)
+                if len(data): self.alg_map[task]._update_policy_no_cost(data, label='optimal')
             self.run_hl_update()
             step += 1
         self.policy_opt.sess.close()
