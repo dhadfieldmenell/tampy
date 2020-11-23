@@ -17,6 +17,7 @@ class DataLoader(object):
         self.batch_size = batch_size
         self.policy = policy
         self.aug_f = aug_f
+        self.load_freq = 10
 
         self.scale, self.bias = None, None
         self.items = {}
@@ -109,12 +110,13 @@ class DataLoader(object):
 
 
     def gen_items(self, label=None, val=False):
-        #print('Waiting for batch to train on', self.task)
-        while self.wait_for_data():
-            time.sleep(0.01)
-        
-        #print('Sending batch to train on', self.task)
-        yield self.get_batch()
+        for _ in range(self.load_freq):
+            #print('Waiting for batch to train on', self.task)
+            while self.wait_for_data():
+                time.sleep(0.01)
+            
+            #print('Sending batch to train on', self.task)
+            yield self.get_batch()
 
 
     def set_scale(self):
