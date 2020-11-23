@@ -103,13 +103,12 @@ class DataLoader(object):
 
 
     def gen_items(self, label=None, val=False):
-        while True:
-            #print('Waiting for batch to train on', self.task)
-            while self.wait_for_data():
-                time.sleep(0.01)
-            
-            #print('Sending batch to train on', self.task)
-            yield self.get_batch()
+        #print('Waiting for batch to train on', self.task)
+        while self.wait_for_data():
+            time.sleep(0.01)
+        
+        #print('Sending batch to train on', self.task)
+        yield self.get_batch()
 
 
     def set_scale(self):

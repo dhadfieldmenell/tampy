@@ -119,9 +119,9 @@ class PolicyServer(object):
 
     def get_log_info(self):
         test_acc, train_acc = -1, -1
-        if self.task == 'primitive':
-            test_acc = self.policy_opt.task_acc(val=True)
-            train_acc = self.policy_opt.task_acc()
+        #if self.task == 'primitive':
+        #    test_acc = self.policy_opt.task_acc(val=True)
+        #    train_acc = self.policy_opt.task_acc()
         info = {
                 'time': time.time() - self.start_t,
                 'train_loss': np.mean(self.policy_opt.average_losses[-10:]),
