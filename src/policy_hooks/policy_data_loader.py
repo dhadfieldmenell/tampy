@@ -24,29 +24,35 @@ class DataLoader(object):
 
 
     def pop_queue(self):
-        try:
-            data = self.in_queue.get_nowait()
-        except queue.Empty:
-            data = None
+        items = []
+        n = self.in_queue.qsize()
+        for _ in range(n):
+            try:
+                data = self.in_queue.get_nowait()
+                items.append(data)
+            except queue.Empty:
+                break
 
-        return data 
+        return items
 
 
     def load_data(self, val_ratio=0.1):
-        data = self.pop_queue()
-        if data is None: return 0
+        items = self.pop_queue()
+        if not len(items): return 0
 
         start_t = time.time()
-        dct = self.items if np.random.uniform() > val_ratio else self.val_items
-        label = data[-1]
-        if label not in dct: dct[label] = []
-        obs, mu, prc, wt, aux, task, label = data
-        for i in range(len(obs)):
-            if len(aux):
-                dct[label].append((obs[i], mu[i], prc[i], wt[i], aux[i], task, label))
-            else:
-                dct[label].append((obs[i], mu[i], prc[i], wt[i], [], task, label))
-        if len(dct[label]) > MAX_BUFFER: dct[label] = dct[label][-MAX_BUFFER:]
+        for data in items:
+            start_t = time.time()
+            dct = self.items if np.random.uniform() > val_ratio else self.val_items
+            label = data[-1]
+            if label not in dct: dct[label] = []
+            obs, mu, prc, wt, aux, task, label = data
+            for i in range(len(obs)):
+                if len(aux):
+                    dct[label].append((obs[i], mu[i], prc[i], wt[i], aux[i], task, label))
+                else:
+                    dct[label].append((obs[i], mu[i], prc[i], wt[i], [], task, label))
+            if len(dct[label]) > MAX_BUFFER: dct[label] = dct[label][-MAX_BUFFER:]
         #print('Time to load:', time.time() - start_t, label, self.task)
         return 1
 
