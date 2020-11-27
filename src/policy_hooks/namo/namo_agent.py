@@ -1519,7 +1519,7 @@ class NAMOSortingAgent(TAMPAgent):
 
 
     def permute_hl_data(self, hl_mu, hl_obs, hl_wt, hl_prc, aux):
-        print('-> Permuting data')
+        #print('-> Permuting data')
         assert len(hl_mu) == len(hl_obs)
         start_t = time.time()
         idx = self._prim_out_data_idx[OBJ_ENUM]
@@ -1547,7 +1547,7 @@ class NAMOSortingAgent(TAMPAgent):
         hl_mu = hl_mu[inds]
         hl_obs = hl_obs[inds]
 
-        old_goals = hl_obs[:,:,goal_idx]
+        old_goals = hl_obs[:,goal_idx]
         ng = len(goal_idx) // no
         order = np.random.permutation(range(no))
         rev_order = [order.tolist().index(n) for n in range(no)]
@@ -1556,24 +1556,24 @@ class NAMOSortingAgent(TAMPAgent):
             order = np.random.permutation(range(no))
             rev_order = [order.tolist().index(n) for n in range(no)]
             cur_inds = np.array([self.state_inds['can{0}'.format(n), 'pose'] for n in range(no)])
-            new_mu[t:t+nperm][:,:, a:b] = hl_mu[t:t+nperm][:,:,a:b][:,:,order]
+            new_mu[t:t+nperm][:,a:b] = hl_mu[t:t+nperm][:,a:b][:,order]
             if xhist_idx is not None:
-                hist = hl_obs[t:t+nperm][:,:,xhist_idx].reshape((-1,self.hist_len,self.dX))
+                hist = hl_obs[t:t+nperm][:,xhist_idx].reshape((-1,self.hist_len,self.dX))
                 new_hist = hist.copy()
-                new_hist[:, :, np.r_[cur_inds]] = new_hist[:, :, np.r_[cur_inds[order]]]
-                new_obs[t:t+nperm][:,:,xhist_idx] = new_hist.reshape((-1, 1, self.hist_len*self.dX))
+                new_hist[:, np.r_[cur_inds]] = new_hist[:, np.r_[cur_inds[order]]]
+                new_obs[t:t+nperm][:,xhist_idx] = new_hist.reshape((-1, 1, self.hist_len*self.dX))
             for n in range(no):
-                if obs_idx is not None: new_obs[t:t+nperm][:,:, obs_idx[rev_order[n]]] = hl_obs[t:t+nperm][:, :, obs_idx[n]]
-                if obs_idx2 is not None: new_obs[t:t+nperm][:,:, obs_idx2[rev_order[n]]] = hl_obs[t:t+nperm][:, :, obs_idx2[n]]
-                if targ_idx is not None: new_obs[t:t+nperm][:,:, targ_idx[rev_order[n]]] = hl_obs[t:t+nperm][:, :, targ_idx[n]]
-            new_obs[t:t+nperm][:, :, goal_idx] = np.concatenate([old_goals[t:t+nperm][:, :, order[n]*ng:(order[n]+1)*ng] for n in range(no)], axis=-1)
+                if obs_idx is not None: new_obs[t:t+nperm][:,obs_idx[rev_order[n]]] = hl_obs[t:t+nperm][:,obs_idx[n]]
+                if obs_idx2 is not None: new_obs[t:t+nperm][:,obs_idx2[rev_order[n]]] = hl_obs[t:t+nperm][:,obs_idx2[n]]
+                if targ_idx is not None: new_obs[t:t+nperm][:,targ_idx[rev_order[n]]] = hl_obs[t:t+nperm][:,targ_idx[n]]
+            new_obs[t:t+nperm][:, goal_idx] = np.concatenate([old_goals[t:t+nperm][:,order[n]*ng:(order[n]+1)*ng] for n in range(no)], axis=-1)
             if hist_idx is not None:
-                hist = hl_obs[t:t+nperm][:,:,hist_idx].reshape((-1,self.task_hist_len,self.dPrimOut))
+                hist = hl_obs[t:t+nperm][:,hist_idx].reshape((-1,self.task_hist_len,self.dPrimOut))
                 new_hist = hist.copy()
-                new_hist[:,:,a:b] = hist[:,:,a:b][:, :, order]
-                new_obs[t:t+nperm][:, :, hist_idx] = new_hist.reshape((-1, 1, self.dPrimOut*self.task_hist_len))
+                new_hist[:,a:b] = hist[:,a:b][:, order]
+                new_obs[t:t+nperm][:, hist_idx] = new_hist.reshape((-1, 1, self.dPrimOut*self.task_hist_len))
 
-        #print('Permuted with order', order, [hl_obs[-1,-1][obs_idx2[n]] for n in range(no)], [new_obs[-1,-1][obs_idx2[n]] for n in range(no)], hl_mu[-1,-1,a:b], new_mu[-1,-1,a:b])
+        #print('Permuted with order', order, [hl_obs[-1][obs_idx2[n]] for n in range(no)], [new_obs[-1][obs_idx2[n]] for n in range(no)], hl_mu[-1, a:b], new_mu[-1, a:b])
         #print(hl_obs[-1,-1][xhist_idx].reshape((self.hist_len, -1)))
         #print(new_obs[-1,-1][xhist_idx].reshape((self.hist_len, -1)))
         #print(hl_obs[-1,-1][goal_idx])
