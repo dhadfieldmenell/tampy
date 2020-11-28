@@ -132,6 +132,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.lr_scale = 0.9975
         self.lr_policy = 'fixed'
         self._hyperparams['iterations'] = MAX_UPDATE_SIZE // self.batch_size + 1
+        print('Iterations set to', self._hyperparams['iterations'])
 
 
     def restore_ckpts(self, label=None):
@@ -391,35 +392,23 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                                         self.device_string,
                                                         copy_param_scope=None)
     
-    def task_acc(self, val=False, piecewise=False, n=100):
+    def task_acc(self, obs, tgt_mu, prc, piecewise=False):
         acc = 0
         task = 'primitive'
-        if val :
-            dct1, dct2 = self.val_obs, self.val_mu
-            dct3 = self.val_prc
-        else:
-            dct1, dct2 = self.obs, self.mu
-            dct3 = self.prc
-        if task not in dct1 or not len(dct1[task][task]): return
-        for _ in range(n):
-            ind = np.random.randint(len(dct1[task][task]))
-            obs = np.array(dct1[task][task][ind])
-            mu = np.array(dct2[task][task][ind]).flatten()
-            prc = np.array(dct3[task][task][ind]).flatten()
-            distrs = self.task_distr(obs)
-            assert len(prc) == len(distrs)
+        for n in range(len(obs)):
+            distrs = self.task_distr(obs[n])
             labels = []
             for bound in self._primBounds:
-                labels.append(mu[bound[0]:bound[1]])
+                labels.append(tgt_mu[:, bound[0]:bound[1]])
             accs = []
             for i in range(len(distrs)):
-                if prc[i] < 1e-3: accs.append(1)
-                if np.argmax(distrs[i]) != np.argmax(labels[i]):
+                if prc[n][i] < 1e-3: accs.append(1)
+                if np.argmax(distrs[i]) != np.argmax(labels[i][n]):
                     accs.append(0)
                 else:
                     accs.append(1)
             acc += np.mean(accs) if piecewise else np.min(accs)
-        return acc / float(n)
+        return acc / float(len(obs))
 
 
     def task_distr(self, obs, eta=1.):
@@ -464,6 +453,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
     def update(self, task="control", check_val=False, aux=[]):
         average_loss = 0
         for i in range(self._hyperparams['iterations']):
+            start_t = time.time()
             feed_dict = {self.hllr_tensor: self.cur_hllr} if task == 'primitive' else {self.lr_tensor: self.cur_lr}
             solver = self.primitive_solver if task == 'primitive' else self.task_map[task]['solver']
             train_loss = solver(feed_dict, self.sess, device_string=self.device_string, train=(not check_val))

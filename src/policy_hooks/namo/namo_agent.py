@@ -110,7 +110,7 @@ class NAMOSortingAgent(TAMPAgent):
             'obs_include': ['overhead_camera'],
             'include_files': [],
             'include_items': [
-                {'name': 'pr2', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.4, 1.), 'rgba': (1, 1, 1, 1)},
+                {'name': 'pr2', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.4, 1.), 'rgba': (0, 0, 0, 1)},
             ],
             'view': False,
             'image_dimensions': (hyperparams['image_width'], hyperparams['image_height'])
@@ -916,6 +916,7 @@ class NAMOSortingAgent(TAMPAgent):
                IM_ENUM in self._hyperparams['prim_obs_include']:
                 self.reset_mjc_env(sample.get_X(t=t), targets, draw_targets=True)
                 im = self.mjc_env.render(height=self.image_height, width=self.image_width)
+                im = (im - 128.) / 128.
                 sample.set(IM_ENUM, im.flatten(), t)
 
 

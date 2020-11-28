@@ -369,11 +369,16 @@ class CollisionPredicate(ExprPredicate):
 
     def _plot_collision(self, ptA, ptB, distance):
         self.handles = []
-        if not np.allclose(ptA, ptB, atol=1e-3):
-            if distance < 0:
-                self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01, color=(1, 0, 0)))
-            else:
-                self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01, color=(0, 0, 0)))
+        if USE_OPENRAVE:
+            if not np.allclose(ptA, ptB, atol=1e-3):
+                if distance < 0:
+                    self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01, color=(1, 0, 0)))
+                else:
+                    self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01, color=(0, 0, 0)))
+        else:
+            if not np.allclose(ptA, ptB, atol=1e-3):
+                rgb = (1, 0, 0) if distance < 0 else (0, 1, 0)
+            self.handles.append(P.addUserDebugLine(ptA, ptB, rgb, 0.01))
 
 
 class HLGraspFailed(ExprPredicate):

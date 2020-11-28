@@ -38,6 +38,8 @@ class PolicyServer(object):
         self.batch_size = hyperparams['batch_size']
         normalize = self.task != 'primitive'
         self.data_gen = DataLoader(hyperparams, self.task, self.in_queue, self.batch_size, normalize, min_buffer=self.min_buffer)
+        aug_f = self.agent.permute_hl_data if self.task == 'primitive' else None
+        self.data_gen = DataLoader(hyperparams, self.task, self.in_queue, self.batch_size, normalize, min_buffer=self.min_buffer, aug_f=aug_f)
       
         hyperparams['dPrim'] = len(hyperparams['prim_bounds'])
         dO = hyperparams['dPrimObs'] if self.task == 'primitive' else hyperparams['dO']
@@ -58,6 +60,7 @@ class PolicyServer(object):
         self.data = data.interleave(self.gen_f, \
                                      cycle_length=3, \
                                      block_length=1)
+        self.data = self.data.prefetch(3)
         self.input, self.act, self.prc = self.data.make_one_shot_iterator().get_next()
 
         self.policy_opt = hyperparams['policy_opt']['type'](
@@ -119,9 +122,11 @@ class PolicyServer(object):
 
     def get_log_info(self):
         test_acc, train_acc = -1, -1
-        #if self.task == 'primitive':
-        #    test_acc = self.policy_opt.task_acc(val=True)
-        #    train_acc = self.policy_opt.task_acc()
+        if self.task == 'primitive':
+            obs, mu, prc = self.data_gen.get_batch()
+            train_acc = self.policy_opt.task_acc(obs, mu, prc)
+            obs, mu, prc = self.data_gen.get_batch(val=True)
+            test_acc = self.policy_opt.task_acc(obs, mu, prc)
         info = {
                 'time': time.time() - self.start_t,
                 'train_loss': np.mean(self.policy_opt.average_losses[-10:]),

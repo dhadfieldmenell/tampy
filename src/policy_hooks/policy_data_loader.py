@@ -54,7 +54,7 @@ class DataLoader(object):
                 else:
                     dct[label].append((obs[i], mu[i], prc[i], wt[i], [], task, label))
             if len(dct[label]) > MAX_BUFFER: dct[label] = dct[label][-MAX_BUFFER:]
-        #print('Time to load:', time.time() - start_t, label, self.task)
+
         return 1
 
 
@@ -62,11 +62,13 @@ class DataLoader(object):
         if size is None: size = self.batch_size
         start_t = time.time()
         dct = self.val_items if val else self.items
+        
         if label is not None and label not in dct: return [], [], []
-
         labels = list(dct.keys()) if label is None else [label]
-        if sum([len(dct[lab]) for lab in labels]) < size: return [], [], []
-
+        data_len = sum([len(dct[lab]) for lab in labels])
+        if data_len < size: return [], [], []
+        
+        p = [len(dct[lab])/data_len for lab in labels]
         n_per = size // len(labels) + 1
         obs, mu, prc, wt = [], [], [], []
         aux = []
@@ -76,7 +78,7 @@ class DataLoader(object):
         while n < size:
             n += 1
             true_n += 1
-            lab = np.random.choice(list(self.items.keys()))
+            lab = np.random.choice(labels, p=p)
             if not len(dct[lab]):
                 n -= 1
                 continue
@@ -100,12 +102,11 @@ class DataLoader(object):
             wt = wt.reshape((-1,1))
         aux = np.array(aux)
         if self.aug_f is not None:
-            mu, obs, wt, prc = aug_f(mu, obs, wt, prc, aux)
+            mu, obs, wt, prc = self.aug_f(mu, obs, wt, prc, aux)
         prc = wt * prc
         if self.scale is None: self.set_scale()
         if self.normalize:
             obs[:, self.x_idx] = obs[:, self.x_idx].dot(self.scale) + self.bias
-        #print('Time to get batch:', time.time() - start_t, self.task, obs.shape)
         return obs, mu, prc
 
 

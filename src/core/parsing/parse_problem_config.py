@@ -21,7 +21,7 @@ class ParseProblemConfig(object):
     Validation is performed against the schemas stored in the Domain object self.domain.
     """
     @staticmethod
-    def parse(problem_config, domain, env=None, openrave_bodies={}, reuse_params=None, initial=None, use_tf=False, sess=None):
+    def parse(problem_config, domain, env=None, openrave_bodies={}, reuse_params=None, initial=None, visual=False, use_tf=False, sess=None):
         # create parameter objects
         params = {}
         if env is None:
@@ -32,7 +32,8 @@ class ParseProblemConfig(object):
                     P.disconnect()
                 except:
                     pass
-                env = P.connect(P.DIRECT)
+                server = P.GUI if visual else P.DIRECT
+                env = P.connect(server)
                 P.resetSimulation()
 
         if "Objects" not in problem_config or not problem_config["Objects"]:

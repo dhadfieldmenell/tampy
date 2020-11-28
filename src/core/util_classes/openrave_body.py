@@ -12,7 +12,7 @@ if USE_OPENRAVE:
     IkFilterOptions, matrixFromAxisAngle, quatFromRotationMatrix
 else:
     import pybullet as P
-    import baxter_gym.util_classes.transform_utils as T
+    import core.util_classes.transform_utils as T
 
 from core.util_classes.robots import Robot, PR2, Baxter, Washer, NAMO
 
@@ -56,15 +56,25 @@ class OpenRAVEBody(object):
         # self.set_transparency(0.5)
 
     def delete(self):
-        self._env.Remove(self.env_body)
+        if USE_OPENRAVE:
+            self._env.Remove(self.env_body)
+        else:
+            P.removeCollisionShape(self.body_id)
 
     def isrobot(self):
         return isinstance(self._geom, Robot)
 
     def set_transparency(self, transparency):
-        for link in self.env_body.GetLinks():
-            for geom in link.GetGeometries():
-                geom.SetTransparency(transparency)
+        if USE_OPENRAVE:
+            for link in self.env_body.GetLinks():
+                for geom in link.GetGeometries():
+                    geom.SetTransparency(transparency)
+        else:
+            visual_infos = P.getVisualShapeData(self.body_id)
+            for info in visual_infos:
+                link_index = info[1]
+                link_rgba = info[7]
+                P.changeVisualShape(self.body_id, link_index, link_rgba[:3]+[transparency])
 
     def _add_robot(self, geom):
         if USE_OPENRAVE:
@@ -103,8 +113,8 @@ class OpenRAVEBody(object):
                     [geom.radius, 2], color)
             self._env.AddKinBody(self.env_body)
         else:
-            self.body_id = P.createCollisionShape(shapeType=P.GEOM_CYLINDER, radius=geom.radius, height=2)
-            self.body_id = P.createMultiBody(1, self.body_id)
+            self.col_body_id = P.createCollisionShape(shapeType=P.GEOM_CYLINDER, radius=geom.radius, height=2)
+            self.body_id = P.createMultiBody(1, self.col_body_id)
 
     def _add_can(self, geom):
         color = [1,0,0]
@@ -120,8 +130,8 @@ class OpenRAVEBody(object):
                     [geom.radius, geom.height], color)
             self._env.AddKinBody(self.env_body)
         else:
-            self.body_id = P.createCollisionShape(shapeType=P.GEOM_CYLINDER, radius=geom.radius, height=geom.height)
-            self.body_id = P.createMultiBody(1, self.body_id)
+            self.col_body_id = P.createCollisionShape(shapeType=P.GEOM_CYLINDER, radius=geom.radius, height=geom.height)
+            self.body_id = P.createMultiBody(1, self.col_body_id)
 
     def _add_obstacle(self, geom):
         obstacles = np.matrix('-0.576036866359447, 0.918128654970760, 1;\
