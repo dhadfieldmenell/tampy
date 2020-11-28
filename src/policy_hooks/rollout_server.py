@@ -100,12 +100,16 @@ class RolloutServer(Server):
         counts = [0]
         cur_ids = [0]
         cur_tasks = []
+        precond_viols = []
         def task_f(sample, t, curtask):
             task = self.get_task(sample.get_X(t=t), sample.targets, curtask, self.soft)
-            if task != curtask and self.check_postcond:
-                postcost = self.agent.postcond_cost(sample, curtask, t)
-                if postcost > 1e-3:
-                    task = curtask
+            if task != curtask:
+                if self.check_postcond:
+                    postcost = self.agent.postcond_cost(sample, curtask, t)
+                    if postcost > 1e-3: task = curtask
+                if self.check_precond:
+                    precost = self.agent.precond_cost(sample, task, t)
+                    if precost > 1e-3: precond_viols.append([(cur_ids[0], t)])
             if task == curtask:
                 counts.append(counts[-1]+1)
             else:
@@ -117,7 +121,7 @@ class RolloutServer(Server):
         rlen = 3 * self.agent.num_objs if not self.agent.retime else 6 * self.agent.num_objs
         ts = 100 if self.agent.retime else 50
         t_per_task = 30
-        s_per_task = 3
+        s_per_task = 4 if self.agent.retime else 2
         self.adj_eta = True
         l = list(self.agent.plans.keys())[0]
         l = self.get_task(x, targets, l, self.soft)
@@ -128,10 +132,7 @@ class RolloutServer(Server):
         path = []
         last_switch = 0
         while val < 1 and s < rlen:
-            #if self.check_precond:
-            #    precost = self.agent.cost_f(state, l, 0, active_ts=(0,0), targets=targets)
-            #    if precost > 1e-3:
-            #        break
+            if self.check_precond and len(precond_viols): break
 
             task_name = self.task_list[l[0]]
             pol = self.agent.policies[task_name]
@@ -173,7 +174,8 @@ class RolloutServer(Server):
 
         self.log_path(path, -20)
         #return val, path, max(0, s-last_switch), 0
-        return val, path, switch_pts[-1][0], switch_pts[-1][1]
+        bad_pt = precond_viols[0] if len(precond_viols) else switch_pts[-1]
+        return val, path, bad_pt[0], bad_pt[1]
  
         
     def plan_from_fail(self, augment=False, mode='start'):
@@ -226,7 +228,6 @@ class RolloutServer(Server):
                     (s, t) = len(path)-1, path[-1].T-1
                 else:
                     (s, t) = fail_pt
-                print('FIRST FAILED TASK:', s, t, self.id)
             elif mode == 'switch':
                 cur_task = path[0].get(FACTOREDTASK_ENUM, t=0)
                 s, t = 0, 0
@@ -373,7 +374,7 @@ class RolloutServer(Server):
         if save:
             if all([s.opt_strength == 0 for s in path]): self.hl_data.append(res)
             if val > 1-1e-2:
-                print(('Rollout succeeded in test!'))
+                print('Rollout succeeded in test!', self.id)
             # if self.use_qfunc: self.log_td_error(path)
             np.save(self.hl_test_log.format('', 'rerun_' if ckpt_ind is not None else ''), np.array(self.hl_data))
 
@@ -397,11 +398,10 @@ class RolloutServer(Server):
             print('Saved video. Rollout success was: ', val > 0)
         self.last_hl_test = time.time()
         self.agent.debug = True
-        #if not self.run_hl_test and self.explore_wt > 0:
-        #    if self._hyperparams['hindsight']: self.agent.relabel_goal(path)
-        #    if path[-1].success == 1:
-        #        for s in path: s.source_label = 'n_explore'
-        #        self.agent.add_task_paths([path])
+        if not self.run_hl_test and self.explore_wt > 0:
+            if val > 0.999:
+                for s in path: s.source_label = 'rollout'
+                self.agent.add_task_paths([path])
         # print('TESTED HL')
         return val, path
 
@@ -456,7 +456,8 @@ class RolloutServer(Server):
                 data = self.agent.get_opt_samples(task, clear=True)
                 if len(data) and self.ll_rollout_opt:
                     self.alg_map[task]._update_policy_no_cost(data, label='rollout')
-            if self.hl_rollout_opt: self.run_hl_update()
+            if self.hl_rollout_opt:
+                self.run_hl_update()
             step += 1
         self.policy_opt.sess.close()
 
