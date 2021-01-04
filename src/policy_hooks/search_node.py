@@ -63,7 +63,7 @@ class HLSearchNode(SearchNode):
         return plan_obj
 
 class LLSearchNode(SearchNode):
-    def __init__(self, plan_str, domain, prob, initial, priority=1, keep_failed=False, ref_plan=None, x0=None, targets=None, expansions=0):
+    def __init__(self, plan_str, domain, prob, initial, priority=1, keep_failed=False, ref_plan=None, x0=None, targets=None, expansions=0, label=''):
         self.curr_plan = 'no plan'
         self.plan_str = plan_str
         self.domain = domain
@@ -75,6 +75,7 @@ class LLSearchNode(SearchNode):
         self.targets = targets
         self.ref_plan = ref_plan
         self.x0 = x0
+        self.label = label
 
         # If true, replanning is done from the end of the first failed action instead of the start
         # This is useful if trajectories are rolled out online and you do not wish to perform state resets

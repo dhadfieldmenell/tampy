@@ -26,7 +26,7 @@ CLOSET_POINTS = [[-7.0,-12.0],[-7.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0]
 CLOSET_POINTS = [[-7.0,-12.0],[-7.0,4.0],[1.7,4.0],[1.7,8.0],[5.3,8.0],[5.3,4.0],[14.0,4.0],[14.0,-12.0],[-7.0,-12.0]]
 
 class OpenRAVEBody(object):
-    def __init__(self, env, name, geom, ik_solver=None):
+    def __init__(self, env, name, geom):
         if USE_OPENRAVE: assert env is not None
         self.name = name
         self._env = env
@@ -51,7 +51,6 @@ class OpenRAVEBody(object):
                 self._add_item(geom)
             else:
                 raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)
-            self.ik_solver = ik_solver
 
         # self.set_transparency(0.5)
 
@@ -81,15 +80,12 @@ class OpenRAVEBody(object):
             self.env_body = self._env.ReadRobotXMLFile(geom.shape)
             self.env_body.SetName(self.name)
             self._env.Add(self.env_body)
+            geom.setup(self.env_body)
         else:
-            if geom.file_type == 'urdf':
-                self.env_body = P.loadURDF(geom.shape)
-
-            elif geom.file_type == 'mjcf':
-                self.env_body = P.loadMJCF(geom.shape)
-
-            self.body_id = self.env_body[0]
-        geom.setup(self.env_body)
+            if not geom.is_initialized():
+                geom.setup(None)
+            self.env_body = geom.id
+            self.body_id = geom.id
 
     def _add_item(self, geom):
         try:
@@ -246,11 +242,12 @@ class OpenRAVEBody(object):
             # Set new DOF value to the robot
             self.env_body.SetActiveDOFValues(dof_val)
         else:
-            if hasattr(self, 'ik_solver') and self.ik_solver is not None:
-                self.ik_solver.sync_ik_from_attrs(dof_value_map)
-            else:
-                for key in dof_value_map:
+            for key in dof_value_map:
+                if type(self._geom.dof_map[key]) is int:
                     P.resetJointState(self.body_id, self._geom.dof_map[key], dof_value_map[key])
+                else:
+                    for i, jnt_ind in enumerate(self._geom.dof_map[key]):
+                        P.resetJointState(self.body_id, self._geom.dof_map[key][i], dof_value_map[key][i])
 
     def _set_active_dof_inds(self, inds = None):
         """
@@ -574,7 +571,8 @@ class OpenRAVEBody(object):
     @staticmethod
     def transform_from_obj_pose(pose, rotation = np.array([0,0,0])):
         x, y, z = pose
-        alpha, beta, gamma = rotation
+        if len(rotation) == 4:
+            rotation = quaternion_to_euler(rotation)
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(pose, rotation)
         rot_mat = np.dot(Rz, np.dot(Ry, Rx))
         matrix = np.eye(4)
@@ -629,59 +627,44 @@ class OpenRAVEBody(object):
         trans[:3, :3] = trans_mat
         return trans
 
-    def get_ik_arm_pose(self, pos, rot):
-        # assert isinstance(self._geom, PR2)
-        solutions = self.get_ik_from_pose(pos, rot, 'rightarm_torso')
-        return solutions
-
-    def get_ik_from_pose(self, pos, rot, manip_name, use6d=True):
-        trans = OpenRAVEBody.get_ik_transform(pos, rot)
-        solutions = self.get_ik_solutions(manip_name, trans, use6d)
-        return solutions
-
-    def get_ik_solutions(self, manip_name, trans, use6d=True, multiple=True):
-        if USE_OPENRAVE:
-            manip = self.env_body.GetManipulator(manip_name)
-            if use6d:
-                iktype = IkParameterizationType.Transform6D
-            else:
-                iktype = IkParameterizationType.Translation3D
-            solutions = manip.FindIKSolutions(IkParameterization(trans, iktype),IkFilterOptions.CheckEnvCollisions)
-            return solutions if multiple else solutions[0]
-        else:
-            use_right = 'right' in manip_name
-            pos = trans[:3, 3]
-            quat = T.mat2pose(trans)[1]
-            cur_jnts = self.ik_solver.get_jnt_angles(use_right)
-            ik_sol = self.ik_solver.inverse_kinematics(pos, quat, use_right, cur_jnts)
-            if not multiple:
-                return ik_sol
-
-            ik_sol = [ik_sol]
-            lower, upper = self.ik_solver.get_jnt_bounds(use_right)
-            jnt_range = np.array(upper) - np.array(lower)
-            for _ in range(10):
-                rest_pose = cur_jnts + 0.5 * (np.random.uniform(size=7) - 0.5) * jnt_range
-                ik_sol.append(self.ik_solver.inverse_kinematics(pos, quat, use_right, rest_pose))
-            return ik_sol
-
-    def get_close_ik_solution(self, manip_name, trans, dof_map=None):
-        if dof_map is not None:
-            self.set_dof(dof_map)
-
-        if USE_OPENRAVE:
-            manip = self.env_body.GetManipulator(manip_name)
-            iktype = IkParameterizationType.Transform6D
-            ik_param = IkParameterization(trans, iktype)
-            solution = manip.FindIKSolution(ik_param, IkFilterOptions.IgnoreSelfCollisions)
-        else:
-            use_right = 'right' in manip_name
-            pos = trans[:3, 3]
-            quat = T.mat2pose(trans)[1]
-            cur_jnts = self.ik_solver.get_jnt_angles(use_right)
-            solution = self.ik_solver.inverse_kinematics(pos, quat, use_right, cur_jnts)
-
-        return solution
+    def get_ik_from_pose(self, pos, rot, manip_name, use6d=True, multiple=False, maxIter=1024):
+        quat = rot if (rot is None or len(rot) == 4) else T.euler_to_quaternion(rot, order='xyzw')
+        lb, ub = self._geom.get_arm_bnds()
+        ranges = (np.array(ub) - np.array(lb)).tolist()
+        jnt_ids = self._geom.get_free_inds()
+        jnts = P.getJointStates(self.body_id, jnt_ids)
+        rest_poses = [j[0] for j in jnts]
+        cur_jnts = rest_poses
+        manip_id = self._geom.get_ee_link(manip_name)
+        damp = (0.1 * np.ones(len(jnt_ids))).tolist()
+        joint_pos = P.calculateInverseKinematics(self.body_id,
+                                                 manip_id, 
+                                                 pos,
+                                                 quat,
+                                                 lowerLimits=lb,
+                                                 upperLimits=ub,
+                                                 jointRanges=ranges,
+                                                 restPoses=rest_poses,
+                                                 jointDamping=damp,
+                                                 maxNumIterations=maxIter)
+        inds = list(self._geom.get_free_inds(manip_name))
+        joint_pos = np.array(joint_pos)[inds].tolist()
+        if not multiple: return joint_pos
+        poses = [joint_pos]
+        for _ in range(10):
+            rest_poses = (np.array(cur_jnts) + 2 * (np.random.uniform(size=len(lb)) - 0.5) * ranges).tolist()
+            joint_pos = P.calculateInverseKinematics(self.body_id,
+						     manip_id,
+						     pos,
+						     quat,
+						     lb,
+						     ub,
+						     ranges,
+						     rest_poses,
+						     maxNumIterations=maxIter)
+            joint_pos = np.array(joint_pos)[inds].tolist()
+            poses.append(joint_pos)
+        return poses
 
     def fwd_kinematics(self, manip_name, dof_map=None, mat_result=False):
         if dof_map is not None:
@@ -695,12 +678,10 @@ class OpenRAVEBody(object):
             pos = trans[:3, 3]
             quat = quatFromRotationMatrix(trans[:3, :3])
         else:
-            trans = self.ik_solver.get_manip_trans(right='right' in manip_name)
-            if mat_result:
-                return trans
-            pos = trans[:3, 3]
-            quat = T.mat2pose(trans)[1]
-            quat = [quat[3], quat[0], quat[1], quat[2]]
+            ee_link = self._geom.get_ee_link(manip_name)
+            link_state = P.getLinkState(self.body_id, ee_link)
+            pos = link_state[0]
+            quat = link_state[1]
         return {'pos': pos, 'quat': quat}
 
     def param_fwd_kinematics(self, param, manip_names, t, mat_result=False):
@@ -718,10 +699,11 @@ class OpenRAVEBody(object):
             self.env_body.SetActiveDOFValues(dof_val)
         else:
             attr_vals = {attr: getattr(param, attr)[:, t] for attr in attrs if attr in self._geom.dof_map}
-            self.ik_solver.sync_ik_from_attrs(attr_vals)
+            param.openrave_body.set_dof(attr_vals)
 
         result = {}
         for manip_name in manip_names:
             result[manip_name] = self.fwd_kinematics(manip_name, mat_result=mat_result)
 
         return result
+

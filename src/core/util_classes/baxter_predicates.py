@@ -14,6 +14,64 @@ from core.util_classes.param_setup import ParamSetup
 # Attribute map used in baxter domain. (Tuple to avoid changes to the attr_inds)
 ATTRMAP = const.ATTRMAP
 
+class BaxterPredicate(ExprPredicate):
+    def get_robot_info(self, robot_body, arm):
+        if not arm == "right" and not arm == "left":
+            assert PredicateException("Invalid Arm Specified")
+
+        arm_inds = robot_body.get_arm_inds(arm)
+        ee_link = robot_body.get_ee_link(arm)
+        info = p.getLinkState(robot_body.body_id, ee_link)
+        pos, rot = info[0], info[1]
+        manip_trans = OpenRAVEBody.transform_from_obj_pose(pos, rot)
+        # This manip_trans is off by 90 degree
+        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
+        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
+        return robot_trans, arm_inds
+
+    def set_robot_poses(self, x, robot_body):
+        # Provide functionality of setting robot poses
+        l_arm_pose, l_gripper = x[0:7], x[7]
+        r_arm_pose, r_gripper = x[8:15], x[15]
+        base_pose = x[16]
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
+        if len(x) > 17: self.obj.openrave_body.set_pose(x[-6:-3], x[-3:])
+
+    def robot_obj_kinematics(self, x):
+        """
+            This function is used to check whether End Effective pose's position is at robot gripper's center
+
+            Note: Child classes need to provide set_robot_poses and get_robot_info functions.
+        """
+        # Getting the variables
+        robot_body = self.robot.openrave_body
+
+        # Setting the poses for forward kinematics to work
+        self.set_robot_poses(x, robot_body)
+        robot_trans, arm_inds = self.get_robot_info(robot_body, self.arm)
+
+        ee_pos, ee_rot = x[-6:-3], x[-3:]
+        obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos)
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
+        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
+        # Obtain the pos and rot val and jac from 2 function calls
+        return obj_trans, robot_trans, axises, arm_inds
+
+    def stacked_f(self, x):
+        return np.vstack([self.coeff * self.pos_check_f(x)])
+
+    def stacked_grad(self, x):
+        return np.vstack([10*self.coeff * self.pos_check_jac(x)])
+
+
+
+
 """
     Movement Constraints Family
 """
@@ -258,23 +316,18 @@ class BaxterWithinJointLimit(robot_predicates.WithinJointLimit):
     def setup_mov_limit_check(self):
         # Get upper joint limit and lower joint limit
         robot_body = self._param_to_body[self.robot]
-        robot = robot_body.env_body
-        dof_map = robot_body._geom.dof_map
-        dof_inds = np.r_[dof_map["lArmPose"], dof_map["lGripper"], dof_map["rArmPose"], dof_map["rGripper"]]
-        lb_limit, ub_limit = robot.GetDOFLimits()
-        active_ub = ub_limit[dof_inds].reshape((const.JOINT_DIM,1))
-        active_lb = lb_limit[dof_inds].reshape((const.JOINT_DIM,1))
+        lb_limit, ub_limit = self.robot.get_joint_limits()
         # Setup the Equation so that: Ax+b < val represents
         # lb_limit <= pose <= ub_limit
-        val = np.vstack((-active_lb, active_ub))
-        A_lb_limit = -np.eye(const.JOINT_DIM)
-        A_up_limit = np.eye(const.JOINT_DIM)
+        val = np.vstack((-lb_limit, ub_limit))
+        A_lb_limit = -np.eye(len(lb_limit))
+        A_up_limit = np.eye(len(ub_limit))
         A = np.vstack((A_lb_limit, A_up_limit))
-        b = np.zeros((2*const.JOINT_DIM,1))
-        joint_move = (active_ub-active_lb)/const.JOINT_MOVE_FACTOR
+        b = np.zeros((len(lb_limit)+len(ub_limit),1))
+        joint_move = (ub_limit-lb_limit)/const.JOINT_MOVE_FACTOR
         self.base_step = const.BASE_MOVE*np.ones((const.BASE_DIM,1))
         self.joint_step = joint_move
-        self.lower_limit = active_lb
+        self.lower_limit = lb_limit
         return A, b, val
 
 class BaxterWithinRotLimit(robot_predicates.WithinJointLimit):
@@ -441,7 +494,7 @@ class BaxterGraspValidRot(BaxterGraspValid):
         self.attr_dim = 3
         super(BaxterGraspValidRot, self).__init__(name, params, expected_param_types, env, debug)
 
-class BaxterBasketGraspValidPos(robot_predicates.PosePredicate):
+class BaxterBasketGraspValidPos(robot_predicates.PosePredicate, BaxterPredicate):
 
     # BaxterBasketGraspValid EEPose, EEPose, BasketTarget
 
@@ -543,7 +596,7 @@ class BaxterBasketGraspValidShallowPos(BaxterBasketGraspValidPos):
         super(BaxterBasketGraspValidShallowPos, self).__init__(name, params, expected_param_types, env, debug)
         self.grip_offset = const.BASKET_SHALLOW_GRIP_OFFSET
 
-class BaxterBasketGraspValidRot(robot_predicates.PosePredicate):
+class BaxterBasketGraspValidRot(robot_predicates.PosePredicate, BaxterPredicate):
 
     # BaxterBasketGraspValid EEPose, EEPose, BasketTarget
 
@@ -718,11 +771,9 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         """
         # Getting the variables
         robot_body = self.robot.openrave_body
-        body = robot_body.env_body
         # Setting the poses for forward kinematics to work
         self.set_washer_poses(x, robot_body)
         robot_trans, arm_inds = self.get_washer_info(robot_body)
-        arm_joints = [body.GetJointFromDOFIndex(ind) for ind in arm_inds]
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(x[-7:-4], x[-4:-1])
         axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]
 
@@ -731,7 +782,7 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
         obj_axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
         # Obtain the pos and rot val and jac from 2 function calls
-        return robot_trans, obj_trans, axises, obj_axises, arm_joints
+        return robot_trans, obj_trans, axises, obj_axises, arm_inds
 
     #@profile
     def washer_ee_check_f(self, x, rel_pt):
@@ -871,7 +922,7 @@ class BaxterEEOpenedDoorGraspValid(robot_predicates.EEGraspValid):
         return np.vstack([self.coeff * self.washer_ee_check_jac(x, self.rel_pt), self.rot_coeff * self.washer_ee_rot_check_jac(x, self.rot_dir)])
 
 
-class BaxterEEClosedDoorGraspValid(robot_predicates.EEGraspValid):
+class BaxterEEClosedDoorGraspValid(robot_predicates.EEGraspValid, BaxterPredicate):
 
     # BaxterEEGraspValid EEPose Washer
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
@@ -1097,7 +1148,7 @@ class BaxterOpenGrippers(BaxterCloseGrippers):
     Collision Constraints Family
 """
 
-class BaxterObstructs(robot_predicates.Obstructs):
+class BaxterObstructs(robot_predicates.Obstructs, BaxterPredicate):
 
     # Obstructs, Robot, RobotPose, RobotPose, Can
 
@@ -1118,30 +1169,6 @@ class BaxterObstructs(robot_predicates.Obstructs):
         else:
             print("resample {}".format(self.get_type()))
         return baxter_sampling.resample_basket_obstructs(self, negated, t, plan)
-
-    def set_active_dof_inds(self, robot_body, reset = False):
-        robot = robot_body.env_body
-        if reset and self.dof_cache is not None:
-            robot.SetActiveDOFs(self.dof_cache)
-            self.dof_cache = None
-        elif not reset and self.dof_cache is None:
-            self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(2,18)), DOFAffine.RotationAxis, [0,0,1])
-        else:
-            raise PredicateException("Incorrect Active DOF Setting")
-
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
 
 class BaxterObstructsCloth(BaxterObstructs):
     pass
@@ -1328,19 +1355,6 @@ class BaxterObstructsWasher(BaxterObstructs):
         else:
             raise PredicateException("Incorrect Active DOF Setting")
 
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
-
     # def resample(self, negated, t, plan):
     #     if const.PRODUCTION:
     #         print "I need to think about how I'm not going to hit the washer."
@@ -1348,7 +1362,7 @@ class BaxterObstructsWasher(BaxterObstructs):
     #         print "resample {}".format(self.get_type())
     #     return baxter_sampling.resample_washer_obstructs(self, negated, t, plan)
 
-class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
+class BaxterObstructsHolding(robot_predicates.ObstructsHolding, BaxterPredicate):
 
     # ObstructsHolding, Robot, RobotPose, RobotPose, Can, Can
 
@@ -1385,25 +1399,15 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
         robot_body.set_dof(dof_value_map)
 
         rel_pt = np.zeros((3,))
-        manip = robot_body.env_body.GetManipulator("right_arm")
         if self.obj.name == "basket":
             rel_pt = np.array([0,-const.BASKET_OFFSET,-0.03])
-            manip = robot_body.env_body.GetManipulator("left_arm")
 
-        robot_trans = manip.GetTransform()
+        ee_link = robot_body._geom.get_ee_link("left")
+        robot_pos = p.getLinkState(robot_body.body_id, ee_link)[0]
+        robot_rot = p.getLinkState(robot_body.body_id, ee_link)[1]
+        trans = OpenRAVEBody.transform_from_obj_pose(robot_pos, robot_rot)
         basket_pos = np.dot(robot_trans, np.r_[rel_pt, 1])[:3]
         x[-6:-3] = basket_pos.reshape(x[-6:-3].shape)
-
-    def set_active_dof_inds(self, robot_body, reset = False):
-        robot = robot_body.env_body
-        if reset and self.dof_cache is not None:
-            robot.SetActiveDOFs(self.dof_cache)
-            self.dof_cache = None
-        elif reset == False and self.dof_cache == None:
-            self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(2,18)), DOFAffine.RotationAxis, [0,0,1])
-        else:
-            raise PredicateException("Incorrect Active DOF Setting")
 
 class BaxterObstructsHoldingCloth(BaxterObstructsHolding):
     def set_robot_poses(self, x, robot_body):
@@ -1418,12 +1422,11 @@ class BaxterObstructsHoldingCloth(BaxterObstructsHolding):
                          "rArmPose": r_arm_pose.reshape((7,)),
                          "rGripper": r_gripper}
         robot_body.set_dof(dof_value_map)
-
-        l_manip = robot_body.env_body.GetManipulator("left_arm")
-        l_pos = l_manip.GetTransform()[:3,3]
+        ee_link = robot_body._geom.get_ee_link("left")
+        l_pos = p.getLinkState(robot_body.body_id, ee_link)[0]
         x[-6:-3] = l_pos.reshape(x[-6:-3].shape)
 
-class BaxterCollides(robot_predicates.Collides):
+class BaxterCollides(robot_predicates.Collides, BaxterPredicate):
 
     # Collides Basket Obstacle
 
@@ -1433,7 +1436,7 @@ class BaxterCollides(robot_predicates.Collides):
         super(BaxterCollides, self).__init__(name, params, expected_param_types, env, debug)
         self.dsafe = const.COLLIDES_DSAFE
 
-class BaxterRCollides(robot_predicates.RCollides):
+class BaxterRCollides(robot_predicates.RCollides, BaxterPredicate):
 
     # RCollides Robot Obstacle
 
@@ -1451,34 +1454,7 @@ class BaxterRCollides(robot_predicates.RCollides):
     def resample(self, negated, t, plan):
         return baxter_sampling.resample_basket_obstructs(self, negated, t, plan)
 
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
-
-    def set_active_dof_inds(self, robot_body, reset = False):
-        robot = robot_body.env_body
-        if reset and self.dof_cache is not None:
-            robot.SetActiveDOFs(self.dof_cache)
-            self.dof_cache = None
-        elif not reset and self.dof_cache is None:
-            self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(2,18)), DOFAffine.RotationAxis, [0,0,1])
-        else:
-            raise PredicateException("Incorrect Active DOF Setting")
-
-class BaxterRSelfCollides(robot_predicates.RSelfCollides):
-
-    # RCollides Robot
-
+class BaxterRSelfCollides(robot_predicates.RSelfCollides, BaxterPredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.attr_dim = 17
         self.dof_cache = None
@@ -1487,30 +1463,6 @@ class BaxterRSelfCollides(robot_predicates.RSelfCollides):
         self.neg_coeff = const.RCOLLIDE_COEFF
         super(BaxterRSelfCollides, self).__init__(name, params, expected_param_types, env, debug)
         self.dsafe = const.RCOLLIDES_DSAFE
-
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
-
-    def set_active_dof_inds(self, robot_body, reset = False):
-        robot = robot_body.env_body
-        if reset and self.dof_cache is not None:
-            robot.SetActiveDOFs(self.dof_cache)
-            self.dof_cache = None
-        elif not reset and self.dof_cache is None:
-            self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(2,18)), DOFAffine.RotationAxis, [0,0,1])
-        else:
-            raise PredicateException("Incorrect Active DOF Setting")
 
 class BaxterCollidesWasher(BaxterRCollides):
     """
@@ -1646,19 +1598,6 @@ class BaxterCollidesWasher(BaxterRCollides):
         else:
             raise PredicateException("Incorrect Active DOF Setting")
 
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
-
     def resample(self, negated, t, plan):
         # return None, None
         if const.PRODUCTION:
@@ -1671,8 +1610,9 @@ class BaxterCollidesWasher(BaxterRCollides):
     EEReachable Constraints Family
 """
 
-class BaxterEEReachable(robot_predicates.EEReachable):
+class BaxterEEReachable(robot_predicates.EEReachable, BaxterPredicate):
     def __init__(self, name, params, expected_param_types, active_range = (-const.EEREACHABLE_STEPS, const.EEREACHABLE_STEPS), env=None, debug=False):
+        self.get_robot_info = get_robot_info
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:5])),
                                  (params[2], list(ATTRMAP[params[2]._type]))])
         self.attr_dim = 23
@@ -1696,38 +1636,6 @@ class BaxterEEReachable(robot_predicates.EEReachable):
         else:
             print("resample {}".format(self.get_type()))
         return baxter_sampling.resample_eereachable_rrt(self, negated, t, plan, inv = False)
-
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
-
-    #@profile
-    def get_robot_info(self, robot_body, arm):
-        if not arm == "right" and not arm == "left":
-            assert PredicateException("Invalid Arm Specified")
-        # Provide functionality of Obtaining Robot information
-        if arm == "right":
-            tool_link = robot_body.env_body.GetLink("right_gripper")
-        else:
-            tool_link = robot_body.env_body.GetLink("left_gripper")
-        manip_trans = tool_link.GetTransform()
-        # This manip_trans is off by 90 degree
-        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
-        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        if arm == "right":
-            arm_inds = self.robot.geom.dof_map['rArmPose']
-        else:
-            arm_inds = self.robot.geom.dof_map['lArmPose']
-        return robot_trans, arm_inds
 
 class BaxterEEReachableLeft(BaxterEEReachable):
 
@@ -1986,11 +1894,12 @@ class BaxterEERetreatRight(BaxterEEReachable):
     InGripper Constraint Family
 """
 
-class BaxterInGripper(robot_predicates.InGripper):
+class BaxterInGripper(robot_predicates.InGripper, BaxterPredicate):
 
     # InGripper, Robot, Object
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        self.get_robot_info = get_robot_info
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:5])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         self.coeff = const.IN_GRIPPER_COEFF
@@ -1998,37 +1907,6 @@ class BaxterInGripper(robot_predicates.InGripper):
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
         super(BaxterInGripper, self).__init__(name, params, expected_param_types, env, debug)
-
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
-
-    def get_robot_info(self, robot_body, arm):
-        if not arm == "right" and not arm == "left":
-            PredicateException("Invalid Arm Specified")
-        # Provide functionality of Obtaining Robot information
-        if arm == "right":
-            tool_link = robot_body.env_body.GetLink("right_gripper")
-        else:
-            tool_link = robot_body.env_body.GetLink("left_gripper")
-        manip_trans = tool_link.GetTransform()
-        # This manip_trans is off by 90 degree
-        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
-        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        if arm == "right":
-            arm_inds = list(range(10,17))
-        else:
-            arm_inds = list(range(2,9))
-        return robot_trans, arm_inds
 
     def stacked_f(self, x):
         return np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.rot_check_f(x)])
@@ -2063,7 +1941,7 @@ class BaxterBasketInGripperShallow(BaxterBasketInGripper):
         super(BaxterBasketInGripperShallow, self).__init__(name, params, expected_param_types, env, debug)
         self.grip_offset = const.BASKET_SHALLOW_GRIP_OFFSET
 
-class BaxterBothEndsInGripper(robot_predicates.InGripper):
+class BaxterBothEndsInGripper(robot_predicates.InGripper, BaxterPredicate):
 
     # BaxterBothEndsInGripper Robot, Can
 
@@ -2076,6 +1954,7 @@ class BaxterBothEndsInGripper(robot_predicates.InGripper):
         self.eval_grad = self.stacked_grad
         self.eval_dim = 6
         self.edge_len = params[1].geom.height
+        self.get_robot_info = get_robot_info
         super(BaxterBothEndsInGripper, self).__init__(name, params, expected_param_types, env, debug)
 
     #@profile
@@ -2095,9 +1974,7 @@ class BaxterBothEndsInGripper(robot_predicates.InGripper):
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
 
         l_ee_trans, l_arm_inds = self.get_robot_info(robot_body, 'left')
-        l_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in l_arm_inds]
         r_ee_trans, r_arm_inds = self.get_robot_info(robot_body, 'right')
-        r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in r_arm_inds]
         rel_pt = np.array([0,0,self.edge_len/2.0])
         # rel_pt = np.array([0, 2*const.BASKET_NARROW_OFFSET,0])
         l_pos_val = self.rel_pos_error_f(obj_trans, l_ee_trans, rel_pt)
@@ -2149,37 +2026,6 @@ class BaxterBothEndsInGripper(robot_predicates.InGripper):
     def stacked_grad(self, x):
         return np.vstack([self.coeff * self.both_arm_pos_check_jac(x)])
 
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
-
-    def get_robot_info(self, robot_body, arm):
-        if not arm == "right" and not arm == "left":
-            PredicateException("Invalid Arm Specified")
-        # Provide functionality of Obtaining Robot information
-        if arm == "right":
-            tool_link = robot_body.env_body.GetLink("right_gripper")
-        else:
-            tool_link = robot_body.env_body.GetLink("left_gripper")
-        manip_trans = tool_link.GetTransform()
-        # This manip_trans is off by 90 degree
-        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
-        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        if arm == "right":
-            arm_inds = list(range(10,17))
-        else:
-            arm_inds = list(range(2,9))
-        return robot_trans, arm_inds
-
     def robot_obj_kinematics(self, x):
         """
             This function is used to check whether End Effective pose's position is at robot gripper's center
@@ -2188,18 +2034,16 @@ class BaxterBothEndsInGripper(robot_predicates.InGripper):
         """
         # Getting the variables
         robot_body = self.robot.openrave_body
-        body = robot_body.env_body
         # Setting the poses for forward kinematics to work
         self.set_robot_poses(x, robot_body)
         robot_trans, arm_inds = self.get_robot_info(robot_body, self.arm)
-        arm_joints = [body.GetJointFromDOFIndex(ind) for ind in arm_inds]
 
         ee_pos, ee_rot = x[-7:-4], x[-4:-1]
         obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, ee_rot)
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
         axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
         # Obtain the pos and rot val and jac from 2 function calls
-        return obj_trans, robot_trans, axises, arm_joints
+        return obj_trans, robot_trans, axises, arm_inds
 
 class BaxterWasherInGripper(BaxterInGripper):
 
@@ -2347,20 +2191,6 @@ class BaxterClothInGripperRight(BaxterInGripper):
     def stacked_grad(self, x):
         return self.coeff * self.pos_check_jac(x)
 
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
-        self.obj.openrave_body.set_pose(x[-6:-3], x[-3:])
-
 class BaxterClothInGripperLeft(BaxterInGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.arm = "left"
@@ -2377,28 +2207,15 @@ class BaxterClothInGripperLeft(BaxterInGripper):
     def stacked_grad(self, x):
         return self.coeff * self.pos_check_jac(x)
 
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
-        self.obj.openrave_body.set_pose(x[-6:-3], x[-3:])
-
 class BaxterCanInGripperLeft(BaxterClothInGripperLeft):
     pass
 
 class BaxterCanInGripperRight(BaxterClothInGripperRight):
     pass
 
-class BaxterClothAlmostInGripperLeft(robot_predicates.AlmostInGripper):
+class BaxterClothAlmostInGripperLeft(robot_predicates.AlmostInGripper, BaxterPredicate):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        self.get_robot_info = get_robot_info
         self.arm = "left"
         self.coeff = const.IN_GRIPPER_COEFF
         self.eval_dim = 3
@@ -2426,38 +2243,6 @@ class BaxterClothAlmostInGripperLeft(robot_predicates.AlmostInGripper):
         return pos_jac
         # return self.coeff * np.r_[pos_jac, pos_jac]
 
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
-        self.obj.openrave_body.set_pose(x[-6:-3], x[-3:])
-
-    def get_robot_info(self, robot_body, arm):
-        if not arm == "right" and not arm == "left":
-            PredicateException("Invalid Arm Specified")
-        # Provide functionality of Obtaining Robot information
-        if arm == "right":
-            tool_link = robot_body.env_body.GetLink("right_gripper")
-        else:
-            tool_link = robot_body.env_body.GetLink("left_gripper")
-        manip_trans = tool_link.GetTransform()
-        # This manip_trans is off by 90 degree
-        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
-        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        if arm == "right":
-            arm_inds = list(range(10,17))
-        else:
-            arm_inds = list(range(2,9))
-        return robot_trans, arm_inds
-
 class BaxterClothAlmostInGripperRight(BaxterClothAlmostInGripperLeft):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         super(BaxterClothAlmostInGripperRight, self).__init__(name, params, expected_param_types, env, debug)
@@ -2469,7 +2254,7 @@ class BaxterCanAlmostInGripperLeft(BaxterClothAlmostInGripperLeft):
 class BaxterCanAlmostInGripperRight(BaxterClothAlmostInGripperRight):
     pass
 
-class BaxterGripperAt(robot_predicates.GripperAt):
+class BaxterGripperAt(robot_predicates.GripperAt, BaxterPredicate):
 
     # InGripper, Robot, EEPose
 
@@ -2481,58 +2266,6 @@ class BaxterGripperAt(robot_predicates.GripperAt):
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
         super(BaxterGripperAt, self).__init__(name, params, expected_param_types, env, debug)
-
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
-
-    def get_robot_info(self, robot_body, arm):
-        if not arm == "right" and not arm == "left":
-            PredicateException("Invalid Arm Specified")
-        # Provide functionality of Obtaining Robot information
-        if arm == "right":
-            tool_link = robot_body.env_body.GetLink("right_gripper")
-        else:
-            tool_link = robot_body.env_body.GetLink("left_gripper")
-        manip_trans = tool_link.GetTransform()
-        # This manip_trans is off by 90 degree
-        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
-        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        if arm == "right":
-            arm_inds = list(range(10,17))
-        else:
-            arm_inds = list(range(2,9))
-        return robot_trans, arm_inds
-
-    def robot_obj_kinematics(self, x):
-        """
-            This function is used to check whether End Effective pose's position is at robot gripper's center
-
-            Note: Child classes need to provide set_robot_poses and get_robot_info functions.
-        """
-        # Getting the variables
-        robot_body = self.robot.openrave_body
-        body = robot_body.env_body
-        # Setting the poses for forward kinematics to work
-        self.set_robot_poses(x, robot_body)
-        robot_trans, arm_inds = self.get_robot_info(robot_body, self.arm)
-        arm_joints = [body.GetJointFromDOFIndex(ind) for ind in arm_inds]
-
-        ee_pos, ee_rot = x[-6:-3], x[-3:]
-        obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos)
-        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
-        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
-        # Obtain the pos and rot val and jac from 2 function calls
-        return obj_trans, robot_trans, axises, arm_joints
 
     def stacked_f(self, x):
         return np.vstack([self.coeff * self.pos_check_f(x)])
@@ -2555,7 +2288,7 @@ class BaxterGripperAtRight(BaxterGripperAt):
         self.eval_dim = 3
         super(BaxterGripperAtRight, self).__init__(name, params, expected_param_types, env, debug)
 
-class BaxterEELeftValid(robot_predicates.EEAt):
+class BaxterEELeftValid(robot_predicates.EEAt, BaxterPredicate):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.arm = "left"
         self.eval_dim = 3
@@ -2565,58 +2298,6 @@ class BaxterEELeftValid(robot_predicates.EEAt):
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
         super(BaxterEELeftValid, self).__init__(name, params, expected_param_types, env, debug)
-
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
-
-    def get_robot_info(self, robot_body, arm):
-        if not arm == "right" and not arm == "left":
-            PredicateException("Invalid Arm Specified")
-        # Provide functionality of Obtaining Robot information
-        if arm == "right":
-            tool_link = robot_body.env_body.GetLink("right_gripper")
-        else:
-            tool_link = robot_body.env_body.GetLink("left_gripper")
-        manip_trans = tool_link.GetTransform()
-        # This manip_trans is off by 90 degree
-        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
-        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        if arm == "right":
-            arm_inds = list(range(10,17))
-        else:
-            arm_inds = list(range(2,9))
-        return robot_trans, arm_inds
-
-    def robot_obj_kinematics(self, x):
-        """
-            This function is used to check whether End Effective pose's position is at robot gripper's center
-
-            Note: Child classes need to provide set_robot_poses and get_robot_info functions.
-        """
-        # Getting the variables
-        robot_body = self.robot.openrave_body
-        body = robot_body.env_body
-        # Setting the poses for forward kinematics to work
-        self.set_robot_poses(x, robot_body)
-        robot_trans, arm_inds = self.get_robot_info(robot_body, self.arm)
-        arm_joints = [body.GetJointFromDOFIndex(ind) for ind in arm_inds]
-
-        ee_pos, ee_rot = x[-6:-3], x[-3:]
-        obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos)
-        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
-        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
-        # Obtain the pos and rot val and jac from 2 function calls
-        return obj_trans, robot_trans, axises, arm_joints
 
     def stacked_f(self, x):
         return np.vstack([self.coeff * self.pos_check_f(x)])
@@ -2633,7 +2314,7 @@ class BaxterEERightValid(BaxterEELeftValid):
         self.arm = 'right'
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:5]+ATTRMAP[params[0]._type][8:10]))])
 
-class BaxterPushWasher(robot_predicates.IsPushing):
+class BaxterPushWasher(robot_predicates.IsPushing, BaxterPredicate):
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.eval_dim = 4
@@ -2646,37 +2327,6 @@ class BaxterPushWasher(robot_predicates.IsPushing):
         self.eval_grad = self.stacked_grad
         self.rel_pt = np.array([-.2,-0.07,0])
         super(BaxterPushWasher, self).__init__(name, params, expected_param_types, env, debug)
-
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
-
-    def get_robot_info(self, robot_body, arm):
-        if not arm == "right" and not arm == "left":
-            PredicateException("Invalid Arm Specified")
-        # Provide functionality of Obtaining Robot information
-        if arm == "right":
-            tool_link = robot_body.env_body.GetLink("right_gripper")
-        else:
-            tool_link = robot_body.env_body.GetLink("left_gripper")
-        manip_trans = tool_link.GetTransform()
-        # This manip_trans is off by 90 degree
-        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
-        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        if arm == "right":
-            arm_inds = list(range(10,17))
-        else:
-            arm_inds = list(range(2,9))
-        return robot_trans, arm_inds
 
     def set_washer_poses(self, x, washer_body):
         pose, rotation = x[-7:-4], x[-4:-1]
@@ -2873,7 +2523,7 @@ class BaxterObjectWithinRotLimit(robot_predicates.ObjectWithinRotLimit):
         self.object = params[0]
         super(BaxterObjectWithinRotLimit, self).__init__(name, params, expected_param_types, env, debug)
 
-class BaxterGrippersLevel(robot_predicates.GrippersLevel):
+class BaxterGrippersLevel(robot_predicates.GrippersLevel, BaxterPredicate):
     # BaxterGrippersLevel Robot
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.coeff = 1
@@ -2884,38 +2534,6 @@ class BaxterGrippersLevel(robot_predicates.GrippersLevel):
         self.eval_dim = 6
         self.grip_offset = const.BASKET_GRIP_OFFSET
         super(BaxterGrippersLevel, self).__init__(name, params, expected_param_types, env, debug)
-
-    #@profile
-    def get_robot_info(self, robot_body, arm = "left"):
-        if not arm == "right" and not arm == "left":
-            PredicateException("Invalid Arm Specified")
-        # Provide functionality of Obtaining Robot information
-        if arm == "right":
-            tool_link = robot_body.env_body.GetLink("right_gripper")
-        else:
-            tool_link = robot_body.env_body.GetLink("left_gripper")
-        manip_trans = tool_link.GetTransform()
-        # This manip_trans is off by 90 degree
-        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
-        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        if arm == "right":
-            arm_inds = list(range(10,17))
-        else:
-            arm_inds = list(range(2,9))
-        return robot_trans, arm_inds
-
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
 
     #@profile
     def both_arm_pos_check(self, x):
@@ -2986,7 +2604,7 @@ class BaxterGrippersLevel(robot_predicates.GrippersLevel):
 
         return dist_val, dist_jac
 
-class BaxterGrippersWithinYDist(robot_predicates.GrippersLevel):
+class BaxterGrippersWithinYDist(robot_predicates.GrippersLevel, BaxterPredicate):
     # BaxterGrippersLevel Robot
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.coeff = 1
@@ -2997,38 +2615,6 @@ class BaxterGrippersWithinYDist(robot_predicates.GrippersLevel):
         self.eval_dim = 6
         self.grip_offset = const.BASKET_GRIP_OFFSET
         super(BaxterGrippersLevel, self).__init__(name, params, expected_param_types, env, debug)
-
-    #@profile
-    def get_robot_info(self, robot_body, arm = "left"):
-        if not arm == "right" and not arm == "left":
-            PredicateException("Invalid Arm Specified")
-        # Provide functionality of Obtaining Robot information
-        if arm == "right":
-            tool_link = robot_body.env_body.GetLink("right_gripper")
-        else:
-            tool_link = robot_body.env_body.GetLink("left_gripper")
-        manip_trans = tool_link.GetTransform()
-        # This manip_trans is off by 90 degree
-        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
-        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        if arm == "right":
-            arm_inds = list(range(10,17))
-        else:
-            arm_inds = list(range(2,9))
-        return robot_trans, arm_inds
-
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
 
     #@profile
     def both_arm_pos_check(self, x):
@@ -3104,7 +2690,7 @@ class BaxterGrippersWithinYDist(robot_predicates.GrippersLevel):
 
         return dist_val, dist_jac
 
-class BaxterEERetiming(robot_predicates.EERetiming):
+class BaxterEERetiming(robot_predicates.EERetiming, BaxterPredicate):
     # BaxterVelocity Robot EEVel
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
@@ -3119,38 +2705,6 @@ class BaxterEERetiming(robot_predicates.EERetiming):
 
     # def resample(self, negated, t, plan):
     #     return resample_retiming(self, negated, t, plan)
-
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
-
-    #@profile
-    def get_robot_info(self, robot_body, arm = "right"):
-        if not arm == "right" and not arm == "left":
-            PredicateException("Invalid Arm Specified")
-        # Provide functionality of Obtaining Robot information
-        if arm == "right":
-            tool_link = robot_body.env_body.GetLink("right_gripper")
-        else:
-            tool_link = robot_body.env_body.GetLink("left_gripper")
-        manip_trans = tool_link.GetTransform()
-        # This manip_trans is off by 90 degree
-        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
-        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        if arm == "right":
-            arm_inds = list(range(10,17))
-        else:
-            arm_inds = list(range(2,9))
-        return robot_trans, arm_inds
 
     #@profile
     def vel_check(self, x):
@@ -3195,7 +2749,7 @@ class BaxterObjRelPoseConstant(robot_predicates.ObjRelPoseConstant):
         self.attr_dim = 3
         super(BaxterObjRelPoseConstant, self).__init__(name, params, expected_param_types, env, debug)
 
-class BaxterGrippersDownRot(robot_predicates.GrippersLevel):
+class BaxterGrippersDownRot(robot_predicates.GrippersLevel, BaxterPredicate):
     # BaxterGrippersDownRot Robot
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.coeff = 0.01
@@ -3208,38 +2762,6 @@ class BaxterGrippersDownRot(robot_predicates.GrippersLevel):
 
     def resample(self, negated, t, plan):
         return baxter_sampling.resample_gripper_down_rot(self, negated, t, plan)
-
-    #@profile
-    def get_robot_info(self, robot_body, arm = "left"):
-        if not arm == "right" and not arm == "left":
-            PredicateException("Invalid Arm Specified")
-        # Provide functionality of Obtaining Robot information
-        if arm == "right":
-            tool_link = robot_body.env_body.GetLink("right_gripper")
-        else:
-            tool_link = robot_body.env_body.GetLink("left_gripper")
-        manip_trans = tool_link.GetTransform()
-        # This manip_trans is off by 90 degree
-        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
-        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        if arm == "right":
-            arm_inds = list(range(10,17))
-        else:
-            arm_inds = list(range(2,9))
-        return robot_trans, arm_inds
-
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
 
     def both_arm_rot_check_f(self, x):
         robot_body = self._param_to_body[self.params[self.ind0]]
@@ -3297,7 +2819,7 @@ class BaxterGrippersDownRot(robot_predicates.GrippersLevel):
         rot_jac = np.vstack([left_rot_jacs, right_rot_jacs])
         return rot_jac
 
-class BaxterLeftGripperDownRot(robot_predicates.GrippersLevel):
+class BaxterLeftGripperDownRot(robot_predicates.GrippersLevel, BaxterPredicate):
     # BaxterLeftGripperDownRot Robot
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.coeff = 0.1
@@ -3307,38 +2829,6 @@ class BaxterLeftGripperDownRot(robot_predicates.GrippersLevel):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])[:5])])
         self.eval_dim = 2
         super(BaxterGrippersDownRot, self).__init__(name, params, expected_param_types, env, debug)
-
-    #@profile
-    def get_robot_info(self, robot_body, arm = "left"):
-        if not arm == "right" and not arm == "left":
-            PredicateException("Invalid Arm Specified")
-        # Provide functionality of Obtaining Robot information
-        if arm == "right":
-            tool_link = robot_body.env_body.GetLink("right_gripper")
-        else:
-            tool_link = robot_body.env_body.GetLink("left_gripper")
-        manip_trans = tool_link.GetTransform()
-        # This manip_trans is off by 90 degree
-        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
-        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        if arm == "right":
-            arm_inds = list(range(10,17))
-        else:
-            arm_inds = list(range(2,9))
-        return robot_trans, arm_inds
-
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
 
     def left_arm_rot_check(self, x):
         robot_body = self._param_to_body[self.params[self.ind0]]
@@ -3376,7 +2866,7 @@ class BaxterLeftGripperDownRot(robot_predicates.GrippersLevel):
         jac[0,:7] = left_arm_jac
         return jac
 
-class BaxterRightGripperDownRot(robot_predicates.GrippersLevel):
+class BaxterRightGripperDownRot(robot_predicates.GrippersLevel, BaxterPredicate):
     # BaxterRightGripperDownRot Robot
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.coeff = 0.1
@@ -3386,38 +2876,6 @@ class BaxterRightGripperDownRot(robot_predicates.GrippersLevel):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])[:5])])
         self.eval_dim = 2
         super(BaxterGrippersDownRot, self).__init__(name, params, expected_param_types, env, debug)
-
-    #@profile
-    def get_robot_info(self, robot_body, arm = "left"):
-        if not arm == "right" and not arm == "left":
-            PredicateException("Invalid Arm Specified")
-        # Provide functionality of Obtaining Robot information
-        if arm == "right":
-            tool_link = robot_body.env_body.GetLink("right_gripper")
-        else:
-            tool_link = robot_body.env_body.GetLink("left_gripper")
-        manip_trans = tool_link.GetTransform()
-        # This manip_trans is off by 90 degree
-        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
-        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        if arm == "right":
-            arm_inds = list(range(10,17))
-        else:
-            arm_inds = list(range(2,9))
-        return robot_trans, arm_inds
-
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
 
     def right_arm_rot_check(self, x):
         robot_body = self._param_to_body[self.params[self.ind0]]
@@ -3467,37 +2925,6 @@ class BaxterGrippersWithinDistance(BaxterInGripper):
         self.arm = "left"
         super(BaxterGrippersWithinDistance, self).__init__(name, params, expected_param_types, env, debug)
 
-    def get_robot_info(self, robot_body, arm):
-        if not arm == "right" and not arm == "left":
-            assert PredicateException("Invalid Arm Specified")
-        # Provide functionality of Obtaining Robot information
-        if arm == "right":
-            tool_link = robot_body.env_body.GetLink("right_gripper")
-        else:
-            tool_link = robot_body.env_body.GetLink("left_gripper")
-        manip_trans = tool_link.GetTransform()
-        # This manip_trans is off by 90 degree
-        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
-        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        if arm == "right":
-            arm_inds = self.robot.geom.dof_map['rArmPose']
-        else:
-            arm_inds = self.robot.geom.dof_map['lArmPose']
-        return robot_trans, arm_inds
-
-    def set_robot_poses(self, x, robot_body):
-        # Provide functionality of setting robot poses
-        l_arm_pose, l_gripper = x[0:7], x[7]
-        r_arm_pose, r_gripper = x[8:15], x[15]
-        base_pose = x[16]
-        robot_body.set_pose([0,0,base_pose])
-
-        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose.reshape((7,)),
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
-
     def both_arm_pos_check_f(self, x):
         robot_body = self.robot.openrave_body
         body = robot_body.env_body
@@ -3505,9 +2932,7 @@ class BaxterGrippersWithinDistance(BaxterInGripper):
         self.set_robot_poses(x, robot_body)
 
         l_ee_trans, l_arm_inds = self.get_robot_info(robot_body, 'left')
-        l_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in l_arm_inds]
         r_ee_trans, r_arm_inds = self.get_robot_info(robot_body, 'right')
-        r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in r_arm_inds]
         dist = max(0, np.linalg.norm(l_ee_trans[:3,3] - r_ee_trans[:3,3]) - self.edge_len)
 
         return np.array([dist])

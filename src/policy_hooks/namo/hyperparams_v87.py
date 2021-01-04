@@ -313,7 +313,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         config['sensor_dims'][utils.TARG_ENUMS[o]] = 2
         #config['prim_obs_include'].append(utils.OBJ_ENUMS[o])
         #config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
-        config['prim_obs_include'].append(utils.TARG_ENUMS[o])
+        #config['prim_obs_include'].append(utils.TARG_ENUMS[o])
     return config
 
 config = refresh_config()

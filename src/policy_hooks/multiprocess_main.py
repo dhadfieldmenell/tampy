@@ -256,7 +256,8 @@ class MultiProcessMain(object):
                 'image_channels': self.config['image_channels'],
                 'sensor_dims': self.sensor_dims,
                 'n_layers': self.config['n_layers'],
-                'num_filters': [16,16],
+                'num_filters': [32, 32, 16],
+                'filter_sizes': [8, 6, 4],
                 'q_imwt': 1,
                 'dim_hidden': self.config['dim_hidden'],
             },
@@ -268,7 +269,8 @@ class MultiProcessMain(object):
                 'image_channels': self.config['image_channels'],
                 'sensor_dims': self.sensor_dims,
                 'n_layers': self.config['prim_n_layers'],
-                'num_filters': [16, 16],
+                'num_filters': [32, 32, 8],
+                'filter_sizes': [8, 6, 4],
                 'dim_hidden': self.config['prim_dim_hidden'],
                 'output_boundaries': self.prim_bounds,
             },
@@ -327,14 +329,14 @@ class MultiProcessMain(object):
         buf_sizes = {}
         if self.config['policy_opt'].get('split_nets', False):
             for scope in self.task_list:
-                buffers[scope] = mp.Array(ctypes.c_char, 20 * (2**20))
+                buffers[scope] = mp.Array(ctypes.c_char, (2**28))
                 buf_sizes[scope] = mp.Value('i')
                 buf_sizes[scope].value = 0
         else:
-            buffers['control'] = mp.Array(ctypes.c_char, 20 * (2**20))
+            buffers['control'] = mp.Array(ctypes.c_char, (2**28))
             buf_sizes['control'] = mp.Value('i')
             buf_sizes['control'].value = 0
-        buffers['primitive'] = mp.Array(ctypes.c_char, 20 * (2**20))
+        buffers['primitive'] = mp.Array(ctypes.c_char, 20 * (2**28))
         buf_sizes['primitive'] = mp.Value('i')
         buf_sizes['primitive'].value = 0
         buf_sizes['n_data'] = mp.Value('i')

@@ -156,7 +156,8 @@ def get_policy_data(policy, keywords=[], exclude=[], include=[]):
                 with open(full_dir+'/'+r, 'r') as f:
                     next_data = f.read()
                 if len(next_data):
-                    r_data = eval(next_data)
+                    next_data = str.split(next_data, '\n\n')
+                    r_data = [eval(d) for d in next_data if len(d)]
                     print('Loading {0} pts for {1}'.format(len(r_data), full_dir+'/'+r))
                     for pt in r_data:
                         pt['exp id'] = 0
@@ -619,7 +620,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
         sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_true{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
 
 
-def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100, rolling=True, window=100, ylim=None):
+def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100, rolling=True, window=100, xlim=None, ylim=None):
     sns.set()
     if not separate:
         d = []
@@ -628,9 +629,10 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
         if not len(d) : return
         pd_frame = pd.DataFrame(d, columns=columns)
         # leg_labels = getattr(pd_frame, columns[0]).unique()
-        for xv in xvars:
+        for xind, xv in enumerate(xvars):
             for yind, yv in enumerate(yvars):
                 print(('Plotting', xv, yv))
+                if xlim is not None: plt.xlim(*xlim[xind])
                 if ylim is not None: plt.ylim(*ylim[yind])
                 if type(yv) not in (np.string_, str):
                     df = pd_frame.melt(id_vars=[xv, columns[0]], value_vars=yv, var_name='y_variable', value_name='value')
@@ -685,6 +687,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                         sns_plot.fig.add_axes((l+w+0.1, b, w, h))
                         sub_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=style, kind='line', data=df, legend=False, ax=sns_plot.fig.axes[-1], dashes=dashes, markers=False)
                     sns_plot.fig.axes[-1].set_title('{0} vs {1}'.format(xv, cur_y), size=14)
+                    if xlim is not None: sns_plot.fig.axes[-1].set(xlim=xlim[xind])
                     if ylim is not None: sns_plot.fig.axes[-1].set(ylim=ylim[yind])
                     '''
                     for axes in sns_plot.axes.flat:
@@ -721,7 +724,7 @@ def gen_label(exp_dir, label_vars=[], split_runs=False, run_ind=0):
 def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1., 
                    label_vars=[], ylabel='value', separate=True, keyind=3, 
                    exclude=[], include=[], split_runs=False,
-                   pre=False, rolling=True, window=100, ylim=None):
+                   pre=False, rolling=True, window=100, xlim=None, ylim=None):
     if not len(keywords): keywords.append(LOG_DIR)
     if lab == 'rollout':
         rd = get_rollout_data(keywords, exclude=exclude)
@@ -794,18 +797,18 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
             flat_yvar_labs.extend([v+'{0}'.format('_'+str(i) if inds_to_var.get(v,0) > 1 else '') for i in range(inds_to_var.get(v,1))])
 
     # yvar_labs = np.concatenate([[v+'{0}'.format('_'+str(i) if inds_to_var.get(v, 0) > 1 else '') for i in range(inds_to_var.get(v, 1))] for v in yvars])
-    plot(data, ['description', 'key', 'exp id']+xvars+flat_yvar_labs, '{0}_vs_{1}'.format(xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind, inter=inter, rolling=rolling, window=window, ylim=ylim)
+    plot(data, ['description', 'key', 'exp id']+xvars+flat_yvar_labs, '{0}_vs_{1}'.format(xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind, inter=inter, rolling=rolling, window=window, xlim=xlim, ylim=ylim)
 
-include=['refactor']
+include=['images']
 exclude=['oldprob']
-gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=['refactor'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='lossdataloadtargs', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
-gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=['refactor'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
-gen_data_plots(xvar='time', yvar=['success with postcond', 'subgoals anywhere'], keywords=['refactor'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadpostpreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0,1), (0,1)])
-gen_data_plots(xvar='time', yvar=['number of plans'], keywords=['refactor'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadratetargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300)
-gen_data_plots(xvar='time', yvar=['collision'], keywords=['refactor'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='coldataloadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
-gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['refactor'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadnplansend', exclude=exclude, split_runs=False, include=include, inter=5, window=500, ylim=[(0.,1.), (0.,1.), (0, 1.)])
-gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=['refactor'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadlosstrain', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
-# gen_data_plots(xvar='time', yvar=[['train_accuracy', 'test_accuracy']], keywords=['refactor'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='3objlossesspreadtargs', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
+gen_data_plots(xvar='time', yvar=[['train_accuracy', 'test_accuracy']], keywords=['images'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='3objlossesspreadtargs', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
+#gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=['images'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='lossdataloadtargs', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
+gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=['images'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
+gen_data_plots(xvar='time', yvar=['success with postcond', 'subgoals anywhere'], keywords=['images'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadpostpreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0,1), (0,1)])
+gen_data_plots(xvar='time', yvar=['number of plans'], keywords=['images'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadratetargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300)
+gen_data_plots(xvar='time', yvar=['collision'], keywords=['images'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='coldataloadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
+gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=['images'], lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadnplansend', exclude=exclude, split_runs=False, include=include, inter=5, window=500, ylim=[(0.,1.), (0.,1.), (0, 1.)])
+gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=['images'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadlosstrain', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
 
 
 

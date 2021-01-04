@@ -4,7 +4,8 @@ import numpy as np
 from copy import copy
 
 def init_weights(shape, name=None):
-    return tf.get_variable(name, initializer=tf.random_normal(shape, stddev=0.01))
+    var = 1. / np.prod(shape[1:])
+    return tf.get_variable(name, initializer=tf.random_normal(shape, stddev=np.sqrt(var)))
 
 
 def init_bias(shape, name=None):
@@ -349,8 +350,9 @@ def multi_modal_class_network(dim_input=27, dim_output=2, batch_size=25, network
     im_height = network_config['image_height']
     im_width = network_config['image_width']
     num_channels = network_config['image_channels']
-    image_input = tf.reshape(image_input, [-1, num_channels, im_width, im_height])
-    image_input = tf.transpose(image_input, perm=[0,3,2,1])
+    #image_input = tf.reshape(image_input, [-1, num_channels, im_width, im_height])
+    image_input = tf.reshape(image_input, [-1, im_width, im_height, num_channels])
+    #image_input = tf.transpose(image_input, perm=[0,3,2,1])
 
     # we pool twice, each time reducing the image size by a factor of 2.
     #conv_out_size = int(im_width/(2.0*pool_size)*im_height/(2.0*pool_size)*num_filters[1])
@@ -363,6 +365,97 @@ def multi_modal_class_network(dim_input=27, dim_output=2, batch_size=25, network
     cur_in = num_channels
     cur_in_layer = image_input
     for i in range(n_conv):
+        weights['conv_wc{0}'.format(i)] = init_weights([filter_size, filter_size, cur_in, num_filters[i]], name='conv_wc{0}'.format(i)) # 5x5 conv, 1 input, 32 outputs
+        biases['conv_bc{0}'.format(i)] = init_bias([num_filters[i]], name='conv_bc{0}'.format(i))
+        cur_in = num_filters[i]
+        if i == 0:
+            conv_layers.append(conv2d(img=cur_in_layer, w=weights['conv_wc{0}'.format(i)], b=biases['conv_bc{0}'.format(i)], strides=[1,2,2,1]))
+        else:
+            conv_layers.append(conv2d(img=cur_in_layer, w=weights['conv_wc{0}'.format(i)], b=biases['conv_bc{0}'.format(i)]))
+        cur_in_layer = conv_layers[-1]
+
+    _, num_rows, num_cols, num_fp = conv_layers[-1].get_shape()
+    num_rows, num_cols, num_fp = [int(x) for x in [num_rows, num_cols, num_fp]]
+    flat_conv_out = tf.reshape(conv_layers[-1], [-1, num_rows*num_cols*num_fp])
+    fc_input = tf.concat(axis=1, values=[flat_conv_out, state_input])
+
+    fc_output, weights_FC, biases_FC = get_mlp_layers(fc_input, n_layers, dim_hidden)
+    fc_vars = weights_FC + biases_FC
+    last_conv_vars = fc_input
+
+    scaled_mlp_applied = fc_output
+    if eta is not None:
+        scaled_mlp_applied = fc_output * eta
+    prediction = multi_sotfmax_prediction_layer(scaled_mlp_applied, boundaries)
+    loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, precision=precision)
+    return TfMap.init_from_lists([nn_input, action, precision], [prediction], [loss_out]), fc_vars, last_conv_vars
+
+
+
+def fp_multi_modal_class_network(dim_input=27, dim_output=2, batch_size=25, network_config=None, input_layer=None, eta=None):
+    """
+    An example a network in tf that has both state and image inputs, with the feature
+    point architecture (spatial softmax + expectation).
+    Args:
+        dim_input: Dimensionality of input.
+        dim_output: Dimensionality of the output.
+        batch_size: Batch size.
+        network_config: dictionary of network structure parameters
+    Returns:
+        A tfMap object that stores inputs, outputs, and scalar loss.
+    """
+    pool_size = 2
+    filter_size = 3
+    n_layers = 2 if 'n_layers' not in network_config else network_config['n_layers'] + 1
+    dim_hidden = network_config.get('dim_hidden', 40)
+    if type(dim_hidden) is int:
+        dim_hidden = (n_layers - 1) * [dim_hidden]
+    else:
+        dim_hidden = copy(dim_hidden)
+    dim_hidden.append(dim_output)
+    boundaries = network_config['output_boundaries']
+
+    # List of indices for state (vector) data and image (tensor) data in observation.
+    x_idx, img_idx, i = [], [], 0
+    for sensor in network_config['obs_include']:
+        dim = network_config['sensor_dims'][sensor]
+        if sensor in network_config['obs_image_data']:
+            img_idx = img_idx + list(range(i, i+dim))
+        else:
+            x_idx = x_idx + list(range(i, i+dim))
+        i += dim
+
+    if input_layer is None:
+        nn_input, action, precision = get_input_layer(dim_input, dim_output, len(boundaries))
+    else:
+        nn_input, action, precision = input_layer
+
+    state_input = nn_input[:, 0:x_idx[-1]+1]
+    image_input = nn_input[:, x_idx[-1]+1:img_idx[-1]+1]
+
+    # image goes through 3 convnet layers
+    num_filters = network_config['num_filters']
+    filter_sizes = network_config['filter_sizes']
+    n_conv = len(num_filters)
+
+    im_height = network_config['image_height']
+    im_width = network_config['image_width']
+    num_channels = network_config['image_channels']
+    image_input = tf.reshape(image_input, [-1, im_width, im_height, num_channels])
+    #image_input = tf.transpose(image_input, perm=[0,3,2,1])
+
+    # we pool twice, each time reducing the image size by a factor of 2.
+    #conv_out_size = int(im_width/(2.0*pool_size)*im_height/(2.0*pool_size)*num_filters[1])
+    #first_dense_size = conv_out_size + len(x_idx)
+
+    # Store layers weight & bias
+    weights = {}
+    biases = {}
+    conv_layers = []
+    cur_in = num_channels
+    cur_in_layer = image_input
+    for i in range(n_conv):
+        filter_size = filter_sizes[i]
         weights['conv_wc{0}'.format(i)] = init_weights([filter_size, filter_size, cur_in, num_filters[i]], name='conv_wc{0}'.format(i)) # 5x5 conv, 1 input, 32 outputs
         biases['conv_bc{0}'.format(i)] = init_bias([num_filters[i]], name='conv_bc{0}'.format(i))
         cur_in = num_filters[i]

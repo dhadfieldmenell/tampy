@@ -207,6 +207,34 @@ class BacktrackLLSolver(LLSolver):
         rs_param._free_attrs = rs_free
         return success
 
+    def validate_wp(self, plan, callback=None, amin=0, amax=None, nsamples=1):
+        if amax is None: amax = len(plan.actions)-1
+        n = 0
+        success = False
+        plan.save_free_attrs()
+        failed_preds = []
+        while not success and n < nsamples:
+            success = True
+            plan.restore_free_attrs()
+            for a in range(amin, amax+1):
+                active_ts = plan.actions[a].active_timesteps
+                robot_poses = self.obj_pose_suggester(plan, a, resample_size=1)
+                ind = np.random.randint(len(robot_poses))
+                rp = robot_poses[ind]
+                for attr, val in list(rp.items()):
+                    if rs_param.is_symbol():
+                        setattr(rs_param, attr, val)
+                    else:
+                        getattr(rs_param, attr)[:, active_ts[1]] = val.flatten()
+                failed_preds = plan.get_failed_preds(active_ts=(active_ts[1], active_ts[1]), tol=1e-3)
+                if len(failed_preds):
+                    success = False
+                    break
+            n += 1
+
+        plan.restore_free_attrs()
+        return success, failed_preds
+
     #@profile
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
               verbose=False, force_init=False, init_traj=[]):

@@ -83,16 +83,18 @@ class DataLoader(object):
                 n -= 1
                 continue
             ind = np.random.randint(len(dct[lab]))
-            if not val and (lab, ind) in used:
-                n -= 1
-                continue
+            #if not val and (lab, ind) in used:
+            #    n -= 1
+            #    continue
             used.append((lab,ind))
             obs.append(dct[lab][ind][0])
             mu.append(dct[lab][ind][1])
             prc.append(dct[lab][ind][2])
             wt.append(dct[lab][ind][3])
             aux.append(dct[lab][ind][4])
-        obs = np.array(obs)
+        #if self.task == 'primitive': print('Time to collect tensor:', time.time() - start_t)
+        if self.normalize or self.aug_f is not None:
+            obs = np.array(obs)
         mu = np.array(mu)
         prc = np.array(prc)
         wt = np.array(wt)
@@ -104,9 +106,11 @@ class DataLoader(object):
         if self.aug_f is not None:
             mu, obs, wt, prc = self.aug_f(mu, obs, wt, prc, aux)
         prc = wt * prc
+        #if self.task == 'primitive': print('Time to build tensor:', time.time() - start_t)
         if self.scale is None: self.set_scale()
         if self.normalize:
             obs[:, self.x_idx] = obs[:, self.x_idx].dot(self.scale) + self.bias
+        # if self.task == 'primitive': print('Time to get', len(obs), 'batch:', time.time() - start_t)
         return obs, mu, prc
 
 
@@ -114,7 +118,7 @@ class DataLoader(object):
         for _ in range(self.load_freq):
             #print('Waiting for batch to train on', self.task)
             while self.wait_for_data():
-                time.sleep(0.01)
+                time.sleep(0.001)
             
             #print('Sending batch to train on', self.task)
             yield self.get_batch()

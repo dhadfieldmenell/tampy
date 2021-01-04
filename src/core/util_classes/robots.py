@@ -21,9 +21,109 @@ class Robot(object):
     def __init__(self, shape):
         self.shape = shape
         self.file_type = 'urdf'
+        self.initialized = False
+        self.arms = []
+        self.grippers = []
+        self.id = -1
+
+    def is_initialized(self):
+        return self.initialized
 
     def setup(self, robot):
-        return
+        self.setup_arms()
+        self.intialized = True
+
+    def get_arm_inds(self, arm):
+        return self.arm_inds[arm]
+
+    def get_free_inds(self, arm=None):
+        if arm is None: return list(self.free_joints)
+
+        inds = self.get_arm_inds(arm)
+        return [self.free_joints[ind] for ind in inds]
+
+    def get_ee_link(self, arm):
+        return self.ee_links[arm]
+
+    def get_arm_bnds(self, arm=None):
+        if arm is None: return list(self.lb), list(self.ub)
+        return self.arm_bnds[arm]
+
+    def get_joint_limits(self):
+        limits = []
+        for arm in self.arms:
+            limits.append(self.jnt_limits[arm])
+        return limits
+
+    def get_shape(self):
+        return self.shape
+
+    def get_type(self):
+        return self.file_type
+
+    def get_dof_inds(self):
+        return list(self.dof_inds.items())
+
+    def _init_pybullet(self):
+        if self.shape.endswith('urdf'):
+            self.id = p.loadURDF(self.shape)
+        elif self.shape.endswith('mjcf'):
+            self.id = p.loadMJCF(self.shape)
+        elif self.shape.endswith('xml'):
+            self.id = p.loadMJCF(self.shape)
+
+        if type(self.id) is not int:
+            for i in range(len(self.id)):
+                if p.getNumJoints(self.id[i]) > 0:
+                    self.id = self.id[i]
+                    break
+
+    def setup_arms(self):
+        if self.id < 0:
+            self._init_pybullet()
+
+        self.dof_map = {}
+        self.arm_inds = {}
+        self.gripper_inds = {}
+        self.ee_links = {}
+        self.jnt_limits = {}
+        self.free_joints = {}
+        self.lb, self.ub = [], []
+
+        self.jnt_to_id = {}
+        self.id_to_jnt = {}
+        self.link_to_id = {}
+        self.id_to_link = {}
+        bounds = {}
+        cur_free = 0
+        for i in range(p.getNumJoints(self.id)):
+            jnt_info = p.getJointInfo(self.id, i)
+            jnt_name = jnt_info[1].decode('utf-8')
+            self.jnt_to_id[jnt_name] = i
+            self.id_to_jnt[i] = jnt_name
+            self.link_to_id[jnt_info[12].decode('utf-8')] = i
+            self.id_to_link[i] = jnt_info[12].decode('utf-8')
+            bounds[jnt_name] = (jnt_info[8], jnt_info[9])
+
+            if jnt_info[2] != p.JOINT_FIXED:
+                self.free_joints[i] = cur_free
+                self.lb.append(jnt_info[8])
+                self.ub.append(jnt_info[9])
+                cur_free += 1
+
+        for arm in self.arms:
+            jnt_names = self.jnt_names[arm]
+            self.dof_map[arm] = [self.jnt_to_id[jnt] for jnt in jnt_names]
+            self.arm_inds[arm] = [self.jnt_to_id[jnt] for jnt in jnt_names]
+            self.ee_links[arm] = self.link_to_id[self.ee_link_names[arm]]
+            self.jnt_limits[arm] = ([bounds[jnt][0] for jnt in jnt_names], [bounds[jnt][1] for jnt in jnt_names])
+
+        for gripper in self.grippers:
+            jnt_names = self.jnt_names[gripper]
+            self.dof_map[gripper] = [self.jnt_to_id[jnt] for jnt in jnt_names]
+            self.gripper_inds[gripper] = [self.jnt_to_id[jnt] for jnt in jnt_names]
+
+        self.col_links = set([self.link_to_id[name] for name in self.col_link_names])
 
 
 class NAMO(Robot):
@@ -89,60 +189,57 @@ class Baxter(Robot):
     """
     def __init__(self):
         self._type = "baxter"
-        baxter_shape = "../models/baxter/baxter.zae"
-        # self.col_links = set(["torso", "pedestal", "head", "sonar_ring", "screen", "collision_head_link_1",
-        #                       "collision_head_link_2", "right_upper_shoulder", "right_lower_shoulder",
-        #                       "right_upper_elbow", "right_upper_elbow_visual", "right_lower_elbow",
-        #                       "right_upper_forearm", "right_upper_forearm_visual", "right_lower_forearm",
-        #                       "right_wrist", "right_hand", "right_gripper_base", "right_gripper",
-        #                       "right_gripper_l_finger", "right_gripper_r_finger", "right_gripper_l_finger_tip",
-        #                       "right_gripper_r_finger_tip", "left_upper_shoulder", "left_lower_shoulder",
-        #                       "left_upper_elbow", "left_upper_elbow_visual", "left_lower_elbow",
-        #                       "left_upper_forearm", "left_upper_forearm_visual", "left_lower_forearm",
-        #                       "left_wrist", "left_hand", "left_gripper_base", "left_gripper",
-        #                       "left_gripper_l_finger", "left_gripper_r_finger", "left_gripper_l_finger_tip",
-        #                       "left_gripper_r_finger_tip"])
-        self.col_links = set(["torso", "head", "sonar_ring", "screen", "collision_head_link_1",
+        baxter_shape = baxter_gym.__path__[0] + "/robot_info/baxter_model.xml"
+        super(Baxter, self).__init__(baxter_shape)
+
+        self.jnt_names = {'left':  ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', 'left_w1', 'left_w2'],
+                          'left_gripper': ['left_gripper_l_finger_joint', 'left_gripper_r_finger_joint'],
+                          'right': ['right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'right_w1', 'right_w2'],
+                          'right_gripper': ['right_gripper_l_finger_joint', 'right_gripper_r_finger_joint'],
+                          }
+        self.ee_link_names = {'left': 'left_gripper', 'right': 'right_gripper'}
+        self.arms = ['left', 'right']
+        self.grippers = ['left_gripper', 'right_gripper']
+        #self.arm_inds = {'left':  [31, 32, 33, 34, 35, 37, 38],
+        #                 'right': [13, 14, 15, 16, 17, 19, 20]}
+        #self.ee_links = {'left': 45, 'right': 27}
+        self.arm_bnds = {'left': (0,7), 'right': (8, 15)}
+        #self.jnt_limits = {'left':  ([-1.701, -2.145, -3.05, -0.05, -3.059, -1.57, -3.059], [1.70, 1.04, 3.05, 2.61, 3.059, 2.094, 3.059]),
+        #                   'right': ([-1.701, -2.145, -3.05, -0.05, -3.059, -1.57, -3.059], [1.70, 1.04, 3.05, 2.61, 3.059, 2.094, 3.059])}
+        self.dof_inds = {'lArmPose': list(range(7)),
+                         'lGripper': [7],
+                         'rArmPose': list(range(8, 15)),
+                         'rGripper': [15]}
+
+        #self.col_link_names = set(["torso", "head", "sonar_ring", "screen", "collision_head_link_1",
+        #                      "collision_head_link_2", "right_upper_shoulder", "right_lower_shoulder",
+        #                      "right_upper_elbow", "right_upper_elbow_visual", "right_lower_elbow",
+        #                      "right_upper_forearm", "right_upper_forearm_visual", "right_lower_forearm",
+        #                      "right_wrist", "right_hand", "right_gripper_base", "right_gripper",
+        #                      "right_gripper_l_finger", "right_gripper_r_finger", "right_gripper_l_finger_tip",
+        #                      "right_gripper_r_finger_tip", "left_upper_shoulder", "left_lower_shoulder",
+        #                      "left_upper_elbow", "left_upper_elbow_visual", "left_lower_elbow",
+        #                      "left_upper_forearm", "left_upper_forearm_visual", "left_lower_forearm",
+        #                      "left_wrist", "left_hand", "left_gripper_base", "left_gripper",
+        #                      "left_gripper_l_finger", "left_gripper_r_finger", "left_gripper_l_finger_tip",
+        #                      "left_gripper_r_finger_tip"])
+
+        self.col_link_names = set(["torso", "head", "screen", "collision_head_link_1",
                               "collision_head_link_2", "right_upper_shoulder", "right_lower_shoulder",
-                              "right_upper_elbow", "right_upper_elbow_visual", "right_lower_elbow",
-                              "right_upper_forearm", "right_upper_forearm_visual", "right_lower_forearm",
+                              "right_upper_elbow", "right_lower_elbow",
+                              "right_upper_forearm", "right_lower_forearm",
                               "right_wrist", "right_hand", "right_gripper_base", "right_gripper",
                               "right_gripper_l_finger", "right_gripper_r_finger", "right_gripper_l_finger_tip",
                               "right_gripper_r_finger_tip", "left_upper_shoulder", "left_lower_shoulder",
-                              "left_upper_elbow", "left_upper_elbow_visual", "left_lower_elbow",
-                              "left_upper_forearm", "left_upper_forearm_visual", "left_lower_forearm",
+                              "left_upper_elbow", "left_lower_elbow",
+                              "left_upper_forearm", "left_lower_forearm",
                               "left_wrist", "left_hand", "left_gripper_base", "left_gripper",
                               "left_gripper_l_finger", "left_gripper_r_finger", "left_gripper_l_finger_tip",
                               "left_gripper_r_finger_tip"])
-        if const.USE_OPENRAVE:
-            self.dof_map = {"lArmPose": list(range(2,9)), "lGripper": [9], "rArmPose": list(range(10,17)), "rGripper":[17]}
-        else:
-            self.dof_map = {"lArmPose": list(range(31,39)), "rArmPose": list(range(13,21))}
-        super(Baxter, self).__init__(baxter_shape)
-
-    def setup(self, robot):
-        """
-        Need to setup iksolver for baxter
-        """
-        if const.USE_OPENRAVE:
-            iktype = IkParameterizationType.Transform6D
-            ikmodel = databases.inversekinematics.InverseKinematicsModel(robot, IkParameterizationType.Transform6D, True)
-            if not ikmodel.load():
-                print('Something went wrong when loading ikmodel')
-            #   ikmodel.autogenerate()
-            right_manip = robot.GetManipulator('right_arm')
-            ikmodel.manip = right_manip
-            right_manip.SetIkSolver(ikmodel.iksolver)
-
-            ikmodel = databases.inversekinematics.InverseKinematicsModel(robot, IkParameterizationType.Transform6D, True)
-            if not ikmodel.load():
-                print('Something went wrong')
-            left_manip = robot.GetManipulator('left_arm')
-            ikmodel.manip = left_manip
-            left_manip.SetIkSolver(ikmodel.iksolver)
-        else:
-            self.ik_solver = BaxterIKController(lambda: np.zeros(14))
-            self.col_links = set([self.ik_solver.name2id(name) for name in self.col_links])
+        #self.ik_solver = BaxterIKController(lambda: np.zeros(14))
+        #self.col_links = set([self.ik_solver.name2id(name) for name in self.col_link_names])
+        #self.dof_map = {"lArmPose": [31, 32, 33, 34, 35, 37, 38],
+        #                "rArmPose": [13, 14, 15, 16, 17, 19, 20]}
 
 
 class HSR(Robot):

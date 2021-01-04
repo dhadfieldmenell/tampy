@@ -28,6 +28,8 @@ class PolicyServer(object):
         self.permute = hyperparams['permute_hl'] > 0
         hyperparams['policy_opt']['scope'] = self.task
         hyperparams['policy_opt']['split_hl_loss'] = hyperparams['split_hl_loss']
+        hyperparams['policy_opt']['gpu_id'] = 0
+        hyperparams['policy_opt']['use_gpu'] = 1
         hyperparams['agent']['master_config'] = hyperparams
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
         self.stopped = False
@@ -38,7 +40,9 @@ class PolicyServer(object):
         self.batch_size = hyperparams['batch_size']
         normalize = self.task != 'primitive'
         self.data_gen = DataLoader(hyperparams, self.task, self.in_queue, self.batch_size, normalize, min_buffer=self.min_buffer)
-        aug_f = self.agent.permute_hl_data if self.task == 'primitive' else None
+        aug_f = None
+        if self.task == 'primitive' and hyperparams['permute_hl'] > 0:
+            aug_f = self.agent.permute_hl_data
         self.data_gen = DataLoader(hyperparams, self.task, self.in_queue, self.batch_size, normalize, min_buffer=self.min_buffer, aug_f=aug_f)
       
         hyperparams['dPrim'] = len(hyperparams['prim_bounds'])
@@ -87,6 +91,7 @@ class PolicyServer(object):
         self.update_queue = []
         self.policy_var = {}
         self.policy_loss = []
+        self.train_losses = {'all': [], 'optimal':[], 'rollout':[]}
         self.val_losses = {'all': [], 'optimal':[], 'rollout':[]}
         self.policy_component_loss = []
         self.log_infos = []
@@ -100,6 +105,8 @@ class PolicyServer(object):
             self.iters += 1
             self.policy_opt.update(self.task)
             self.n_updates += 1
+            mu, obs, prc = self.data_gen.get_batch()
+            if len(mu): self.train_losses['all'].append(self.policy_opt.check_validation(mu, obs, prc, task=self.task))
             mu, obs, prc = self.data_gen.get_batch(val=True)
             if len(mu): self.val_losses['all'].append(self.policy_opt.check_validation(mu, obs, prc, task=self.task))
 
@@ -113,10 +120,11 @@ class PolicyServer(object):
                 n_val = self.data_gen.get_size(val=True)
                 print('Ran', self.iters, 'updates on', self.task, 'with', n_train, 'train and', n_val, 'val')
             if not self.iters % 10 and len(self.val_losses['all']):
-                with open(self.policy_opt_log, 'w+') as f:
+                with open(self.policy_opt_log, 'a+') as f:
                     info = self.get_log_info()
                     pp_info = pprint.pformat(info, depth=60)
                     f.write(str(pp_info))
+                    f.write('\n\n')
         self.policy_opt.sess.close()
 
 
@@ -125,12 +133,14 @@ class PolicyServer(object):
         if self.task == 'primitive':
             obs, mu, prc = self.data_gen.get_batch()
             train_acc = self.policy_opt.task_acc(obs, mu, prc)
+            train_component_acc = self.policy_opt.task_acc(obs, mu, prc, scalar=False)
             obs, mu, prc = self.data_gen.get_batch(val=True)
             test_acc = self.policy_opt.task_acc(obs, mu, prc)
+            test_component_acc = self.policy_opt.task_acc(obs, mu, prc, scalar=False)
         info = {
                 'time': time.time() - self.start_t,
-                'train_loss': np.mean(self.policy_opt.average_losses[-10:]),
-                'train_component_loss': np.mean(self.policy_opt.average_losses[-10:], axis=0),
+                'train_loss': np.mean(self.train_losses['all'][-10:]),
+                'train_component_loss': np.mean(self.train_losses['all'][-10:], axis=0),
                 'val_loss': np.mean(self.val_losses['all'][-10:]),
                 'val_component_loss': np.mean(self.val_losses['all'][-10:], axis=0),
                 'scope': self.task,
@@ -151,9 +161,11 @@ class PolicyServer(object):
             info['optimal_val_component_loss'] = np.mean(self.val_losses['optimal'][-10:], axis=0),
         if test_acc >= 0:
             info['test_accuracy'] = test_acc
+            info['test_component_accuracy'] = test_component_acc
             info['train_accuracy'] = train_acc
-        self.log_infos.append(info)
-        return self.log_infos
+            info['train_component_accuracy'] = train_component_acc
+        #self.log_infos.append(info)
+        return info #self.log_infos
 
 
     def update_expert_demos(self, obs, acs, rew=None):

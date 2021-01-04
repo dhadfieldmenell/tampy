@@ -109,7 +109,7 @@ class RolloutServer(Server):
                     if postcost > 1e-3: task = curtask
                 if self.check_precond:
                     precost = self.agent.precond_cost(sample, task, t)
-                    if precost > 1e-3: precond_viols.append([(cur_ids[0], t)])
+                    if precost > 1e-3: precond_viols.append((cur_ids[0], t))
             if task == curtask:
                 counts.append(counts[-1]+1)
             else:
@@ -264,7 +264,7 @@ class RolloutServer(Server):
                                  x0=x0,
                                  targets=targets,
                                  expansions=0,
-                                 label=self.id)
+                                 label=self.id+'_failed_rollout')
             self.push_queue(hlnode, self.task_queue)
 
 
@@ -411,44 +411,26 @@ class RolloutServer(Server):
         ff_iters = self._hyperparams['warmup_iters']
         self.agent.hl_pol = False
         while not self.stopped:
-            self.set_policies()
             if self._n_plans <= ff_iters:
                 n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
                 self._n_plans = n_plans.value
 
             if self.run_hl_test or time.time() - self.last_hl_test > 120:
+                self.set_policies()
                 self.agent.replace_cond(0)
                 self.agent.reset(0)
                 self.test_hl()
 
             if self.run_hl_test or self._n_plans < ff_iters: continue
 
-            if self.check_precond or self.check_postcond:
+            self.set_policies()
+            node = self.pop_queue(self.rollout_queue)
+            if node is None:
                 new_node = self.spawn_problem()
                 self.push_queue(new_node, self.rollout_queue)
-                node = self.pop_queue(self.rollout_queue)
-                x0 = node.x0
-                targets = node.targets
-                val, path, s, t = self.rollout(x0, targets)
-                if val < 1:
-                    state = x0
-                    if len(path):
-                        state = path[s].get(STATE_ENUM, t)
-                    initial, goal = self.agent.get_hl_info(state, targets)
-                    concr_prob = node.concr_prob
-                    abs_prob = self.agent.hl_solver.translate_problem(concr_prob, initial=initial, goal=goal)
-                    hlnode = HLSearchNode(abs_prob,
-                                          node.domain,
-                                          concr_prob,
-                                          priority=ROLL_PRIORITY,
-                                          prefix=None,
-                                          llnode=None,
-                                          expansions=node.expansions,
-                                          label=node.label,
-                                          x0=state,
-                                          targets=targets)
-                    self.push_queue(hlnode, self.task_queue)
-           
+            else:
+                self.send_rollout(node)
+
             if self.fail_plan:
                 self.plan_from_fail(mode=self.fail_mode)
 
@@ -456,11 +438,36 @@ class RolloutServer(Server):
                 data = self.agent.get_opt_samples(task, clear=True)
                 if len(data) and self.ll_rollout_opt:
                     self.alg_map[task]._update_policy_no_cost(data, label='rollout')
+
             if self.hl_rollout_opt:
                 self.run_hl_update()
             step += 1
         self.policy_opt.sess.close()
 
+
+    def send_rollout(self, node):
+        x0 = node.x0
+        targets = node.targets
+        val, path, s, t = self.rollout(x0, targets)
+        if val < 1:
+            state = x0
+            if len(path):
+                state = path[s].get(STATE_ENUM, t)
+            initial, goal = self.agent.get_hl_info(state, targets)
+            concr_prob = node.concr_prob
+            abs_prob = self.agent.hl_solver.translate_problem(concr_prob, initial=initial, goal=goal)
+            hlnode = HLSearchNode(abs_prob,
+                                  node.domain,
+                                  concr_prob,
+                                  priority=ROLL_PRIORITY,
+                                  prefix=None,
+                                  llnode=None,
+                                  expansions=node.expansions,
+                                  label=self.id+'_failed_rollout',
+                                  x0=state,
+                                  targets=targets)
+            self.push_queue(hlnode, self.task_queue)
+       
 
     def test_run(self, state, targets, max_t=20, hl=False, soft=False, check_cost=True, eta=None, lab=0):
         def task_f(sample, t, curtask):

@@ -1127,7 +1127,8 @@ class ColObjPred(CollisionPredicate):
                 if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
                     vals.append(0)
                 else:
-                    val = np.array([TF_SESS[0].run(cur_tensor, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})])
+                    with tf.device('/cpu:0'):
+                        val = np.array([TF_SESS[0].run(cur_tensor, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})])
                     vals.append(val)
             return self.neg_coeff*np.sum(vals, axis=0)
 
@@ -1148,7 +1149,8 @@ class ColObjPred(CollisionPredicate):
                 if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
                     vals.append(np.zeros((1,8)))
                 else:
-                    v = TF_SESS[0].run(cur_grads, feed_dict={in_tensor: pt, radius_tensor: self.radius**2}).T
+                    with tf.device('/cpu:0'):
+                        v = TF_SESS[0].run(cur_grads, feed_dict={in_tensor: pt, radius_tensor: self.radius**2}).T
                     v[np.isnan(v)] = 0.
                     v[np.isinf(v)] = 0.
                     curcoeff = float(COL_TS-i)/COL_TS
@@ -1174,7 +1176,8 @@ class ColObjPred(CollisionPredicate):
                 if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
                     vals.append(np.zeros((8,8)))
                 else:
-                    v = TF_SESS[0].run(cur_hess, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})
+                    with tf.device('/cpu:0'):
+                        v = TF_SESS[0].run(cur_hess, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})
                     v[np.isnan(v)] = 0.
                     v[np.isinf(v)] = 0.
                     v = v.reshape((4,4))

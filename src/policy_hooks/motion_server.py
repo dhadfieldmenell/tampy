@@ -30,7 +30,7 @@ class MotionServer(Server):
         self.label_type = 'optimal'
 
 
-    def refine_plan(self):
+    def refine_plan(self, node):
         start_t = time.time()
         node = self.pop_queue(self.in_queue)
         size = self.in_queue.qsize()
@@ -60,10 +60,10 @@ class MotionServer(Server):
             #self.save_image(path[s], ts=t, render=False)
             self.log_path(path, 10)
             for step in path: step.source_label = 'optimal'
-            print(self.id, 'Successful refine.', path[-1].success)
+            print(self.id, 'Successful refine from', node.label)
         if not success and node.gen_child():
             fail_step, fail_pred, fail_negated = node.get_failed_pred()
-            print('Refine failed:', plan.get_failed_preds((0, fail_step)), fail_step, plan.actions)
+            print('Refine failed:', plan.get_failed_preds((0, fail_step)), fail_step, plan.actions, node.label)
             n_problem = node.get_problem(fail_step, fail_pred, fail_negated)
             abs_prob = self.agent.hl_solver.translate_problem(n_problem, goal=node.concr_prob.goal)
             prefix = node.curr_plan.prefix(fail_step)
@@ -84,9 +84,13 @@ class MotionServer(Server):
     def run(self):
         step = 0
         while not self.stopped:
-            node = self.spawn_problem()
-            self.push_queue(node, self.task_queue)
-            self.refine_plan()
+            node = self.pop_queue(self.in_queue)
+            if node is None:
+                hlnode = self.spawn_problem()
+                self.push_queue(hlnode, self.task_queue)
+            else:
+                self.refine_plan(node)
+
             for task in self.alg_map:
                 data = self.agent.get_opt_samples(task, clear=True)
                 if len(data): self.alg_map[task]._update_policy_no_cost(data, label='optimal')

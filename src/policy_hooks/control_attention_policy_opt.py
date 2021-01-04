@@ -13,9 +13,11 @@ import numpy as np
 import tensorflow as tf
 
 from gps.algorithm.policy_opt.config import POLICY_OPT_TF
-from gps.algorithm.policy.tf_policy import TfPolicy
 from gps.algorithm.policy_opt.policy_opt import PolicyOpt
+#from gps.algorithm.policy.tf_policy import TfPolicy
 from gps.algorithm.policy_opt.tf_utils import TfSolver
+
+from policy_hooks.tf_policy import TfPolicy
 
 MAX_QUEUE_SIZE = 100000
 MAX_UPDATE_SIZE = 10000
@@ -65,8 +67,9 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.action_tensor = None  # mu true
         self.solver = None
         self.feat_vals = None
-        self.init_network()
-        self.init_solver()
+        with tf.device(self.device_string):
+            self.init_network()
+            self.init_solver()
         self.var = {task: self._hyperparams['init_var'] * np.ones(dU) for task in self.task_map}
         self.var[""] = self._hyperparams['init_var'] * np.ones(dU)
         self.distilled_var = self._hyperparams['init_var'] * np.ones(dU)
@@ -82,7 +85,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             gpu_options = tf.GPUOptions(allow_growth=True)
         self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True))
         init_op = tf.initialize_all_variables()
-        self.sess.run(init_op)
+        with tf.device(self.device_string):
+            self.sess.run(init_op)
         self.init_policies(dU)
         llpol = hyperparams.get('ll_policy', '')
         hlpol = hyperparams.get('hl_policy', '')
@@ -132,7 +136,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.lr_scale = 0.9975
         self.lr_policy = 'fixed'
         self._hyperparams['iterations'] = MAX_UPDATE_SIZE // self.batch_size + 1
-        print('Iterations set to', self._hyperparams['iterations'])
 
 
     def restore_ckpts(self, label=None):
@@ -185,10 +188,16 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             scopes = self.valid_scopes + SCOPE_LIST
 
         for scope in scopes:
+            start_t = time.time()
             skip = False
             with self.buf_sizes[scope].get_lock():
                 if self.buf_sizes[scope].value == 0: skip = True
                 wts = self.buffers[scope][:self.buf_sizes[scope].value]
+
+            wait_t = time.time() - start_t
+            if wait_t > 0.1 and scope == 'primitive': print('Time waiting on lock:', wait_t)
+            #if self.buf_sizes[scope].value == 0: skip = True
+            #wts = self.buffers[scope][:self.buf_sizes[scope].value]
 
             #if skip: continue
             try:
@@ -199,15 +208,16 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                     print('Could not load {0} weights'.format(scope))
 
 
-    def serialize_weights(self, scopes=None):
-        if scopes is None:
-            scopes = self.valid_scopes + SCOPE_LIST
+    def serialize_weights(self, scopes=None, save=True):
+        with tf.device(self.device_string):
+            if scopes is None:
+                scopes = self.valid_scopes + SCOPE_LIST
 
-        var_to_val = {}
-        for scope in scopes:
-            variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
-            for v in variables:
-                var_to_val[v.name] = self.sess.run(v).tolist()
+            var_to_val = {}
+            for scope in scopes:
+                variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
+                for v in variables:
+                    var_to_val[v.name] = self.sess.run(v).tolist()
 
         scales = {task: self.task_map[task]['policy'].scale.tolist() for task in scopes if task in self.task_map}
         biases = {task: self.task_map[task]['policy'].bias.tolist() for task in scopes if task in self.task_map}
@@ -216,26 +226,28 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         scales[''] = []
         biases[''] = []
         variances[''] = []
+        if save: self.store_scope_weights(scopes=scopes)
         return pickle.dumps([scopes, var_to_val, scales, biases, variances])
 
 
-    def deserialize_weights(self, json_wts, save=True):
+    def deserialize_weights(self, json_wts, save=False):
         scopes, var_to_val, scales, biases, variances = pickle.loads(json_wts)
 
-        for scope in scopes:
-            variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
-            for var in variables:
-                var.load(var_to_val[var.name], session=self.sess)
+        with tf.device(self.device_string):
+            for scope in scopes:
+                variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
+                for var in variables:
+                    var.load(var_to_val[var.name], session=self.sess)
 
-            if scope not in self.valid_scopes: continue
-            # if save:
-            #     np.save('tf_saved/'+self.weight_dir+'/control'+'_scale', scales['control'])
-            #     np.save('tf_saved/'+self.weight_dir+'/control'+'_bias', biases['control'])
-            #     np.save('tf_saved/'+self.weight_dir+'/control'+'_variance', variances['control'])
-            #self.task_map[scope]['policy'].chol_pol_covar = np.diag(np.sqrt(np.array(variances[scope])))
-            self.task_map[scope]['policy'].scale = np.array(scales[scope])
-            self.task_map[scope]['policy'].bias = np.array(biases[scope])
-            #self.var[scope] = np.array(variances[scope])
+                if scope not in self.valid_scopes: continue
+                # if save:
+                #     np.save('tf_saved/'+self.weight_dir+'/control'+'_scale', scales['control'])
+                #     np.save('tf_saved/'+self.weight_dir+'/control'+'_bias', biases['control'])
+                #     np.save('tf_saved/'+self.weight_dir+'/control'+'_variance', variances['control'])
+                #self.task_map[scope]['policy'].chol_pol_covar = np.diag(np.sqrt(np.array(variances[scope])))
+                self.task_map[scope]['policy'].scale = np.array(scales[scope])
+                self.task_map[scope]['policy'].bias = np.array(biases[scope])
+                #self.var[scope] = np.array(variances[scope])
         if save: self.store_scope_weights(scopes=scopes)
 
     def update_weights(self, scope, weight_dir=None):
@@ -246,14 +258,15 @@ class ControlAttentionPolicyOpt(PolicyOpt):
     def store_scope_weights(self, scopes, weight_dir=None, lab=''):
         if weight_dir is None:
             weight_dir = self.weight_dir
-        for scope in scopes:
-            try:
-                variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
-                saver = tf.train.Saver(variables)
-                saver.save(self.sess, 'tf_saved/'+weight_dir+'/'+scope+'{0}.ckpt'.format(lab))
-            except:
-                print('Saving variables encountered an issue but it will not crash:')
-                traceback.print_exception(*sys.exc_info())
+        with tf.device(self.device_string):
+            for scope in scopes:
+                try:
+                    variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
+                    saver = tf.train.Saver(variables)
+                    saver.save(self.sess, 'tf_saved/'+weight_dir+'/'+scope+'{0}.ckpt'.format(lab))
+                except:
+                    print('Saving variables encountered an issue but it will not crash:')
+                    traceback.print_exception(*sys.exc_info())
 
             if scope in self.task_map:
                 policy = self.task_map[scope]['policy']
@@ -392,29 +405,40 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                                         self.device_string,
                                                         copy_param_scope=None)
     
-    def task_acc(self, obs, tgt_mu, prc, piecewise=False):
-        acc = 0
+    def task_acc(self, obs, tgt_mu, prc, piecewise=False, scalar=True):
+        acc = []
         task = 'primitive'
         for n in range(len(obs)):
             distrs = self.task_distr(obs[n])
             labels = []
             for bound in self._primBounds:
-                labels.append(tgt_mu[:, bound[0]:bound[1]])
+                labels.append(tgt_mu[n, bound[0]:bound[1]])
             accs = []
             for i in range(len(distrs)):
-                if prc[n][i] < 1e-3: accs.append(1)
-                if np.argmax(distrs[i]) != np.argmax(labels[i][n]):
+                #if prc[n][i] < 1e-3 or np.abs(np.max(labels[i])-np.min(labels[i])) < 1e-2:
+                #    accs.append(1)
+                #    continue
+
+                if np.argmax(distrs[i]) != np.argmax(labels[i]):
                     accs.append(0)
                 else:
                     accs.append(1)
-            acc += np.mean(accs) if piecewise else np.min(accs)
-        return acc / float(len(obs))
+
+            if piecewise or not scalar:
+                acc.append(accs)
+            else:
+                acc.append(np.min(accs) * np.ones(len(accs)))
+            #acc += np.mean(accs) if piecewise else np.min(accs)
+        if scalar:
+            return np.mean(acc)
+        return np.mean(acc, axis=0)
 
 
     def task_distr(self, obs, eta=1.):
         if len(obs.shape) < 2:
             obs = obs.reshape(1, -1)
-        distr = self.sess.run(self.primitive_act_op, feed_dict={self.primitive_obs_tensor:obs, self.primitive_eta: eta}).flatten()
+        with tf.device(self.device_string):
+            distr = self.sess.run(self.primitive_act_op, feed_dict={self.primitive_obs_tensor:obs, self.primitive_eta: eta}).flatten()
         res = []
         for bound in self._primBounds:
             res.append(distr[bound[0]:bound[1]])
@@ -436,30 +460,33 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
 
     def check_validation(self, obs, tgt_mu, tgt_prc, task="control"):
-        if task == 'primitive':
-            feed_dict = {self.primitive_obs_tensor: obs,
-                         self.primitive_action_tensor: tgt_mu,
-                         self.primitive_precision_tensor: tgt_prc}
-            val_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, train=False)
-        else:
-            feed_dict = {self.task_map[task]['obs_tensor']: obs,
-                         self.task_map[task]['action_tensor']: tgt_mu,
-                         self.task_map[task]['precision_tensor']: tgt_prc}
-            val_loss = self.task_map[task]['solver'](feed_dict, self.sess, device_string=self.device_string, train=False)
+        with tf.device(self.device_string):
+            if task == 'primitive':
+                feed_dict = {self.primitive_obs_tensor: obs,
+                             self.primitive_action_tensor: tgt_mu,
+                             self.primitive_precision_tensor: tgt_prc}
+                val_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, train=False)
+            else:
+                feed_dict = {self.task_map[task]['obs_tensor']: obs,
+                             self.task_map[task]['action_tensor']: tgt_mu,
+                             self.task_map[task]['precision_tensor']: tgt_prc}
+                val_loss = self.task_map[task]['solver'](feed_dict, self.sess, device_string=self.device_string, train=False)
         self.average_val_losses.append(val_loss)
         return val_loss
 
 
     def update(self, task="control", check_val=False, aux=[]):
+        start_t = time.time()
         average_loss = 0
-        for i in range(self._hyperparams['iterations']):
-            start_t = time.time()
-            feed_dict = {self.hllr_tensor: self.cur_hllr} if task == 'primitive' else {self.lr_tensor: self.cur_lr}
-            solver = self.primitive_solver if task == 'primitive' else self.task_map[task]['solver']
-            train_loss = solver(feed_dict, self.sess, device_string=self.device_string, train=(not check_val))
-            average_loss += train_loss
+        with tf.device(self.device_string):
+            for i in range(self._hyperparams['iterations']):
+                feed_dict = {self.hllr_tensor: self.cur_hllr} if task == 'primitive' else {self.lr_tensor: self.cur_lr}
+                solver = self.primitive_solver if task == 'primitive' else self.task_map[task]['solver']
+                train_loss = solver(feed_dict, self.sess, device_string=self.device_string, train=True)
+                average_loss += train_loss
         self.tf_iter += self._hyperparams['iterations']
         self.average_losses.append(average_loss / self._hyperparams['iterations'])
+        #if task == 'primitive': print('Time to run', self._hyperparams['iterations'], 'updates:', time.time() - start_t)
 
         '''
         # Optimize variance.

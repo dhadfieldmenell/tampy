@@ -309,7 +309,7 @@ def argsparser():
     parser.add_argument('-llus', '--update_size', type=int, default=2000)
     parser.add_argument('-hlus', '--prim_update_size', type=int, default=5000)
     parser.add_argument('-iters', '--train_iterations', type=int, default=50)
-    parser.add_argument('-batch', '--batch_size', type=int, default=500)
+    parser.add_argument('-batch', '--batch_size', type=int, default=256)
     parser.add_argument('-lldec', '--weight_decay', type=float, default=1e-3)
     parser.add_argument('-hldec', '--prim_weight_decay', type=float, default=1e-3)
     parser.add_argument('-lr', '--lr', type=float, default=1e-3)
