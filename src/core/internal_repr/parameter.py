@@ -59,7 +59,13 @@ class Parameter(object):
             raise e
         return attr
 
-    def get_type(self):
+    def get_type(self, find_all=False):
+        if find_all:
+            types = [self._type]
+            if hasattr(self, 'geom'):
+                types.extend(self.geom.get_types())
+            return types
+
         return self._type
 
     def is_symbol(self):

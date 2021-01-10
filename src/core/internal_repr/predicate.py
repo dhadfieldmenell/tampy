@@ -37,7 +37,7 @@ class Predicate(object):
             if len(self.params) != len(expected_param_types):
                 raise ParamValidationException("Parameter type validation failed for predicate '%s'."%self)
             for i, p in enumerate(self.params):
-                if not p.get_type() == expected_param_types[i]:
+                if expected_param_types[i] not in p.get_type(True):
                     raise ParamValidationException("Parameter type validation failed for predicate '%s'."%self)
         except:
             import ipdb; ipdb.set_trace()

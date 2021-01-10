@@ -389,6 +389,7 @@ def argsparser():
     parser.add_argument('-hl_only_retrain', '--hl_only_retrain', action='store_true', default=False)
     parser.add_argument('-cur', '--curric_thresh', type=int, default=-1)
     parser.add_argument('-ncur', '--n_thresh', type=int, default=10)
+    parser.add_argument('-view', '--view_policy', action='store_true', default=False)
 
 
     # Q learn args

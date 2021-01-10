@@ -80,6 +80,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.target_inds = self._hyperparams['target_inds']
         self.target_vecs = []
         self.master_config = hyperparams['master_config']
+        self.view = hyperparams['master_config'].get('view', False)
         self.rank = hyperparams['master_config'].get('rank', 0)
         self.process_id = self.master_config['id']
         self.goal_type = self.master_config.get('goal_type', 'default')
@@ -103,10 +104,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.attr_map = self._hyperparams['attr_map']
         self.env = self._hyperparams['env']
         self.openrave_bodies = self._hyperparams['openrave_bodies']
-        if self._hyperparams['viewer'] and self.env is not None:
-            self.viewer = OpenRAVEViewer(self.env)
-        else:
-            self.viewer = None
 
         self._done = 0.
         self._task_done = 0.
@@ -826,6 +823,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         x0 = np.zeros_like(self.x0[0])
         fill_vector(plan.params, self.state_inds, x0, 0)
         perm = {}
+        old_x0 = x0.copy()
+        old_targets = targets
         if permute:
             tasks, targets, perm = self.permute_tasks(tasks, targets, plan)
             for pname, aname in self.state_inds:

@@ -799,7 +799,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
     # yvar_labs = np.concatenate([[v+'{0}'.format('_'+str(i) if inds_to_var.get(v, 0) > 1 else '') for i in range(inds_to_var.get(v, 1))] for v in yvars])
     plot(data, ['description', 'key', 'exp id']+xvars+flat_yvar_labs, '{0}_vs_{1}'.format(xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind, inter=inter, rolling=rolling, window=window, xlim=xlim, ylim=ylim)
 
-include=['images']
+include=['permute']
 exclude=['oldprob']
 gen_data_plots(xvar='time', yvar=[['train_accuracy', 'test_accuracy']], keywords=['images'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='3objlossesspreadtargs', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
 #gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=['images'], lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='lossdataloadtargs', exclude=exclude, split_runs=True, include=include, inter=60, window=20)

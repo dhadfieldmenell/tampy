@@ -67,8 +67,11 @@ def euler_to_quaternion(rpy, order="wxyz"):
     return [qw, qx, qy, qz]
 
 
-def quaternion_to_euler(wxyz):
-    w, x, y, z = wxyz
+def quaternion_to_euler(wxyz, order='wxyz'):
+    if order == 'xyzw':
+        x, y, z, w = wxyz
+    else:
+        w, x, y, z = wxyz
     t0 = +2.0 * (w * x + y * z)
     t1 = +1.0 - 2.0 * (x * x + y * y)
     roll = np.arctan2(t0, t1)

@@ -54,7 +54,7 @@ class MotionServer(Server):
         init_t = time.time()
         success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=True)
         if success:
-            path = self.agent.run_plan(plan, node.targets)
+            path = self.agent.run_plan(plan, node.targets, permute=self.permute_hl)
             #s = np.random.randint(len(path))
             #t = np.random.randint(path[s].T)
             #self.save_image(path[s], ts=t, render=False)
@@ -89,6 +89,7 @@ class MotionServer(Server):
                 hlnode = self.spawn_problem()
                 self.push_queue(hlnode, self.task_queue)
             else:
+                self.set_policies()
                 self.refine_plan(node)
 
             for task in self.alg_map:

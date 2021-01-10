@@ -20,7 +20,27 @@ import traceback
 import time
 
 
-def parse_collision(c, obj_body, obstr_body):
+### HELPER FUNCTIONS
+
+def init_robot_pred(pred, robot, params, attrs=[]):
+    """
+    Initializes attr_inds and attr_dim from the robot's geometry
+    """
+    r_geom = robot.geom
+    base_dim = len(geom.get_base_limit())
+    arm_dims = sum([len(geom.get_arm_inds(arm)) for arm in geom.arms])
+    gripper_dims = sum([geom.gripper_dim(arm) for arm in geom.arms])
+    pred.attr_dim = base_dim + arm_dims + gripper_dims
+    robot_inds = []
+    if attrs is None: attrs = ['pose'] + geom.arms + geom.grippers
+    robot_inds = list(filter(lambda inds: inds[0] in attrs, geom.attr_map['robot']))
+    inds = [(robot, robot_inds)]
+    for p  in params: inds.append((p, list(const.ATTRMAP[p._type])))
+    attr_inds = OrderedDict(inds)
+    pred.attr_inds = attr_inds
+    return pred.attr_dim, pred.attr_inds
+
+def parse_collision(c, obj_body, obstr_body, held_links=[], obs_links=[]):
     linkA, linkB = c[3], c[4]
     linkAParent, linkBParent = c[1], c[2]
     sign = 0
@@ -35,7 +55,7 @@ def parse_collision(c, obj_body, obstr_body):
     else:
         return None
 
-    if linkObj not in held_links or linkObstr not in obs_links:
+    if (len(held_links) and linkObj not in held_links) or (len(obs_links) and linkObstr not in obs_links):
         return None
 
     # Obtain distance between two collision points, and their normal collision vector
@@ -43,8 +63,7 @@ def parse_collision(c, obj_body, obstr_body):
     normal = c.contactNormalOnB # Pointing towards A
     return distance, normal, linkObj, linkObstr, ptObj, ptObstr
 
-
-def parse_robot_collision(c, robot, robot_body, obj_body):
+def parse_robot_collision(c, robot, robot_body, obj_body, col_links=[]):
     linkA, linkB = c[3], c[4] # c.linkIndexA, c.linkIndexB
     linkAParent, linkBParent = c[1], c[2] # c.bodyUniqueIdA, c.bodyUniqueIdB
     sign = 0
@@ -59,7 +78,7 @@ def parse_robot_collision(c, robot, robot_body, obj_body):
     else:
         return None
 
-    if linkRobot not in col_links or linkObj not in obj_links:
+    if len(col_links) and (linkRobot not in col_links or linkObj not in obj_links):
         return None
 
     distance = c[8] # c.contactDistance
@@ -75,10 +94,14 @@ def parse_robot_collision(c, robot, robot_body, obj_body):
     return distance, normal, linkRobot, linkObj, ptRobot, ptObj, robot_jac, robot_ang_jac
 
 
+### BASE CLASSES
+
 class RobotPredicate(ExprPredicate):
+    """
+    Super-class for all robot predicates, defines several required functions
+    """
     def __init__(self, name, expr, attr_inds, params, expected_param_types, env=None, active_range=(0,0), tol=DEFAULT_TOL, priority=0):
         super(RobotPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol, priority = priority)
-
 
     def get_robot_info(self, robot_body, arm):
         arm_inds = robot_body._geom.get_arm_inds(arm)
@@ -87,7 +110,6 @@ class RobotPredicate(ExprPredicate):
         pos, rot = info[0], info[1]
         robot_trans = OpenRAVEBody.transform_from_obj_pose(pos, rot)
         return robot_trans, arm_inds
-
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
@@ -98,7 +120,6 @@ class RobotPredicate(ExprPredicate):
         robot_body.set_dof(dof_value_map)
         if hasattr(self, 'obj'):
             self.obj.openrave_body.set_pose(x[-6:-3], x[-3:])
-
 
     def robot_obj_kinematics(self, x):
         # Getting the variables
@@ -113,6 +134,28 @@ class RobotPredicate(ExprPredicate):
         axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
         # Obtain the pos and rot val and jac from 2 function calls
         return obj_trans, robot_trans, axises, arm_inds
+
+ 
+    def setup_mov_limit_check(self):
+        # Get upper joint limit and lower joint limit
+        robot_body = self._param_to_body[self.robot]
+        geom = robot_body._geom
+        dof_map = geom.dof_map
+        dof_inds = np.concatenate([dof_map[arm] for arm in geom.arms])
+        lb = np.concatenate([geom.get_arm_bnds(arm)[0] for arm in geom.arms]).reshape((len(dof_inds),1))
+        ub = np.concatenate([geom.get_arm_bnds(arm)[1] for arm in geom.arms]).reshape((len(dof_inds),1))
+        joint_move = (ub-lb)/geom.get_joint_move_factor()
+        base_move = geom.get_base_limit()
+        # Setup the Equation so that: Ax+b < val represents
+        # |base_pose_next - base_pose| <= const.BASE_MOVE
+        # |joint_next - joint| <= joint_movement_range/const.JOINT_MOVE_FACTOR
+        val = np.vstack((joint_move, base_move, joint_move, base_move))
+        A = np.eye(len(val)) - np.eye(len(val), k=len(val)/2) - np.eye(len(val), k=-len(val)/2)
+        b = np.zeros((len(val),1))
+        self.base_step = base_move 
+        self.joint_step = joint_move
+        self.lower_limit = lb
+        return A, b, val
 
 
 class CollisionPredicate(ExprPredicate):
@@ -252,13 +295,13 @@ class CollisionPredicate(ExprPredicate):
         obj = self.params[self.ind1]
         col_links = robot.geom.col_links
         obj_links = obj.geom.col_links
-        obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
-        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos[:3], obj_pos[3:])
+        pos, orn = OpenRAVEBody.current_pose()
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(pos, orn)
         rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
         link_pair_to_col = {}
         for c in collisions:
             # Identify the collision points
-            col_info = parse_robot_collision(c, robot, robot_body, obj_body)
+            col_info = parse_robot_collision(c, robot, robot_body, obj_body, col_links)
             if col_info is None: continue
             distance, normal, linkRobot, linkObj, ptRobot, ptObj, robot_jac, robot_ang_jac = col_info 
             grad = np.zeros((1, self.attr_dim+6))
@@ -354,27 +397,27 @@ class CollisionPredicate(ExprPredicate):
 
         link_pair_to_col = {}
         for c in collisions:
-            col_info = parse_collision(c, obstr_body, obj_body)
+            col_info = parse_collision(c, obstr_body, obj_body, held_links, obs_links)
             if col_info is None: continue
             distance, normal, linkObstr, linkObj, ptObj, ptObstr = col_info 
             col_vec = -sign*normal
 
             # Calculate object pose jacobian
             obj_jac = np.array([normal])
-            obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
-            torque = ptObj - obj_pos[:3]
+            obj_pos, obj_orn = obj_body.current_pose()
+            torque = ptObj - obj_pos
 
             # Calculate object rotation jacobian
-            Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos[:3], obj_pos[3:])
+            Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos, obj_orn)
             rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
             rot_vec = np.array([[np.dot(np.cross(axis, torque), col_vec) for axis in rot_axises]])
             obj_jac = np.c_[obj_jac, -rot_vec]
 
             # Calculate obstruct pose jacobian
             obstr_jac = np.array([-normal])
-            obstr_pos = OpenRAVEBody.obj_pose_from_transform(obstr_body.env_body.GetTransform())
-            torque = ptObstr - obstr_pos[:3]
-            Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obstr_pos[:3], obstr_pos[3:])
+            obstr_pos, obstr_orn = obstr_body.current_pose()
+            torque = ptObstr - obstr_pos
+            Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos, obj_orn)
             rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
             rot_vec = np.array([[np.dot(np.cross(axis, torque), col_vec) for axis in rot_axises]])
             obstr_jac = np.c_[obstr_jac, rot_vec]
@@ -425,13 +468,14 @@ class CollisionPredicate(ExprPredicate):
             ee_state = p.getLinkState(robot_body.body_id, robot_body._geom.get_ee_link(arm))
             manips[arm] = ee_state[0]
             n_jnts = len(robot_body._geom.get_arm_inds(arm))
-            diff = np.linalg.norm(obj_body.env_body.GetTransform()[:3,3] - manips[arm])
+            obj_pos, _ = obj_body.current_pose()
+            diff = np.linalg.norm(obj_pos - manips[arm])
             dists[arm] = diff
         arm = min(arms, key=lambda a: dists[a])
         link_pair_to_col = {}
         lb, ub = robot_body._geom.get_arm_bnds(arm)
         for c in collisions:
-            col_info = parse_collision(c, obstr_body, obj_body)
+            col_info = parse_collision(c, obstr_body, obj_body, held_links, obs_links)
             if col_info is None: continue
             distance, normal, linkObstr, linkObj, ptObj, ptObstr = col_info 
             # 12 -> 3 objPos, 3 objRot, 3obstrPos, 3 obstrRot
@@ -441,9 +485,9 @@ class CollisionPredicate(ExprPredicate):
             
             # Calculate obstruct pose jacobian
             obstr_jac = -sign*normal
-            obstr_pos = OpenRAVEBody.obj_pose_from_transform(obstr_body.env_body.GetTransform())
-            torque = ptObstr - obstr_pos[:3]
-            Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obstr_pos[:3], obstr_pos[3:])
+            obstr_pos, obstr_orn = obstr_body.current_pose()
+            torque = ptObstr - obstr_pos
+            Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obstr_pos, obstr_orn)
             rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
             rot_vec = np.array([[np.dot(np.cross(axis, torque), obstr_jac) for axis in rot_axises]])
             grad[:, self.attr_dim: self.attr_dim + 3] = obstr_jac
@@ -451,10 +495,10 @@ class CollisionPredicate(ExprPredicate):
 
             # Calculate object_held pose jacobian
             obj_jac = sign*normal
-            obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
-            torque = ptObj - obj_pos[:3]
+            obj_pos, obj_orn = obj_body.current_pose()
+            torque = ptObj - obj_pos
             # Calculate object rotation jacobian
-            Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos[:3], obj_pos[3:])
+            Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos, obj_orn)
             rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
             rot_vec = np.array([[np.dot(np.cross(axis, torque), obj_jac) for axis in rot_axises]])
             grad[:, self.attr_dim+6: self.attr_dim + 9] = obj_jac
@@ -466,7 +510,7 @@ class CollisionPredicate(ExprPredicate):
 
         vals, grads = [], []
         for robot_link, obj_link in self.obj_obj_link_pairs:
-            col_infos = link_pair_to_col.get((robot_link, obj_link), [self.dsafe - const.MAX_CONTACT_DISTANCE, np.zeros((1, 18)), None, None])
+            col_infos = link_pair_to_col.get((robot_link, obj_link), [self.dsafe - const.MAX_CONTACT_DISTANCE, np.zeros((1, self.attr_dim+12)), None, None])
             vals.append(col_infos[0])
             grads.append(col_infos[1])
 
@@ -521,6 +565,7 @@ class PosePredicate(ExprPredicate):
         self.ind0 = ind0
         self.ind1 = ind1
         self.handle = []
+        self.arm = params[0].geom.arms[0] # Default to first arm in the list
         super(PosePredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol, active_range=active_range, priority = priority)
 
     #@profile
@@ -794,7 +839,6 @@ class PosePredicate(ExprPredicate):
             Note: Child class that uses this function needs to provide set_robot_poses and get_robot_info functions
         """
         robot_body = self.robot.openrave_body
-        body = robot_body.env_body
         self.arm = "left"
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
 
@@ -825,13 +869,10 @@ class PosePredicate(ExprPredicate):
         """
 
         robot_body = self.robot.openrave_body
-        body = robot_body.env_body
         self.set_robot_poses(x, robot_body)
 
         l_ee_trans, l_arm_inds = self.get_robot_info(robot_body, 'left')
-        l_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in l_arm_inds] if USE_OPENRAVE else l_arm_inds
         r_ee_trans, r_arm_inds = self.get_robot_info(robot_body, 'right')
-        r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in r_arm_inds] if USE_OPENRAVE else r_arm_inds
         # left_arm_focused
         rel_pt = np.array([0,2*const.BASKET_OFFSET,0])
         # rel_pt = np.array([0,2*const.BASKET_NARROW_OFFSET,0])
@@ -839,7 +880,7 @@ class PosePredicate(ExprPredicate):
         obj_pos = np.dot(r_ee_trans, np.r_[rel_pt, 1])[:3]
 
         l_arm_jac = []
-        for jnt_id in l_arm_joints:
+        for jnt_id in l_arm_inds:
             info = p.getJointInfo(jnt_id)
             parent_id = info[-1]
             parent_frame_pos = info[14]
@@ -850,7 +891,7 @@ class PosePredicate(ExprPredicate):
         l_arm_jac = np.array(l_arm_jac).T
 
         r_arm_jac = []
-        for jnt_id in r_arm_joints:
+        for jnt_id in r_arm_inds:
             info = p.getJointInfo(jnt_id)
             parent_id = info[-1]
             parent_frame_pos = info[14]
@@ -868,7 +909,7 @@ class PosePredicate(ExprPredicate):
         obj_pos = np.dot(l_ee_trans, np.r_[rel_pt, 1])[:3]
 
         l_arm_jac = []
-        for jnt_id in l_arm_joints:
+        for jnt_id in l_arm_inds:
             info = p.getJointInfo(jnt_id)
             parent_id = info[-1]
             parent_frame_pos = info[14]
@@ -879,7 +920,7 @@ class PosePredicate(ExprPredicate):
         l_arm_jac = -np.array(l_arm_jac).T
 
         r_arm_jac = []
-        for jnt_id in r_arm_joints:
+        for jnt_id in r_arm_inds:
             info = p.getJointInfo(jnt_id)
             parent_id = info[-1]
             parent_frame_pos = info[14]
@@ -941,6 +982,9 @@ class PosePredicate(ExprPredicate):
         r_rot_jac = self.rot_lock_jac(obj_trans, robot_trans, axises, arm_joints)
 
         return np.vstack([l_rot_jac, r_rot_jac])
+
+
+### LINEAR CONSTRAINTS
 
 class At(ExprPredicate):
     """
@@ -1051,7 +1095,7 @@ class RobotAt(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.robot, self.robot_pose = params
-
+        attr_inds, attr_dim = init_robot_pred(self, self.robot, [self.robot_pose])
         # A = np.c_[np.r_[np.eye(self.attr_dim), -np.eye(self.attr_dim)], np.r_[-np.eye(self.attr_dim), np.eye(self.attr_dim)]]
         # b, val = np.zeros((self.attr_dim*2, 1)), np.ones((self.attr_dim*2, 1))*1e-3
         # aff_e = AffExpr(A, b)
@@ -1078,6 +1122,7 @@ class IsMP(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.robot, = params
+        attr_inds, attr_dim = init_robot_pred(self, self.robot, [self.robot_pose])
         ## constraints  |x_t - x_{t+1}| < dmove
         ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
         attr_inds = self.attr_inds
@@ -1102,7 +1147,8 @@ class WithinJointLimit(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.robot, = params
-        attr_inds = self.attr_inds
+        attrs = self.robot.geom.arms + self.robot.geom.grippers
+        attr_inds, attr_dim = init_robot_pred(self, self.robot, [], attrs=attrs)
 
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
 
@@ -1144,12 +1190,36 @@ class StationaryBase(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
         self.robot,  = params
-        attr_inds = self.attr_inds
+        self.attr_inds =  OrderedDict([(self.robot, [('pose', np.array([0,1,2], dtype=np.int))])])
+        self.attr_dims = 3
 
         A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
         b, val = np.zeros((self.attr_dim, 1)), np.zeros((self.attr_dim, 1))
         e = EqExpr(AffExpr(A, b), val)
-        super(StationaryBase, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
+        super(StationaryBase, self).__init__(name, e, self.attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
+        self.spacial_anchor = False
+
+class StationaryBasePos(ExprPredicate):
+    """
+        Format: StationaryBase, Robot (Only Robot Base)
+
+        Robot related
+
+        Requires:
+            attr_inds[OrderedDict]: robot attribute indices
+            attr_dim[Int]: dimension of robot attribute
+    """
+    #@profile
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 1
+        self.robot,  = params
+        self.attr_dim = 2
+        self.attr_inds =  OrderedDict([(self.robot, [('pose', np.array([0,1], dtype=np.int))])])
+
+        A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
+        b, val = np.zeros((self.attr_dim, 1)), np.zeros((self.attr_dim, 1))
+        e = EqExpr(AffExpr(A, b), val)
+        super(StationaryBase, self).__init__(name, e, self.attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
         self.spacial_anchor = False
 
 class StationaryArms(ExprPredicate):
@@ -1167,12 +1237,47 @@ class StationaryArms(ExprPredicate):
         assert len(params) == 1
         self.robot,  = params
         attr_inds = self.attr_inds
+        attr_inds, attr_dim = init_robot_pred(self, self.robot, [], attrs=self.robot.geom.arms)
 
         A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
         b, val = np.zeros((self.attr_dim, 1)), np.zeros((self.attr_dim, 1))
         e = EqExpr(AffExpr(A, b), val)
         super(StationaryArms, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
         self.spacial_anchor = False
+
+class StationaryArm(ExprPredicate):
+    """
+        Format: StationaryArms, Robot (Only Robot Arms)
+
+        Robot related
+
+        Requires:
+            attr_inds[OrderedDict]: robot attribute indices
+            attr_dim[Int]: dimension of robot attribute
+    """
+    #@profile
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 1
+        self.robot,  = params
+        attr_inds = self.attr_inds
+        if not hasattr(self, 'arm'): self.arm = self.robot.geom.arms[0]
+        attr_inds, attr_dim = init_robot_pred(self, self.robot, [], attrs=[self.arm])
+
+        A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
+        b, val = np.zeros((self.attr_dim, 1)), np.zeros((self.attr_dim, 1))
+        e = EqExpr(AffExpr(A, b), val)
+        super(StationaryArms, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
+        self.spacial_anchor = False
+
+class StationaryLeftArm(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.arm = 'left'
+        super(StationaryLeftArm, self).__init__(name, params, expected_param_types, env)
+
+class StationaryRightArm(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.arm = 'right'
+        super(StationaryRightArm, self).__init__(name, params, expected_param_types, env)
 
 class StationaryW(ExprPredicate):
     """
@@ -1234,6 +1339,9 @@ class GraspValid(ExprPredicate):
         e = EqExpr(pos_expr, val)
         super(GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
+
+
+### EE CONSTRAINTS - Non-linear constraints on end effector pos/orn
 
 class InContact(ExprPredicate):
     """
@@ -1298,6 +1406,40 @@ class InContacts(ExprPredicate):
         super(InContacts, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
 
+class CloseGripper(InContact):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        if not hasattr(self, 'arm'): self.arm = params[0].geom.arms[0]
+        self.GRIPPER_CLOSE = const.GRIPPER_CLOSE_VALUE
+        self.GRIPPER_OPEN = const.GRIPPER_OPEN_VALUE
+        gripper = params[0].geom.get_gripper(self.arm)
+        attr_inds, attr_dim = init_robot_pred(self, params[0], [], attrs=[gripper])
+        super(CloseGripper, self).__init__(name, params, expected_param_types, env, debug)
+
+class CloseGripperLeft(CloseGripper):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.arm = 'left'
+        super(CloseGripperLeft, self).__init__(name, params, expected_param_types, env, debug)
+
+class CloseGripperRight(CloseGripper):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.arm = 'right'
+        super(CloseGripperRight, self).__init__(name, params, expected_param_types, env, debug)
+
+class OpenGripper(CloseGripper):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        super(OpenGripper, self).__init__(name, params, expected_param_types, env, debug)
+        self.expr = self.neg_expr
+
+class OpenGripperLeft(OpenGripper):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.arm = 'left'
+        super(OpenGripperLeft, self).__init__(name, params, expected_param_types, env, debug)
+
+class OpenGripperRight(OpenGripper):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.arm = 'right'
+        super(OpenGripperRight, self).__init__(name, params, expected_param_types, env, debug)
+
 class InGripper(PosePredicate):
     """
         Format: InGripper, Robot, Item
@@ -1318,14 +1460,23 @@ class InGripper(PosePredicate):
         assert len(params) == 2
         self._env = env
         self.robot, self.obj = params
+	attr_inds, attr_dim = init_robot_pred(self, self.robot, [self.obj])
+        self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
+			       self.obj: self.lazy_spawn_or_body(self.obj, self.obj.name, self.obj.geom)}
 
-        self._param_to_body = {
-        self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
-        self.obj: self.lazy_spawn_or_body(self.obj, self.obj.name, self.obj.geom)}
-
+        self.coeff = const.IN_GRIPPER_COEFF
+        self.rot_coeff = const.IN_GRIPPER_ROT_COEFF
+        self.eval_f = self.stacked_f
+        self.eval_grad = self.stacked_grad
         e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
         super(InGripper, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = 2)
         self.spacial_anchor = True
+
+    def stacked_f(self, x):
+        return np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.rot_check_f(x)])
+
+    def stacked_grad(self, x):
+        return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.rot_check_jac(x)])
 
 class AlmostInGripper(PosePredicate):
     """
@@ -1348,9 +1499,8 @@ class AlmostInGripper(PosePredicate):
         self._env = env
         self.robot, self.obj = params
 
-        self._param_to_body = {
-        self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
-        self.obj: self.lazy_spawn_or_body(self.obj, self.obj.name, self.obj.geom)}
+        self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
+			       self.obj: self.lazy_spawn_or_body(self.obj, self.obj.name, self.obj.geom)}
 
         e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
         # e = LEqExpr(Expr(self.eval_f, self.eval_grad), self.max_dist.reshape(-1,1))
@@ -1383,11 +1533,35 @@ class GripperAt(PosePredicate):
         self._env = env
         self.robot, self.pose = params
 
+        attr_inds, attr_dim = init_robot_pred(self, self.robot, [self.pose])
+        self.coeff = const.GRIPPER_AT_COEFF
+        self.rot_coeff = const.GRIPPER_AT_ROT_COEFF
+        self.eval_f = self.stacked_f
+        self.eval_grad = self.stacked_grad
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
 
         e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
         super(GripperAt, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = 2)
         self.spacial_anchor = True
+
+    def stacked_f(self, x):
+        return np.vstack([self.coeff * self.pos_check_f(x)])
+
+    def stacked_grad(self, x):
+        return np.vstack([10*self.coeff * self.pos_check_jac(x)])
+
+    def resample(self, negated, t, plan):
+        return robot_sampling.resample_gripper_at(self, negated, t, plan)
+
+class GripperAtLeft(GripperAt):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        super(GripperAtLeft, self).__init__(name, params, expected_param_types, env, debug)
+        self.arm = "left"
+
+class GripperAtRight(GripperAt):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        super(GripperAtRight, self).__init__(name, params, expected_param_types, env, debug)
+        self.arm = "right"
 
 class EEGraspValid(PosePredicate):
 
@@ -1399,12 +1573,14 @@ class EEGraspValid(PosePredicate):
         self._env = env
         self.ee_pose, self.robot = params
 
-        self._param_to_body = {
-        self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
+        self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
 
         e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
         super(EEGraspValid, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = 0)
         self.spacial_anchor = True
+
+
+### EEREACHABLE CONSTRAINTS - defined linear approach paths
 
 class EEReachable(PosePredicate):
     """
@@ -1426,8 +1602,14 @@ class EEReachable(PosePredicate):
         assert len(params) == 3
         self._env = env
         self.robot, self.start_pose, self.ee_pose = params
-        self._param_to_body = {
-        self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
+        attr_inds, attr_dim = init_robot_pred(self, self.robot, [params[2]])
+        self.attr_dim = attr_dim + 6 # Add xyz & yaw-pitch-roll for eepose
+        self.coeff = const.EEREACHABLE_COEFF
+        self.rot_coeff = const.EEREACHABLE_ROT_COEFF
+        self.eval_f = self.stacked_f
+        self.eval_grad = self.stacked_grad
+        self.eval_dim = 3+3*(1+(active_range[1] - active_range[0]))
+        self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
         pos_expr = Expr(self.eval_f, self.eval_grad)
         e = EqExpr(pos_expr, np.zeros((self.eval_dim, 1)))
 
@@ -1488,6 +1670,68 @@ class EEReachable(PosePredicate):
 
         return grad
 
+    def get_rel_pt(self, rel_step):
+        if rel_step <= 0:
+            return rel_step*np.array([const.APPROACH_DIST, 0, 0])
+        else:
+            return rel_step*np.array([0, 0, const.RETREAT_DIST])
+
+    def resample(self, negated, t, plan):
+        return robot_sampling.resample_eereachable(self, negated, t, plan, inv=False)
+
+class EEReachableLeft(EEReachable):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
+        self.arm = "left"
+        super(EEReachableLeft, self).__init__(name, params, expected_param_types, (-steps, steps), env, debug)
+
+class EEReachableRight(EEReachable):
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.arm = "right"
+        super(EEReachableRight, self).__init__(name, params, expected_param_types, (-steps, steps), env, debug)
+
+class EEReachableLeftInv(EEReachableLeft):
+    def get_rel_pt(self, rel_step):
+        if rel_step <= 0:
+            return rel_step*np.array([0, 0, -const.RETREAT_DIST])
+        else:
+            return rel_step*np.array([-const.APPROACH_DIST, 0, 0])
+
+    def resample(self, negated, t, plan):
+        return robot_sampling.resample_eereachable(self, negated, t, plan, inv=True)
+
+class EEReachableRightInv(EEReachableRight):
+    def get_rel_pt(self, rel_step):
+        if rel_step <= 0:
+            return rel_step*np.array([0, 0, -const.RETREAT_DIST])
+        else:
+            return rel_step*np.array([-const.APPROACH_DIST, 0, 0])
+
+    def resample(self, negated, t, plan):
+        return robot_sampling.resample_eereachable(self, negated, t, plan, inv=True)
+
+class EEReachableLeftVer(EEReachableLeft):
+    def get_rel_pt(self, rel_step):
+        if rel_step <= 0:
+            return rel_step*np.array([const.APPROACH_DIST, 0, 0])
+        else:
+            return rel_step*np.array([-const.RETREAT_DIST, 0, 0])
+
+    def resample(self, negated, t, plan):
+        return robot_sampling.resample_eereachable_ver(self, negated, t, plan)
+
+class EEReachableRightVer(EEReachableRight):
+    def get_rel_pt(self, rel_step):
+        if rel_step <= 0:
+            return rel_step*np.array([const.APPROACH_DIST, 0, 0])
+        else:
+            return rel_step*np.array([-const.RETREAT_DIST, 0, 0])
+
+    def resample(self, negated, t, plan):
+        return robot_sampling.resample_eereachable_ver(self, negated, t, plan)
+
+
+### COLLISION CONSTRAINTS
+
 class Obstructs(CollisionPredicate):
     """
         Format: Obstructs, Robot, RobotPose, RobotPose, Can
@@ -1510,8 +1754,12 @@ class Obstructs(CollisionPredicate):
         # attr_inds for the robot must be in this exact order do to assumptions
         # in OpenRAVEBody's _set_active_dof_inds and the way OpenRAVE's
         # CalculateActiveJacobian for robots work (base pose is always last)
-        attr_inds = self.attr_inds
+        #attr_inds = self.attr_inds
 
+        self.coeff = -const.OBSTRUCTS_COEFF
+        self.neg_coeff = const.OBSTRUCTS_COEFF
+
+        attr_inds, attr_dim = init_robot_pred(self, self.robot, [params[3])
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
                                self.obstacle: self.lazy_spawn_or_body(self.obstacle, self.obstacle.name, self.obstacle.geom)}
 
@@ -1545,6 +1793,9 @@ class Obstructs(CollisionPredicate):
         else:
             return None
 
+    def resample(self, negated, t, plan):
+        return robot_sampling.resample_obstructs(self, negated, t, plan)
+
 class ObstructsHolding(CollisionPredicate):
     """
         Format: ObstructsHolding, Robot, RobotPose, RobotPose, Can, Can
@@ -1568,6 +1819,10 @@ class ObstructsHolding(CollisionPredicate):
         # CalculateActiveJacobian for robots work (base pose is always last)
         attr_inds = self.attr_inds
 
+        self.coeff = -const.OBSTRUCTS_COEFF
+        self.neg_coeff = const.OBSTRUCTS_COEFF
+
+        attr_inds, attr_dim = init_robot_pred(self, self.robot, [params[3], params[4]])
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
                                self.obstacle: self.lazy_spawn_or_body(self.obstacle, self.obstacle.name, self.obstacle.geom),
                                self.obj: self.lazy_spawn_or_body(self.obj, self.obj.name, self.obj.geom)}
@@ -1611,6 +1866,9 @@ class ObstructsHolding(CollisionPredicate):
             return self.neg_expr
         else:
             return None
+    
+    def resample(self, negated, t, plan):
+        return robot_sampling.resample_obstructs(self, negated, t, plan)
 
 class Collides(CollisionPredicate):
     """
@@ -1621,6 +1879,8 @@ class Collides(CollisionPredicate):
     #@profile
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
+        self.coeff = -const.COLLIDE_COEFF
+        self.neg_coeff = const.COLLIDE_COEFF
         self.obj, self.obstacle = params
         attr_inds = OrderedDict([(self.obj, [("pose", np.array([0, 1, 2], dtype=np.int)),
                                              ("rotation", np.array([0, 1, 2], dtype=np.int))]),
@@ -1651,6 +1911,7 @@ class Collides(CollisionPredicate):
         super(Collides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1, debug=debug, priority = 3)
         self.spacial_anchor = False
+        self.dsafe = const.COLLIDES_DSAFE
 
     #@profile
     def get_expr(self, negated):
@@ -1679,8 +1940,10 @@ class RCollides(CollisionPredicate):
         # attr_inds for the robot must be in this exact order do to assumptions
         # in OpenRAVEBody's _set_active_dof_inds and the way OpenRAVE's
         # CalculateActiveJacobian for robots work (base pose is always last)
-        attr_inds = self.attr_inds
 
+        self.coeff = -const.RCOLLIDE_COEFF
+        self.neg_coeff = const.RCOLLIDE_COEFF
+        attr_inds, attr_dim = init_robot_pred(self, self.robot, [self.obstacle])
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
                                self.obstacle: self.lazy_spawn_or_body(self.obstacle, self.obstacle.name, self.obstacle.geom)}
 
@@ -1706,6 +1969,7 @@ class RCollides(CollisionPredicate):
         super(RCollides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1, priority = 3)
         self.spacial_anchor = False
+        self.dsafe = const.RCOLLIDES_DSAFE
 
     #@profile
     def get_expr(self, negated):
@@ -1734,10 +1998,11 @@ class RSelfCollides(CollisionPredicate):
         # attr_inds for the robot must be in this exact order do to assumptions
         # in OpenRAVEBody's _set_active_dof_inds and the way OpenRAVE's
         # CalculateActiveJacobian for robots work (base pose is always last)
-        attr_inds = self.attr_inds
-
+        attr_inds, attr_dim = init_robot_pred(self, self.robot, [])
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
 
+        self.coeff = -const.RCOLLIDE_COEFF
+        self.neg_coeff = const.RCOLLIDE_COEFF
         f = lambda x: self.coeff * self.robot_self_collision(x)[0]
         grad = lambda x: self.coeff * self.robot_self_collision(x)[1]
 
@@ -1760,6 +2025,7 @@ class RSelfCollides(CollisionPredicate):
         super(RSelfCollides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=0, priority = 3)
         self.spacial_anchor = False
+        self.dsafe = const.RCOLLIDES_DSAFE
 
     #@profile
     def get_expr(self, negated):

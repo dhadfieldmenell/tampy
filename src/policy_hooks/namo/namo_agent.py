@@ -112,18 +112,20 @@ class NAMOSortingAgent(TAMPAgent):
             'include_items': [
                 {'name': 'pr2', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.4, 1.), 'rgba': (0, 0, 0, 1)},
             ],
-            'view': False,
+            'view': self.view,
             'image_dimensions': (hyperparams['image_width'], hyperparams['image_height'])
         }
 
         self.main_camera_id = 0
         colors = [[0.9, 0, 0, 1], [0, 0.9, 0, 1], [0, 0, 0.9, 1], [0.7, 0.7, 0.1, 1], [1., 0.1, 0.8, 1], [0.5, 0.95, 0.5, 1], [0.75, 0.4, 0, 1], [0.25, 0.25, 0.5, 1], [0.5, 0, 0.25, 1], [0, 0.5, 0.75, 1], [0, 0, 0.5, 1]]
+        self.colors = []
 
         items = config['include_items']
         prim_options = self.prob.get_prim_choices(self.task_list)
         for name in prim_options[OBJ_ENUM]:
             if name =='pr2': continue
             cur_color = colors.pop(0)
+            self.colors.append(cur_color)
             items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 1.), 'rgba': tuple(cur_color)})
             if name != 'pr2':
                 items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (LOCAL_NEAR_TOL, LOCAL_NEAR_TOL, 0.05), 'rgba': tuple(cur_color), 'mass': 1.})
@@ -915,7 +917,7 @@ class NAMOSortingAgent(TAMPAgent):
             if IM_ENUM in self._hyperparams['obs_include'] or \
                IM_ENUM in self._hyperparams['prim_obs_include']:
                 self.reset_mjc_env(sample.get_X(t=t), targets, draw_targets=True)
-                im = self.mjc_env.render(height=self.image_height, width=self.image_width)
+                im = self.mjc_env.render(height=self.image_height, width=self.image_width, view=self.view)
                 im = (im - 128.) / 128.
                 sample.set(IM_ENUM, im.flatten(), t)
 
@@ -1520,6 +1522,10 @@ class NAMOSortingAgent(TAMPAgent):
 
 
     def permute_hl_data(self, hl_mu, hl_obs, hl_wt, hl_prc, aux):
+        for enum in [IM_ENUM, OVERHEAD_IMAGE_ENUM]:
+            if enum in self._prim_obs_data_idx:
+                return hl_mu, hl_obs, hl_wt, hl_prc
+
         #print('-> Permuting data')
         assert len(hl_mu) == len(hl_obs)
         start_t = time.time()

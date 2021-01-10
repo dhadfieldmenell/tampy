@@ -25,6 +25,31 @@ class Robot(object):
         self.arms = []
         self.grippers = []
         self.id = -1
+        self.attr_map = {}
+        self._base_type = "Robot"
+        self._type = "Robot"
+
+    def get_types(self):
+        return [self._type, self._base_type]
+
+    def _init_attr_map(self):
+        robot_map = []
+        robot_pose_map = []
+        for arm in self.arms:
+            arm_dim = len(self.get_arm_inds(arm)) 
+            robot_map.append((arm, np.array(range(arm_dim), dtype=np.int)))
+            robot_pose_map.append((arm, np.array(range(arm_dim), dtype=np.int)))
+
+        for gripper in self.grippers:
+            gripper_dim = 1
+            robot_map.append((gripper, np.array(range(gripper_dim), dtype=np.int)))
+            robot_pose_map.append((gripper, np.array(range(gripper_dim), dtype=np.int)))
+
+        base = self.get_base_limit().flatten()
+        robot_map.append(('pose', np.array(range(len(base)),dtype=np.int))) 
+        robot_pose_map.append(('value', np.array(range(len(base)),dtype=np.int)))
+        self.attr_map['robot'] = robot_map
+        self.attr_map['robot_pose'] = robot_pose_map
 
     def is_initialized(self):
         return self.initialized
@@ -32,6 +57,12 @@ class Robot(object):
     def setup(self, robot):
         self.setup_arms()
         self.intialized = True
+
+    def get_joint_move_factor(self):
+        return 15
+
+    def get_base_limit(self):
+        return np.array([[0.1, 0.1, np.pi/8]])
 
     def get_arm_inds(self, arm):
         return self.arm_inds[arm]
@@ -44,6 +75,12 @@ class Robot(object):
 
     def get_ee_link(self, arm):
         return self.ee_links[arm]
+
+    def gripper_dim(self, arm):
+        return 1
+
+    def get_gripper(self, arm):
+        return self.ee_link_names[arm]
 
     def get_arm_bnds(self, arm=None):
         if arm is None: return list(self.lb), list(self.ub)
@@ -64,6 +101,12 @@ class Robot(object):
     def get_dof_inds(self):
         return list(self.dof_inds.items())
 
+    def get_gripper_open_val(self):
+        return 1.
+
+    def get_gripper_closed_val(self):
+        return 0.
+
     def _init_pybullet(self):
         if self.shape.endswith('urdf'):
             self.id = p.loadURDF(self.shape)
@@ -82,6 +125,19 @@ class Robot(object):
         if self.id < 0:
             self._init_pybullet()
 
+        self.grippers = list(self.ee_link_names.values())
+
+        # Setup dof inds, which are used to idnex into state vectors
+        self.dof_inds = {}
+        cur_ind = 0
+        for arm in self.arms:
+            n_jnts = len(self.jnt_names[arm])
+            self.dof_inds[arm] = np.array(range(cur_ind, cur_ind+n_jnts))
+            cur_ind += n_jnts
+            ee_name = self.ee_link_names[arm]
+            self.dof_inds[ee_name] = np.array([cur_ind])
+            cur_ind += 1
+
         self.dof_map = {}
         self.arm_inds = {}
         self.gripper_inds = {}
@@ -89,11 +145,14 @@ class Robot(object):
         self.jnt_limits = {}
         self.free_joints = {}
         self.lb, self.ub = [], []
+        self.arm_links = {}
 
+        # Setup tracking for pybullet indices <-> link/jnt names
         self.jnt_to_id = {}
         self.id_to_jnt = {}
         self.link_to_id = {}
         self.id_to_link = {}
+        self.jnt_parents = {}
         bounds = {}
         cur_free = 0
         for i in range(p.getNumJoints(self.id)):
@@ -103,14 +162,17 @@ class Robot(object):
             self.id_to_jnt[i] = jnt_name
             self.link_to_id[jnt_info[12].decode('utf-8')] = i
             self.id_to_link[i] = jnt_info[12].decode('utf-8')
+            self.jnt_parents[jnt_name] = jnt_info[-1]
             bounds[jnt_name] = (jnt_info[8], jnt_info[9])
 
+            # Track free joints (necessary for IK solves & similar)
             if jnt_info[2] != p.JOINT_FIXED:
                 self.free_joints[i] = cur_free
                 self.lb.append(jnt_info[8])
                 self.ub.append(jnt_info[9])
                 cur_free += 1
 
+        # Setup tracking for pybullet indices <-> arm attributes
         for arm in self.arms:
             jnt_names = self.jnt_names[arm]
             self.dof_map[arm] = [self.jnt_to_id[jnt] for jnt in jnt_names]
@@ -118,12 +180,21 @@ class Robot(object):
             self.ee_links[arm] = self.link_to_id[self.ee_link_names[arm]]
             self.jnt_limits[arm] = ([bounds[jnt][0] for jnt in jnt_names], [bounds[jnt][1] for jnt in jnt_names])
 
+            # Assumes parent link ids are always less than child link ids
+            self.arm_links[arm] = [self.jnt_parents[jnt] for jnt in jnt_names if self.jnt_parents[jnt] >= 0]
+            for i in range(p.getNumJoints(self.id)):
+                info = p.getJointInfo(self.id, i)
+                parent_link = info[-1]
+                if parent_link in self.arm_links[arm]:
+                    self.arm_links[arm].append(i)
+
         for gripper in self.grippers:
             jnt_names = self.jnt_names[gripper]
             self.dof_map[gripper] = [self.jnt_to_id[jnt] for jnt in jnt_names]
             self.gripper_inds[gripper] = [self.jnt_to_id[jnt] for jnt in jnt_names]
 
         self.col_links = set([self.link_to_id[name] for name in self.col_link_names])
+        self._init_attr_map()
 
 
 class NAMO(Robot):
@@ -199,17 +270,12 @@ class Baxter(Robot):
                           }
         self.ee_link_names = {'left': 'left_gripper', 'right': 'right_gripper'}
         self.arms = ['left', 'right']
-        self.grippers = ['left_gripper', 'right_gripper']
         #self.arm_inds = {'left':  [31, 32, 33, 34, 35, 37, 38],
         #                 'right': [13, 14, 15, 16, 17, 19, 20]}
         #self.ee_links = {'left': 45, 'right': 27}
         self.arm_bnds = {'left': (0,7), 'right': (8, 15)}
         #self.jnt_limits = {'left':  ([-1.701, -2.145, -3.05, -0.05, -3.059, -1.57, -3.059], [1.70, 1.04, 3.05, 2.61, 3.059, 2.094, 3.059]),
         #                   'right': ([-1.701, -2.145, -3.05, -0.05, -3.059, -1.57, -3.059], [1.70, 1.04, 3.05, 2.61, 3.059, 2.094, 3.059])}
-        self.dof_inds = {'lArmPose': list(range(7)),
-                         'lGripper': [7],
-                         'rArmPose': list(range(8, 15)),
-                         'rGripper': [15]}
 
         #self.col_link_names = set(["torso", "head", "sonar_ring", "screen", "collision_head_link_1",
         #                      "collision_head_link_2", "right_upper_shoulder", "right_lower_shoulder",

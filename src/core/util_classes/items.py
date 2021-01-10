@@ -4,6 +4,10 @@ class Item(object):
     """
     def __init__(self):
         self._type = "item"
+        self._base_type = "item"
+
+    def get_types(self):
+        return [self._type, self._base_type]
 
 
 """

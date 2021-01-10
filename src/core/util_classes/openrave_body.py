@@ -572,7 +572,7 @@ class OpenRAVEBody(object):
     def transform_from_obj_pose(pose, rotation = np.array([0,0,0])):
         x, y, z = pose
         if len(rotation) == 4:
-            rotation = quaternion_to_euler(rotation)
+            rotation = quaternion_to_euler(rotation, order='xyzw')
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(pose, rotation)
         rot_mat = np.dot(Rz, np.dot(Ry, Rx))
         matrix = np.eye(4)
@@ -626,6 +626,36 @@ class OpenRAVEBody(object):
         trans_mat = trans[:3, :3].dot(rot_mat[:3, :3])
         trans[:3, :3] = trans_mat
         return trans
+
+    def get_link_pose(self, link_id, euler=True):
+        info = p.getLinkState(self.body_id, link_id)
+        pos, orn = info[0], info[1]
+        if euler:
+            orn = T.quaternion_to_euler(orn, order='xyzw')
+        return pos, orn
+
+    def current_pose(self, euler=True):
+        info = p.getLinkState(self.body_id, -1)
+        pos = info[0]
+        orn = info[1] # xyzw
+        if euler:
+            orn = T.quaternion_to_euler(orn, order='xyzw')
+        return pos, orn
+
+    def set_from_param(self, param, t):
+        if param.is_symbol(): t = 0
+        pos = param.pose[:,t] if not param.is_symbol() else param.value[:,0]
+        if 'Robot' in param.get_type(True) or 'RobotPose' in param.get_type(True):
+            dof_map = {}
+            geom = param.openrave_body._geom
+            for arm in geom.arms:
+                dof_map[arm] = getattr(param, arm)[:,t]
+            for gripper in geom.grippers:
+                dof_map[gripper] = getattr(param, gripper)[:,t]
+            self.set_dof(dof_map)
+            self.set_pose(pos)
+        else:
+            self.set_pose(pos, param.rotation[:,t])
 
     def get_ik_from_pose(self, pos, rot, manip_name, use6d=True, multiple=False, maxIter=1024):
         quat = rot if (rot is None or len(rot) == 4) else T.euler_to_quaternion(rot, order='xyzw')
@@ -682,6 +712,8 @@ class OpenRAVEBody(object):
             link_state = P.getLinkState(self.body_id, ee_link)
             pos = link_state[0]
             quat = link_state[1]
+            if mat_result:
+                return OpenRAVEBody.transform_from_obj_pose(pos, quat)
         return {'pos': pos, 'quat': quat}
 
     def param_fwd_kinematics(self, param, manip_names, t, mat_result=False):

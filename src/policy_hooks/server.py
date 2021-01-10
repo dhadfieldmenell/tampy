@@ -67,6 +67,7 @@ class Server(object):
         for alg in list(self.alg_map.values()):
             alg.set_conditions(len(self.agent.x0))
 
+        self.permute_hl = hyperparams['permute_hl'] > 0
         self.task_list = self.agent.task_list
         self.pol_list = tuple(hyperparams['policy_list'])
         self.stopped = False

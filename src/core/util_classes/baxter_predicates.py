@@ -68,6 +68,28 @@ class BaxterPredicate(ExprPredicate):
 
     def stacked_grad(self, x):
         return np.vstack([10*self.coeff * self.pos_check_jac(x)])
+    
+    def setup_mov_limit_check(self):
+        # Get upper joint limit and lower joint limit
+        robot_body = self._param_to_body[self.robot]
+        geom = robot_body._geom
+        dof_map = geom.dof_map
+        dof_inds = np.concatenate([dof_map[arm] for arm in geom.arms]) # np.r_[dof_map["lArmPose"], dof_map["rArmPose"]]
+        lb = np.concatenate([geom.get_arm_bnds(arm)[0] for arm in geom.arms]).reshape((len(dof_inds),1))
+        ub = np.concatenate([geom.get_arm_bnds(arm)[1] for arm in geom.arms]).reshape((len(dof_inds),1))
+        joint_move = (ub-lb)/geom.get_joint_move_factor()
+        base_move = geom.get_base_limit()
+        # Setup the Equation so that: Ax+b < val represents
+        # |base_pose_next - base_pose| <= const.BASE_MOVE
+        # |joint_next - joint| <= joint_movement_range/const.JOINT_MOVE_FACTOR
+        val = np.vstack((joint_move, base_move, joint_move, base_move))
+        A = np.eye(len(val)) - np.eye(len(val), k=len(val)/2) - np.eye(len(val), k=-len(val)/2)
+        b = np.zeros((len(val),1))
+        self.base_step = base_move 
+        self.joint_step = joint_move
+        self.lower_limit = lb
+        return A, b, val
+
 
 
 
@@ -255,27 +277,6 @@ class BaxterIsMP(robot_predicates.IsMP):
         self.dof_cache = None
         super(BaxterIsMP, self).__init__(name, params, expected_param_types, env, debug)
 
-    #@profile
-    def setup_mov_limit_check(self):
-        # Get upper joint limit and lower joint limit
-        robot_body = self._param_to_body[self.robot]
-        robot = robot_body.env_body
-        dof_map = robot_body._geom.dof_map
-        dof_inds = np.r_[dof_map["lArmPose"], dof_map["rArmPose"]]
-        lb_limit, ub_limit = robot.GetDOFLimits()
-        active_ub = ub_limit[dof_inds].reshape((len(dof_inds),1))
-        active_lb = lb_limit[dof_inds].reshape((len(dof_inds),1))
-        joint_move = (active_ub-active_lb)/const.JOINT_MOVE_FACTOR
-        # Setup the Equation so that: Ax+b < val represents
-        # |base_pose_next - base_pose| <= const.BASE_MOVE
-        # |joint_next - joint| <= joint_movement_range/const.JOINT_MOVE_FACTOR
-        val = np.vstack((joint_move, const.BASE_MOVE*np.ones((const.BASE_DIM, 1)), joint_move, const.BASE_MOVE*np.ones((const.BASE_DIM, 1))))
-        A = np.eye(len(val)) - np.eye(len(val), k=len(val)/2) - np.eye(len(val), k=-len(val)/2)
-        b = np.zeros((len(val),1))
-        self.base_step = const.BASE_MOVE*np.ones((const.BASE_DIM, 1))
-        self.joint_step = joint_move
-        self.lower_limit = active_lb
-        return A, b, val
 
 class BaxterWasherWithinJointLimit(robot_predicates.WithinJointLimit):
     # BaxterWasherWithinJointLimit Washer
@@ -1969,7 +1970,6 @@ class BaxterBothEndsInGripper(robot_predicates.InGripper, BaxterPredicate):
             Note: Child class that uses this function needs to provide set_robot_poses and get_robot_info functions
         """
         robot_body = self.robot.openrave_body
-        body = robot_body.env_body
         self.arm = "left"
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
 
@@ -2765,7 +2765,6 @@ class BaxterGrippersDownRot(robot_predicates.GrippersLevel, BaxterPredicate):
 
     def both_arm_rot_check_f(self, x):
         robot_body = self._param_to_body[self.params[self.ind0]]
-        robot = robot_body.env_body
         self.set_robot_poses(x, robot_body)
 
         robot_left_trans, left_arm_inds = self.get_robot_info(robot_body, "left")
@@ -2927,7 +2926,6 @@ class BaxterGrippersWithinDistance(BaxterInGripper):
 
     def both_arm_pos_check_f(self, x):
         robot_body = self.robot.openrave_body
-        body = robot_body.env_body
         self.arm = "left"
         self.set_robot_poses(x, robot_body)
 
@@ -2940,17 +2938,34 @@ class BaxterGrippersWithinDistance(BaxterInGripper):
     #@profile
     def both_arm_pos_check_jac(self, x):
         robot_body = self.robot.openrave_body
-        body = robot_body.env_body
         self.set_robot_poses(x, robot_body)
 
         l_ee_trans, l_arm_inds = self.get_robot_info(robot_body, 'left')
-        l_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in l_arm_inds]
         r_ee_trans, r_arm_inds = self.get_robot_info(robot_body, 'right')
-        r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in r_arm_inds]
         l_pos, r_pos = l_ee_trans[:3,3], r_ee_trans[:3,3]
 
-        l_arm_jac = np.array([np.cross(joint.GetAxis(), l_ee_trans[:3,3] - joint.GetAnchor()) for joint in l_arm_joints]).T.copy()
-        r_arm_jac = np.array([np.cross(joint.GetAxis(), r_ee_trans[:3,3] - joint.GetAnchor()) for joint in r_arm_joints]).T.copy()
+        l_arm_jac = []
+        for jnt_id in l_arm_inds:
+            info = p.getJointInfo(jnt_id)
+            parent_id = info[-1]
+            parent_frame_pos = info[14]
+            axis = info[13]
+            parent_info = p.getLinkState(robot_body.body_id, parent_id)
+            parent_pos = parent_info[0]
+            l_arm_jac.apend(np.cross(axis, l_pos - (parent_pos + parent_frame_pos)))
+        l_arm_jac = np.array(l_arm_jac).T
+        
+        r_arm_jac = []
+        for jnt_id in r_arm_joints:
+            info = p.getJointInfo(jnt_id)
+            parent_id = info[-1]
+            parent_frame_pos = info[14]
+            axis = info[13]
+            parent_info = p.getLinkState(robot_body.body_id, parent_id)
+            parent_pos = parent_info[0]
+            r_arm_jac.apend(np.cross(axis, r_pos - (parent_pos + parent_frame_pos)))
+        r_arm_jac = np.array(r_arm_jac).T
+
         return np.r_[0, (l_pos - r_pos).dot(l_arm_jac), 0, (r_pos - l_pos).dot(r_arm_jac), 0].reshape(1, -1)
 
     def stacked_f(self, x):
@@ -2962,12 +2977,10 @@ class BaxterGrippersWithinDistance(BaxterInGripper):
 class BaxterGrippersAtDistance(BaxterGrippersWithinDistance):
     def both_arm_pos_check_f(self, x):
         robot_body = self.robot.openrave_body
-        body = robot_body.env_body
         self.arm = "left"
         self.set_robot_poses(x, robot_body)
 
         l_ee_trans, l_arm_inds = self.get_robot_info(robot_body, 'left')
-        l_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in l_arm_inds]
         r_ee_trans, r_arm_inds = self.get_robot_info(robot_body, 'right')
         r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in r_arm_inds]
         dist = np.linalg.norm(l_ee_trans[:3,3], r_ee_trans[:3,3]) - self.edge_len

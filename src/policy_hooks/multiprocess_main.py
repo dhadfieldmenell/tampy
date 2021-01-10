@@ -234,7 +234,7 @@ class MultiProcessMain(object):
         self.config['algorithm']['init_traj_distr']['dt'] = 1.0
 
         if self.config.get('add_hl_image', False):
-            primitive_network_model = multi_modal_class_network
+            primitive_network_model = fp_multi_modal_class_network
         elif self.config.get('split_hl_loss', False):
             primitive_network_model = tf_balanced_classification_network
         elif self.config.get('conditional', False):
@@ -404,6 +404,7 @@ class MultiProcessMain(object):
 
     def create_servers(self, hyperparams, start_idx=0):
         self.create_pol_servers(hyperparams)
+        hyperparams['view'] = False
         for n in range(hyperparams['num_motion']):
             self._create_server(hyperparams, MotionServer, start_idx+n)
         for n in range(hyperparams['num_task']):
@@ -413,9 +414,11 @@ class MultiProcessMain(object):
         hyperparams = copy.copy(hyperparams)
         hyperparams['run_hl_test'] = True
         hyperparams['id'] = 'test'
+        hyperparams['view'] = hyperparams['view_policy']
         hyperparams['check_precond'] = False
         self.create_server(RolloutServer, copy.copy(hyperparams))
         hyperparams['id'] = 'moretest'
+        hyperparams['view'] = False
         self.create_server(RolloutServer, copy.copy(hyperparams))
         hyperparams['run_hl_test'] = False
 
