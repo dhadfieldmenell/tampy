@@ -82,6 +82,9 @@ class Robot(object):
     def get_gripper(self, arm):
         return self.ee_link_names[arm]
 
+    def get_gripper_axis(self, arm):
+        return self.gripper_axis[arm]
+
     def get_arm_bnds(self, arm=None):
         if arm is None: return list(self.lb), list(self.ub)
         return self.arm_bnds[arm]
@@ -120,6 +123,19 @@ class Robot(object):
                 if p.getNumJoints(self.id[i]) > 0:
                     self.id = self.id[i]
                     break
+
+    def infer_gripper_axis(self, arm):
+        """
+        Helper function to infer direction gripper points in from current rotation
+        """
+        ee_link = self.get_ee_link(arm)
+        parent = p.getJointInfo(self.id, ee_link)[-1]
+        parent_pos = p.getLinkState(self.id, parent)[0]
+        ee_pos = p.getLinkState(self.id, ee_link)[0]
+        axis = np.array(ee_pos) - np.array(parent_pos)
+        axis = axis.round(4)
+        axis = axis / np.linalg.norm(axis)
+        return axis
 
     def setup_arms(self):
         if self.id < 0:
@@ -195,6 +211,16 @@ class Robot(object):
 
         self.col_links = set([self.link_to_id[name] for name in self.col_link_names])
         self._init_attr_map()
+        
+        # Store axis pointing from gripper base to finger tips
+        self.gripper_axis = {}
+        for arm in self.arms:
+            ee_link = self.get_ee_link(arm)
+            cur_quat = p.getLinkState(self.id, ee_link)[1]
+            mat = T.quat2mat(cur_quat)
+            cur_axis = self.infer_gripper_axis(arm)
+            axis = np.linalg.inv(mat).dot(cur_axis)
+            self.gripper_axis[arm] = axis.round(4)
 
 
 class NAMO(Robot):

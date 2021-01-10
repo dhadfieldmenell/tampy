@@ -2154,3 +2154,82 @@ class IsPushing(PosePredicate):
         super(IsPushing, self).__init__(name, e, attr_inds, params, expected_param_types, priority = 1)
         self.spacial_anchor = False
 
+class GrippersDownRot(GrippersLevel):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.coeff = 0.01
+        self.opt_coeff = 0.01
+        self.eval_f = lambda x: self.coeff*self.both_arm_rot_check_f(x)
+        self.eval_grad = lambda x: self.coeff*self.both_arm_rot_check_jac(x)
+        attr_inds, attr_dim = init_robot_pred(self, params[0], [])
+        
+        geom = params[0].geom
+        self.quats = {}
+        self.mats = {}
+        geom = params[0].geom
+        if not hasattr(self, 'arm'): self.arms = geom.arms
+        if not hasattr(self, 'axis'): self.axis = [0, 0, -1]
+
+        for arm in self.arms:
+            axis = geom.get_gripper_axis(arm)
+            quat = OpenRAVEBody.quat_from_v1_to_v2(axis, self.axis)
+            self.quats[arm] = quat
+            self.mats[arm] = T.quat2mat(quat)
+
+        self.eval_dim = 3 * len(self.arms)
+        super(GrippersDownRot, self).__init__(name, params, expected_param_types, env, debug)
+
+    def resample(self, negated, t, plan):
+        return robot_sampling.resample_gripper_down_rot(self, negated, t, plan)
+
+    def both_arm_rot_check_f(self, x):
+        robot_body = self._param_to_body[self.params[self.ind0]]
+        self.set_robot_poses(x, robot_body)
+        obj_trans = np.zeros((4,4))
+        obj_trans[3,3] = 1
+        trans = []
+        for arm in self.arms:
+            obj_trans[:3,:3] = self.mats[arm]
+            robot_trans, arm_inds = self.get_robot_info(robot_body, arm)
+            rot_val = self.rot_lock_f(obj_trans, robot_trans)
+            trans.append(rot_val)
+        return np.concatenate(trans, axis=0)
+
+    def both_arm_rot_check_jac(self, x):
+        robot_body = self._param_to_body[self.params[self.ind0]]
+        self.set_robot_poses(x, robot_body)
+
+        geom = robot_body._geom
+        obj_trans = np.zeros((4,4))
+        obj_trans[3,3] = 1
+        trans = []
+        jacs = []
+        for arm in self.arms:
+            obj_trans[:3,:3] = self.mats[arm]
+            robot_trans, arm_inds = self.get_robot_info(robot_body, arm)
+            rot_jacs = []
+            lb, ub = geom.get_arm_bnds(arm)
+            axes = [p.getJointInfo(jnt_id)[13] for jnt_id in arm_inds]
+            for local_dir in np.eye(3):
+                obj_dir = local_dir # np.dot(obj_trans[:3,:3], local_dir)
+                world_dir = robot_left_trans[:3,:3].dot(local_dir)
+                # computing robot's jacobian
+                arm_jac = []
+                arm_jac = [np.dot(obj_dir, np.cross(axis, world_dir)) for axis in axes]
+                full_jac = np.zeros(self.attr_dim)
+                full_jac[lb:ub] = arm_jac
+                rot_jacs.append(full_jac)
+            jacs.append(np.array(rot_jacs))
+
+        rot_jac = np.concatenate(jacs, axis=-1)
+        return rot_jac
+
+class RightGripperDownRot(GrippersLevel):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.arms = ['right']
+        super(RightGripperDownRot, self).__init__(name, params, expected_param_types, env, debug)
+
+class LeftGripperDownRot(GrippersLevel):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.arms = ['left']
+        super(LeftGripperDownRot, self).__init__(name, params, expected_param_types, env, debug)
+

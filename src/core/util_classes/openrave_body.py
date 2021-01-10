@@ -572,7 +572,7 @@ class OpenRAVEBody(object):
     def transform_from_obj_pose(pose, rotation = np.array([0,0,0])):
         x, y, z = pose
         if len(rotation) == 4:
-            rotation = quaternion_to_euler(rotation, order='xyzw')
+            rotation = T.quaternion_to_euler(rotation, order='xyzw')
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(pose, rotation)
         rot_mat = np.dot(Rz, np.dot(Ry, Rx))
         matrix = np.eye(4)
@@ -607,6 +607,25 @@ class OpenRAVEBody(object):
         roll = atan2(r[2,1], r[2,2])
         # ipdb.set_trace()
         return (yaw, pitch, roll)
+
+    @staticmethod
+    def quat_from_v1_to_v2(v1, v2):
+        v1, v2 = np.array(v1), np.array(v2)
+        xyz = np.cross(v1, v2)
+        len1 = np.sum(v1**2)
+        len2 = np.sum(v2**2)
+        w = np.sqrt(len1 * len2) + np.dot(v1, v2)
+        quat = np.concatenate([xyz, [w]])
+        if np.all(np.abs(quat) < 1e-5):
+            v1 = v1 / np.linalg.norm(v1)
+            mid_axis = [1, 0, 0] if np.abs(np.dot([1,0,0], v1)) < 1-1e-3 else [0, 1, 0]
+            quat1 = OpenRAVEBody.quat_from_v1_to_v2(v1, mid_axis)
+            quat2 = OpenRAVEBody.quat_from_v1_to_v2(mid_axis, v2)
+            mat1 = T.quat2mat(quat1)
+            mat2 = T.quat2mat(quat2)
+            quat = T.mat2quat(mat1.dot(mat2))
+        quat /= np.linalg.norm(quat)
+        return quat
 
     @staticmethod
     def get_ik_transform(pos, rot, right_arm = True):
