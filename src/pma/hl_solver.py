@@ -165,6 +165,10 @@ class FFSolver(HLSolver):
                   \n(:requirements :strips :equality :typing)\n(:types "
         for t in domain_config["Types"].split(";"):
             dom_str += t.strip().split("(")[0].strip() + " "
+        for st in domain_config.get("Subtypes", "").split(";"):
+            dom_str += "\n"
+            dom_str += st.strip()
+
         dom_str += ")\n\n(:predicates\n"
         for p_defn in domain_config["Derived Predicates"].split(";"):
             p_name, p_params = list(map(str.strip, p_defn.split(",", 1)))
@@ -414,14 +418,14 @@ class FFSolver(HLSolver):
                         p_type = a_schema.universally_quantified_params[a]
                         bound_names = [bindings[key][0] for key in bindings]
                         # arg_names_of_type = [k for k, v in params.items() if v.get_type() == p_type and k not in bound_names]
-                        arg_names_of_type = [k for k, v in list(params.items()) if v.get_type() == p_type and k not in excl]
+                        arg_names_of_type = [k for k, v in list(params.items()) if p_type in v.get_type(True) and k not in excl]
                         arg_valuations = [val + [(name, p_type)] for name in arg_names_of_type for val in arg_valuations]
                 for val in arg_valuations:
                     val, types = list(zip(*val))
-                    try:
-                        assert list(types) == pred_schema.expected_params, "Expected params from schema don't match types! Bad task planner output."
-                    except:
-                        import ipdb; ipdb.set_trace()
+                    #try:
+                    #    assert list(types) == pred_schema.expected_params, "Expected params from schema don't match types! Bad task planner output."
+                    #except:
+                    #    import ipdb; ipdb.set_trace()
                     # if list(types) != pred_schema.expected_params:
                     #     import pdb; pdb.set_trace()
                     pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params, env=env)

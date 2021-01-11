@@ -79,7 +79,8 @@ class ParseProblemConfig(object):
                     name = attr_dict["name"][0]
                     try:
                         params[obj_name] = domain.param_schemas[o_type].param_class(attrs=attr_dict,
-                                                                                    attr_types=domain.param_schemas[o_type].attr_dict)
+                                                                                    attr_types=domain.param_schemas[o_type].attr_dict,
+                                                                                    class_types=domain.param_schemas[o_type].types)
                         if obj_name in openrave_bodies:
                             params[obj_name].openrave_body = openrave_bodies[obj_name]
                             params[obj_name].geom = params[obj_name].openrave_body._geom
@@ -127,6 +128,9 @@ class ParseProblemConfig(object):
                                                                           env=env))
                 except TypeError as e:
                     print(("type error for {}".format(pred)))
+                #except Exception as e:
+                #    print(e)
+                #    import ipdb; ipdb.set_trace()
 
         # use params and initial preds to create an initial State object
         initial_state = state.State("initstate", params, init_preds, timestep=0)

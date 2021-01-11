@@ -84,7 +84,7 @@ TOL = 1e-4
 # Predicate Gradient Test Option
 TEST_GRAD = True
 
-ATTR_MAP = {"Rotation": [("value", np.array([0], dtype=np.int))],
+ATTRMAP = {"Rotation": [("value", np.array([0], dtype=np.int))],
             "Distance": [("value", np.array([0], dtype=np.int))],
             "Can": (("pose", np.array([0,1,2], dtype=np.int)),
                     ("rotation", np.array([0,1,2], dtype=np.int))),

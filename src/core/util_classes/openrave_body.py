@@ -92,7 +92,7 @@ class OpenRAVEBody(object):
             fun_name = "self._add_{}".format(geom._type)
             eval(fun_name)(geom)
         except Exception as e:
-            print(e)
+            print('Could not add', geom._type, e)
             self._add_obj(geom)
 
     def _add_circle(self, geom):
@@ -160,7 +160,8 @@ class OpenRAVEBody(object):
             self.env_body.SetName(self.name)
             self._env.Add(self.env_body)
         else:
-            self.body_id = P.createCollisionShape(shapeType=P.GEOM_BOX, half_extents=geom.dim)
+            self.col_body_id = P.createCollisionShape(shapeType=P.GEOM_BOX, halfExtents=geom.dim)
+            self.body_id = P.createMultiBody(1, self.col_body_id)
 
     def _add_sphere(self, geom):
         if USE_OPENRAVE:
@@ -178,7 +179,8 @@ class OpenRAVEBody(object):
             self.env_body.SetName(self.name)
             self._env.Add(self.env_body)
         else:
-            self.body_id = OpenRAVEBody.create_wall(self._env, geom.wall_type)
+            self.col_body_id = OpenRAVEBody.create_wall(self._env, geom.wall_type)
+            self.body_id = P.createMultiBody(1, self.col_body_id)
 
     def _add_obj(self, geom):
         self.env_body = self._env.ReadKinBodyXMLFile(geom.shape)
@@ -243,11 +245,14 @@ class OpenRAVEBody(object):
             self.env_body.SetActiveDOFValues(dof_val)
         else:
             for key in dof_value_map:
+                if key is 'pose': continue
                 if type(self._geom.dof_map[key]) is int:
                     P.resetJointState(self.body_id, self._geom.dof_map[key], dof_value_map[key])
                 else:
                     for i, jnt_ind in enumerate(self._geom.dof_map[key]):
-                        P.resetJointState(self.body_id, self._geom.dof_map[key][i], dof_value_map[key][i])
+                        ind = min(i, len(dof_value_map[key])-1)
+                        val = dof_value_map[key] if type(dof_value_map[key]) is int else dof_value_map[key][ind]
+                        P.resetJointState(self.body_id, self._geom.dof_map[key][i], val)
 
     def _set_active_dof_inds(self, inds = None):
         """
@@ -654,9 +659,7 @@ class OpenRAVEBody(object):
         return pos, orn
 
     def current_pose(self, euler=True):
-        info = p.getLinkState(self.body_id, -1)
-        pos = info[0]
-        orn = info[1] # xyzw
+        pos, orn = P.getBasePositionAndOrientation(self.body_id)
         if euler:
             orn = T.quaternion_to_euler(orn, order='xyzw')
         return pos, orn

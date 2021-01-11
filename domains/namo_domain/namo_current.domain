@@ -5,6 +5,8 @@
 # implicity, all types require a name
 Types: Can, Target, RobotPose, Robot, Grasp, Obstacle
 
+Subtypes: RedCan, BlueCan - Can; FrontGrasp - Grasp
+
 # Define the class location of each non-standard attribute type used in the above parameter type descriptions.
 
 Attribute Import Paths: RedCircle core.util_classes.items, BlueCircle core.util_classes.items, GreenCircle core.util_classes.items, Vector1d core.util_classes.matrix, Vector2d core.util_classes.matrix, Wall core.util_classes.items

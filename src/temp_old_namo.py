@@ -1,20 +1,26 @@
 import baxter_gym
 from baxter_gym.envs import MJCEnv
 
-import policy_hooks.namo.grip_prob as prob
+import policy_hooks.namo.sort_prob as prob
 prob.NUM_OBJS = 2
 prob.FIX_TARGETS = True
 prob.NUM_TARGS = 8
 prob.N_GRASPS = 4
 prob.n_aux = 0
 prob.END_TARGETS = prob.END_TARGETS[:8]
-prob.domain_file = "../domains/namo_domain/namo_current_grip.domain"
+prob.domain_file = "../domains/namo_domain/namo_current.domain"
 from pma.namo_grip_solver import *
 from pma.hl_solver import *
 from pma.pr_graph import *
 from pma import backtrack_ll_solver as bt_ll
 from policy_hooks.utils.load_task_definitions import parse_state
 from core.util_classes.namo_grip_predicates import angle_diff
+
+plans = prob.get_plans(use_tf=True)[0]
+plan = list(plans.values())[0]
+solver = NAMOSolver()
+hl_solver = FFSolver(plan.d_c)
+import ipdb; ipdb.set_trace()
 
 fpath = baxter_gym.__path__[0]
 view = False

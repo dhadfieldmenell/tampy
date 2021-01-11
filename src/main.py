@@ -17,6 +17,7 @@ def parse_file_to_dict(f_name):
         for line in f:
             line = line.strip()
             if line and not line.startswith("#"):
+                if len(line.split(":", 1)) != 2: import ipdb; ipdb.set_trace()
                 k, v = line.split(":", 1)
                 d[k.strip()] = v.strip()
         f.close()

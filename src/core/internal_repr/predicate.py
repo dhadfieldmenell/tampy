@@ -39,7 +39,8 @@ class Predicate(object):
             for i, p in enumerate(self.params):
                 if expected_param_types[i] not in p.get_type(True):
                     raise ParamValidationException("Parameter type validation failed for predicate '%s'."%self)
-        except:
+        except Exception as e:
+            print(e)
             import ipdb; ipdb.set_trace()
 
     def check_pred_violation(self, t, negated=False, tol=1e-3):

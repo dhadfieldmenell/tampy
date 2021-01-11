@@ -28,9 +28,23 @@ class ParseDomainConfig(object):
         for k, v in list(attr_paths.items()):
             attr_paths[k] = importlib.import_module(v)
 
+        super_types = {}
         param_schemas = {}
         for t in map(str.strip, domain_config["Types"].split(",")):
+            super_types[t] = [t]
             param_schemas[t] = {"_type" : eval("str"), "name" : eval("str")} # name added by default
+
+        # Subtypes will inherit all attributes of their parent, but can override
+        parent_types = {}
+        if "Subtypes" in domain_config:
+            for types in map(str.strip, domain_config["Subtypes"].split(";")):
+                children, parent = map(str.strip, types.split("-"))
+                children = list(map(str.strip, children.split(",")))
+                for child in children:
+                    parent_types[child] = parent
+                    param_schemas[child] = {"_type" : eval("str"), "name" : eval("str")}
+
+        # First pass reads off explicitly defined values
         for prim_preds in domain_config["Primitive Predicates"].split(";"):
             k, type_name, v = list(map(str.strip, prim_preds.split(",")))
             param_schemas[type_name][k] = v
@@ -43,10 +57,27 @@ class ParseDomainConfig(object):
                     param_schemas[type_name][k] = eval(v)
                 except NameError as e:
                     raise DomainConfigException("Need to provide attribute import path for non-primitive %s."%v)
+
+        # Second pass performs inheritance
+        def inherit(cur_type, base_type):
+            if cur_type not in parent_types: return
+            parent = parent_types[cur_type]
+            parent_attrs = param_schemas[parent]
+            for key in parent_attrs:
+                if key not in param_schemas[base_type]:
+                    param_schemas[base_type][key] = param_schemas[parent][key]
+            if base_type not in super_types:
+                super_types[base_type] = [base_type]
+
+            super_types[base_type].append(parent)
+            inherit(parent, base_type)
+
+        for t in param_schemas: inherit(t, t)
+
         for type_name, attr_dict in list(param_schemas.items()):
             assert "pose" in attr_dict or "value" in attr_dict
             obj_or_symbol = ParseDomainConfig._dispatch_obj_or_symbol(attr_dict)
-            param_schemas[type_name] = ParameterSchema(type_name, getattr(parameter, obj_or_symbol), attr_dict)
+            param_schemas[type_name] = ParameterSchema(type_name, getattr(parameter, obj_or_symbol), attr_dict, super_types[type_name])
         return param_schemas
 
     @staticmethod

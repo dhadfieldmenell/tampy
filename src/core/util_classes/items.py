@@ -5,6 +5,7 @@ class Item(object):
     def __init__(self):
         self._type = "item"
         self._base_type = "item"
+        self.col_links = set([-1])
 
     def get_types(self):
         return [self._type, self._base_type]
@@ -19,9 +20,9 @@ class Circle(Item):
     Defines geometry used in the NAMO domain.
     """
     def __init__(self, radius):
+        super(Circle, self).__init__()
         self._type = "circle"
         self.radius = float(radius)
-        self.col_links = set(['base'])
 
 class RedCircle(Circle):
     def __init__(self, radius):
@@ -45,9 +46,9 @@ class Wall(Item):
     """
 
     def __init__(self, wall_type):
+        super(Wall, self).__init__()
         self._type = "wall"
         self.wall_type = wall_type
-        self.col_links = set(['base'])
 
 """
 Obejct defined for Robot[baxter/pr2] domain
@@ -58,10 +59,10 @@ class Can(Item):
     Defines geometry used in the CAN domain.
     """
     def __init__(self, radius, height):
+        super(Can, self).__init__()
         self._type = "can"
         self.radius = float(radius)
         self.height = float(height)
-        self.col_links = set(['base'])
 
 class BlueCan(Can):
     def __init__(self, radius, height):
@@ -92,18 +93,18 @@ class Edge(Can):
 
 class Sphere(Item):
     def __init__(self, radius):
+        super(Sphere, self).__init__()
         self.color = "blue"
         self._type = "sphere"
         self.radius = radius
-        self.col_links = set(['base'])
 
 class Obstacle(Item):
     """
     Defines geometry used for testing move with obstructs in the NAMO domain.
     """
     def __init__(self):
+        super(Obstacle, self).__init__()
         self._type = "obstacle"
-        self.col_links = set(['base'])
 
 class Table(Obstacle):
     """
@@ -111,6 +112,7 @@ class Table(Obstacle):
     """
 
     def __init__(self, dim):
+        super(Table, self).__init__()
         self._type = "table"
         if isinstance(dim, str):
             dim = list(eval(dim))
@@ -119,7 +121,6 @@ class Table(Obstacle):
         self.leg_dim = [dim[3], dim[4]]
         self.leg_height = dim[5]
         self.back = dim[6]
-        self.col_links = set(['base'])
 
 class Box(Obstacle):
     """
@@ -127,6 +128,7 @@ class Box(Obstacle):
     """
 
     def __init__(self, dim):
+        super(Box, self).__init__()
         self._type = "box"
         if isinstance(dim, str):
             dim = list(eval(dim))
@@ -134,7 +136,6 @@ class Box(Obstacle):
         self.length = dim[0]
         self.height = dim[1]
         self.width = dim[2]
-        self.col_links = set(['base'])
 
 class Basket(Item):
     """
@@ -142,8 +143,9 @@ class Basket(Item):
     """
 
     def __init__(self):
+        super(Basket, self).__init__()
         self._type = "basket"
         self.shape = "../models/baxter/basket.xml"
         self.up_right_rot = [0, 0, 1.57]
 
-        self.col_links = set(['long_1', 'long_2', 'short_1', 'short_2', 'bottom'])
+        # self.col_links = set(['long_1', 'long_2', 'short_1', 'short_2', 'bottom'])

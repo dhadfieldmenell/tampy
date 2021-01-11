@@ -15,7 +15,7 @@ class Parameter(object):
     as follows: Objects have a "pose" instance attribute while Symbols have a
     "value" instance attribute.
     """
-    def __init__(self, attrs=None, attr_types=None):
+    def __init__(self, attrs=None, attr_types=None, class_types=[]):
         self.openrave_body = None
         self._free_attrs = {}
         self._saved_free_attrs = {}
@@ -38,6 +38,8 @@ class Parameter(object):
                     except KeyError:
                         name = attrs["name"][0]
                         raise DomainConfigException("Attribute '{}' for {} '{}' not defined in domain file.".format(attr_name, type(self).__name__, name))
+            self.class_types = class_types if len(class_types) else [self._type]
+            self.class_types = list(set(self.class_types))
 
     # def get_attr_type(self, attr_name):
     #     raise NotImplementedError("get_attr_type not implemented for Parameter.")
@@ -51,6 +53,8 @@ class Parameter(object):
             return dict
         elif attr_name == 'attrs':
             return list
+        elif attr_name == 'class_types':
+            return list
 
         try:
             attr = self._attr_types[attr_name]
@@ -61,10 +65,10 @@ class Parameter(object):
 
     def get_type(self, find_all=False):
         if find_all:
-            types = [self._type]
+            types = self.class_types
             if hasattr(self, 'geom'):
                 types.extend(self.geom.get_types())
-            return types
+            return list(set(types))
 
         return self._type
 
@@ -143,10 +147,10 @@ class Object(Parameter):
     the class stored in the corresponding entry of attr_types. attrs must have,
     at minimum, the keys "name", "_type", and "pose".
     """
-    def __init__(self, attrs=None, attr_types=None):
+    def __init__(self, attrs=None, attr_types=None, class_types=[]):
         if attrs is not None:
             assert "name" in attrs and "_type" in attrs and "pose" in attrs
-        super(Object, self).__init__(attrs=attrs, attr_types=attr_types)
+        super(Object, self).__init__(attrs=attrs, attr_types=attr_types, class_types=class_types)
 
     def is_defined(self):
         return self.pose is not "undefined"
@@ -190,10 +194,10 @@ class Symbol(Parameter):
     attr_types. attrs must have, at minimum, the keys "name", "_type", and
     "value".
     """
-    def __init__(self, attrs=None, attr_types=None):
+    def __init__(self, attrs=None, attr_types=None, class_types=[]):
         if attrs is not None:
             assert "name" in attrs and "_type" in attrs and "value" in attrs
-        super(Symbol, self).__init__(attrs=attrs, attr_types=attr_types)
+        super(Symbol, self).__init__(attrs=attrs, attr_types=attr_types, class_types=class_types)
 
     def is_defined(self):
         return self.value is not "undefined"

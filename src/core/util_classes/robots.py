@@ -45,7 +45,7 @@ class Robot(object):
             robot_map.append((gripper, np.array(range(gripper_dim), dtype=np.int)))
             robot_pose_map.append((gripper, np.array(range(gripper_dim), dtype=np.int)))
 
-        base = self.get_base_limit().flatten()
+        base = self.get_base_move_limit().flatten()
         robot_map.append(('pose', np.array(range(len(base)),dtype=np.int))) 
         robot_pose_map.append(('value', np.array(range(len(base)),dtype=np.int)))
         self.attr_map['robot'] = robot_map
@@ -62,7 +62,10 @@ class Robot(object):
         return 15
 
     def get_base_limit(self):
-        return np.array([[0.1, 0.1, np.pi/8]])
+        return np.array([-10, -10, -5*np.pi]), np.array([10, 10, 5*np.pi])
+    
+    def get_base_move_limit(self):
+        return np.array([0.1, 0.1, np.pi/8])
 
     def get_arm_inds(self, arm):
         return self.arm_inds[arm]
@@ -86,10 +89,11 @@ class Robot(object):
         return self.gripper_axis[arm]
 
     def get_arm_bnds(self, arm=None):
-        if arm is None: return list(self.lb), list(self.ub)
         return self.arm_bnds[arm]
 
-    def get_joint_limits(self):
+    def get_joint_limits(self, arm=None):
+        if arm is not None: return self.jnt_limits[arm]
+
         limits = []
         for arm in self.arms:
             limits.append(self.jnt_limits[arm])
@@ -153,6 +157,7 @@ class Robot(object):
             ee_name = self.ee_link_names[arm]
             self.dof_inds[ee_name] = np.array([cur_ind])
             cur_ind += 1
+        self.dof_inds['pose'] = np.array(range(cur_ind, cur_ind+3))
 
         self.dof_map = {}
         self.arm_inds = {}
@@ -194,7 +199,7 @@ class Robot(object):
             self.dof_map[arm] = [self.jnt_to_id[jnt] for jnt in jnt_names]
             self.arm_inds[arm] = [self.jnt_to_id[jnt] for jnt in jnt_names]
             self.ee_links[arm] = self.link_to_id[self.ee_link_names[arm]]
-            self.jnt_limits[arm] = ([bounds[jnt][0] for jnt in jnt_names], [bounds[jnt][1] for jnt in jnt_names])
+            self.jnt_limits[arm] = (np.array([bounds[jnt][0] for jnt in jnt_names]), np.array([bounds[jnt][1] for jnt in jnt_names]))
 
             # Assumes parent link ids are always less than child link ids
             self.arm_links[arm] = [self.jnt_parents[jnt] for jnt in jnt_names if self.jnt_parents[jnt] >= 0]
@@ -226,10 +231,13 @@ class Robot(object):
 class NAMO(Robot):
     def __init__(self):
         self._type = "robot"
+        self._base_type = "robot"
         self.file_type = 'mjcf'
         self.radius = 0.3
         self.shape = baxter_gym.__path__[0]+'/robot_info/lidar_namo.xml'
         self.dof_map = {'xpos': 0, 'ypos': 1, 'robot_theta': 2, 'left_grip': 6, 'right_grip': 4}
+        self._init_pybullet()
+        self.initialized = True
 
 
 class TwoLinkArm(Robot):
@@ -353,23 +361,6 @@ class HSR(Robot):
                               'torso_lift_link', 'head_pan_link', 'head_tilt_link'])
         self.dof_map = {'arm': [0, 1, 2, 3, 4], 'gripper': [6]}
         super(HSR, self).__init__(shape)
-
-    def setup(self, robot):
-        """
-        Need to setup iksolver for baxter
-        """
-        if const.USE_OPENRAVE:
-            iktype = IkParameterizationType.Translation3D
-            ikmodel = databases.inversekinematics.InverseKinematicsModel(robot, iktype, True)
-            if not ikmodel.load():
-                print('Something went wrong when loading ikmodel')
-                ikmodel.autogenerate()
-            manip = robot.GetManipulator('arm')
-            ikmodel.manip = manip
-            manip.SetIkSolver(ikmodel.iksolver)
-        else:
-            self.ik_solver = HSRIKController(lambda: np.zeros(14))
-            self.col_links = set([self.ik_solver.name2id(name) for name in self.col_links])
 
 
 class Washer(Robot):
