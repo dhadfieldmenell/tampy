@@ -383,8 +383,12 @@ class FFSolver(HLSolver):
             bindings = dict(list(zip(var_names, list(zip(a_args, expected_types)))))
             preds = []
             init_preds = [pred.get_rep() for pred in concr_prob.init_state.preds]
+            invariant_preds = [pred.get_rep() for pred in concr_prob.init_state.invariants]
+
+            # Initial contains predicates only enforced at the first ts of the plan
             if curr_h == 0 and initial is not None:
                 init_preds += initial
+
             for i, pred in enumerate(init_preds):
                 spl = list(map(str.strip, pred.strip("() ").split()))
                 p_name, p_args = spl[0], spl[1:]
@@ -403,6 +407,25 @@ class FFSolver(HLSolver):
                 except TypeError as e:
                     print(("type error for {}".format(pred)))
 
+            # Invariant predicates are enforced every timestep
+            for i, pred in enumerate(invariant_preds):
+                spl = list(map(str.strip, pred.strip("() ").split()))
+                p_name, p_args = spl[0], spl[1:]
+                p_objs = []
+                for n in p_args:
+                    try:
+                        p_objs.append(params[n])
+                    except KeyError:
+                        raise ProblemConfigException("Parameter '%s' for predicate type '%s' not defined in domain file."%(n, p_name))
+                try:
+                    invariant_pred = domain.pred_schemas[p_name].pred_class(name="invariantpred%d"%i,
+                                                                          params=p_objs,
+                                                                          expected_param_types=domain.pred_schemas[p_name].expected_params,
+                                                                          env=env)
+                    ts = (p_d["active_timesteps"][0] + curr_h, p_d["active_timesteps"][1] + curr_h)
+                    preds.append({'negated': False, 'pred': invariant_pred, 'hl_info': 'invariant', 'active_timesteps': ts})
+                except TypeError as e:
+                    print(("type error for {}".format(pred)))
 
             for p_d in a_schema.preds:
                 pred_schema = domain.pred_schemas[p_d["type"]]

@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import core.util_classes.common_constants as const
 
 if const.USE_OPENRAVE:
@@ -148,7 +149,7 @@ class Robot(object):
         self.grippers = list(self.ee_link_names.values())
 
         # Setup dof inds, which are used to idnex into state vectors
-        self.dof_inds = {}
+        self.dof_inds = OrderedDict()
         cur_ind = 0
         for arm in self.arms:
             n_jnts = len(self.jnt_names[arm])

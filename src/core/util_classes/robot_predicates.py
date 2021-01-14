@@ -36,8 +36,10 @@ def init_robot_pred(pred, robot, params, robot_poses=[], attrs=[]):
     robot_inds = []
     if not len(attrs): attrs = ['pose'] + r_geom.arms + [r_geom.ee_link_names[arm] for arm in r_geom.arms]
 
+    attr_inds = OrderedDict()
     robot_inds = []
     pose_inds = []
+    attr_inds[robot] = robot_inds
     for attr in attrs:
         if attr in r_geom.arms:
             njnts = len(r_geom.jnt_names[attr])
@@ -53,13 +55,14 @@ def init_robot_pred(pred, robot, params, robot_poses=[], attrs=[]):
     inds = [(robot, robot_inds)]
     if len(robot_poses):
         for pose in robot_poses:
+            attr_inds[pose] = pose_inds
             inds.append((pose, pose_inds))
 
     for p in params:
+        attr_inds[p] = list(const.ATTRMAP[p._type])
         inds.append((p, list(const.ATTRMAP[p._type])))
-        for (attr, attr_inds) in const.ATTRMAP[p._type]:
-            cur_attr_dim += len(attr_inds)
-    attr_inds = OrderedDict(inds)
+        for (attr, inds) in const.ATTRMAP[p._type]:
+            cur_attr_dim += len(inds)
     pred.attr_inds = attr_inds
     pred.attr_dim = cur_attr_dim
     return pred.attr_inds, pred.attr_dim
@@ -147,8 +150,15 @@ class RobotPredicate(ExprPredicate):
         # Provide functionality of setting robot poses
         geom = robot_body._geom
         dof_value_map = {}
-        for dof, dof_ind in geom.get_dof_inds():
-            dof_value_map[dof] = x[dof_ind].flatten()
+        if hasattr(self, 'attr_inds'):
+            cur_ind = 0
+            for attr, inds in self.attr_inds[self.params[0]]:
+                ninds = len(inds)
+                dof_value_map[attr] = x[cur_ind:cur_ind+ninds]
+                cur_ind += ninds
+        else:
+            for dof, dof_ind in geom.get_dof_inds():
+                dof_value_map[dof] = x[dof_ind].flatten()
         robot_body.set_dof(dof_value_map)
         if hasattr(self, 'obj'):
             self.obj.openrave_body.set_pose(x[-6:-3], x[-3:])
@@ -182,7 +192,24 @@ class RobotPredicate(ExprPredicate):
             base_move = [-base_move, base_move]
         else:
             base_move = geom.get_base_limit()
-
+        
+        cur_ind = 0
+        for attr, inds in self.attr_inds[self.robot]:
+            ninds = len(inds)
+            if attr == 'pose':
+                lb[cur_ind:cur_ind+ninds] = base_move[0]
+                ub[cur_ind:cur_ind+ninds] = base_move[1]
+            elif attr in geom.arms:
+                arm_lb, arm_ub = geom.get_joint_limits(attr)
+                lb[cur_ind:cur_ind+ninds] = arm_lb
+                ub[cur_ind:cur_ind+ninds] = arm_ub
+            elif attr in geom.ee_link_names.values():
+                gripper_lb = geom.get_gripper_closed_val()
+                gripper_ub = geom.get_gripper_open_val()
+                lb[cur_ind:cur_ind+ninds] = gripper_lb
+                ub[cur_ind:cur_ind+ninds] = gripper_ub
+            cur_ind += ninds
+        '''
         inds = geom.dof_inds['pose']
         lb[inds] = base_move[0]
         ub[inds] = base_move[1]
@@ -198,6 +225,7 @@ class RobotPredicate(ExprPredicate):
             inds = geom.dof_inds[gripper]
             lb[inds] = gripper_lb
             ub[inds] = gripper_ub
+        '''
 
         if delta:
             joint_move = (ub-lb)/geom.get_joint_move_factor()
@@ -216,6 +244,18 @@ class RobotPredicate(ExprPredicate):
         b = np.zeros((len(val),1))
         self.lower_limit = lb
         return A, b, val
+
+
+    def get_arm_jac(self, robot, arm_jacs, base_jac, obj_jac, arm):
+        dim = arm_jac.shape[0]
+        jacobian = np.zeros((dim, self.attr_dim))
+        for arm in arm_jacs:
+            inds = robot.geom.dof_inds[arm]
+            jacobian[:, inds] = arm_jacs[arm]
+        inds = robot.geom.dof_inds['pose']
+        jacobian[:, inds] = base_jac
+        jacobian[:, -6:] = obj_jac
+        return jacobian
 
 
 class CollisionPredicate(RobotPredicate):
@@ -646,18 +686,6 @@ class PosePredicate(RobotPredicate):
         return obj_trans, robot_trans, axises, arm_joints
 
     #@profile
-    def get_arm_jac(self, arm_jac, base_jac, obj_jac, arm):
-        if not arm == "right" and not arm == "left":
-            assert PredicateException("Invalid Arm Specified")
-
-        dim = arm_jac.shape[0]
-        if arm == "left":
-            jacobian = np.hstack((arm_jac, np.zeros((dim, 1)), np.zeros((dim, 8)), base_jac, obj_jac))
-        elif arm == "right":
-            jacobian = np.hstack((np.zeros((dim, 8)), arm_jac, np.zeros((dim, 1)), base_jac, obj_jac))
-        return jacobian
-
-    #@profile
     def rel_ee_pos_check_f(self, x, rel_pt):
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         return self.rel_pos_error_f(obj_trans, robot_trans, rel_pt)
@@ -710,14 +738,16 @@ class PosePredicate(RobotPredicate):
         arm_jac = np.array(arm_jac).T
 
         # Calculate jacobian for the robot base
-        base_jac = np.cross(np.array([0, 0, 1]), robot_pos).reshape((3,1))
+        base_pos_jac = np.eye(3)[:2]
+        base_rot_jac = np.cross(np.array([0, 0, 1]), robot_pos).reshape((3,1))
+        base_jac = np.r_[base_pos_jac, base_rot_jac]
 
         # Calculate object jacobian
         obj_jac = -1 * np.array([np.cross(axis, obj_pos - obj_trans[:3,3]) for axis in axises]).T
         obj_jac = np.c_[-np.eye(3), obj_jac]
 
         # Create final jacobian matrix -> (Gradient checked to be correct)
-        dist_jac = self.get_arm_jac(arm_jac, base_jac, obj_jac, self.arm)
+        dist_jac = self.get_arm_jac({self.arm: arm_jac}, base_jac, obj_jac)
 
         return dist_jac
 
@@ -791,14 +821,14 @@ class PosePredicate(RobotPredicate):
             arm_jac = np.array(arm_jac).T
             arm_jac = arm_jac.reshape((1, len(arm_joints)))
             base_jac = np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir)))
-            base_jac = base_jac.reshape((1,1))
+            base_jac = np.c_[np.zeros((1,2)), base_jac.reshape((1,1))]
 
             # computing object's jacobian
             obj_jac = np.array([np.dot(world_dir, np.cross(axis, obj_dir)) for axis in axises])
             obj_jac = np.r_[[0,0,0], obj_jac].reshape((1, 6))
 
             # Create final jacobian matrix
-            rot_jacs.append(self.get_arm_jac(arm_jac, base_jac, obj_jac, self.arm))
+            rot_jacs.append(self.get_arm_jac({self.arm: arm_jac}, base_jac, obj_jac))
         rot_jac = np.vstack(rot_jacs)
         return rot_jac
 
@@ -877,13 +907,14 @@ class PosePredicate(RobotPredicate):
 
         arm_jac = arm_jac.reshape((1, len(arm_joints)))
         base_jac = sign*np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir))).reshape((1,1))
+        base_jac = np.c_[np.zeros((1,2)), base_jac]
 
         # computing object's jacobian
         obj_jac = np.array([np.dot(world_dir, np.cross(axis, obj_dir)) for axis in axises])
         obj_jac = sign*np.r_[[0,0,0], obj_jac].reshape((1, 6))
 
         # Create final jacobian matrix
-        rot_jac = self.get_arm_jac(arm_jac, base_jac, obj_jac, self.arm)
+        rot_jac = self.get_arm_jac({self.arm: arm_jac}, base_jac, obj_jac)
         return rot_jac
 
     #@profile
@@ -2240,7 +2271,7 @@ class GrippersDownRot(GrippersLevel):
         self.quats = {}
         self.mats = {}
         geom = params[0].geom
-        if not hasattr(self, 'arm'): self.arms = geom.arms
+        if not hasattr(self, 'arms'): self.arms = geom.arms
         if not hasattr(self, 'axis'): self.axis = [0, 0, -1]
 
         for arm in self.arms:

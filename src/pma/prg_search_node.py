@@ -144,7 +144,8 @@ class LLSearchNode(SearchNode):
         #     arange = p.active_range
         #     p.active_range = (arange[0], max(arange[1], state_timestep))
         # state_preds.append(failed_pred)
-        new_state = State(state_name, state_params, state_preds, state_timestep)
+        invariants = self.curr_plan.prob.init_state.invariants
+        new_state = State(state_name, state_params, state_preds, state_timestep, invariants)
         """
         Suggester should sampling based on biased Distribution according to learned theta for each parameter.
         """

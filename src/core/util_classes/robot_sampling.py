@@ -807,6 +807,55 @@ def resample_eereachable_ver(pred, negated, t, plan, inv=False, arms=[]):
     if DEBUG: assert pred.test(t, negated = negated, tol = 1e-3)
     return res, attr_inds
 
+def resample_gripper_down_rot(pred, negated, t, plan, arms=[]):
+    attr_inds, res = OrderedDict(), OrderedDict()
+
+    robot = pred.robot
+    if not len(arms): arms = pred.arms
+    geom = robot.geom
+    axis = pred.axis
+    pose = robot.param_fwd_kinematics(robot, arms, t)
+    iks = {}
+    for arm in arms:
+        ee_name = geom.ee_link_names[arm]
+        ee_link = geom.get_ee_link(arm)
+        pos = pose[arm]['pos']
+        quat = pred.quat['arm']
+        iks[arm] = robot.openrave_body.get_ik_from_pose(pos, quat, arm)
+
+    add_to_attr_inds_and_res(t, attr_inds, res, robot, [(arm, iks[arm]) for arm in arms])
+    return res, attr_inds
+
+def resample_in_gripper(pred, negated, t, plan, fix_obj=False):
+    attr_inds, res = OrderedDict(), OrderedDict()
+
+    robot, obj = pred.robot, pred.obj
+    body, arm = robot.openrave_body, pred.arm
+    geom = robot.geom
+
+    act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
+
+    if not fix_obj or action.name.find("moveholding") >= 0:
+        ts_range = action.active_timesteps
+        for ts in range(ts_range[0], ts_range[1]+1):
+            body.set_from_param(robot, ts)
+            pos = body.fwd_kinematics(arm)['pos']
+            add_to_attr_inds_and_res(ts, attr_inds, res, cloth, [('pose', pos)])
+    elif fix_obj or action.name.find("grasp") >= 0 or action.name.find("putdown") > = 0:
+        grasp_time = action.active_timesteps[0]+1 + const.EEREACHABLE_STEPS
+        st = max(action.active_timesteps[0], grasp_time-ts_delta)
+        et = min(action.active_timesteps[1], grasp-time+ts_delta)
+        ts_range = range(st, et)
+        for ts in ts_range:
+            pos = obj.pose[:, ts]
+            body.set_from_param(robot, ts)
+            quat = body.fwd_kinematics(arm)['quat']
+            ik = body.get_ik_from_pose(pos, quat, arm)
+            add_to_attr_inds_and_res(ts, attr_inds, res, robot, [(arm, ik)])
+
+    if DEBUG: assert pred.test(t, negated = negated, tol = 1e-3)
+    return res, attr_inds
+
 #@profile
 def resample_basket_moveholding_all(pred, negated, t, plan):
     attr_inds, res = OrderedDict(), OrderedDict()
@@ -1777,63 +1826,3 @@ def resample_eereachable(pred, negated, t, plan):
     robot._free_attrs['pose'][:, t-const.EEREACHABLE_STEPS: t+const.EEREACHABLE_STEPS+1] = 0
     return np.array(res), attr_inds
 
-#@profile
-def resample_rrt_planner(pred, netgated, t, plan):
-    startp, endp = pred.startp, pred.endp
-    robot = pred.robot
-    body = pred._param_to_body[robot].env_body
-    manip_trans = body.GetManipulator("right_arm").GetTransform()
-    pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
-    manip_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-    gripper_direction = manip_trans[:3,:3].dot(np.array([-1,1,0]))
-    lift_direction = manip_trans[:3,:3].dot(np.array([0,0,-1]))
-    active_dof = body.GetManipulator("right_arm").GetArmIndices()
-    attr_inds = OrderedDict()
-    res = OrderedDict()
-    pred_test = [not pred.test(k, negated) for k in range(20)]
-    resample_ts = np.where(pred_test)[0]
-    start, end = resample_ts[0]-1, resample_ts[-1]+1
-
-    rave_body = pred._param_to_body[pred.robot]
-    dof_value_map = {"lArmPose": pred.robot.lArmPose[:, start],
-                     "lGripper": 0.02,
-                     "rArmPose": pred.robot.rArmPose[:, start],
-                     "rGripper": 0.02}
-    rave_body.set_dof(dof_value_map)
-    rave_body.set_pose([0,0,pred.robot.pose[:, start][0]])
-
-    body = pred._param_to_body[pred.robot].env_body
-    active_dof = body.GetManipulator('right_arm').GetArmIndices()
-    r_arm = pred.robot.rArmPose
-    traj = get_rrt_traj(plan.env, body, active_dof, r_arm[:, start], r_arm[:, end])
-    result = process_traj(traj, end - start)
-    body.SetActiveDOFs(list(range(18)))
-    for time in range(start+1, end):
-        robot_attr_name_val_tuples = [('rArmPose', result[:, time - start-1])]
-        add_to_attr_inds_and_res(time, attr_inds, res, pred.robot, robot_attr_name_val_tuples)
-    return np.array(res), attr_inds
-
-def resample_gripper_down_rot(pred, negated, t, plan):
-    attr_inds, res = OrderedDict(), OrderedDict()
-
-    robot = pred.robot
-    rave_body, arm = robot.openrave_body, pred.arm
-    ee_pos = rave_body.param_fwd_kinematics(robot, ['left_gripper', 'right_gripper'], t)
-    # lArmPoses = rave_body.get_ik_from_pose(ee_pos['left_gripper']['pos'], [0, np.pi/2, 0], 'left_arm')
-    # rArmPoses = rave_body.get_ik_from_pose(ee_pos['right_gripper']['pos'], [0, np.pi/2, 0], 'right_arm')
-    if t > 0:
-        ind = t -1
-    else:
-        ind = t
-    # l_ind = np.argmin(np.sum((lArmPoses-robot.lArmPose[:,ind])**2, axis=1))
-    # r_ind = np.argmin(np.sum((rArmPoses-robot.rArmPose[:,ind])**2, axis=1))
-    trans = np.zeros((4,4))
-    trans[:3,3] = ee_pos['left_gripper']['pos']
-    trans[:3,:3] = [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]
-    tans[3,3] = 1
-    lArmPose = rave_body.get_close_ik_solution('left_arm', trans, dof_map={'lArmPose': robot.lArmPose[:,ind],
-                                                                           'rArmPose': robot.rArmPose[:,ind]})
-    trans[:3,3] = ee_pos['right_gripper']['pos']
-    rArmPose = rave_body.get_close_ik_solution('right_arm', trans)
-    add_to_attr_inds_and_res(t, attr_inds, res, robot, [('lArmPose', lArmPose), ('rArmPose', lArmPose)])
-    return res, attr_inds

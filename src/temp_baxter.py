@@ -41,6 +41,9 @@ params['cloth2'].pose[:,0] = [0.3, -0.8, -0.029]
 params['cloth3'].pose[:,0] = [0.6, -0.5, -0.029]
 plan = hls.get_plan(ll_plan_str, domain, problem)
 plan.d_c = d_c
+baxter = plan.params['baxter']
+baxter.left[:, 0] = [0.39620987, -0.97739414, -0.04612781, 1.74220501, 0.03562036, 0.8089644, -0.45207411]
+baxter.right[:, 0] = [-0.3962099, -0.97739413, 0.04612799, 1.742205 , -0.03562013, 0.8089644, 0.45207395]
 print(plan.get_failed_preds((0,0)))
 
 import ipdb; ipdb.set_trace()

@@ -131,9 +131,31 @@ class ParseProblemConfig(object):
                 #except Exception as e:
                 #    print(e)
                 #    import ipdb; ipdb.set_trace()
+        
+        # Invariant predicates are enforced every timestep
+        invariant_preds = problem_config.get('Invariant', None)
+        invariant_set = set()
+        if invariant_preds:
+            for i, pred in enumerate(invariant_preds.split(",")):
+                spl = list(map(str.strip, pred.strip("() ").split()))
+                p_name, p_args = spl[0], spl[1:]
+                p_objs = []
+                for n in p_args:
+                    try:
+                        p_objs.append(params[n])
+                    except KeyError:
+                        raise ProblemConfigException("Parameter '%s' for predicate type '%s' not defined in domain file."%(n, p_name))
+                try:
+                    invariant_set.add(domain.pred_schemas[p_name].pred_class(name="invariantpred%d"%i,
+                                                                              params=p_objs,
+                                                                              expected_param_types=domain.pred_schemas[p_name].expected_params,
+                                                                              env=env))
+                except TypeError as e:
+                    print(("type error for {}".format(pred)))
+
 
         # use params and initial preds to create an initial State object
-        initial_state = state.State("initstate", params, init_preds, timestep=0)
+        initial_state = state.State("initstate", params, init_preds, timestep=0, invariants=invariant_set)
 
         # create goal predicate objects
         goal_preds = set()

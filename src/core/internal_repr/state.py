@@ -6,11 +6,12 @@ class State(object):
     NOTE: Currently, we only use this class in conjunction with Problem objects' concrete initial states, for
     HL search nodes. At the low level, the state at each timestep is implicit in the parameter trajectory tables.
     """
-    def __init__(self, name, params, preds=None, timestep=0):
+    def __init__(self, name, params, preds=None, timestep=0, invariants=None):
         self.name = name
         self.params = params
         self.preds = set(preds) if preds else set()
         self.timestep = timestep
+        self.invariants = set(invariants) if invariants else set()
 
     def is_concrete(self):
         for p in self.params.values():
@@ -19,7 +20,8 @@ class State(object):
         return True
 
     def is_consistent(self):
-        for p in self.preds:
+        preds = list(self.preds) + list(self.invariants)
+        for p in preds:
             if p.active_range != (0,0): continue
             if p.is_concrete() and not p.test(time=self.timestep):
                 # if 'Obstructs' in p.get_type(): continue

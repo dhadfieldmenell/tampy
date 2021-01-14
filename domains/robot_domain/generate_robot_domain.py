@@ -187,7 +187,6 @@ class Move(Action):
             ('(RobotAt ?robot ?start)', '{}:{}'.format(0, 0)),
             ('(forall (?obj - Item)\
                 (not (Obstructs ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
-            ('(StationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Item)\
                 (Stationary ?obj))', '{}:{}'.format(0, end-1)),
             ('(forall (?obs - Obstacle) (StationaryW ?obs))', '{}:{}'.format(0, end-1)),
@@ -254,7 +253,6 @@ class MoveHolding(Action):
             )', '0:{}'.format(end)),
             ('(forall (?obj - Item / ?item)\
                 (Stationary ?obj))', '{}:{}'.format(0, end-1)),
-            ('(StationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(forall (?obs - Obstacle) (StationaryW ?obs))', '0:{}'.format(end-1)),
             ('(IsMP ?robot)', '0:{}'.format(end-1)),
             ('(WithinJointLimit ?robot)', '0:{}'.format(end)),
@@ -323,7 +321,6 @@ class Grasp(Action):
             ('(forall (?obs - Obstacle)\
                 (StationaryW ?obs)\
             )', '{}:{}'.format(0, end-1)),
-            ('(StationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(IsMP ?robot)', '0:{}'.format(end-1)),
             ('(WithinJointLimit ?robot)', '0:{}'.format(end)),
             ('(forall (?obs - Item)\
@@ -439,7 +436,6 @@ class Putdown(Action):
             ('(forall (?obs - Obstacle)\
                 (StationaryW ?obs)\
             )', '{}:{}'.format(0, end-1)),
-            ('(StationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(IsMP ?robot)', '0:{}'.format(end-1)),
             ('(WithinJointLimit ?robot)', '0:{}'.format(end)),
             ('(forall (?obs - Item)\
