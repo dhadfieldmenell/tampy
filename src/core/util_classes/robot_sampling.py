@@ -117,6 +117,7 @@ def closest_arm_pose(arm_poses, cur_arm_pose):
         if change < min_change:
             chosen_arm_pose = arm_pose
             min_change = change
+    import ipdb; ipdb.set_trace()
     return chosen_arm_pose
 
 #@profile
@@ -841,7 +842,7 @@ def resample_in_gripper(pred, negated, t, plan, fix_obj=False):
             body.set_from_param(robot, ts)
             pos = body.fwd_kinematics(arm)['pos']
             add_to_attr_inds_and_res(ts, attr_inds, res, cloth, [('pose', pos)])
-    elif fix_obj or action.name.find("grasp") >= 0 or action.name.find("putdown") > = 0:
+    elif fix_obj or action.name.find("grasp") >= 0 or action.name.find("putdown") >= 0:
         grasp_time = action.active_timesteps[0]+1 + const.EEREACHABLE_STEPS
         st = max(action.active_timesteps[0], grasp_time-ts_delta)
         et = min(action.active_timesteps[1], grasp-time+ts_delta)

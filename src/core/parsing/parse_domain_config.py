@@ -64,6 +64,8 @@ class ParseDomainConfig(object):
             parent = parent_types[cur_type]
             parent_attrs = param_schemas[parent]
             for key in parent_attrs:
+                if key == 'pose' and 'value' in param_schemas[base_type]: continue
+                if key == 'value' and 'pose' in param_schemas[base_type]: continue
                 if key not in param_schemas[base_type]:
                     param_schemas[base_type][key] = param_schemas[parent][key]
             if base_type not in super_types:

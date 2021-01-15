@@ -90,6 +90,8 @@ class Robot(object):
         return self.gripper_axis[arm]
 
     def get_arm_bnds(self, arm=None):
+        if arm is None:
+            return self.lb, self.ub
         return self.arm_bnds[arm]
 
     def get_joint_limits(self, arm=None):
@@ -109,11 +111,21 @@ class Robot(object):
     def get_dof_inds(self):
         return list(self.dof_inds.items())
 
-    def get_gripper_open_val(self):
-        return 1.
+    def get_gripper_open_val(self, arm=None):
+        if arm is None:
+            arm = self.arms[0]
 
-    def get_gripper_closed_val(self):
-        return 0.
+        gripper = self.ee_link_names[arm]
+        ub = np.max(self.jnt_limits[gripper][1])
+        return ub
+
+    def get_gripper_closed_val(self, arm=None):
+        if arm is None:
+            arm = self.arms[0]
+
+        gripper = self.ee_link_names[arm]
+        lb = np.min(self.jnt_limits[gripper][0])
+        return lb
 
     def _init_pybullet(self):
         if self.shape.endswith('urdf'):
@@ -175,8 +187,9 @@ class Robot(object):
         self.link_to_id = {}
         self.id_to_link = {}
         self.jnt_parents = {}
-        bounds = {}
+        self.bounds = {}
         cur_free = 0
+        n_decs = 4
         for i in range(p.getNumJoints(self.id)):
             jnt_info = p.getJointInfo(self.id, i)
             jnt_name = jnt_info[1].decode('utf-8')
@@ -185,13 +198,15 @@ class Robot(object):
             self.link_to_id[jnt_info[12].decode('utf-8')] = i
             self.id_to_link[i] = jnt_info[12].decode('utf-8')
             self.jnt_parents[jnt_name] = jnt_info[-1]
-            bounds[jnt_name] = (jnt_info[8], jnt_info[9])
+            jnt_lb = np.trunc(10**n_decs * jnt_info[8]) / 10**n_decs
+            jnt_ub = np.trunc(10**n_decs * jnt_info[9]) / 10**n_decs
+            self.bounds[jnt_name] = (jnt_lb, jnt_ub)
 
             # Track free joints (necessary for IK solves & similar)
             if jnt_info[2] != p.JOINT_FIXED:
                 self.free_joints[i] = cur_free
-                self.lb.append(jnt_info[8])
-                self.ub.append(jnt_info[9])
+                self.lb.append(jnt_lb)
+                self.ub.append(jnt_ub)
                 cur_free += 1
 
         # Setup tracking for pybullet indices <-> arm attributes
@@ -200,7 +215,7 @@ class Robot(object):
             self.dof_map[arm] = [self.jnt_to_id[jnt] for jnt in jnt_names]
             self.arm_inds[arm] = [self.jnt_to_id[jnt] for jnt in jnt_names]
             self.ee_links[arm] = self.link_to_id[self.ee_link_names[arm]]
-            self.jnt_limits[arm] = (np.array([bounds[jnt][0] for jnt in jnt_names]), np.array([bounds[jnt][1] for jnt in jnt_names]))
+            self.jnt_limits[arm] = (np.array([self.bounds[jnt][0] for jnt in jnt_names]), np.array([self.bounds[jnt][1] for jnt in jnt_names]))
 
             # Assumes parent link ids are always less than child link ids
             self.arm_links[arm] = [self.jnt_parents[jnt] for jnt in jnt_names if self.jnt_parents[jnt] >= 0]
@@ -214,6 +229,7 @@ class Robot(object):
             jnt_names = self.jnt_names[gripper]
             self.dof_map[gripper] = [self.jnt_to_id[jnt] for jnt in jnt_names]
             self.gripper_inds[gripper] = [self.jnt_to_id[jnt] for jnt in jnt_names]
+            self.jnt_limits[gripper] = (np.array([self.bounds[jnt][0] for jnt in jnt_names]), np.array([self.bounds[jnt][1] for jnt in jnt_names]))
 
         self.col_links = set([self.link_to_id[name] for name in self.col_link_names])
         self._init_attr_map()

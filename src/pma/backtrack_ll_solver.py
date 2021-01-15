@@ -901,7 +901,7 @@ class BacktrackLLSolver(LLSolver):
                         attr_val = value_map[attr_name]
                     if np.any(np.isnan(attr_val)): continue
                     K = attr_type.dim
-
+ 
                     if DEBUG: assert (K, T) == attr_val.shape
                     KT = K*T
                     v = -1 * np.ones((KT - K, 1))

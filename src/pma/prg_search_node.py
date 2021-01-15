@@ -156,8 +156,7 @@ class LLSearchNode(SearchNode):
         End of Suggester
         """
         goal_preds = self.concr_prob.goal_preds.copy()
-        new_problem = Problem(new_state, goal_preds, self.concr_prob.env, False, start_action=anum, sess=self.curr_plan.sess)
-
+        new_problem = Problem(new_state, goal_preds, self.concr_prob.env, False, start_action=anum)
         return new_problem
 
     def solved(self):

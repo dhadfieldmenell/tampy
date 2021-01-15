@@ -114,6 +114,7 @@ class ParseProblemConfig(object):
         elif deriv_preds:
             for i, pred in enumerate(deriv_preds.split(",")):
                 spl = list(map(str.strip, pred.strip("() ").split()))
+                if not len(spl): continue
                 p_name, p_args = spl[0], spl[1:]
                 p_objs = []
                 for n in p_args:
@@ -133,11 +134,12 @@ class ParseProblemConfig(object):
                 #    import ipdb; ipdb.set_trace()
         
         # Invariant predicates are enforced every timestep
-        invariant_preds = problem_config.get('Invariant', None)
+        invariant_preds = problem_config.get('Invariants', None)
         invariant_set = set()
         if invariant_preds:
             for i, pred in enumerate(invariant_preds.split(",")):
                 spl = list(map(str.strip, pred.strip("() ").split()))
+                if not len(spl): continue
                 p_name, p_args = spl[0], spl[1:]
                 p_objs = []
                 for n in p_args:
@@ -152,7 +154,6 @@ class ParseProblemConfig(object):
                                                                               env=env))
                 except TypeError as e:
                     print(("type error for {}".format(pred)))
-
 
         # use params and initial preds to create an initial State object
         initial_state = state.State("initstate", params, init_preds, timestep=0, invariants=invariant_set)
