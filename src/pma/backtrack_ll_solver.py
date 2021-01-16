@@ -252,6 +252,7 @@ class BacktrackLLSolver(LLSolver):
         #    return True
 
         for priority in self.solve_priorities:
+            if DEBUG: print('solving at priority', priority)
             for attempt in range(n_resamples):
                 ## refinement loop
                 success = self._solve_opt_prob(plan, priority=priority,
@@ -266,6 +267,7 @@ class BacktrackLLSolver(LLSolver):
                 # failed_preds = plan.get_failed_preds(active_ts=active_ts, tol=1e-3)
                 # if len(failed_preds): import ipdb; ipdb.set_trace()
 
+                import ipdb; ipdb.set_trace()
                 success = self._solve_opt_prob(plan, priority=priority, callback=callback, 
                                                active_ts=active_ts, verbose=verbose, resample = True,
                                                init_traj=init_traj)
@@ -373,9 +375,8 @@ class BacktrackLLSolver(LLSolver):
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
         #if priority >= 0 or priority == MAX_PRIORITY:
         self._update_ll_params()
-        if not success and priority >= 0: # priority == MAX_PRIORITY:
+        if priority >= -1: # priority == MAX_PRIORITY:
             success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
-
 
         '''
         if resample:

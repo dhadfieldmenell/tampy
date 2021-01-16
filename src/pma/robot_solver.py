@@ -31,6 +31,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         while not len(iks) and attempt < 20:
             if rand:
                 target_loc += np.multiply(np.random.sample(3) - [0.5,0.5,0.5], [0.01, 0.01, 0])
+
             iks = robot_body.get_ik_from_pose(target_loc, quat, arm)
             rand = not len(iks)
             attempt += 1
@@ -61,22 +62,28 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             act, next_act = plan.actions[anum], None
 
         robot = act.params[0]
+        for arm in robot.geom.arms:
+            robot.openrave_body.set_dof({arm: getattr(robot, arm)[:,0]})
         obj = act.params[1]
+        for param in plan.params.values():
+            if hasattr(param, 'openrave_body') and param.openrave_body is not None:
+                param.openrave_body.set_pose(param.pose[:,0])
+
         a_name = act.name.lower()
         arm = robot.geom.arms[0]
         st, et = act.active_timesteps
         if a_name.find('left') >= 0: arm = 'left'
         if a_name.find('right') >= 0: arm = 'right'
 
-        gripper_closed = True
+        gripper_open = False
         if a_name.find('move_to_grasp') >= 0 or (a_name.find('putdown') >= 0 and a_name.find('move_to') < 0):
-            gripper_closed = False
+            gripper_open = True
 
         if next_act is not None:
             next_obj = next_act.params[1]
             next_a_name = next_act.name.lower()
             next_arm = robot.geom.arms[0]
-            next_gripper_closed = not gripper_closed
+            next_gripper_open = not gripper_open
             next_st, next_et = next_act.active_timesteps
             if next_a_name.find('left') >= 0: arm = 'left'
             if next_a_name.find('right') >= 0: arm = 'right'
@@ -85,14 +92,14 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         for i in range(resample_size):
             ### Cases for when behavior can be inferred from current action
             if a_name.find('grasp') >= 0 or a_name.find('putdown') >= 0:
-                pose = self.vertical_gripper(robot, arm, obj, gripper_closed, (st, et), rand=(i>0))
+                pose = self.vertical_gripper(robot, arm, obj, gripper_open, (st, et), rand=(i>0))
 
             ### Cases for when behavior cannot be inferred from current action
             elif next_act is None:
                 pose = None
 
             elif next_a_name.find('grasp') >= 0 or next_a_name.find('putdown') >= 0:
-                pose = self.vertical_gripper(robot, next_arm, next_obj, next_gripper_closed, (next_st, next_et), rand=(i>0))
+                pose = self.vertical_gripper(robot, next_arm, next_obj, next_gripper_open, (next_st, next_et), rand=(i>0))
 
             if pose is None: break
             robot_pose.append(pose)

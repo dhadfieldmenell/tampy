@@ -72,10 +72,14 @@ class Robot(object):
         return self.arm_inds[arm]
 
     def get_free_inds(self, arm=None):
-        if arm is None: return list(self.free_joints)
-
+        if arm is None:
+            return list(sorted(self.free_joints.keys()))
         inds = self.get_arm_inds(arm)
         return [self.free_joints[ind] for ind in inds]
+
+    def get_free_jnts(self):
+        jnt_ids = sorted(self.free_joints.keys())
+        return list([jnt[0] for jnt in p.getJointStates(self.id, jnt_ids)]) 
 
     def get_ee_link(self, arm):
         return self.ee_links[arm]

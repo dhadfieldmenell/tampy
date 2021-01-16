@@ -38,8 +38,8 @@ problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, env, use_tf
 params = problem.init_state.params
 params['cloth0'].pose[:,0] = [0.7, 0.5, -0.029]
 params['cloth1'].pose[:,0] = [0.3, 0.8, -0.029]
-params['cloth2'].pose[:,0] = [0.3, -0.8, -0.029]
-params['cloth3'].pose[:,0] = [0.7, -0.5, -0.029]
+params['cloth2'].pose[:,0] = [0.8, 0.8, -0.029]
+params['cloth3'].pose[:,0] = [0.5, 0.4, -0.029]
 params['cloth0_end_target'].value[:,0] = [0.4, 0.4, -0.02]
 
 for i in range(4):

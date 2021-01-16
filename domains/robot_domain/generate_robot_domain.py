@@ -8,7 +8,7 @@ dom_str = """
 # Configuration file for CAN domain. Blank lines and lines beginning with # are filtered out.
 
 # implicity, all types require a name
-Types: Robot, RobotPose, Reachable 
+Types: Robot, RobotPose, CollisionShape 
 
 # Define the class location of each non-standard attribute type used in the above parameter type descriptions.
 
@@ -30,7 +30,7 @@ for r in robots:
     rpose_types += "{}Pose, ".format(r)
 rpose_types = rpose_types[:-2] + " - RobotPose"
 
-subtypes = "\nSubtypes: Item, Target - Reachable; Cloth, Can, Basket, Obstacle - Item; ClothTarget, CanTarget, BasketTarget - Target"
+subtypes = "\nSubtypes: Obstacle, Reachable - CollisionShape; Item, Target - Reachable; Cloth, Can, Basket - Item; ClothTarget, CanTarget, BasketTarget - Target"
 subtypes += "; " + r_types + "; " + rpose_types + "\n"
 dom_str += subtypes + "\n"
 
@@ -56,6 +56,7 @@ class PrimitivePredicates(object):
 
 pp = PrimitivePredicates()
 pp.add('Reachable', [('value', 'Vector3d'), ('rotation', 'Vector3d')])
+pp.add('CollisionShape', [('pose', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('Item', [('pose', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('Target', [('value', 'Vector3d'), ('rotation', 'Vector3d')])
 
@@ -128,10 +129,10 @@ dp.add('OpenGripperLeft', ['Robot'])
 dp.add('OpenGripperRight', ['Robot'])
 dp.add('CloseGripper', ['Robot'])
 dp.add('OpenGripper', ['Robot'])
-dp.add('Obstructs', ['Robot', 'RobotPose', 'RobotPose', 'Item'])
-dp.add('ObstructsHolding', ['Robot', 'RobotPose', 'RobotPose', 'Item', 'Item'])
-dp.add('Collides', ['Item', 'Item'])
-dp.add('RCollides', ['Robot', 'Item'])
+dp.add('Obstructs', ['Robot', 'RobotPose', 'RobotPose', 'CollisionShape'])
+dp.add('ObstructsHolding', ['Robot', 'RobotPose', 'RobotPose', 'CollisionShape', 'CollisionShape'])
+dp.add('Collides', ['CollisionShape', 'CollisionShape'])
+dp.add('RCollides', ['Robot', 'CollisionShape'])
 dp.add('RSelfCollides', ['Robot'])
 dp.add('EEReachableLeft', ['Robot', 'Reachable'])
 dp.add('EEReachableRight', ['Robot', 'Reachable'])
@@ -188,8 +189,8 @@ class Move(Action):
         self.end = end
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose)'
         self.pre = [\
-            ('(RobotAt ?robot ?start)', '{}:{}'.format(0, 0)),
-            ('(not (RobotAt ?robot ?end))', '{}:{}'.format(0, 0)),
+            ('(RobotAt ?robot ?start)', '{}:{}'.format(0, -1)),
+            ('(not (RobotAt ?robot ?end))', '{}:{}'.format(0, -1)),
             ('(forall (?obj - Item)\
                 (not (Obstructs ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Item)\
@@ -202,7 +203,7 @@ class Move(Action):
         ]
         self.eff = [\
             (' (not (RobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
-            ('(RobotAt ?robot ?end)', '{}:{}'.format(end, end))]
+            ('(RobotAt ?robot ?end)', '{}:{}'.format(end, end-1))]
 
 
 class MoveLeft(Move):
@@ -212,8 +213,8 @@ class MoveLeft(Move):
         self.pre.extend([
             ('(forall (?obj - Item)\
                 (not (InGripperLeft ?robot ?obj)))', '{}:{}'.format(0, 0)),
-            ('(OpenGripperLeft ?robot)', '1:{}'.format(self.end)),
-            ('(StationaryRightArm ?robot)', '0:{}'.format(self.end))])
+            ('(OpenGripperLeft ?robot)', '1:{}'.format(self.end-1)),
+            ('(StationaryRightArm ?robot)', '0:{}'.format(self.end-1))])
 
 
 class MoveRight(Move):
@@ -223,26 +224,28 @@ class MoveRight(Move):
         self.pre.extend([
             ('(forall (?obj - Item)\
                 (not (InGripperRight ?robot ?obj)))', '{}:{}'.format(0, 0)),
-            ('(OpenGripperRight ?robot)', '1:{}'.format(self.end)),
-            ('(StationaryLeftArm ?robot)', '0:{}'.format(self.end))])
+            ('(OpenGripperRight ?robot)', '1:{}'.format(self.end-1)),
+            ('(StationaryLeftArm ?robot)', '0:{}'.format(self.end-1))])
 
 
 class MoveToGraspLeft(MoveLeft):
     def __init__(self):
         super(MoveToGraspLeft, self).__init__()
         self.name = 'move_to_grasp_left'
-        self.args = '(?robot - Robot ?item - Item ?start - RobotPose ?end - RobotPose)'
+        self.args = '(?robot - Robot ?item - Item ?targ - Target ?start - RobotPose ?end - RobotPose)'
+        self.pre.extend([('(At ?item ?targ)', '0:0'), ('(At ?item ?targ)', '{0}:{1}'.format(self.end-1, self.end))])
         self.eff.extend([('(ApproachLeft ?robot ?item)', '{0}:{1}'.format(self.end-1, self.end)),
-            ('(forall (?obj - Reachable / ?item) (not (ApproachLeft ?robot ?obj)))', '{0}:{1}'.format(self.end-1, self.end))])
+            ('(forall (?obj - Reachable / ?item) (not (ApproachLeft ?robot ?obj)))', '{0}:{1}'.format(self.end, self.end-1))])
 
 
 class MoveToGraspRight(MoveRight):
     def __init__(self):
         super(MoveToGraspRight, self).__init__()
         self.name = 'move_to_grasp_right'
-        self.args = '(?robot - Robot ?item - Item ?start - RobotPose ?end - RobotPose)'
+        self.args = '(?robot - Robot ?item - Item ?targ - Target ?start - RobotPose ?end - RobotPose)'
+        self.pre.extend([('(At ?item ?targ)', '0:0'), ('(At ?item ?targ)', '{0}:{1}'.format(self.end-1, self.end))])
         self.eff.extend([('(ApproachRight ?robot ?item)', '{0}:{1}'.format(self,end-1, self.end)),
-            ('(forall (?obj - Reachable / ?item) (not (ApproachRight ?robot ?obj)))', '{0}:{1}'.format(self.end-1, self.end))])
+            ('(forall (?obj - Reachable / ?item) (not (ApproachRight ?robot ?obj)))', '{0}:{1}'.format(self.end, self.end-1))])
 
 
 class MoveHolding(Action):
@@ -253,8 +256,8 @@ class MoveHolding(Action):
         self.end = end
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?item - Item)'
         self.pre = [\
-            ('(RobotAt ?robot ?start)', '0:0'),
-            ('(not (RobotAt ?robot ?end))', '{}:{}'.format(0, 0)),
+            ('(RobotAt ?robot ?start)', '0:-1'),
+            ('(not (RobotAt ?robot ?end))', '{}:{}'.format(0, -1)),
             ('(forall (?obj - Item)\
                 (not (ObstructsHolding ?robot ?start ?end ?obj ?item))\
             )', '0:{}'.format(end)),
@@ -268,7 +271,7 @@ class MoveHolding(Action):
         ]
         self.eff = [\
             ('(not (RobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
-            ('(RobotAt ?robot ?end)', '{}:{}'.format(end, end))
+            ('(RobotAt ?robot ?end)', '{}:{}'.format(end, end-1))
         ]
 
 
@@ -276,20 +279,20 @@ class MoveHoldingLeft(MoveHolding):
     def __init__(self):
         super(MoveHoldingLeft, self).__init__()
         self.pre.extend([
-            ('(CloseGripperLeft ?robot)', '0:{}'.format(self.end)),
-            ('(InGripperLeft ?robot ?item)', '{}:{}'.format(0, 0)),
-            ('(InGripperLeft ?robot ?item)', '{}:{}'.format(0, self.end)),
-            ('(StationaryRightArm ?robot)', '0:{}'.format(self.end))])
+            ('(CloseGripperLeft ?robot)', '1:{}'.format(self.end-1)),
+            ('(InGripperLeft ?robot ?item)', '{}:{}'.format(0, -1)),
+            # ('(InGripperLeft ?robot ?item)', '{}:{}'.format(self.end-1, self.end-1)),
+            ('(StationaryRightArm ?robot)', '0:{}'.format(self.end-1))])
 
 
 class MoveHoldingRight(MoveHolding):
     def __init__(self):
         super(MoveHoldingRight, self).__init__()
         self.pre.extend([
-            ('(CloseGripperRight ?robot)', '0:{}'.format(self.end)),
-            ('(InGripperRight ?robot ?item)', '{}:{}'.format(0, 0)),
-            ('(InGripperRight ?robot ?item)', '{}:{}'.format(0, self.end)),
-            ('(StationaryLeftArm ?robot)', '0:{}'.format(self.end))])
+            ('(CloseGripperRight ?robot)', '1:{}'.format(self.end-1)),
+            ('(InGripperRight ?robot ?item)', '{}:{}'.format(0, -1)),
+            # ('(InGripperRight ?robot ?item)', '{}:{}'.format(self.end-1)),
+            ('(StationaryLeftArm ?robot)', '0:{}'.format(self.end-1))])
 
 
 class MoveToPutdownLeft(MoveHoldingLeft):
@@ -313,21 +316,23 @@ class MoveToPutdownRight(MoveHoldingRight):
 class Grasp(Action):
     def __init__(self):
         self.name = 'grasp'
-        self.timesteps = 2 * const.EEREACHABLE_STEPS + 11
+        self.timesteps = 10 # 2 * const.EEREACHABLE_STEPS + 11
         end = self.timesteps - 1
         self.end = end
         self.args = '(?robot - Robot ?item - Item ?target - Target ?sp - RobotPose ?ep - RobotPose)'
-        grasp_time = const.EEREACHABLE_STEPS + 5
-        approach_time = 5
-        retreat_time = end-5
+        grasp_time = 5 # const.EEREACHABLE_STEPS + 5
         self.grasp_time = grasp_time
         self.pre = [\
-            ('(At ?item ?target)', '0:{}'.format(grasp_time)),
-            ('(RobotAt ?robot ?sp)', '0:0'),
+            ('(At ?item ?target)', '0:0'),
+            ('(At ?item ?target)', '1:{}'.format(grasp_time)),
+            ('(RobotAt ?robot ?sp)', '0:-1'),
             ('(not (RobotAt ?robot ?ep))', '{}:{}'.format(0, 0)),
             ('(forall (?obj - Item) \
                 (Stationary ?obj)\
             )', '0:{}'.format(grasp_time-1)),
+            ('(forall (?obj - Item) \
+                (StationaryNEq ?obj ?item)\
+            )', '0:{}'.format(end-1)),
             ('(forall (?obs - Obstacle)\
                 (StationaryW ?obs)\
             )', '{}:{}'.format(0, end-1)),
@@ -338,18 +343,18 @@ class Grasp(Action):
             )', '0:{}'.format(end-1)),
             ('(forall (?obs - Obstacle)\
                 (not (RCollides ?robot ?obs))\
-            )', '0:{}'.format(end)),
+            )', '0:{}'.format(end-1)),
             ('(forall (?obj - Item)\
                 (not (Obstructs ?robot ?sp ?ep ?obj))\
             )', '0:{}'.format(grasp_time-1)),
             ('(forall (?obj - Item)\
                 (not (ObstructsHolding ?robot ?sp ?ep ?obj ?item))\
-            )', '{}:{}'.format(grasp_time, end))
+            )', '{}:{}'.format(grasp_time, end-1))
         ]
         self.eff = [\
             ('(not (At ?item ?target))', '{}:{}'.format(end, end-1)) ,
             ('(not (RobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
-            ('(RobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
+            ('(RobotAt ?robot ?ep)', '{}:{}'.format(end, end-1)),
             ('(forall (?sym1 - RobotPose)\
                 (forall (?sym2 - RobotPose)\
                     (not (Obstructs ?robot ?sym1 ?sym2 ?item))\
@@ -370,19 +375,19 @@ class GraspLeft(Grasp):
             ('(ApproachLeft ?robot ?item)', '0:0'),
             ('(not (InGripperRight ?robot ?item))', '0:0'),
             ('(not (InGripperLeft ?robot ?item))', '0:0'),
-            ('(EEReachableLeft ?robot ?item)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
+            # ('(EEReachableLeft ?robot ?item)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
             ('(OpenGripperLeft ?robot)', '{}:{}'.format(1,  self.grasp_time-1)),
-            ('(CloseGripperLeft ?robot)', '{}:{}'.format(self.grasp_time,  self.end)),
-            ('(InGripperLeft ?robot ?item)', '{}:{}'.format(self.grasp_time, self.end)),
+            ('(CloseGripperLeft ?robot)', '{}:{}'.format(self.grasp_time,  self.end-1)),
+            ('(InGripperLeft ?robot ?item)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
             ('(forall (?obj - Item)\
                 (not (InGripperLeft ?robot ?item))\
             )', '0:{}'.format(self.grasp_time-1)),
             ('(forall (?obj - Item)\
                 (not (InGripperLeft ?robot ?item))\
             )', '0:0'),
-            ('(StationaryRightArm ?robot)', '0:{}'.format(self.end))])
+            ('(StationaryRightArm ?robot)', '0:{}'.format(self.end-1))])
         self.eff.extend([
-            ('(InGripperLeft ?robot ?item)', '{0}:{0}'.format(self.end))
+            ('(InGripperLeft ?robot ?item)', '{0}:{1}'.format(self.end, self.end-1))
             ])
 
 
@@ -393,19 +398,19 @@ class GraspRight(Grasp):
             ('(ApproachRight ?robot ?item)', '0:0'),
             ('(not (InGripperRight ?robot ?item))', '0:0'),
             ('(not (InGripperLeft ?robot ?item))', '0:0'),
-            ('(EEReachableRight ?robot ?item)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
+            # ('(EEReachableRight ?robot ?item)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
             ('(OpenGripperRight ?robot)', '{}:{}'.format(1,  self.grasp_time-1)),
-            ('(CloseGripperRight ?robot)', '{}:{}'.format(self.grasp_time,  self.end)),
-            ('(InGripperRight ?robot ?item)', '{}:{}'.format(self.grasp_time, self.end)),
+            ('(CloseGripperRight ?robot)', '{}:{}'.format(self.grasp_time,  self.end-1)),
+            ('(InGripperRight ?robot ?item)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
             ('(forall (?obj - Item)\
                 (not (InGripperRight ?robot ?item))\
             )', '0:{}'.format(self.grasp_time-1)),
             ('(forall (?obj - Item)\
                 (not (InGripperRight ?robot ?item))\
             )', '0:0'),
-            ('(StationaryLeftArm ?robot)', '0:{}'.format(self.end))])
+            ('(StationaryLeftArm ?robot)', '0:{}'.format(self.end-1))])
         self.eff.extend([
-            ('(InGripperRight ?robot ?item)', '{0}:{0}'.format(self.end))
+            ('(InGripperRight ?robot ?item)', '{0}:{1}'.format(self.end, self.end-1))
             ])
 
 
@@ -426,8 +431,8 @@ class Putdown(Action):
         self.pre = [\
             ('(At ?item ?target)', '{0}:{1}'.format(putdown_time, end)),
             ('(forall (?obj - Item) (not (At ?obj ?target)))', '0:0'),
-            ('(RobotAt ?robot ?sp)', '0:0'),
-            ('(not (RobotAt ?robot ?ep))', '{}:{}'.format(0, 0)),
+            ('(RobotAt ?robot ?sp)', '0:-1'),
+            ('(not (RobotAt ?robot ?ep))', '{}:{}'.format(0, -1)),
             ('(forall (?obj - Item) \
                 (Stationary ?obj))', '{0}:{1}'.format(putdown_time, end-1)),
             ('(forall (?obj - Item)\
@@ -442,18 +447,18 @@ class Putdown(Action):
             )', '0:{}'.format(end-1)),
             ('(forall (?obs - Obstacle)\
                 (not (RCollides ?robot ?obs))\
-            )', '0:{}'.format(end)),
+            )', '0:{}'.format(end-1)),
             ('(forall (?obj - Item)\
                 (not (Obstructs ?robot ?sp ?ep ?obj))\
             )', '0:{}'.format(putdown_time-1)),
             ('(forall (?obj - Item)\
                 (not (ObstructsHolding ?robot ?sp ?ep ?obj ?item))\
-            )', '{}:{}'.format(putdown_time, end))
+            )', '{}:{}'.format(putdown_time, end-1))
         ]
         self.eff = [\
             ('(At ?item ?target)', '{}:{}'.format(end, end-1)) ,
             ('(not (RobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
-            ('(RobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
+            ('(RobotAt ?robot ?ep)', '{}:{}'.format(end, end-1)),
             ('(forall (?sym1 - RobotPose)\
                 (forall (?sym2 - RobotPose)\
                     (not (Obstructs ?robot ?sym1 ?sym2 ?item))\
@@ -475,14 +480,14 @@ class PutdownLeft(Putdown):
             ('(ApproachLeft ?robot ?target)', '0:0'),
             ('(not (InGripperRight ?robot ?item))', '0:0'),
             ('(InGripperLeft ?robot ?item)', '0:0'),
-            ('(EEReachableLeft ?robot ?item)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
+            # ('(EEReachableLeft ?robot ?item)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
             ('(CloseGripperLeft ?robot)', '{}:{}'.format(1,  self.putdown_time-1)),
-            ('(OpenGripperLeft ?robot)', '{}:{}'.format(self.putdown_time,  self.end)),
+            ('(OpenGripperLeft ?robot)', '{}:{}'.format(self.putdown_time,  self.end-1)),
             ('(InGripperLeft ?robot ?item)', '{}:{}'.format(0, self.putdown_time)),
             ('(forall (?obj - Item)\
                 (not (InGripperLeft ?robot ?item))\
                 )', '{0}:{1}'.format(self.putdown_time+1, self.end)),
-            ('(StationaryRightArm ?robot)', '0:{}'.format(self.end))])
+            ('(StationaryRightArm ?robot)', '0:{}'.format(self.end-1))])
         self.eff.extend([
             ('(not (InGripperLeft ?robot ?item))', '{0}:{0}'.format(self.end)),
             ])
@@ -496,14 +501,14 @@ class PutdownRight(Putdown):
             ('(ApproachRightTarg ?robot ?target)', '0:0'),
             ('(not (InGripperLeft ?robot ?item))', '0:0'),
             ('(InGripperRight ?robot ?item)', '0:0'),
-            ('(EEReachableRight ?robot ?item)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
+            # ('(EEReachableRight ?robot ?item)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
             ('(CloseGripperRight ?robot)', '{}:{}'.format(1,  self.putdown_time-1)),
-            ('(OpenGripperRight ?robot)', '{}:{}'.format(self.putdown_time,  self.end)),
+            ('(OpenGripperRight ?robot)', '{}:{}'.format(self.putdown_time,  self.end-1)),
             ('(InGripperRight ?robot ?item)', '{}:{}'.format(0, self.putdown_time)),
             ('(forall (?obj - Item)\
                 (not (InGripperRight ?robot ?item))\
                 )', '{0}:{1}'.format(self.putdown_time+1, self.end)),
-            ('(StationaryLeftArm ?robot)', '0:{}'.format(self.end))])
+            ('(StationaryLeftArm ?robot)', '0:{}'.format(self.end-1))])
         self.eff.extend([
             ('(not (InGripperRight ?robot ?item))', '{0}:{0}'.format(self.end)),
             ])

@@ -681,9 +681,11 @@ class OpenRAVEBody(object):
 
     def get_ik_from_pose(self, pos, rot, manip_name, use6d=True, multiple=False, maxIter=1024):
         quat = rot if (rot is None or len(rot) == 4) else T.euler_to_quaternion(rot, order='xyzw')
+        pos = np.array(pos).tolist()
+        quat = np.array(quat).tolist()
         lb, ub = self._geom.get_arm_bnds()
         ranges = (np.array(ub) - np.array(lb)).tolist()
-        jnt_ids = self._geom.get_free_inds()
+        jnt_ids = sorted(self._geom.get_free_inds())
         jnts = P.getJointStates(self.body_id, jnt_ids)
         rest_poses = [j[0] for j in jnts]
         cur_jnts = rest_poses
@@ -704,7 +706,7 @@ class OpenRAVEBody(object):
         if not multiple: return joint_pos
         poses = [joint_pos]
         for _ in range(10):
-            rest_poses = (np.array(cur_jnts) + 2 * (np.random.uniform(size=len(lb)) - 0.5) * ranges).tolist()
+            rest_poses = (np.array(cur_jnts) + 5 * (np.random.uniform(size=len(lb)) - 0.5) * ranges).tolist()
             joint_pos = P.calculateInverseKinematics(self.body_id,
 						     manip_id,
 						     pos,

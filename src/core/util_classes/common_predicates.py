@@ -52,6 +52,15 @@ class ExprPredicate(Predicate):
         self.x_dim = sum(len(active_inds)
                          for p_attrs in list(attr_inds.values())
                          for (_, active_inds) in p_attrs)
+
+        self.attr_map = {}
+        cur_ind = 0
+        for p in attr_inds:
+            for attr, inds in attr_inds[p]:
+                ninds = len(inds)
+                self.attr_map[p, attr] = np.array(range(cur_ind,cur_ind+ninds))
+                cur_ind += ninds
+
         start, end = active_range
         self.x_dim *= end + 1 - start
         self.x = np.zeros(self.x_dim)

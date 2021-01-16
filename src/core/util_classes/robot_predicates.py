@@ -59,7 +59,7 @@ def init_robot_pred(pred, robot, params=[], robot_poses=[], attrs={}):
             attr_inds[pose] = pose_inds
 
     for p in params:
-        attr_inds[p] = [(attr, inds) for (attr, inds) in const.ATTRMAP[p._type] if p in attrs and attr in attrs[p]]
+        attr_inds[p] = [(attr, inds) for (attr, inds) in const.ATTRMAP[p._type] if p not in attrs or attr in attrs[p]]
         for (attr, inds) in attr_inds[p]:
             cur_attr_dim += len(inds)
     pred.attr_inds = attr_inds
@@ -111,7 +111,7 @@ def parse_robot_collision(c, robot, robot_body, obj_body, col_links=[], obj_link
 
     distance = c[8] # c.contactDistance
     normal = c[7] # c.contactNormalOnB # Pointing towards A
-    jnts = robot_body._geom.get_free_inds()
+    jnts = robot_body._geom.get_free_jnts()
     n_jnts = len(jnts)
     robot_jac, robot_ang_jac = p.calculateJacobian(robot_body.body_id,
                                                    linkRobot,
@@ -124,7 +124,42 @@ def parse_robot_collision(c, robot, robot_body, obj_body, col_links=[], obj_link
     ptObj = np.array(ptObj)
     robot_jac = np.array(robot_jac)
     robot_ang_jac = np.array(robot_ang_jac)
+
+    # PyBullet adds the first 6 indices if the base is floating
+    if robot_jac.shape[-1] != n_jnts:
+        robot_jac = robot_jac[:,6:]
+        robot_ang_jac = robot_ang_jac[6:]
     return distance, normal, linkRobot, linkObj, ptRobot, ptObj, robot_jac, robot_ang_jac
+
+def compute_arm_pos_jac(arm_joints, robot_body, pos):
+    arm_jac = []
+    for jnt_id in arm_joints:
+        info = p.getJointInfo(robot_body.body_id, jnt_id)
+        axis = info[13]
+        jnt_state = p.getLinkState(robot_body.body_id, jnt_id)
+        jnt_pos = np.array(jnt_state[0])
+        quat = jnt_state[1]
+        mat = T.quat2mat(quat)
+        axis = mat.dot(axis)
+        parent_id = info[-1]
+        parent_frame_pos = info[14]
+        parent_info = p.getLinkState(robot_body.body_id, parent_id)
+        parent_pos = np.array(parent_info[0])
+        arm_jac.append(np.cross(axis, pos - jnt_pos))
+    arm_jac = np.array(arm_jac).T
+    return arm_jac
+
+def compute_arm_rot_jac(arm_joints, robot_body, obj_dir, world_dir, sign=1.):
+    arm_jac = []
+    for jnt_id in arm_joints:
+        info = p.getJointInfo(robot_body.body_id, jnt_id)
+        axis = info[13]
+        quat = p.getLinkState(robot_body.body_id, jnt_id)[1]
+        mat = T.quat2mat(quat)
+        axis = mat.dot(axis)
+        arm_jac.append(np.dot(obj_dir, np.cross(axis, sign * world_dir)))
+    arm_jac = np.array(arm_jac).reshape((-1, len(arm_joints)))
+    return arm_jac
 
 
 ### BASE CLASSES
@@ -149,18 +184,22 @@ class RobotPredicate(ExprPredicate):
         # Provide functionality of setting robot poses
         geom = robot_body._geom
         dof_value_map = {}
-        if hasattr(self, 'attr_inds'):
-            cur_ind = 0
-            for attr, inds in self.attr_inds[self.params[0]]:
-                ninds = len(inds)
-                dof_value_map[attr] = x[cur_ind:cur_ind+ninds]
-                cur_ind += ninds
+        if hasattr(self, 'attr_map'):
+            for attr, inds in self.attr_inds[self.robot]:
+                dof_value_map[attr] = x[self.attr_map[self.robot, attr]]
         else:
             for dof, dof_ind in geom.get_dof_inds():
                 dof_value_map[dof] = x[dof_ind].flatten()
         robot_body.set_dof(dof_value_map)
         if hasattr(self, 'obj'):
-            self.obj.openrave_body.set_pose(x[-6:-3], x[-3:])
+            pos = x[self.attr_map[self.obj, 'pose']]
+            rot = x[self.attr_map[self.obj, 'rotation']]
+            self.obj.openrave_body.set_pose(pos, rot)
+        if hasattr(self, 'obstacle'):
+            pos = x[self.attr_map[self.obstacle, 'pose']]
+            rot = x[self.attr_map[self.obstacle, 'rotation']]
+            self.obstacle.openrave_body.set_pose(pos, rot)
+
 
     def robot_obj_kinematics(self, x):
         # Getting the variables
@@ -205,8 +244,11 @@ class RobotPredicate(ExprPredicate):
                 lb[cur_ind:cur_ind+ninds] = arm_lb
                 ub[cur_ind:cur_ind+ninds] = arm_ub
             elif attr in geom.ee_link_names.values():
-                gripper_lb = geom.get_gripper_closed_val()
-                gripper_ub = geom.get_gripper_open_val()
+                if delta:
+                    gripper_lb, gripper_ub = -10, 10
+                else:
+                    gripper_lb = geom.get_gripper_closed_val()
+                    gripper_ub = geom.get_gripper_open_val()
                 lb[cur_ind:cur_ind+ninds] = gripper_lb
                 ub[cur_ind:cur_ind+ninds] = gripper_ub
             cur_ind += ninds
@@ -247,15 +289,24 @@ class RobotPredicate(ExprPredicate):
         return A, b, val
 
 
-    def get_arm_jac(self, robot, arm_jacs, base_jac, obj_jac, arm):
-        dim = arm_jac.shape[0]
+    def get_arm_jac(self, arm_jacs, base_jac, obj_jac):
+        dim = list(arm_jacs.values())[0].shape[0]
         jacobian = np.zeros((dim, self.attr_dim))
         for arm in arm_jacs:
-            inds = robot.geom.dof_inds[arm]
+            inds = self.attr_map[self.robot, arm]
             jacobian[:, inds] = arm_jacs[arm]
-        inds = robot.geom.dof_inds['pose']
+        inds = self.attr_map[self.robot, 'pose']
         jacobian[:, inds] = base_jac
-        jacobian[:, -6:] = obj_jac
+        if hasattr(self, 'obj'):
+            inds = self.attr_map[self.obj, 'pose']
+            jacobian[:, inds] = obj_jac[:,:3]
+            inds = self.attr_map[self.obj, 'rotation']
+            jacobian[:, inds] = obj_jac[:,3:]
+        elif hasattr(self, 'targ'):
+            inds = self.attr_map[self.targ, 'value']
+            jacobian[:, inds] = obj_jac[:,:3]
+            inds = self.attr_map[self.obj, 'rotation']
+            jacobian[:, inds] = obj_jac[:,3:]
         return jacobian
 
 
@@ -294,7 +345,6 @@ class CollisionPredicate(RobotPredicate):
         # set active dof value back to its original state (For successive function call)
         # self._cache[flattened] = (col_val.copy(), col_jac.copy())
         # print "col_val", np.max(col_val)
-        # import ipdb; ipdb.set_trace()
         return col_val, col_jac
 
     #@profile
@@ -313,7 +363,8 @@ class CollisionPredicate(RobotPredicate):
 
         obj = self.params[self.ind1]
         obj_body = self._param_to_body[obj]
-        can_pos, can_rot = x[-6:-3], x[-3:]
+        pos_inds, rot_inds = self.attr_map[obj, 'pose'], self.attr_map[obj, 'rotation']
+        can_pos, can_rot = x[pos_inds], x[rot_inds]
         obj_body.set_pose(can_pos, can_rot)
 
         collisions = p.getClosestPoints(robot_body.body_id, obj_body.body_id, const.MAX_CONTACT_DISTANCE)
@@ -321,7 +372,6 @@ class CollisionPredicate(RobotPredicate):
         col_val, col_jac = self._calc_grad_and_val(robot_body, obj_body, collisions)
         # self._cache[flattened] = (col_val.copy(), col_jac.copy())
         # print "col_val", np.max(col_val)
-        # import ipdb; ipdb.set_trace()
         return col_val, col_jac
 
     #@profile
@@ -360,19 +410,23 @@ class CollisionPredicate(RobotPredicate):
         robot = self.params[self.ind0]
         robot_body = self._param_to_body[robot]
         self.set_robot_poses(x, robot_body)
-        can_pos, can_rot = x[-12:-9], x[-9:-6]
-        held_pose, held_rot = x[-6:-3], x[-3:]
-        obj = self.params[self.ind1]
-        obj_body = self._param_to_body[obj]
+        pos_inds, rot_inds = self.attr_map[self.obj, 'pose'], self.attr_map[self.obj, 'rotation']
+        held_pos_inds, held_rot_inds = self.attr_map[self.obstacle, 'pose'], self.attr_map[self.obstacle, 'rotation']
+        can_pos, can_rot = x[pos_inds], x[rot_inds]
+        held_pose, held_rot = x[held_pos_inds], x[held_rot_inds]
+
+        obj_body = self._param_to_body[self.obj]
         obj_body.set_pose(can_pos, can_rot)
 
+        held_body = self._param_to_body[self.obstacle]
+        held_body.set_pose(held_pose, held_rot)
+
+        collisions2 = p.getClosestPoints(held_body.body_id, obj_body.body_id, const.MAX_CONTACT_DISTANCE)
         collisions1 = p.getClosestPoints(robot_body.body_id, obj_body.body_id, const.MAX_CONTACT_DISTANCE)
-        col_val1, col_jac1 = self._calc_grad_and_val(robot_body, obj_body, collisions1)
-        col_jac1 = np.c_[col_jac1, np.zeros((len(self.col_link_pairs), 6))]
+        col_val1, col_jac1 = self._calc_grad_and_val(robot_body, held_body, collisions1)
+        #col_jac1 = np.c_[col_jac1, np.zeros((len(self.col_link_pairs), 6))]
 
         # find collision between object and object held
-        held_body = self._param_to_body[self.obj]
-        held_body.set_pose(held_pose, held_rot)
         collisions2 = p.getClosestPoints(held_body.body_id, obj_body.body_id, const.MAX_CONTACT_DISTANCE)
 
         col_val2, col_jac2 = self._calc_obj_held_grad_and_val(robot_body, held_body, obj_body, collisions2)
@@ -397,27 +451,33 @@ class CollisionPredicate(RobotPredicate):
         rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
         link_pair_to_col = {}
         sign = 1
+        base_jac = np.eye(3)
+        base_jac[:,2] = 0 
         for c in collisions:
             # Identify the collision points
             col_info = parse_robot_collision(c, robot, robot_body, obj_body, col_links)
             if col_info is None: continue
             distance, normal, linkRobot, linkObj, ptRobot, ptObj, robot_jac, robot_ang_jac = col_info 
             grad = np.zeros((1, self.attr_dim))
-            grad[:, :self.attr_dim] = np.dot(sign * normal, robot_jac)
+            for arm in robot.geom.arms:
+                inds = robot.geom.get_free_inds(arm)
+                grad[:, self.attr_map[robot, arm]] = np.dot(sign * normal, robot_jac[:,inds])
+            grad[:, self.attr_map[robot, 'pose']] = np.dot(sign*normal, base_jac)
             col_vec =  -sign*normal
 
             # Calculate object pose jacobian
-            grad[:, -6:-3] = col_vec
-            torque = ptObj - pos[:3]
+            inds = self.attr_map[obj, 'pose']
+            grad[:, inds] = col_vec
 
             # Calculate object rotation jacobian
+            inds = self.attr_map[obj, 'rotation']
+            torque = ptObj - pos[:3]
             rot_vec = np.array([[np.dot(np.cross(axis, torque), col_vec) for axis in rot_axises]])
             # obj_jac = np.c_[obj_jac, rot_vec]
-            grad[:, -3:] = rot_vec
+            grad[:, inds] = rot_vec
 
             # Constructing gradient matrix
             link_pair_to_col[(linkRobot, linkObj)] = [self.dsafe - distance, grad, linkRobot, linkObj]
-            # import ipdb; ipdb.set_trace()
             # if self._debug:
             #     self.plot_collision(ptRobot, ptObj, distance)
 
@@ -472,7 +532,6 @@ class CollisionPredicate(RobotPredicate):
 
             # Constructing gradient matrix
             link_pair_to_col[(linkRobot1, linkRobot2)] = [self.dsafe - distance, grad, linkRobot1, linkRobot2]
-            # import ipdb; ipdb.set_trace()
             # if self._debug:
             #     self.plot_collision(ptRobot, ptObj, distance)
 
@@ -707,6 +766,8 @@ class PosePredicate(RobotPredicate):
         obj_pos = np.dot(obj_trans, np.r_[gp, 1])[:3]
 
         # Calculate the joint jacobian
+        arm_jac = compute_arm_pos_jac(arm_joints, robot_body, robot_pos)
+        '''
         arm_jac = []
         for jnt_id in arm_joints:
             info = p.getJointInfo(robot_body.body_id, jnt_id)
@@ -715,13 +776,14 @@ class PosePredicate(RobotPredicate):
             axis = info[13]
             parent_info = p.getLinkState(robot_body.body_id, parent_id)
             parent_pos = np.array(parent_info[0])
-            arm_jac.apend(np.cross(axis, robot_pos - (parent_pos + parent_frame_pos)))
+            arm_jac.append(np.cross(axis, robot_pos - (parent_pos + parent_frame_pos)))
         arm_jac = np.array(arm_jac).T
+        '''
 
         # Calculate jacobian for the robot base
-        base_pos_jac = np.eye(3)[:2]
+        base_pos_jac = np.eye(3)[:,:2]
         base_rot_jac = np.cross(np.array([0, 0, 1]), robot_pos).reshape((3,1))
-        base_jac = np.r_[base_pos_jac, base_rot_jac]
+        base_jac = np.c_[base_pos_jac, base_rot_jac]
 
         # Calculate object jacobian
         obj_jac = -1 * np.array([np.cross(axis, obj_pos - obj_trans[:3,3]) for axis in axises]).T
@@ -791,6 +853,9 @@ class PosePredicate(RobotPredicate):
             world_dir = robot_trans[:3,:3].dot(local_dir)
 
             # computing robot's jacobian
+            sign = np.sign(np.dot(obj_dir, world_dir))
+            arm_jac = compute_arm_rot_jac(arm_joints, robot_body, obj_dir, world_dir, sign)
+            '''
             arm_jac = []
             for jnt_id in arm_joints:
                 info = p.getJointInfo(robot_body.body_id, jnt_id)
@@ -799,8 +864,9 @@ class PosePredicate(RobotPredicate):
                 axis = info[13]
                 parent_info = p.getLinkState(robot_body.body_id, parent_id)
                 parent_pos = np.array(parent_info[0])
-                arm_jac.apend(np.dot(obj_dir, np.cross(axis, world_dir)))
+                arm_jac.append(np.dot(obj_dir, np.cross(axis, world_dir)))
             arm_jac = np.array(arm_jac).T
+            '''
             arm_jac = arm_jac.reshape((1, len(arm_joints)))
             base_jac = np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir)))
             base_jac = np.c_[np.zeros((1,2)), base_jac.reshape((1,1))]
@@ -877,6 +943,8 @@ class PosePredicate(RobotPredicate):
 
         robot_body = self.params[0].openrave_body
         # computing robot's jacobian
+        arm_jac = compute_arm_rot_jac(arm_joints, robot_body, obj_dir, world_dir, sign)
+        '''
         arm_jac = []
         for jnt_id in arm_joints:
             info = p.getJointInfo(robot_body.body_id, jnt_id)
@@ -885,8 +953,9 @@ class PosePredicate(RobotPredicate):
             axis = info[13]
             parent_info = p.getLinkState(robot_body.body_id, parent_id)
             parent_pos = np.array(parent_info[0])
-            arm_jac.apend(np.dot(obj_dir, np.cross(axis, sign * world_dir)))
+            arm_jac.append(np.dot(obj_dir, np.cross(axis, sign * world_dir)))
         arm_jac = np.array(arm_jac).T
+        '''
 
         arm_jac = arm_jac.reshape((1, len(arm_joints)))
         base_jac = sign*np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir))).reshape((1,1))
@@ -926,7 +995,6 @@ class PosePredicate(RobotPredicate):
         rel_pt = np.array([const.BASKET_OFFSET,self.grip_offset,0])
         # rel_pt = np.array([0, 0, -const.BASKET_NARROW_OFFSET])
         obj_pos_val = self.rel_pos_error_f(obj_trans, l_ee_trans, rel_pt)
-        # import ipdb; ipdb.set_trace()
         return np.vstack([l_pos_val, r_pos_val, obj_pos_val])
 
     #@profile
@@ -957,7 +1025,7 @@ class PosePredicate(RobotPredicate):
             axis = info[13]
             parent_info = p.getLinkState(robot_body.body_id, parent_id)
             parent_pos = np.array(parent_info[0])
-            l_arm_jac.apend(np.cross(axis, robot_pos - (parent_pos + parent_frame_pos)))
+            l_arm_jac.append(np.cross(axis, robot_pos - (parent_pos + parent_frame_pos)))
         l_arm_jac = np.array(l_arm_jac).T
 
         r_arm_jac = []
@@ -968,7 +1036,7 @@ class PosePredicate(RobotPredicate):
             axis = info[13]
             parent_info = p.getLinkState(robot_body.body_id, parent_id)
             parent_pos = np.array(parent_info[0])
-            r_arm_jac.apend(np.cross(axis, obj_pos - (parent_pos + parent_frame_pos)))
+            r_arm_jac.append(np.cross(axis, obj_pos - (parent_pos + parent_frame_pos)))
         r_arm_jac = -np.array(r_arm_jac).T
 
         l_pos_jac = np.hstack([l_arm_jac, np.zeros((3,1)), r_arm_jac, np.zeros((3, 8))])
@@ -986,7 +1054,7 @@ class PosePredicate(RobotPredicate):
             axis = info[13]
             parent_info = p.getLinkState(robot_body.body_id, parent_id)
             parent_pos = np.array(parent_info[0])
-            l_arm_jac.apend(np.cross(axis, obj_pos - (parent_pos + parent_frame_pos)))
+            l_arm_jac.append(np.cross(axis, obj_pos - (parent_pos + parent_frame_pos)))
         l_arm_jac = -np.array(l_arm_jac).T
 
         r_arm_jac = []
@@ -997,7 +1065,7 @@ class PosePredicate(RobotPredicate):
             axis = info[13]
             parent_info = p.getLinkState(robot_body.body_id, parent_id)
             parent_pos = np.array(parent_info[0])
-            r_arm_jac.apend(np.cross(axis, robot_pos - (parent_pos + parent_frame_pos)))
+            r_arm_jac.append(np.cross(axis, robot_pos - (parent_pos + parent_frame_pos)))
         r_arm_jac = np.array(r_arm_jac).T
 
         r_pos_jac = np.hstack([l_arm_jac, np.zeros((3,1)), r_arm_jac, np.zeros((3, 8))])
@@ -1071,15 +1139,15 @@ class At(ExprPredicate):
                                  (self.target, [("value", np.array([0,1,2], dtype=np.int)),
                                                 ("rotation", np.array([0,1,2], dtype=np.int))])])
 
-        # A = np.c_[np.eye(6), -np.eye(6)]
-        # b, val = np.zeros((6, 1)), np.zeros((6, 1))
-        # aff_e = AffExpr(A, b)
-        # e = EqExpr(aff_e, val)
-
-        A = np.c_[np.r_[np.eye(6), -np.eye(6)], np.r_[-np.eye(6), np.eye(6)]]
-        b, val = np.zeros((12, 1)), np.ones((12, 1))*1e-2
+        A = np.c_[np.eye(6), -np.eye(6)]
+        b, val = np.zeros((6, 1)), np.zeros((6, 1))
         aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
+        e = EqExpr(aff_e, val)
+
+        #A = np.c_[np.r_[np.eye(6), -np.eye(6)], np.r_[-np.eye(6), np.eye(6)]]
+        #b, val = np.zeros((12, 1)), np.ones((12, 1))*1e-2
+        #aff_e = AffExpr(A, b)
+        #e = LEqExpr(aff_e, val)
 
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
@@ -1552,16 +1620,18 @@ class InGripper(PosePredicate):
         self.rot_coeff = const.IN_GRIPPER_ROT_COEFF
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
-        self.eval_dim = 4
+        self.eval_dim = 3 # 4
         e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
         super(InGripper, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = 2)
         self.spacial_anchor = True
 
     def stacked_f(self, x):
-        return np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.rot_check_f(x)])
+        return self.coeff * self.pos_check_f(x)
+        # return np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.rot_check_f(x)])
 
     def stacked_grad(self, x):
-        return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.rot_check_jac(x)])
+        return self.coeff * self.pos_check_jac(x)
+        # return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.rot_check_jac(x)])
 
 class InGripperLeft(InGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
@@ -1696,6 +1766,10 @@ class EEReachable(PosePredicate):
     def __init__(self, name, params, expected_param_types, active_range=(-const.EEREACHABLE_STEPS, const.EEREACHABLE_STEPS), env=None, debug=False):
         self._env = env
         self.robot = params[0]
+        if params[1].is_symbol():
+            self.targ = params[1]
+        else:
+            self.obj = params[1]
         attr_inds, attr_dim = init_robot_pred(self, self.robot, [params[1]])
         self.attr_dim = attr_dim
         self.coeff = const.EEREACHABLE_COEFF
@@ -1799,6 +1873,9 @@ class ApproachLeft(EEReachableLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(ApproachLeft, self).__init__(name, params, expected_param_types, env, debug, 0)
 
+    def get_rel_pt(self, rel_step):
+        return const.GRASP_DIST*self.axis
+
 class EEReachableRight(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "right"
@@ -1807,6 +1884,9 @@ class EEReachableRight(EEReachable):
 class ApproachRight(EEReachableRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(ApproachRight, self).__init__(name, params, expected_param_types, env, debug, 0)
+
+    def get_rel_pt(self, rel_step):
+        return const.GRASP_DIST*self.axis
 
 class EEReachableLeftInv(EEReachableLeft):
     def get_rel_pt(self, rel_step):
@@ -1938,7 +2018,10 @@ class ObstructsHolding(CollisionPredicate):
         self.coeff = -const.OBSTRUCTS_COEFF
         self.neg_coeff = const.OBSTRUCTS_COEFF
 
-        attr_inds, attr_dim = init_robot_pred(self, self.robot, [params[3], params[4]])
+        if params[3] is not params[4]:
+            attr_inds, attr_dim = init_robot_pred(self, self.robot, [params[3], params[4]])
+        else:
+            attr_inds, attr_dim = init_robot_pred(self, self.robot, [params[3]])
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
                                self.obstacle: self.lazy_spawn_or_body(self.obstacle, self.obstacle.name, self.obstacle.geom),
                                self.obj: self.lazy_spawn_or_body(self.obj, self.obj.name, self.obj.geom)}
@@ -1959,6 +2042,7 @@ class ObstructsHolding(CollisionPredicate):
             links = len(self.col_link_pairs)
 
             col_fn, offset = self.robot_obj_collision, const.DIST_SAFE - const.COLLISION_TOL
+            col_fn = lambda x: (np.zeros((1,1)), np.zeros((1, self.attr_dim)))
             val = np.zeros((links,1))
         else:
             links = len(self.col_link_pairs) + len(self.obj_obj_link_pairs)
@@ -2338,7 +2422,7 @@ class GrippersDownRot(GrippersLevel):
             axes = [p.getJointInfo(robot_body.body_id, jnt_id)[13] for jnt_id in arm_inds]
             for local_dir in np.eye(3):
                 obj_dir = local_dir # np.dot(obj_trans[:3,:3], local_dir)
-                world_dir = robot_left_trans[:3,:3].dot(local_dir)
+                world_dir = robot_trans[:3,:3].dot(local_dir)
                 # computing robot's jacobian
                 arm_jac = []
                 arm_jac = [np.dot(obj_dir, np.cross(axis, world_dir)) for axis in axes]
