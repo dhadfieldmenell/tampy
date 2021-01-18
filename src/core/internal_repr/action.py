@@ -63,6 +63,15 @@ class Action(object):
 
         return failed
 
+    def get_pr_preds(self, ts, priority):
+        res = []
+        for pred_d in self.preds:
+            if pred_d['hl_info'] == 'hl_state': continue
+            start, end = pred_d['active_timesteps']
+            if start >= ts[0] and end <= ts[1] and pred_d['pred'].priority == priority:
+                res.append(pred_d['pred'])
+        return res
+
     def get_active_preds(self, t):
         res = []
         for pred_d in self.preds:

@@ -63,7 +63,7 @@ class MotionServer(Server):
             print(self.id, 'Successful refine from', node.label)
         if not success and node.gen_child():
             fail_step, fail_pred, fail_negated = node.get_failed_pred()
-            print('Refine failed:', plan.get_failed_preds((0, fail_step)), fail_step, plan.actions, node.label)
+            print('Refine failed:', plan.get_failed_preds((0, fail_step)), fail_pred, fail_step, plan.actions, node.label)
             n_problem = node.get_problem(fail_step, fail_pred, fail_negated)
             abs_prob = self.agent.hl_solver.translate_problem(n_problem, goal=node.concr_prob.goal)
             prefix = node.curr_plan.prefix(fail_step)

@@ -267,7 +267,6 @@ class BacktrackLLSolver(LLSolver):
                 # failed_preds = plan.get_failed_preds(active_ts=active_ts, tol=1e-3)
                 # if len(failed_preds): import ipdb; ipdb.set_trace()
 
-                import ipdb; ipdb.set_trace()
                 success = self._solve_opt_prob(plan, priority=priority, callback=callback, 
                                                active_ts=active_ts, verbose=verbose, resample = True,
                                                init_traj=init_traj)
@@ -285,7 +284,11 @@ class BacktrackLLSolver(LLSolver):
             if not success:
                 break
 
-        if DEBUG: print((plan.get_failed_preds(active_ts=active_ts, tol=1e-3), active_ts))
+        if DEBUG:
+            print((plan.get_failed_preds(active_ts=active_ts, tol=1e-3), active_ts))
+
+        if success:
+            self._cleanup_plan(plan, active_ts)
         return success
 
     #@profile
@@ -296,6 +299,7 @@ class BacktrackLLSolver(LLSolver):
         self.plan = plan
         if active_ts==None:
             active_ts = (0, plan.horizon-1)
+
         plan.save_free_attrs()
         model = grb.Model()
         model.params.OutputFlag = 0
@@ -373,9 +377,8 @@ class BacktrackLLSolver(LLSolver):
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
 
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
-        #if priority >= 0 or priority == MAX_PRIORITY:
         self._update_ll_params()
-        if priority >= -1: # priority == MAX_PRIORITY:
+        if not success and priority >= 0:
             success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
 
         '''
@@ -549,7 +552,7 @@ class BacktrackLLSolver(LLSolver):
                 index_val_list.append((sco_var, i))
                 self._grb_to_var_ind[grb.VarName] = index_val_list
 
-        if DEBUG: self.check_sync()
+        # if DEBUG: self.check_sync()
         return sco_var
 
     #@profile
@@ -981,4 +984,7 @@ class BacktrackLLSolver(LLSolver):
 
     def _add_col_obj(self, plan, norm='min-vel', coeff=None, active_ts=None):
         return []
+
+    def _cleanup_plan(self, plan, active_ts):
+        return None
 

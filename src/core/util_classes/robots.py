@@ -25,6 +25,7 @@ class Robot(object):
         self.initialized = False
         self.arms = []
         self.grippers = []
+        self.ee_attrs = []
         self.id = -1
         self.attr_map = {}
         self._base_type = "Robot"
@@ -55,7 +56,7 @@ class Robot(object):
     def is_initialized(self):
         return self.initialized
 
-    def setup(self, robot):
+    def setup(self, robot=None):
         self.setup_arms()
         self.intialized = True
 
@@ -325,6 +326,7 @@ class Baxter(Robot):
                           }
         self.ee_link_names = {'left': 'left_gripper', 'right': 'right_gripper'}
         self.arms = ['left', 'right']
+        self.ee_attrs = ['left_ee_pos', 'right_ee_pos']
         #self.arm_inds = {'left':  [31, 32, 33, 34, 35, 37, 38],
         #                 'right': [13, 14, 15, 16, 17, 19, 20]}
         #self.ee_links = {'left': 45, 'right': 27}

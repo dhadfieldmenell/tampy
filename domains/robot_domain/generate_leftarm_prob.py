@@ -6,8 +6,8 @@ import random
 
 # SEED = 1234
 NUM_PROBS = 1
-NUM_CLOTH = 4
-filename = "probs/left_arm_prob.prob"
+NUM_CLOTH = 1
+filename = "probs/left_arm_prob{}.prob".format(NUM_CLOTH)
 GOAL = "(RobotAt baxter robot_end_pose)"
 
 
@@ -39,8 +39,10 @@ cloth_init_poses = cloth_init_poses.tolist()
 def get_baxter_pose_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = OPEN_GRIPPER, Pos = BAXTER_INIT_POSE):
     s = ""
     s += "(left {} {}), ".format(name, LArm)
+    s += "(left_ee_pos {} {}), ".format(name, [0,0,0])
     s += "(left_gripper {} {}), ".format(name, G)
     s += "(right {} {}), ".format(name, RArm)
+    s += "(right_ee_pos {} {}), ".format(name, [0,0,0])
     s += "(right_gripper {} {}), ".format(name, G)
     s += "(value {} {}), ".format(name, Pos)
     return s
@@ -49,8 +51,10 @@ def get_baxter_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = OPEN_GRIPPER,
     s = ""
     s += "(geom {})".format(name)
     s += "(left {} {}), ".format(name, LArm)
+    s += "(left_ee_pos {} {}), ".format(name, [0,0,0])
     s += "(left_gripper {} {}), ".format(name, G)
     s += "(right {} {}), ".format(name, RArm)
+    s += "(right_ee_pos {} {}), ".format(name, [0,0,0])
     s += "(right_gripper {} {}), ".format(name, G)
     s += "(pose {} {}), ".format(name, Pos)
     return s
@@ -58,8 +62,10 @@ def get_baxter_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = OPEN_GRIPPER,
 def get_undefined_robot_pose_str(name):
     s = ""
     s += "(left {} undefined), ".format(name)
+    s += "(left_ee_pos {} undefined), ".format(name)
     s += "(left_gripper {} undefined), ".format(name)
     s += "(right {} undefined), ".format(name)
+    s += "(right_ee_pos {} undefined), ".format(name)
     s += "(right_gripper {} undefined), ".format(name)
     s += "(value {} undefined), ".format(name)
     return s
@@ -146,6 +152,7 @@ def main():
         s += "(StationaryBase baxter), "
         s += "(StationaryRightArm baxter), "
         s += "(LeftGripperDownRot baxter), "
+        #s += "(LeftEEValid baxter), "
         s += "\n\n"
 
         with open(filename, "w") as f:

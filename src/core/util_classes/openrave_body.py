@@ -222,7 +222,7 @@ class OpenRAVEBody(object):
                 quat = T.euler_to_quaternion(rotation, order='xyzw')
             P.resetBasePositionAndOrientation(self.body_id, pos, quat)
 
-    def set_dof(self, dof_value_map):
+    def set_dof(self, dof_value_map, debug=False):
         """
             dof_value_map: A dict that maps robot attribute name to a list of corresponding values
         """
@@ -246,6 +246,10 @@ class OpenRAVEBody(object):
         else:
             for key in dof_value_map:
                 if key is 'pose': continue
+                if key not in self._geom.dof_map:
+                    if debug: print('Cannot set dof for', key)
+                    continue
+
                 if type(self._geom.dof_map[key]) is int:
                     P.resetJointState(self.body_id, self._geom.dof_map[key], dof_value_map[key])
                 else:

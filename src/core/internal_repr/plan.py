@@ -208,6 +208,13 @@ class Plan(object):
             success &= a.satisfied(active_ts)
         return success
 
+    def get_pr_preds(self, ts, priority):
+        res = []
+        for t in ts:
+            for a in self.actions:
+                res.extend(a.get_pr_preds(ts, priority))
+        return res
+
     def get_active_preds(self, t):
         res = []
         for a in self.actions:

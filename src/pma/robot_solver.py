@@ -16,9 +16,10 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         start_ts, end_ts = ts
         robot_body = robot.openrave_body
         robot_body.set_from_param(robot, start_ts)
+
         old_arm_pose = getattr(robot, arm)[:, start_ts].copy()
         if obj.is_symbol():
-            target_loc = obj.value[:, start_ts] + np.array([0, 0, const.GRASP_DIST])
+            target_loc = obj.value[:, 0] + np.array([0, 0, const.GRASP_DIST])
         else:
             target_loc = obj.pose[:, start_ts] + np.array([0, 0, const.GRASP_DIST])
 
@@ -49,6 +50,10 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             aux_gripper = robot.geom.get_gripper(aux_arm)
             if aux_gripper is not None:
                 pose[aux_gripper] = getattr(robot, aux_gripper)[:, start_ts].reshape((-1,1))
+        for arm in robot.geom.arms:
+            robot_body.set_dof({'left': pose[arm].flatten().tolist()})
+            info = robot_body.fwd_kinematics(arm)
+            pose['{}_ee_pos'.format(arm)] = np.array(info['pos']).reshape((-1,1))
         return pose
 
 
@@ -62,6 +67,14 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             act, next_act = plan.actions[anum], None
 
         robot = act.params[0]
+        robot_body = robot.openrave_body
+        start_ts = act.active_timesteps[0]
+        for arm in robot.geom.arms:
+            attr = '{}_ee_pos'.format(arm)
+            if hasattr(robot, attr):
+                info = robot_body.fwd_kinematics(arm)
+                getattr(robot, attr)[:, start_ts] = info['pos']
+
         for arm in robot.geom.arms:
             robot.openrave_body.set_dof({arm: getattr(robot, arm)[:,0]})
         obj = act.params[1]
@@ -105,4 +118,17 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             robot_pose.append(pose)
 
         return robot_pose
+
+
+    def _cleanup_plan(self, plan, active_ts):
+        for param in plan.params.values():
+            if 'Robot' not in param.get_type(True): continue
+            for arm in param.geom.arms:
+                attr = '{}_ee_pos'.format(arm)
+                if not hasattr(param, attr): continue
+                for t in range(active_ts[0], active_ts[1]):
+                    param.openrave_body.set_dof({arm: getattr(param, arm)[:,t]})
+                    info = param.openrave_body.fwd_kinematics(arm)
+                    getattr(param, attr)[:,t] = info['pos']
+
 
