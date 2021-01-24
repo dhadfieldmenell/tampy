@@ -241,7 +241,6 @@ def resample_move(plan, t, pred, rs_action, ref_index):
     for traj in result_traj:
         add_to_attr_inds_and_res(act_range[0] + ts, attr_inds, res, robot, [('rArmPose', traj[1:]), ('pose', traj[:1])])
         ts += 1
-    # import ipdb; ipdb.set_trace()
     return np.array(res), attr_inds
 
 #@profile
@@ -311,7 +310,6 @@ def resample_pick_place(plan, t, pred, rs_action, ref_index):
     for traj in result_traj:
         add_to_attr_inds_and_res(init_timestep + ts, attr_inds, res, robot, [('rArmPose', traj[1:]), ('pose', traj[:1])])
         ts += 1
-    # import ipdb; ipdb.set_trace()
 
     if init_timestep != act_range[0]:
         sampling_trace['data'][start_pose.name] = {'type': start_pose.get_type(), 'rArmPose': robot.rArmPose[:, act_range[0]], 'value': robot.pose[:, act_range[0]]}
@@ -442,11 +440,10 @@ def resample_gripper_down_rot(pred, negated, t, plan, arms=[]):
         ee_name = geom.ee_link_names[arm]
         ee_link = geom.get_ee_link(arm)
         pos = pose[arm]['pos']
-        quat = pred.quat['arm']
-        iks[arm] = robot.openrave_body.get_ik_from_pose(pos, quat, arm)
+        quat = pred.quats[arm]
+        iks[arm] = np.array(robot.openrave_body.get_ik_from_pose(pos, quat, arm))
 
     add_to_attr_inds_and_res(t, attr_inds, res, robot, [(arm, iks[arm]) for arm in arms])
-    import ipdb; ipdb.set_trace()
     return res, attr_inds
 
 def resample_in_gripper(pred, negated, t, plan, fix_obj=False):
@@ -670,7 +667,6 @@ def resample_washer_in_gripper(pred, negated, t, plan):
         ik_arm_poses = rave_body.get_ik_from_pose(targ_pos, targ_rot,  "{}_arm".format(arm))
         arm_pose = get_is_mp_arm_pose(rave_body, ik_arm_poses, last_arm_pose, arm)
         if arm_pose is None:
-            import ipdb; ipdb.set_trace()
             arm_pose = closest_arm_pose(ik_arm_poses, last_arm_pose)
             if arm_pose is None:
                 return None,None
@@ -703,7 +699,6 @@ def resample_washer_in_gripper(pred, negated, t, plan):
     #         rave_body.set_dof({'lArmPose': approach_arm_pose})
     #         add_to_attr_inds_and_res(open_door_range[1]+1+i, attr_inds, res, robot, [(resample_attr_name, approach_arm_pose), ('pose', robot.pose[:,t])])
 
-    import ipdb; ipdb.set_trace()
     return res, attr_inds
 
 def resample_washer_in_gripper2(pred, negated, t, plan):
@@ -887,7 +882,6 @@ def resample_washer_ee_approach(pred, negated, t, plan, approach = True, rel_pt=
     #     Resample other parameters
     # """
     # begin = pred.start_pose
-    # import ipdb; ipdb.set_trace()
     # add_to_attr_inds_and_res(0, attr_inds, res, begin, [('lArmPose', robot.lArmPose[:, t-step]), ('rArmPose', robot.rArmPose[:, t-step]), ('value', robot.pose[:,t-step])])
     return res, attr_inds
 
@@ -1371,7 +1365,6 @@ def test_resample_order(attr_inds, res):
                 print(getattr(p, attr)[inds, t])
                 print("v.s.")
                 print(res[p][i:i+len(inds)])
-                # import ipdb; ipdb.set_trace()
             i += len(inds)
 
 

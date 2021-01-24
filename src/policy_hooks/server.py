@@ -10,6 +10,7 @@ import time
 from software_constants import *
 
 from PIL import Image
+import pybullet as P
 from scipy.cluster.vq import kmeans2 as kmeans
 import tensorflow as tf
 
@@ -38,6 +39,10 @@ class Server(object):
         self.solver = hyperparams['mp_solver_type'](hyperparams)
         self.opt_smooth = hyperparams.get('opt_smooth', False)
         hyperparams['agent']['master_config'] = hyperparams
+        try:
+            P.disconnect()
+        except:
+            print('No need to disconnect pybullet')
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
         self.agent.process_id = '{0}_{1}'.format(self.id, self.group_id)
         self.agent.solver = self.solver

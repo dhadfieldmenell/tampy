@@ -19,6 +19,7 @@ def plan_from_str(ll_plan_str, prob, domain, env, openrave_bodies, params=None, 
     p_c = main.parse_file_to_dict(prob)
     problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, env, openrave_bodies, reuse_params=params, use_tf=use_tf, sess=sess)
     plan = hls.get_plan(ll_plan_str, domain, problem, reuse_params=params)
+    #plan = hls.get_plan(ll_plan_str, domain, problem)
     plan.d_c = d_c
     return plan
 

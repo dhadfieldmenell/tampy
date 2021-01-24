@@ -122,6 +122,7 @@ def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
     ee_all_attrs = ['ee_pose']
     ee_pos_attrs = ['ee_left_pos', 'ee_right_pos']
     ee_rot_attrs = ['ee_left_rot', 'ee_right_rot']
+    '''
     for attr in robot_x_attrs:
         # if attr in ee_pos_attrs:
         #     x_inds = np.array([0, 1, 2]) + cur_x_ind
@@ -140,6 +141,7 @@ def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
         #     cur_x_ind = x_inds[-1] + 1
         #     params_to_x_inds[(robot_name, attr)] = x_inds
         #     continue
+        print(robot_attr_map, attr)
         inds = next(filter(lambda p: p[0]==attr, robot_attr_map))[1]
         x_inds = inds + cur_x_ind
         cur_x_ind = x_inds[-1] + 1
@@ -168,16 +170,27 @@ def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
         u_inds = inds + cur_u_ind
         cur_u_ind = u_inds[-1] + 1
         params_to_u_inds[(robot_name, attr)] = u_inds
+    '''
 
     for param_name in x_params:
         if param_name not in plan.params: continue
         param = plan.params[param_name]
-        param_attr_map = attr_map[param._type]
+        #param_attr_map = attr_map[param._type]
         for attr in x_params[param_name]:
             if (param_name, attr) in params_to_x_inds: continue
-            inds = next(filter(lambda p: p[0]==attr, attr_map[param._type]))[1] + cur_x_ind
+            inds = np.arange(len(getattr(param, attr)[:,0])) + cur_x_ind
             cur_x_ind = inds[-1] + 1
             params_to_x_inds[(param.name, attr)] = inds
+
+    for param_name in u_params:
+        if param_name not in plan.params: continue
+        param = plan.params[param_name]
+        #param_attr_map = attr_map[param._type]
+        for attr in u_params[param_name]:
+            if (param_name, attr) in params_to_u_inds: continue
+            inds = np.arange(len(getattr(param, attr)[:,0])) + cur_u_ind
+            cur_u_ind = inds[-1] + 1
+            params_to_u_inds[(param.name, attr)] = inds
 
     symbolic_boundary = cur_x_ind # Used to differntiate parameters from symbols in the state vector
 
@@ -201,8 +214,9 @@ def get_target_inds(plan, attr_map, include):
     for param in list(plan.params.values()):
         if param.name in include:
             for attr in include[param.name]:
-                param_attr_map = attr_map[param._type]
-                inds = next(filter(lambda p: p[0]==attr, attr_map[param._type]))[1] + cur_ind
+                #param_attr_map = attr_map[param._type]
+                inds = np.arange(len(getattr(param, attr)[:,0])) + cur_ind
+                #inds = next(filter(lambda p: p[0]==attr, attr_map[param._type]))[1] + cur_ind
                 cur_ind = inds[-1] + 1
                 target_inds[param.name, attr] = inds
 
@@ -321,7 +335,7 @@ def fill_vector(params, params_to_inds, vec, t, use_symbols=False):
         else:
             vec[inds] = getattr(param, attr)[:, t].copy()
 
-def set_params_attrs(params, params_to_inds, vec, t, use_symbols=False):
+def set_params_attrs(params, params_to_inds, vec, t, use_symbols=False, plan=None):
     for param_name, attr in params_to_inds:
         inds = params_to_inds[(param_name, attr)]
         param = params[param_name]
@@ -329,6 +343,9 @@ def set_params_attrs(params, params_to_inds, vec, t, use_symbols=False):
             if not use_symbols: continue
             getattr(param, attr)[:, 0] = vec[params_to_inds[(param.name, attr)]]
         else:
+            if t >= getattr(param, attr).shape[1]:
+                acts = None if plan is None else plan.actions
+                print(param, attr, getattr(param, attr).shape, t, acts, 'BAD SHAPE?')
             getattr(param, attr)[:, t] = vec[params_to_inds[(param.name, attr)]]
 
 def fill_sample_from_trajectory(sample, plan, u_vec, noise, t, dX):

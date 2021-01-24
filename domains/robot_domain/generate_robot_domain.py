@@ -115,6 +115,7 @@ class DerivatedPredicates(object):
 
 dp = DerivatedPredicates()
 dp.add('At', ['Item', 'Target'])
+dp.add('Near', ['Item', 'Target'])
 dp.add('RobotAt', ['Robot', 'RobotPose'])
 dp.add('IsMP', ['Robot'])
 dp.add('WithinJointLimit', ['Robot'])
@@ -189,7 +190,7 @@ class Action(object):
 class Move(Action):
     def __init__(self):
         self.name = 'moveto'
-        self.timesteps = 10 # 25
+        self.timesteps = 11 # 25
         end = self.timesteps - 1
         self.end = end
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose)'
@@ -382,6 +383,7 @@ class Grasp(Action):
 class GraspLeft(Grasp):
     def __init__(self):
         super(GraspLeft, self).__init__()
+        self.name = 'grasp_left'
         self.pre.extend([
             ('(ApproachLeft ?robot ?item)', '0:0'),
             ('(not (InGripperRight ?robot ?item))', '0:0'),
@@ -405,6 +407,7 @@ class GraspLeft(Grasp):
 class GraspRight(Grasp):
     def __init__(self):
         super(GraspRight, self).__init__()
+        self.name = 'grasp_right'
         self.pre.extend([
             ('(ApproachRight ?robot ?item)', '0:0'),
             ('(not (InGripperRight ?robot ?item))', '0:0'),
@@ -442,6 +445,7 @@ class Putdown(Action):
         self.pre = [\
             ('(At ?item ?target)', '{0}:{1}'.format(putdown_time-1, end)),
             ('(forall (?obj - Item) (not (At ?obj ?target)))', '0:0'),
+            ('(forall (?obj - Item) (not (Near ?obj ?target)))', '0:0'),
             ('(RobotAt ?robot ?sp)', '0:-1'),
             ('(not (RobotAt ?robot ?ep))', '{}:{}'.format(0, -1)),
             #('(LeftEEValid ?robot)', '{}:{}'.format(1, end-1)),
@@ -469,7 +473,8 @@ class Putdown(Action):
             )', '{}:{}'.format(0, putdown_time+2))
         ]
         self.eff = [\
-            ('(At ?item ?target)', '{}:{}'.format(end, end-1)) ,
+            ('(At ?item ?target)', '{}:{}'.format(end-1, end)) ,
+            ('(Near ?item ?target)', '{}:{}'.format(end-1, end)) ,
             ('(not (RobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
             ('(RobotAt ?robot ?ep)', '{}:{}'.format(end, end-1)),
             ('(forall (?sym1 - RobotPose)\

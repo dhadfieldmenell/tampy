@@ -70,7 +70,6 @@ class MultiProcessMain(object):
         if 'multi_policy' not in self.config: self.config['multi_policy'] = False
         self.pol_list = self.task_list if self.config.get('split_nets', False) else ('control',)
         self.config['policy_list'] = self.pol_list
-        self.task_durations = get_task_durations(self.config['task_map_file'])
         self.config['task_list'] = self.task_list
         task_encoding = get_task_encoding(self.task_list)
         plans = {}
@@ -78,6 +77,7 @@ class MultiProcessMain(object):
         goal_states = []
 
         plans, openrave_bodies, env = prob.get_plans()
+        self.plans = plans
 
         state_vector_include, action_vector_include, target_vector_include = self.config['get_vector'](self.config)
 
@@ -125,8 +125,6 @@ class MultiProcessMain(object):
         self.config['target_f'] = None # prob.get_next_target
         self.config['encode_f'] = None # prob.sorting_state_encode
 
-        self.config['task_durations'] = self.task_durations
-
         config['agent'] = load_agent(config)
         self.sensor_dims = config['agent']['sensor_dims']
 
@@ -141,7 +139,6 @@ class MultiProcessMain(object):
 
         self.fail_value = self.config['fail_value']
         self.policy_opt = None
-        self.task_durations = self.config['task_durations']
 
         self.weight_dir = self.config['weight_dir']
         self.check_dirs()
@@ -300,8 +297,9 @@ class MultiProcessMain(object):
 
         self.alg_map = {}
         alg_map = {}
-        for task in self.task_list:
-            self.config['algorithm']['T'] = self.task_durations[task]
+        for ind, task in enumerate(self.task_list):
+            plan = [pl for lab, pl in self.plans.items() if lab[0] == ind][0]
+            self.config['algorithm']['T'] = plan.horizon
             alg_map[task] = copy.copy(self.config['algorithm'])
         self.config['policy_opt'] = self.config['algorithm']['policy_opt']
         self.config['policy_opt']['split_nets'] = self.config.get('split_nets', False)
@@ -312,7 +310,7 @@ class MultiProcessMain(object):
             self.config['algorithm'][task]['policy_opt']['weight_dir'] = self.config['weight_dir']
             self.config['algorithm'][task]['policy_opt']['prev'] = 'skip'
             self.config['algorithm'][task]['agent'] = self.agent
-            self.config['algorithm'][task]['init_traj_distr']['T'] = self.task_durations[task]
+            self.config['algorithm'][task]['init_traj_distr']['T'] = alg_map[task]['T']
             self.config['algorithm'][task]['task'] = task
             self.alg_map[task] = self.config['algorithm'][task]['type'](self.config['algorithm'][task])
             self.policy_opt = self.alg_map[task].policy_opt

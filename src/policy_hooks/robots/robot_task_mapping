@@ -1,0 +1,23 @@
+{
+    'moveto_grasp': [
+        '0: MOVE_TO_GRASP_LEFT BAXTER {0} {0}_INIT_TARGET ROBOT_INIT_POSE ROBOT_END_POSE',
+    ],
+
+    'moveto_putdown': [
+        '0: MOVE_TO_PUTDOWN_LEFT BAXTER {1} {0} ROBOT_INIT_POSE ROBOT_END_POSE'
+    ],
+
+   'grasp': [
+        '0: GRASP_LEFT BAXTER {0} {0}_INIT_TARGET ROBOT_INIT_POSE ROBOT_END_POSE',
+    ],
+
+    'putdown': [
+        '0: PUTDOWN_LEFT BAXTER {1} {0} ROBOT_INIT_POSE ROBOT_END_POSE'
+    ],
+
+};
+
+{
+    'moveto': 25,
+    'transfer': 25,
+}

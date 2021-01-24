@@ -53,6 +53,7 @@ class MotionServer(Server):
         plan.freeze_actions(plan.start)
         init_t = time.time()
         success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=True)
+        # print('Time to plan:', time.time() - init_t)
         if success:
             path = self.agent.run_plan(plan, node.targets, permute=self.permute_hl)
             #s = np.random.randint(len(path))
@@ -63,7 +64,7 @@ class MotionServer(Server):
             print(self.id, 'Successful refine from', node.label)
         if not success and node.gen_child():
             fail_step, fail_pred, fail_negated = node.get_failed_pred()
-            print('Refine failed:', plan.get_failed_preds((0, fail_step)), fail_pred, fail_step, plan.actions, node.label)
+            print('Refine failed:', plan.get_failed_preds((0, fail_step)), fail_pred, fail_step, plan.actions, node.label, plan.params['cloth0'].pose[:,0])
             n_problem = node.get_problem(fail_step, fail_pred, fail_negated)
             abs_prob = self.agent.hl_solver.translate_problem(n_problem, goal=node.concr_prob.goal)
             prefix = node.curr_plan.prefix(fail_step)

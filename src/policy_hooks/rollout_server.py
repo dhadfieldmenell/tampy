@@ -474,7 +474,8 @@ class RolloutServer(Server):
         self.agent.reset_to_state(state)
         path = []
         val = 0
-        l = (0,0,0,0)
+        nout = len(self.agent._hyperparams['prim_out_include'])
+        l = tuple(np.zeros(nout, dtype=np.int))
         t = 0
         if eta is not None: self.eta = eta 
         old_eta = self.eta

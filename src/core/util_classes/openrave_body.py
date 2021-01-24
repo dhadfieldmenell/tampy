@@ -179,8 +179,7 @@ class OpenRAVEBody(object):
             self.env_body.SetName(self.name)
             self._env.Add(self.env_body)
         else:
-            self.col_body_id = OpenRAVEBody.create_wall(self._env, geom.wall_type)
-            self.body_id = P.createMultiBody(1, self.col_body_id)
+            self.body_id = OpenRAVEBody.create_wall(self._env, geom.wall_type)
 
     def _add_obj(self, geom):
         self.env_body = self._env.ReadKinBodyXMLFile(geom.shape)
@@ -210,6 +209,10 @@ class OpenRAVEBody(object):
                 trans = OpenRAVEBody.transform_from_obj_pose(base_pose, rotation)
             self.env_body.SetTransform(trans)
         else:
+            if hasattr(self._geom, 'jnt_names') and 'pose' in self._geom.jnt_names:
+                dof_map = {'pose': base_pose}
+                return self.set_dof(dof_map)
+
             if isinstance(self._geom, Robot) and not isinstance(self._geom, Washer) and not isinstance(self._geom, NAMO):
                 pos = np.r_[base_pose[:2], 0]
                 quat = T.euler_to_quaternion([0, 0, base_pose[2]], order='xyzw')
@@ -245,7 +248,6 @@ class OpenRAVEBody(object):
             self.env_body.SetActiveDOFValues(dof_val)
         else:
             for key in dof_value_map:
-                if key is 'pose': continue
                 if key not in self._geom.dof_map:
                     if debug: print('Cannot set dof for', key)
                     continue

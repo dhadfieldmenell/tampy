@@ -28,13 +28,14 @@ class ParseProblemConfig(object):
             if USE_OPENRAVE:
                 env = Environment()
             else:
-                try:
-                    P.disconnect()
-                except:
-                    pass
-                server = P.GUI if visual else P.DIRECT
-                env = P.connect(server)
-                P.resetSimulation()
+                #try:
+                #    P.disconnect()
+                #except:
+                #    pass
+                if not P.getConnectionInfo()['isConnected']:
+                    server = P.GUI if visual else P.DIRECT
+                    env = P.connect(server)
+                    P.resetSimulation()
 
         if "Objects" not in problem_config or not problem_config["Objects"]:
             raise ProblemConfigException("Problem file needs objects.")

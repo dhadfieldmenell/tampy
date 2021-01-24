@@ -21,6 +21,7 @@ import time
 
 
 DEFAULT_TOL = 1e-3
+NEAR_TOL = 0.05
 
 ### HELPER FUNCTIONS
 
@@ -1218,11 +1219,11 @@ class Near(ExprPredicate):
         # e = EqExpr(aff_e, val)
 
         A = np.c_[np.r_[np.eye(6), -np.eye(6)], np.r_[-np.eye(6), np.eye(6)]]
-        b, val = np.zeros((12, 1)), np.ones((12, 1))*1e-1
+        b, val = np.zeros((12, 1)), NEAR_TOL*np.ones((12, 1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
 
-        super(At, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
+        super(Near, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
 
 class HLAnchor(ExprPredicate):
@@ -1982,14 +1983,7 @@ class Obstructs(CollisionPredicate):
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
                                self.obstacle: self.lazy_spawn_or_body(self.obstacle, self.obstacle.name, self.obstacle.geom)}
 
-        f = lambda x: self.coeff*self.robot_obj_collision(x)[0]
-        grad = lambda x: self.coeff*self.robot_obj_collision(x)[1]
-
-        ## so we have an expr for the negated predicate
-        f_neg = lambda x: self.neg_coeff*self.robot_obj_collision(x)[0]
-        grad_neg = lambda x: self.neg_coeff*self.robot_obj_collision(x)[1]
-
-        col_expr = Expr(f, grad)
+        col_expr = Expr(self.f, self.grad)
         links = len(self.robot.geom.col_links)
 
         self.col_link_pairs = [x for x in itertools.product(self.robot.geom.col_links, self.obstacle.geom.col_links)]
@@ -1998,12 +1992,24 @@ class Obstructs(CollisionPredicate):
         val = np.zeros((len(self.col_link_pairs),1))
         e = LEqExpr(col_expr, val)
 
-        col_expr_neg = Expr(f_neg, grad_neg)
+        col_expr_neg = Expr(self.f_neg, self.grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=3, debug=debug, tol=tol, priority = 3)
         self.spacial_anchor = False
+
+    def f(self, x):
+        return self.coeff*self.robot_obj_collision(x)[0]
+
+    def grad(self, x):
+        return self.coeff*self.robot_obj_collision(x)[1]
+
+    def f_neg(self, x):
+        return self.neg_coeff*self.robot_obj_collision(x)[0]
+
+    def grad_neg(self, x):
+        return self.neg_coeff*self.robot_obj_collision(x)[1]
 
     #@profile
     def get_expr(self, negated):
@@ -2066,24 +2072,35 @@ class ObstructsHolding(CollisionPredicate):
         if self.obj.name == self.obstacle.name:
             links = len(self.col_link_pairs)
 
-            col_fn, offset = self.robot_obj_collision, const.DIST_SAFE - const.COLLISION_TOL
-            col_fn = lambda x: (np.zeros((1,1)), np.zeros((1, self.attr_dim)))
+            self.offset = const.DIST_SAFE - const.COLLISION_TOL
             val = np.zeros((links,1))
         else:
             links = len(self.col_link_pairs) + len(self.obj_obj_link_pairs)
-            col_fn, offset = self.robot_obj_held_collision, 0
+            self.offset = 0
             val = np.zeros((links,1))
 
-        f = lambda x: self.coeff * (col_fn(x)[0] - offset)
-        grad = lambda x: self.coeff * col_fn(x)[1]
-        ## so we have an expr for the negated predicate
-        f_neg = lambda x: self.neg_coeff * (col_fn(x)[0] - offset)
-        grad_neg = lambda x: self.neg_coeff * col_fn(x)[1]
-
-        col_expr, col_expr_neg = Expr(f, grad), Expr(f_neg, grad_neg)
+        col_expr, col_expr_neg = Expr(self.f, self.grad), Expr(self.f_neg, self.grad_neg)
         e, self.neg_expr = LEqExpr(col_expr, val), LEqExpr(col_expr_neg, val)
         super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=3, debug = debug, tol=tol, priority = 3)
         self.spacial_anchor = False
+
+    def f(self, x):
+        return self.coeff * (self.col_fn(x)[0] - self.offset)
+
+    def grad(self, x):
+        return self.coeff * self.col_fn(x)[1]
+
+    def f_neg(self, x):
+        return self.neg_coeff * (self.col_fn(x)[0] - self.offset)
+
+    def grad_neg(self, x):
+        return self.neg_coeff * self.col_fn(x)[1]
+
+    def col_fn(self, x):
+        if self.obj.name == self.obstacle.name:
+            return (np.zeros((1,1)), np.zeros((1, self.attr_dim)))
+        else:
+            return self.robot_obj_held_collision
 
     #@profile
     def get_expr(self, negated):
@@ -2124,30 +2141,40 @@ class Collides(CollisionPredicate):
 
         links = len(self.obj_obj_link_pairs)
 
-
-        if self.obj is self.obstacle:
-            f = lambda x: np.zeros((1,1))
-            f_neg = f
-            grad = lambda x: np.zeros((1, self.attr_dim))
-            grad_neg = grad
-        else:
-            f = lambda x: self.coeff * self.obj_obj_collision(x)[0]
-            grad = lambda x: self.coeff * self.obj_obj_collision(x)[1]
-
-            ## so we have an expr for the negated predicate
-            f_neg = lambda x: self.neg_coeff * self.obj_obj_collision(x)[0]
-            grad_neg = lambda x: self.neg_coeff * self.obj_obj_collision(x)[1]
-
-        col_expr, val = Expr(f, grad), np.zeros((1,1))
+        col_expr, val = Expr(self.f, self.grad), np.zeros((1,1))
         e = LEqExpr(col_expr, val)
 
-        col_expr_neg = Expr(f_neg, grad_neg)
+        col_expr_neg = Expr(self.f_neg, self.grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(Collides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1, debug=debug, priority = 3)
         self.spacial_anchor = False
         self.dsafe = const.COLLIDES_DSAFE
+
+    def f(self, x):
+        if self.obj is self.obstacle:
+            return np.zeros((1,1))
+        else:
+            return self.coeff * self.obj_obj_collision(x)[0]
+
+    def grad(self, x):
+        if self.obj is self.obstacle:
+            return np.zeros((1, self.attr_dim))
+        else:
+            return self.coeff * self.obj_obj_collision(x)[1]
+
+    def f_neg(self, x):
+        if self.obj is self.obstacle:
+            return np.zeros((1,1))
+        else:
+            return self.neg_coeff * self.obj_obj_collision(x)[0]
+
+    def grad_neg(self, x):
+        if self.obj is self.obstacle:
+            return np.zeros((1, self.attr_dim))
+        else:
+            return self.neg_coeff * self.obj_obj_collision(x)[1]
 
     #@profile
     def get_expr(self, negated):
@@ -2184,14 +2211,7 @@ class RCollides(CollisionPredicate):
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
                                self.obstacle: self.lazy_spawn_or_body(self.obstacle, self.obstacle.name, self.obstacle.geom)}
 
-        f = lambda x: self.coeff * self.robot_obj_collision(x)[0]
-        grad = lambda x: self.coeff * self.robot_obj_collision(x)[1]
-
-        ## so we have an expr for the negated predicate
-        f_neg = lambda x: self.neg_coeff * self.robot_obj_collision(x)[0]
-        grad_neg = lambda x: self.neg_coeff * self.robot_obj_collision(x)[1]
-
-        col_expr = Expr(f, grad)
+        col_expr = Expr(self.f, self.grad)
 
         self.col_link_pairs = [x for x in itertools.product(self.robot.geom.col_links, self.obstacle.geom.col_links)]
         self.col_link_pairs = sorted(self.col_link_pairs)
@@ -2200,13 +2220,25 @@ class RCollides(CollisionPredicate):
         val = np.zeros((links,1))
         e = LEqExpr(col_expr, val)
 
-        col_expr_neg = Expr(f_neg, grad_neg)
+        col_expr_neg = Expr(self.f_neg, self.grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(RCollides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1, priority = 3)
         self.spacial_anchor = False
         self.dsafe = const.RCOLLIDES_DSAFE
+
+    def f(self, x):
+        return self.coeff * self.robot_obj_collision(x)[0]
+
+    def grad(self, x):
+        return self.coeff * self.robot_obj_collision(x)[1]
+
+    def f_neg(self, x):
+        return self.neg_coeff * self.robot_obj_collision(x)[0]
+
+    def grad_neg(self, x):
+        return self.neg_coeff * self.robot_obj_collision(x)[1]
 
     #@profile
     def get_expr(self, negated):
@@ -2241,14 +2273,8 @@ class RSelfCollides(CollisionPredicate):
 
         self.coeff = -const.RCOLLIDE_COEFF
         self.neg_coeff = const.RCOLLIDE_COEFF
-        f = lambda x: self.coeff * self.robot_self_collision(x)[0]
-        grad = lambda x: self.coeff * self.robot_self_collision(x)[1]
 
-        ## so we have an expr for the negated predicate
-        f_neg = lambda x: self.neg_coeff * self.robot_self_collision(x)[0]
-        grad_neg = lambda x: self.neg_coeff * self.robot_self_collision(x)[1]
-
-        col_expr = Expr(f, grad)
+        col_expr = Expr(self.f, self.grad)
 
         self.col_link_pairs = [x for x in itertools.product(self.robot.geom.col_links, self.robot.geom.col_links)]
         self.col_link_pairs = sorted(self.col_link_pairs)
@@ -2257,13 +2283,25 @@ class RSelfCollides(CollisionPredicate):
         val = np.zeros((links,1))
         e = LEqExpr(col_expr, val)
 
-        col_expr_neg = Expr(f_neg, grad_neg)
+        col_expr_neg = Expr(self.f_neg, self.grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(RSelfCollides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=0, priority = 3)
         self.spacial_anchor = False
         self.dsafe = const.RCOLLIDES_DSAFE
+
+    def f(self, x):
+        return self.coeff * self.robot_self_collision(x)[0]
+
+    def grad(self, x):
+        return self.coeff * self.robot_self_collision(x)[1]
+
+    def f_neg(self, x):
+        return self.neg_coeff * self.robot_self_collision(x)[0]
+
+    def grad_neg(self, x):
+        return self.neg_coeff * self.robot_self_collision(x)[1]
 
     #@profile
     def get_expr(self, negated):
@@ -2311,9 +2349,7 @@ class EEValid(PosePredicate):
         if not hasattr(self, 'arm'): self.arm = self.robot.geom.arms[0]
         attr_inds, attr_dim = init_robot_pred(self, params[0], [])
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
-        f = lambda x: self.coeff*self.eval_f(x)
-        grad = lambda x: self.coeff*self.eval_grad(x)
-        pos_expr, val = Expr(f, grad), np.zeros((self.eval_dim,1))
+        pos_expr, val = Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim,1))
         e = EqExpr(pos_expr, val)
         super(EEValid, self).__init__(name, e, attr_inds, params, expected_param_types, priority=1)
 
@@ -2323,13 +2359,13 @@ class EEValid(PosePredicate):
         self.set_robot_poses(x, body)
         ee_pos = np.array(body.fwd_kinematics(self.arm)['pos'])
         inds = self.attr_map[self.robot, '{}_ee_pos'.format(self.arm)]
-        return (np.array(ee_pos) - x[inds]).reshape((-1,1))
+        return self.coeff*(np.array(ee_pos) - x[inds]).reshape((-1,1))
 
     def eval_grad(self, x):
         jac = np.zeros((3, self.attr_dim))
         inds = self.attr_map[self.robot, '{}_ee_pos'.format(self.arm)]
         jac[:, inds] = -np.eye(3)
-        return jac
+        return self.coeff*jac
 
 class LeftEEValid(EEValid):
     arm = 'left'
@@ -2350,10 +2386,7 @@ class GrippersLevel(PosePredicate):
 
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
 
-        f = lambda x: self.coeff*self.eval_f(x)
-        grad = lambda x: self.coeff*self.eval_grad(x)
-
-        pos_expr, val = Expr(f, grad), np.zeros((self.eval_dim,1))
+        pos_expr, val = Expr(self.f, self.grad), np.zeros((self.eval_dim,1))
         e = EqExpr(pos_expr, val)
 
         super(GrippersLevel, self).__init__(name, e, attr_inds, params, expected_param_types, priority = 3)
@@ -2430,8 +2463,6 @@ class GrippersDownRot(GrippersLevel):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.coeff = 0.1
         self.opt_coeff = 0.1
-        self.eval_f = lambda x: self.coeff*self.both_arm_rot_check_f(x)
-        self.eval_grad = lambda x: self.coeff*self.both_arm_rot_check_jac(x)
         attr_inds, attr_dim = init_robot_pred(self, params[0], [])
         self.local_dir = np.array([1,0,0])
 
@@ -2451,6 +2482,12 @@ class GrippersDownRot(GrippersLevel):
         self.eval_dim = 3 * len(self.arms)
         super(GrippersDownRot, self).__init__(name, params, expected_param_types, env, debug)
 
+    def f(self, x):
+        return self.coeff*self.both_arm_rot_check_f(x)
+
+    def grad(self, x):
+        return self.coeff*self.both_arm_rot_check_jac(x)
+    
     def resample(self, negated, t, plan):
         return robot_sampling.resample_gripper_down_rot(self, negated, t, plan)
 

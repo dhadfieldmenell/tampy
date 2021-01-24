@@ -59,8 +59,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.prob = hyperparams['prob']
         self.plans = self._hyperparams['plans']
         self.plans_list = list(self.plans.values())
+        self.sensor_dims = self._hyperparams['sensor_dims']
         self.task_list = self._hyperparams['task_list']
-        self.task_durations = self._hyperparams['task_durations']
         self.task_encoding = self._hyperparams['task_encoding']
         self._samples = {task: [] for task in self.task_list}
         self.state_inds = self._hyperparams['state_inds']
@@ -676,18 +676,23 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         plans = [plan]
         preds = []
         if plan is None:
-            plans = list(self.plans.values())[:1]
-            used = []
-            for next_plan in self.plans.values():
-                for action in next_plan.actions:
-                    for p in action.preds:
-                        if p['pred'].get_rep() not in used and \
-                           p['active_timesteps'][0] == 0:
-                            preds.append(p)
-                            used.append(p['pred'].get_rep())
+            plans = []
+            reps = []
+            for plan in self.plans.values():
+                if str(plan.actions[0]) in reps: continue
+                reps.append(str(plan.actions[0]))
+                plans.append(plan)
+            #plans = list(self.plans.values())[:1]
+            #used = []
+            #for next_plan in self.plans.values():
+            #    for action in next_plan.actions:
+            #        for p in action.preds:
+            #            if p['pred'].get_rep() not in used and \
+            #               p['active_timesteps'][0] == 0:
+            #                preds.append(p)
+            #                used.append(p['pred'].get_rep())
 
         st = plans[0].actions[act].active_timesteps[0]
-        #print(plans[0].params['can0'] is list(self.plans.values())[0[0[0]]].params['can0'])
         for plan in plans:
             for pname, aname in self.state_inds:
                 if plan.params[pname].is_symbol(): continue
@@ -704,7 +709,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             init_preds = parse_state(plan, [], st, preds)
             initial.extend([p.get_rep() for p in init_preds])
         goal = self.goal(cond, targets)
-        #print(state, targets, initial, len(preds), plans[0].prob.init_state.preds)
         return list(set(initial)), goal
 
 
@@ -878,16 +882,17 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 sample.success = 1. - self.goal_f(0, x0, targets)
             path[-1].task_end = True
             path[-1].set(TASK_DONE_ENUM, np.array([0, 1]), t=path[-1].T-1)
-            zero_sample = self.sample_optimal_trajectory(path[-1].end_state, task, 0, opt_traj[-1:], targets=targets)
-            zero_sample.use_ts[:] = 0.
-            zero_sample.use_ts[:nzero] = 1.
-            zero_sample.prim_use_ts[:] = 0.
-            zero_sample.step = path[-1].step + 1
-            zero_sample.draw = False
-            zero_sample.success = path[-1].success
-            zero_sample.set(TASK_DONE_ENUM, np.tile([0,1], (zero_sample.T, 1)))
-            zero_sample.task = task
-            path.append(zero_sample)
+            if nzero > 0:
+                zero_sample = self.sample_optimal_trajectory(path[-1].end_state, task, 0, opt_traj[-1:], targets=targets)
+                zero_sample.use_ts[:] = 0.
+                zero_sample.use_ts[:nzero] = 1.
+                zero_sample.prim_use_ts[:] = 0.
+                zero_sample.step = path[-1].step + 1
+                zero_sample.draw = False
+                zero_sample.success = path[-1].success
+                zero_sample.set(TASK_DONE_ENUM, np.tile([0,1], (zero_sample.T, 1)))
+                zero_sample.task = task
+                path.append(zero_sample)
             path[-1].task_end = True
         if len(path) and path[-1].success > 0.99:
             for sample in path: sample.opt_strength = 1.
@@ -1009,7 +1014,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
         tol = 1e-3
         for t in range(active_ts[0], active_ts[1]+1):
-            set_params_attrs(plan.params, self.state_inds, Xs[t-active_ts[0]], t)
+            set_params_attrs(plan.params, self.state_inds, Xs[t-active_ts[0]], min(plan.horizon-1, t), plan=plan)
         self.set_symbols(plan, task, condition)
 
         if len(Xs.shape) == 1:

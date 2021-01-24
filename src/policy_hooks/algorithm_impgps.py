@@ -227,65 +227,32 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
 
     def _update_policy_no_cost(self, optimal_samples=[], label='optimal'):
         """ Compute the new policy. """
-        if not len(self.cur): return
+        if not len(self.cur) and not len(optimal_samples): return
 
-        dU, dO, T = self.dU, self.dO, self.T
-        data_len = int(self.sample_ts_prob * T)
+        dU, dO = self.dU, self.dO
         # Compute target mean, cov, and weight for each sample.
-        obs_data, tgt_mu = np.zeros((0, data_len, dO)), np.zeros((0, data_len, dU))
-        tgt_prc, tgt_wt = np.zeros((0, data_len, dU, dU)), np.zeros((0, data_len))
-
-        # # Optimize global policies with optimal samples as well
-        # for sample in optimal_samples:
-        #     mu = np.zeros((1, data_len, dU))
-        #     prc = np.zeros((1, data_len, dU, dU))
-        #     wt = np.zeros((1, data_len))
-        #     obs = np.zeros((1, data_len, dO))
-
-        #     ts = np.random.choice(xrange(T), data_len, replace=False)
-        #     ts.sort()
-        #     for t in range(data_len):
-        #         prc[0,t] = 1e0 * np.eye(dU)
-        #         wt[:,t] = self._hyperparams['opt_wt']
-
-        #     for i in range(data_len):
-        #         t = ts[i]
-        #         mu[0, i, :] = sample.get_U(t=t)
-        #         obs[0, i, :] = sample.get_obs(t=t)
-        #     tgt_mu = np.concatenate((tgt_mu, mu))
-        #     tgt_prc = np.concatenate((tgt_prc, prc))
-        #     tgt_wt = np.concatenate((tgt_wt, wt))
-        #     obs_data = np.concatenate((obs_data, obs))
+        obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dU))
+        tgt_prc, tgt_wt = np.zeros((0, dU, dU)), np.zeros((0,))
 
         for sample in optimal_samples:
-            mu = np.zeros((1, data_len, dU))
-            prc = np.zeros((1, data_len, dU, dU))
-            wt = np.zeros((1, data_len))
-            obs = np.zeros((1, data_len, dO))
+            prc = np.zeros((1, sample.T, dU, dU))
+            wt = np.zeros((sample.T,))
 
             m = 0
             traj, pol_info = self.new_traj_distr[m], self.cur[m].pol_info
-            ts = np.random.choice(range(T), data_len, replace=False)
-            ts.sort()
-            for t in range(data_len):
-                prc[:, t, :, :] = np.tile(traj.inv_pol_covar[ts[t], :, :], [1, 1, 1])
-                wt[:,t] = self._hyperparams['opt_wt'] * sample.use_ts[ts[t]]
+            for t in range(len(sample.use_ts)):
+                prc[:, t, :, :] = np.tile(traj.inv_pol_covar[t, :, :], [1, 1, 1])
+                wt[t] = self._hyperparams['opt_wt'] * sample.use_ts[t]
 
-            for i in range(data_len):
-                t = ts[i]
-                mu[0, i, :] = sample.get_U(t=t)
-                obs[0, i, :] = sample.get_obs(t=t)
-            tgt_mu = np.concatenate((tgt_mu, mu))
-            tgt_prc = np.concatenate((tgt_prc, prc))
+            tgt_mu = np.concatenate((tgt_mu, sample.get_U()))
+            obs_data = np.concatenate((obs_data, sample.get_obs()))
             tgt_wt = np.concatenate((tgt_wt, wt))
-            obs_data = np.concatenate((obs_data, obs))
+            tgt_prc = np.concatenate((tgt_prc, prc.reshape(-1, dU, dU)))
 
 
         for m in range(len(self.cur)):
             samples = self.cur[m].sample_list
             if samples is None: continue
-                # print(samples[0].get_obs() - samples[1].get_obs(), samples[0].get(STATE_ENUM) - samples[1].get(STATE_ENUM), samples[0].get(ACTION_ENUM) - samples[1].get(ACTION_ENUM), samples[0].get(ACTION_ENUM), samples[1].get(ACTION_ENUM), 'UPDATE')
-
             for sample in samples:
                 mu = np.zeros((1, data_len, dU))
                 prc = np.zeros((1, data_len, dU, dU))

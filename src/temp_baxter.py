@@ -66,16 +66,16 @@ if len(sys.argv) > 1 and sys.argv[1] == 'end':
 baxter = plan.params['baxter']
 cmds = []
 for t in range(plan.horizon):
-    info = baxter.openrave_body.param_fwd_kinematics(baxter, ['left', 'right'], t)
-    left_pos, left_quat = np.array(info['left']['pos']), info['left']['quat']
-    right_pos, right_quat = np.array(info['right']['pos']), info['right']['quat']
+    #info = baxter.openrave_body.param_fwd_kinematics(baxter, ['left', 'right'], t)
+    #left_pos, left_quat = np.array(info['left']['pos']), info['left']['quat']
+    #right_pos, right_quat = np.array(info['right']['pos']), info['right']['quat']
+    left_pos, right_pos = baxter.left_ee_pos[:,t], baxter.right_ee_pos[:,t]
     lgrip, rgrip = baxter.left_gripper[:,t], baxter.right_gripper[:,t]
     act = np.r_[right_pos, rgrip, left_pos, lgrip]
     cmds.append(act)
 
 im_dims = (64, 64)
 view = True
-P.disconnect()
 obs_include = ['forward_image']
 #items = [{'name': 'cloth0', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 1.5, 0.5), 'dimensions': (0.02, 0.035), 'rgba': '1 1 1 1'}]
 items = [{'name': 'cloth0', 'type': 'box', 'is_fixed': False, 'pos': (0, 1.5, 0.5), 'dimensions': (0.02, 0.02, 0.02), 'rgba': '1 1 1 1'}]
@@ -96,7 +96,7 @@ for act in plan.actions:
             act[4:7] -= env.get_left_ee_pos()
             incl = ['joint_angle'] if n > 0 else ['forward_image']
             env.step(act, mode='end_effector_pos', view=(n==0), obs_include=incl)
-        print(env.get_left_ee_pos(), env.get_item_pos('cloth0'), base_act[4:7], base_act[7])
+        print(env.get_left_ee_pos(), env.get_item_pos('cloth0'), base_act[4:7], base_act[7], plan.params['baxter'].left_ee_pos[:,t])
     import ipdb; ipdb.set_trace()
 import ipdb; ipdb.set_trace()
 

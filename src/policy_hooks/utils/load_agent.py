@@ -32,7 +32,6 @@ def load_agent(config):
     conditions = config['num_conds']
     task_list = tuple(sorted(list(get_tasks(config['task_map_file']).keys())))
     cur_n_rollout = 0
-    task_durations = get_task_durations(config['task_map_file'])
     config['task_list'] = task_list
     task_encoding = get_task_encoding(task_list)
     plans = {}
@@ -123,8 +122,6 @@ def load_agent(config):
     config['target_f'] = None # prob.get_next_target
     config['encode_f'] = None # prob.sorting_state_encode
 
-    config['task_durations'] = task_durations
-
     agent_config = {
         'num_objs': config['num_objs'],
         'num_targs': config['num_targs'],
@@ -135,7 +132,6 @@ def load_agent(config):
         'plans': plans,
         'task_breaks': task_breaks,
         'task_encoding': task_encoding,
-        'task_durations': task_durations,
         'state_inds': state_inds,
         'action_inds': action_inds,
         'target_inds': target_inds,
