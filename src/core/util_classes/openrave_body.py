@@ -709,6 +709,8 @@ class OpenRAVEBody(object):
                                                  maxNumIterations=maxIter)
         inds = list(self._geom.get_free_inds(manip_name))
         joint_pos = np.array(joint_pos)[inds].tolist()
+        lb, ub = self._geom.get_joint_limits(manip_name)
+        joint_pos = np.maximum(np.minimum(joint_pos, ub), lb)
         if not multiple: return joint_pos
         poses = [joint_pos]
         for _ in range(10):

@@ -19,7 +19,7 @@ do
                                                        -task 4 \
                                                        -rollout 8 \
                                                        -roll_hl \
-                                                       -descr permute_images_96_hl & 
+                                                       -descr no_aux_images_64_hl & 
         sleep 10h
         pkill -f run_train -9
         pkill -f ros -9

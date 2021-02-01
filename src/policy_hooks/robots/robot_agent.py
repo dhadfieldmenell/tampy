@@ -50,7 +50,7 @@ LIDAR_DIST = 2.
 # LIDAR_DIST = 1.5
 DSAFE = 5e-1
 MAX_STEP = max(1.5*dmove, 1)
-
+Z_MAX = 0.4
 
 class optimal_pol:
     def __init__(self, dU, action_inds, state_inds, opt_traj):
@@ -92,9 +92,10 @@ class RobotAgent(TAMPAgent):
         self.env_cls = MJCEnv if prob_env is None else prob_env
         self.ctrl_mode = hyperparams['master_config'].get('ctrl_mode', 'end_effector_pos')
         self.check_col = hyperparams['master_config'].get('check_col', True)
+        self.camera_id = 1
         items = []
         incl_files = []
-        colors = [[0.9, 0, 0, 1], [0, 0.9, 0, 1], [0, 0, 0.9, 1], [0.7, 0.7, 0.1, 1], [1., 0.1, 0.8, 1], [0.5, 0.95, 0.5, 1], [0.75, 0.4, 0, 1], [0.25, 0.25, 0.5, 1], [0.5, 0, 0.25, 1], [0, 0.5, 0.75, 1], [0, 0, 0.5, 1]]
+        colors = [[0.9, 0, 0, 1], [0, 0, 0.9, 1], [0.7, 0.7, 0.1, 1], [1., 0.1, 0.8, 1], [0.5, 0.95, 0.5, 1], [0.75, 0.4, 0, 1], [0.25, 0.25, 0.5, 1], [0.5, 0, 0.25, 1], [0, 0.5, 0.75, 1], [0, 0, 0.5, 1]]
         for param in list(self.plans.values())[0].params.values():
             if 'Robot' in param.get_type(True) and self.env_cls is MJCEnv:
                 incl_files.append(param.geom.shape)
@@ -103,9 +104,9 @@ class RobotAgent(TAMPAgent):
                 if 'Cloth' in param.get_type(True):
                     color = tuple(colors.pop())
                     items.append({'name': param.name, 'type': 'box', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.02, 0.02, 0.02), 'rgba': color})
-                    items.append({'name': '{}_end_target'.format(param.name), 'type': 'box', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.04, 0.04, 0.001), 'rgba': color})
+                    items.append({'name': '{}_end_target'.format(param.name), 'type': 'cylinder', 'is_fixed': True, 'pos': (0, 0, 0.5), 'dimensions': (0.04, 0.001), 'rgba': color[:3] + (0.8,)})
             if 'Obstacle' in param.get_type(True):
-                color = tuple(colors.pop())
+                color = (0, 1, 0, 1)
                 dims = tuple(param.geom.dim)
                 items.append({'name': param.name, 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 0.5), 'dimensions': dims, 'rgba': color})
 
@@ -201,8 +202,8 @@ class RobotAgent(TAMPAgent):
             if len(self._prev_task): self._prev_task = np.r_[self._prev_task[1:], [sample.get_prim_out(t=t)]]
 
 
-            if np.all(np.abs(cur_state - new_state) < 1e-3):
-                sample.use_ts[t] = 0
+            #if np.all(np.abs(cur_state - new_state) < 1e-4):
+            #    sample.use_ts[t] = 0
 
             if n_steps == sample.T:
                 end_state = sample.get_X(t=t)
@@ -225,9 +226,11 @@ class RobotAgent(TAMPAgent):
         ctrl = {attr: u[inds] for (param_name, attr), inds in self.action_inds.items()}
         n_steps = 10
         targ_pos = self.mjc_env.get_attr('baxter', 'left_ee_pos') + ctrl['left_ee_pos']
+        targ_pos[2] = min(Z_MAX, targ_pos[2])
         for n in range(n_steps+1):
-            self.mjc_env.step(ctrl, mode=self.ctrl_mode, gen_obs=False)
-            ctrl['left_ee_pos'] = targ_pos - self.mjc_env.get_attr('baxter', 'left_ee_pos')
+            self.mjc_env.step(ctrl, mode=self.ctrl_mode, gen_obs=False, view=(self.view and n==0))
+            pos = targ_pos - self.mjc_env.get_attr('baxter', 'left_ee_pos')
+            ctrl['left_ee_pos'] = pos 
 
         col = 1 if len(self._col) > 0 else 0
         return True, col
@@ -350,17 +353,19 @@ class RobotAgent(TAMPAgent):
 
     def fill_sample(self, cond, sample, mp_state, t, task, fill_obs=False, targets=None):
         mp_state = mp_state.copy()
-        plan = self.plans[task]
         if targets is None:
             targets = self.target_vecs[cond].copy()
 
         for (pname, aname), inds in self.state_inds.items():
             if aname == 'left_ee_pos':
                 sample.set(LEFT_EE_POS_ENUM, mp_state[inds], t)
+                ee_pose = mp_state[inds]
             elif aname == 'right_ee_pos':
                 sample.set(RIGHT_EE_POS_ENUM, mp_state[inds], t)
+                ee_pose = mp_state[inds]
             elif aname.find('ee_pos') >= 0:
                 sample.set(EE_ENUM, mp_state[inds], t)
+                ee_pose = mp_state[inds]
 
         sample.set(STATE_ENUM, mp_state, t)
         if self.hist_len > 0:
@@ -370,73 +375,66 @@ class RobotAgent(TAMPAgent):
         sample.set(STATE_HIST_ENUM, self._x_delta.flatten(), t)
         if self.task_hist_len > 0:
             sample.set(TASK_HIST_ENUM, self._prev_task.flatten(), t)
-        onehot_task = np.zeros(self.sensor_dims[ONEHOT_TASK_ENUM])
-        onehot_task[self.task_to_onehot[task]] = 1.
-        sample.set(ONEHOT_TASK_ENUM, onehot_task, t)
-
-        task_ind = task[0]
-        obj_ind = task[1]
-        targ_ind = task[2]
-        prim_choices = self.prob.get_prim_choices(self.task_list)
-
-        task_vec = np.zeros((len(self.task_list)), dtype=np.float32)
-        task_vec[task[0]] = 1.
-        sample.task_ind = task[0]
-        sample.set(TASK_ENUM, task_vec, t)
+        #onehot_task = np.zeros(self.sensor_dims[ONEHOT_TASK_ENUM])
+        #onehot_task[self.task_to_onehot[task]] = 1.
+        #sample.set(ONEHOT_TASK_ENUM, onehot_task, t)
         sample.set(DONE_ENUM, np.zeros(1), t)
         sample.set(TASK_DONE_ENUM, np.array([1, 0]), t)
-        if self.discrete_prim:
-            sample.set(FACTOREDTASK_ENUM, np.array(task), t)
-            obj_vec = np.zeros((len(prim_choices[OBJ_ENUM])), dtype='float32')
-            targ_vec = np.zeros((len(prim_choices[TARG_ENUM])), dtype='float32')
-            obj_vec[task[1]] = 1.
-            targ_vec[task[2]] = 1.
-            if self.task_list[task[0]].find('grasp') >= 0:
-                obj_vec[task[1]] = 1.
-                targ_vec[:] = 1. / len(targ_vec)
-            #elif self.task_list[task[0]].find('transfer') >= 0:
-            #    obj_vec[:] = 1. / len(obj_vec)
-            #    targ_vec[task[2]] = 1.
-            #obj_vec[task[1]] = 1.
-            #targ_vec[task[2]] = 1.
-            sample.obj_ind = task[1]
-            sample.targ_ind = task[2]
-            sample.set(OBJ_ENUM, obj_vec, t)
-            sample.set(TARG_ENUM, targ_vec, t)
 
-            obj_name = list(prim_choices[OBJ_ENUM])[obj_ind]
-            targ_name = list(prim_choices[TARG_ENUM])[targ_ind]
-            for (pname, aname), inds in self.state_inds.items():
-                if aname.find('left_ee_pos') >= 0:
-                    ee_pose = mp_state[inds]
-                    obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - mp_state[inds]
-                    targ_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[inds]
-                    break
-            targ_off_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds[obj_name, 'pose']]
-        else:
-            obj_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
-            targ_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
-        sample.set(OBJ_POSE_ENUM, obj_pose.copy(), t)
-        sample.set(TARG_POSE_ENUM, targ_pose.copy(), t)
-        sample.task = task
-        sample.obj = task[1]
-        sample.targ = task[2]
+        prim_choices = self.prob.get_prim_choices(self.task_list)
+        if task is not None:
+            task_ind = task[0]
+            obj_ind = task[1]
+            targ_ind = task[2]
+
+            task_vec = np.zeros((len(self.task_list)), dtype=np.float32)
+            task_vec[task[0]] = 1.
+            sample.task_ind = task[0]
+            sample.set(TASK_ENUM, task_vec, t)
+            for ind, enum in enumerate(prim_choices):
+                if hasattr(prim_choices[enum], '__len__'):
+                    vec = np.zeros((len(prim_choices[enum])), dtype='float32')
+                    vec[task[ind]] = 1.
+                else:
+                    vec = np.array(task[ind])
+                sample.set(enum, vec, t)
+
+            if self.discrete_prim:
+                sample.set(FACTOREDTASK_ENUM, np.array(task), t)
+                obj_name = list(prim_choices[OBJ_ENUM])[task[1]]
+                targ_name = list(prim_choices[TARG_ENUM])[task[2]]
+                for (pname, aname), inds in self.state_inds.items():
+                    if aname.find('left_ee_pos') >= 0:
+                        obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - mp_state[inds]
+                        targ_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[inds]
+                        break
+                targ_off_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds[obj_name, 'pose']]
+            else:
+                obj_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
+                targ_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
+            sample.set(OBJ_POSE_ENUM, obj_pose.copy(), t)
+            sample.set(TARG_POSE_ENUM, targ_pose.copy(), t)
+            sample.task = task
+            sample.obj = task[1]
+            sample.targ = task[2]
+            sample.task_name = self.task_list[task[0]]
+
+            if self.task_list[task[0]].find('grasp') >= 0:
+                sample.set(END_POSE_ENUM, obj_pose, t)
+                #sample.set(END_POSE_ENUM, obj_pose.copy(), t)
+            elif self.task_list[task[0]].find('putdown') >= 0:
+                sample.set(END_POSE_ENUM, targ_pose, t)
+                #sample.set(END_POSE_ENUM, targ_pose.copy(), t)
+            else:
+                sample.set(END_POSE_ENUM, obj_pose, t)
+
         sample.condition = cond
-        sample.task_name = self.task_list[task[0]]
         sample.set(TARGETS_ENUM, targets.copy(), t)
         sample.set(GOAL_ENUM, np.concatenate([targets[self.target_inds['{0}_end_target'.format(o), 'value']] for o in prim_choices[OBJ_ENUM]]), t)
         if ONEHOT_GOAL_ENUM in self._hyperparams['sensor_dims']:
             sample.set(ONEHOT_GOAL_ENUM, self.onehot_encode_goal(sample.get(GOAL_ENUM, t)), t)
         sample.targets = targets.copy()
 
-        if self.task_list[task[0]].find('grasp') >= 0:
-            sample.set(END_POSE_ENUM, obj_pose, t)
-            #sample.set(END_POSE_ENUM, obj_pose.copy(), t)
-        elif self.task_list[task[0]].find('putdown') >= 0:
-            sample.set(END_POSE_ENUM, targ_pose, t)
-            #sample.set(END_POSE_ENUM, targ_pose.copy(), t)
-        else:
-            sample.set(END_POSE_ENUM, obj_pose, t)
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
             sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
             targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
@@ -509,6 +507,11 @@ class RobotAgent(TAMPAgent):
             val = x[inds]
             if aname.find('ee_pos') >= 0: continue
             self.mjc_env.set_attr(pname, aname, val, forward=False)
+            targ = '{}_end_target'.format(pname)
+            if aname == 'pose' and (targ, 'value') in self.target_inds:
+                pos = self.target_vecs[0][self.target_inds[targ, 'value']]
+                pos = np.r_[pos[:2], [-0.12]]
+                self.mjc_env.set_item_pos(targ, pos, forward=False)
         self.mjc_env.physics.forward()
 
 
@@ -516,6 +519,9 @@ class RobotAgent(TAMPAgent):
         x = np.zeros(self.dX)
         for (pname, aname), inds in self.state_inds.items():
             val = self.mjc_env.get_attr(pname, aname)
+            if aname in ['left', 'right']:
+                lb, ub = self.mjc_env.geom.get_joint_limits(aname)
+                val = np.maximum(np.minimum(val, ub), lb)
             x[inds] = val[:len(inds)]
 
         return x
@@ -565,7 +571,7 @@ class RobotAgent(TAMPAgent):
 
         exclude_targets = []
         plan = self.plans[task]
-        sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, opt_traj), condition, state, task, noisy=False, skip_opt=True)
+        sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, opt_traj), condition, state, task, noisy=False, skip_opt=True, hor=len(opt_traj))
         sample.set_ref_X(sample.get_X())
         sample.set_ref_U(sample.get_U())
 
@@ -611,7 +617,7 @@ class RobotAgent(TAMPAgent):
 
 
     def replace_cond(self, cond, curric_step=-1):
-        self.init_vecs[cond], self.targets[cond] = self.prob.get_random_initial_state_vec(self.config, self.targets, self.dX, self.state_inds, 1)
+        self.init_vecs[cond], self.targets[cond] = self.prob.get_random_initial_state_vec(self.config, self.plans, self.dX, self.state_inds, 1)
         self.init_vecs[cond], self.targets[cond] = self.init_vecs[cond][0], self.targets[cond][0]
         self.x0[cond] = self.init_vecs[cond][:self.symbolic_bound]
         self.target_vecs[cond] = np.zeros((self.target_dim,))
@@ -778,21 +784,25 @@ class RobotAgent(TAMPAgent):
         astr = str(action).lower()
         l = [0]
         for i, task in enumerate(self.task_list):
-            if action.name.lower().find(task) >= 0:
+            if action.name.lower() == task:
                 l[0] = i
                 break
 
         for enum in prim_choices:
             if enum is TASK_ENUM: continue
             l.append(0)
-            for i, opt in enumerate(prim_choices[enum]):
-                if opt in [p.name for p in action.params]:
-                    l[-1] = i
-                    break
+            if hasattr(prim_choices[enum], '__len__'):
+                for i, opt in enumerate(prim_choices[enum]):
+                    if opt in [p.name for p in action.params]:
+                        l[-1] = i
+                        break
+            else:
+                param = action.params[1]
+                l[-1] = param.value[:,0] if param.is_symbol() else param.pose[:,action.active_timesteps[0]]
         return l # tuple(l)
 
 
-    def retime_traj(self, traj, vel=0.3, inds=None, minpts=10):
+    def retime_traj(self, traj, vel=0.03, inds=None, minpts=10):
         new_traj = []
         if len(np.shape(traj)) == 2:
             traj = [traj]
@@ -802,11 +812,11 @@ class RobotAgent(TAMPAgent):
             grippts= []
             d = 0
             if inds is None:
-                inds = self.state_inds['pr2', 'pose']
+                inds = self.state_inds['baxter', 'left_ee_pos']
             for t in range(len(step)):
                 xpts.append(d)
                 fpts.append(step[t])
-                grippts.append(step[t][self.state_inds['pr2', 'gripper']])
+                grippts.append(step[t][self.state_inds['baxter', 'left_gripper']])
                 if t < len(step) - 1:
                     disp = np.linalg.norm(step[t+1][inds] - step[t][inds])
                     d += disp
@@ -844,7 +854,7 @@ class RobotAgent(TAMPAgent):
                 raise NotImplementedError('Velocity undefined')
             out = interp(x)
             grip_out = grip_interp(x)
-            out[:, self.state_inds['pr2', 'gripper']] = grip_out
+            out[:, self.state_inds['baxter', 'left_gripper']] = grip_out
             out[0] = step[0]
             out[-1] = step[-1]
             for pt, val in fix_pts:

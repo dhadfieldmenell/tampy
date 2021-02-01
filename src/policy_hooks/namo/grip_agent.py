@@ -372,6 +372,8 @@ class NAMOGripAgent(NAMOSortingAgent):
 
 
     def fill_sample(self, cond, sample, mp_state, t, task, fill_obs=False, targets=None):
+        if task is None:
+            task = list(self.plans.keys())[0]
         mp_state = mp_state.copy()
         plan = self.plans[task]
         ee_pose = mp_state[self.state_inds['pr2', 'pose']]

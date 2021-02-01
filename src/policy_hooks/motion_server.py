@@ -45,7 +45,10 @@ class MotionServer(Server):
             self.agent.set_symbols(plan, task, a, targets=node.targets)
 
         ts = (0, plan.actions[plan.start].active_timesteps[0])
-        failed_prefix = plan.get_failed_preds(active_ts=ts, tol=1e-3)
+        try:
+            failed_prefix = plan.get_failed_preds(active_ts=ts, tol=1e-3)
+        except Exception as e:
+            failed_prefix = ['ERROR IN FAIL CHECK', e]
         if len(failed_prefix):
             print('BAD PREFIX! -->', plan.actions[:plan.start], 'FAILED', failed_prefix)
             plan.start = 0
@@ -64,7 +67,10 @@ class MotionServer(Server):
             print(self.id, 'Successful refine from', node.label)
         if not success and node.gen_child():
             fail_step, fail_pred, fail_negated = node.get_failed_pred()
-            print('Refine failed:', plan.get_failed_preds((0, fail_step)), fail_pred, fail_step, plan.actions, node.label, plan.params['cloth0'].pose[:,0])
+            if 'cloth0' in plan.params:
+                print('Refine failed:', plan.get_failed_preds((0, fail_step)), fail_pred, fail_step, plan.actions, node.label, plan.params['cloth0'].pose[:,0], plan.params['baxter'].left_ee_pos[:,0])
+            else:
+                print('Refine failed:', plan.get_failed_preds((0, fail_step)), fail_pred, fail_step, plan.actions, node.label)
             n_problem = node.get_problem(fail_step, fail_pred, fail_negated)
             abs_prob = self.agent.hl_solver.translate_problem(n_problem, goal=node.concr_prob.goal)
             prefix = node.curr_plan.prefix(fail_step)

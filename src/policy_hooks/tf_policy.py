@@ -61,7 +61,7 @@ class TfPolicy(Policy):
         obs = obs.copy()
         obs[:, self.x_idx] = obs[:, self.x_idx].dot(self.scale) + self.bias
         with tf.device(self.device_string):
-            action_mean = self.sess.run(self.act_op, feed_dict={self.obs_tensor: obs})
+            action_mean = self.sess.run(self.act_op, feed_dict={self.obs_tensor: obs})[0]
         #action_mean = self.sess.run(self.act_op, feed_dict={self.obs_tensor: obs})
         if np.all(np.abs(action_mean) < 1e-5): print('WARNING: Action mean from policy too close to zero')
         if np.any(np.isnan(action_mean)):

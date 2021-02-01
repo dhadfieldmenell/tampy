@@ -1,7 +1,7 @@
 """ This file provides an example tensorflow network used to define a policy. """
 
 import tensorflow as tf
-from gps.algorithm.policy_opt.tf_utils import TfMap
+from policy_hooks.utils.tf_utils import TfMap
 import numpy as np
 from copy import copy
 

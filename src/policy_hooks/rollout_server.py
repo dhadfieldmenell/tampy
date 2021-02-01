@@ -81,19 +81,32 @@ class RolloutServer(Server):
         sample.set_X(state.copy(), t=0)
         self.agent.fill_sample(0, sample, sample.get(STATE_ENUM, 0), 0, prev_task, fill_obs=True, targets=targets)
         distrs = self.primitive_call(sample.get_prim_obs(t=0), soft, eta=self.eta, t=0, task=prev_task)
-        labels = list(self.agent.plans.keys())
+        #labels = list(self.agent.plans.keys())
         for d in distrs:
             for i in range(len(d)):
                 d[i] = round(d[i], 5)
-        distr = [np.prod([distrs[i][l[i]] for i in range(len(l))]) for l in labels]
-        distr = np.array(distr)
+        #distr = [np.prod([distrs[i][l[i]] for i in range(len(l))]) for l in labels]
+        #distr = np.array(distr)
         ind = []
-        for d in distrs:
-            val = np.max(d)
-            ind.append(np.random.choice([i for i in range(len(d)) if d[i] >= val]))
+        enums = list(self.agent.prob.get_prim_choices(self.agent.task_list).keys())
+        for i, d in enumerate(distrs):
+            enum = enums[i]
+            if enum in self.agent.discrete_opts:
+                val = np.max(d)
+                ind.append(np.random.choice([i for i in range(len(d)) if d[i] >= val]))
+            else:
+                ind.append(d)
         next_label = tuple(ind)
         return next_label
 
+    def compare_tasks(self, task1, task2):
+        for i in range(len(task1)):
+            if type(task1[i]) is int and task1[i] != task2[i]:
+                return False
+            elif np.sum(np.abs(task1[i]-task2[i])) > 1e-2:
+                return False
+
+        return True
 
     def rollout(self, x, targets):
         switch_pts = [(0,0)]
@@ -103,7 +116,7 @@ class RolloutServer(Server):
         precond_viols = []
         def task_f(sample, t, curtask):
             task = self.get_task(sample.get_X(t=t), sample.targets, curtask, self.soft)
-            if task != curtask:
+            if not self.compare_tasks(task, curtask):
                 if self.check_postcond:
                     postcost = self.agent.postcond_cost(sample, curtask, t)
                     if postcost > 1e-3: task = curtask
@@ -123,8 +136,7 @@ class RolloutServer(Server):
         t_per_task = 30
         s_per_task = 4 if self.agent.retime else 2
         self.adj_eta = True
-        l = list(self.agent.plans.keys())[0]
-        l = self.get_task(x, targets, l, self.soft)
+        l = self.get_task(x, targets, None, self.soft)
         cur_tasks.append(l)
         s, t = 0, 0
         val = 0
@@ -307,7 +319,7 @@ class RolloutServer(Server):
             self.policy_opt.read_shared_weights()
 
         self.agent.debug = False
-        prim_opts = self.agent.prob.get_prim_choices()
+        prim_opts = self.agent.prob.get_prim_choices(self.agent.task_list)
         n_targs = list(range(len(prim_opts[OBJ_ENUM])))
         res = []
         ns = [self.config['num_targs']]
@@ -324,7 +336,7 @@ class RolloutServer(Server):
             if self.agent.retime:
                 rlen = 5 + 6*n
             else:
-                rlen = 3*n
+                rlen = 2 + n * len(self.agent.task_list)
         self.agent.T = 20 # self.config['task_durations'][self.task_list[0]]
         val, path = self.test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], eta=eta, lab=-5)
         if not self.adj_eta:
@@ -475,12 +487,12 @@ class RolloutServer(Server):
         path = []
         val = 0
         nout = len(self.agent._hyperparams['prim_out_include'])
-        l = tuple(np.zeros(nout, dtype=np.int))
+        l = None
         t = 0
         if eta is not None: self.eta = eta 
         old_eta = self.eta
         debug = np.random.uniform() < 0.1
-        while t < max_t and val < 1-1e-2 and l is not None:
+        while t < max_t and val < 1-1e-2:
             l = self.get_task(state, targets, l, soft)
             if l is None: break
             plan = self.agent.plans[l]

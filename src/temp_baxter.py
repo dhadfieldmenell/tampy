@@ -2,6 +2,7 @@ import numpy as np
 import os
 import pybullet as P
 import sys
+import time
 
 from baxter_gym.envs import BaxterMJCEnv
 
@@ -84,6 +85,13 @@ config = {'include_items': items, 'view': view, 'timestep': 0.002, 'load_render'
 env = BaxterMJCEnv.load_config(config)
 env.set_item_pos('cloth0', plan.params['cloth0'].pose[:,0])
 env.set_arm_joint_angles(np.r_[baxter.right[:,0], baxter.left[:,0]])
+start_t = time.time()
+env.render(view=False, camera_id=1)
+print('Time to render:', time.time() - start_t)
+for i in range(10):
+    env.render(view=False, camera_id=1)
+    print('Time to render again:', time.time() - start_t, i)
+
 env.render(view=True, camera_id=1)
 import ipdb; ipdb.set_trace()
 nsteps = 5

@@ -194,7 +194,7 @@ class Robot(object):
         self.jnt_parents = {}
         self.bounds = {}
         cur_free = 0
-        n_decs = 4
+        n_decs = 6
         for i in range(p.getNumJoints(self.id)):
             jnt_info = p.getJointInfo(self.id, i)
             jnt_name = jnt_info[1].decode('utf-8')

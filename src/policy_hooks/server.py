@@ -46,6 +46,7 @@ class Server(object):
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
         self.agent.process_id = '{0}_{1}'.format(self.id, self.group_id)
         self.agent.solver = self.solver
+        self.map_cont_discr_tasks()
         self.prob = self.agent.prob
         self.solver.agent = self.agent
         
@@ -89,7 +90,9 @@ class Server(object):
         self.check_prim_t = hyperparams.get('check_prim_t', 1)
         self.init_policy_opt(hyperparams)
         self.agent.plans, self.agent.openrave_bodies, self.agent.env = self.agent.prob.get_plans(use_tf=True)
-        for plan in list(self.agent.plans.values()):
+        task_plans = list(self.agent.plans.items())
+        for task, plan in task_plans:
+            #self.agent.plans[task[0]] = plan
             plan.state_inds = self.agent.state_inds
             plan.action_inds = self.agent.action_inds
             plan.dX = self.agent.dX
@@ -97,10 +100,33 @@ class Server(object):
             plan.symbolic_bound = self.agent.symbolic_bound
             plan.target_dim = self.agent.target_dim
             plan.target_inds = self.agent.target_inds
+            for param in plan.params.values():
+                for attr in param.attrs:
+                    if (param.name, attr) not in plan.state_inds:
+                        if type(getattr(param, attr)) is not np.ndarray: continue
+                        val = getattr(param, attr)[:,0]
+                        if np.any(np.isnan(val)):
+                            getattr(param, attr)[:] = 0.
+                        else:
+                            getattr(param, attr)[:,:] = val.reshape((-1,1))
         self.expert_data_file = LOG_DIR+hyperparams['weight_dir']+'/'+str(self.id)+'_exp_data.npy'
         self.ff_data_file = LOG_DIR+hyperparams['weight_dir']+'/ff_samples_{0}_{1}.pkl'
         self.log_file = LOG_DIR + hyperparams['weight_dir'] + '/{0}_log.txt'.format(self.id)
         self.verbose_log_file = LOG_DIR + hyperparams['weight_dir'] + '/{0}_verbose.txt'.format(self.id)
+
+    
+    def map_cont_discr_tasks(self):
+        self.task_types = []
+        self.discrete_opts = []
+        self.continuous_opts = []
+        opts = self.agent.prob.get_prim_choices(self.agent.task_list)
+        for key, val in opts.items():
+            if hasattr(val, '__len__'):
+                self.task_types.append('discrete')
+                self.discrete_opts.append(key)
+            else:
+                self.task_types.append('continuous')
+                self.continuous_opts.append(key)
 
     
     def init_policy_opt(self, hyperparams):
@@ -155,7 +181,7 @@ class Server(object):
 
 
     def new_problem(self):
-        x0, targets = self.prob.get_random_initial_state_vec(self.config, None, self.agent.dX, self.agent.state_inds, 1)
+        x0, targets = self.prob.get_random_initial_state_vec(self.config, self.agent.plans, self.agent.dX, self.agent.state_inds, 1)
         x0, targets = x0[0], targets[0]
         target_vec = np.zeros(self.agent.target_dim)
         for (tname, attr), inds in self.agent.target_inds.items():
@@ -205,18 +231,21 @@ class Server(object):
     def primitive_call(self, prim_obs, soft=False, eta=1., t=-1, task=None):
         if self.adj_eta: eta *= self.agent.eta_scale
         distrs = self.policy_opt.task_distr(prim_obs, eta)
-        if task is not None and t % self.check_prim_t:
-            for i in range(len(distrs)):
-                distrs[i] = np.zeros_like(distrs[i])
-                distrs[i][task[i]] = 1.
-            return distrs
+        #if task is not None and t % self.check_prim_t:
+        #    for i in range(len(distrs)):
+        #        distrs[i] = np.zeros_like(distrs[i])
+        #        distrs[i][task[i]] = 1.
+        #    return distrs
         if not soft: return distrs
         out = []
-        for d in distrs:
-            p = d / np.sum(d)
-            ind = np.random.choice(list(range(len(d))), p=p)
-            d[ind] += 1e1
-            d /= np.sum(d)
+        enums = list(self.agent.prob.get_prim_choices(self.task_list).keys())
+        for ind, d in enumerate(distrs):
+            enum = enums[ind]
+            if enum in self.agent.discrete_opts:
+                p = d / np.sum(d)
+                ind = np.random.choice(list(range(len(d))), p=p)
+                d[ind] += 1e2
+                d /= np.sum(d)
             out.append(d)
         return out
 
@@ -303,11 +332,12 @@ class Server(object):
 
     def update_primitive(self, samples):
         dP, dO = self.agent.dPrimOut, self.agent.dPrim
-        dOpts = len(list(self.agent.prob.get_prim_choices().keys()))
+        dOpts = len(list(self.agent.prob.get_prim_choices(self.agent.task_list).keys()))
         ### Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dOpts)), np.zeros((0))
         tgt_aux = np.zeros((0))
+        opts = self.agent.prob.get_prim_choices(self.agent.task_list)
 
         if len(samples):
             lab = samples[0].source_label
@@ -332,7 +362,7 @@ class Server(object):
             if np.any(np.isnan(obs)):
                 print((obs, sample.task, 'SAMPLE'))
             obs_data = np.concatenate((obs_data, obs))
-            prc = np.concatenate([self.agent.get_mask(sample, enum) for enum in self.config['prim_out_include']], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
+            prc = np.concatenate([self.agent.get_mask(sample, enum) for enum in opts], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
             if not self.config['hl_mask']:
                 prc[:] = 1.
 
@@ -413,12 +443,16 @@ class Server(object):
                 ts_range = range(step.T)
             else:
                 ts_range = range(ts[0], ts[1])
+
             for t in ts_range:
-                if annotate:
-                    im = self.agent.get_annotated_image(step, t)
-                else:
-                    self.agent.target_vecs[0] = step.targets
-                    im = self.agent.get_image(step.get_X(t=t))
+                ims = []
+                for ind, cam_id in enumerate(self.config.get('visual_cameras', [None])):
+                    if annotate and ind == 0:
+                        ims.append(self.agent.get_annotated_image(step, t, cam_id=cam_id))
+                    else:
+                        self.agent.target_vecs[0] = step.targets
+                        ims.append(self.agent.get_image(step.get_X(t=t), cam_id=cam_id))
+                im = np.concatenate(ims, axis=1)
                 buf.append(im)
         np.save(fname, np.array(buf))
 

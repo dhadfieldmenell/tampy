@@ -106,12 +106,28 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
 # Information is track by the environment
     x0s = []
     targ_maps = []
+    robot = list(plans.values())[0].params['baxter']
+    body = robot.openrave_body
     for i in range(conditions):
         x0 = np.zeros((dX,))
 
+        ee_sol = None
+        quat = (0,1,0,0)
+        while ee_sol is None:
+            ee_x = np.random.uniform(0.2, 0.8)
+            ee_y = np.random.uniform(0.2, 0.8)
+            ee_z = np.random.uniform(0.15, 0.45)
+            body.set_dof({'left': np.zeros(7)})
+            ee_sol = body.get_ik_from_pose((ee_x, ee_y, ee_z), quat, 'left')
+            ee_info = body.fwd_kinematics('left', dof_map={'left': ee_sol})
+            if np.any(np.abs(np.array(ee_info['quat']) - np.array(quat)) > 1e-2):
+                ee_sol = None
+
+        x0[state_inds['baxter', 'left']] = ee_sol
+        x0[state_inds['baxter', 'left_ee_pos']] = ee_info['pos']
         can_locs = copy.deepcopy(possible_can_locs)
         locs = []
-        spacing = 0.2
+        spacing = 0.04
         valid = [1 for _ in range(len(can_locs))]
         while len(locs) < NUM_OBJS:
             locs = []
@@ -129,7 +145,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
                         break
             spacing -= 0.01
 
-        spacing = 0.2
+        spacing = 0.04
         targs = []
         can_targs = [can_locs[i] for i in range(len(can_locs)) if (valid[i] or not NO_COL)]
         old_valid = copy.copy(valid)
@@ -158,12 +174,13 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
             locs[l] = np.array(locs[l])
 
         x0[state_inds['table', 'pose']] = TABLE_INIT
-        x0[state_inds['baxter', 'left']] = L_ARM_INIT
+        #x0[state_inds['baxter', 'left']] = L_ARM_INIT
         x0[state_inds['baxter', 'right']] = R_ARM_INIT
-        x0[state_inds['baxter', 'left_ee_pos']] = LEFT_INIT_EE
+        #x0[state_inds['baxter', 'left_ee_pos']] = LEFT_INIT_EE
         x0[state_inds['baxter', 'right_ee_pos']] = RIGHT_INIT_EE
         x0[state_inds['baxter', 'left_gripper']] = 0.02
         x0[state_inds['baxter', 'right_gripper']] = 0.02
+        x0 = x0.round(4)
 
         for o in range(NUM_OBJS):
             x0[state_inds['cloth{0}'.format(o), 'pose']] = locs[o]

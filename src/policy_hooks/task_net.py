@@ -1,5 +1,5 @@
 import tensorflow as tf
-from gps.algorithm.policy_opt.tf_utils import TfMap
+from policy_hooks.utils.tf_utils import TfMap
 import numpy as np
 from copy import copy
 
@@ -24,8 +24,11 @@ def euclidean_loss_layer(a, b, precision, batch_size):
     """ Math:  out = (action - mlp_out)'*precision*(action-mlp_out)
                     = (u-uhat)'*A*(u-uhat)"""
     scale_factor = tf.constant(2*batch_size, dtype='float')
-    uP = batched_matrix_vector_multiply(a-b, precision)
-    uPu = tf.reduce_sum(uP*(a-b))  # this last dot product is then summed, so we just the sum all at once.
+    if precision is None:
+        uPu = tf.reduce_sum((a-b)**2)
+    else:
+        uP = batched_matrix_vector_multiply(a-b, precision)
+        uPu = tf.reduce_sum(uP*(a-b))  # this last dot product is then summed, so we just the sum all at once.
     return uPu/scale_factor
 
 
@@ -64,14 +67,24 @@ def multi_softmax_loss_layer(labels, logits, boundaries, precision=None, scalar=
     return stacked_loss # tf.reduce_sum(stacked_loss, axis=0)
 
 
-def multi_mix_loss_layer(labels, logits, boundaries):
+def multi_mix_loss_layer(labels, logits, boundaries, types, batch_size, precision=None, scalar=True, scope=''):
     start = 0
     losses = []
-    for start, end in boundaries:
-        losses.append(tf.losses.softmax_cross_entropy(onehot_labels=labels[:,start:end], logits=logits[:, start:end]))
-    losses.append(tf.nn.l2(onehot_labels=labels[:,end:], logits=logits[:, end:]))
-    stacked_loss = tf.stack(losses, axis=0, name='softmax_loss_stack')
-    return tf.reduce_sum(stacked_loss, axis=0)
+    for i, (start, end) in enumerate(boundaries):
+        if not len(types) or (i < len(types) and types[i] is 'discrete'):
+            loss = tf.losses.softmax_cross_entropy(onehot_labels=labels[:,start:end], logits=logits[:, start:end], reduction=tf.losses.Reduction.NONE)
+            if precision is not None:
+                loss *= precision[:, i] / (1+tf.reduce_mean(precision[:,i]))
+        else:
+            loss = euclidean_loss_layer(labels, logits, precision, batch_size)
+
+        # loss /= float(end - start)
+        # losses.append(tf.reduce_mean(loss, axis=0))
+        losses.append(loss)
+    stacked_loss = tf.stack(losses, axis=0, name='loss_stack'+scope)
+    if scalar:
+        stacked_loss = tf.reduce_mean(stacked_loss, axis=1)
+    return stacked_loss # tf.reduce_sum(stacked_loss, axis=0)
 
 
 def sotfmax_prediction_layer(logits):
@@ -87,14 +100,16 @@ def multi_sotfmax_prediction_layer(logits, boundaries):
     return tf.concat(predictions, axis=1, name='multi_softmax_layer')
 
 
-def multi_mix_prediction_layer(logits, boundaries):
+def multi_mix_prediction_layer(logits, boundaries, types=[]):
     start = 0
     predictions = []
     for i in range(len(boundaries)):
         start, end = boundaries[i]
-        predictions.append(tf.nn.softmax(logits[:,start:end], name="softmax_layer_{0}".format(i)))
-    predictions.append(logits[:,end:], name="euc_layer")
-    return tf.concat(predictions, axis=1, name='multi_softmax_layer')
+        if not len(types) or (i < len(types) and types[i] is 'discrete'):
+            predictions.append(tf.nn.softmax(logits[:,start:end], name="softmax_layer_{0}".format(i)))
+        else:
+            predictions.append(logits[:,start:end])
+    return tf.concat(predictions, axis=1, name='multi_pred_layer')
 
 
 def get_input_layer(dim_input, dim_output, ndims=1):
@@ -136,14 +151,15 @@ def get_sigmoid_loss_layer(mlp_out, labels):
     return tf.nn.sigmoid_cross_entropy_with_logits(labels=labels, logits=mlp_out, name='sigmoid_loss')
 
 
-def get_loss_layer(mlp_out, task, boundaries, precision=None, scalar=True, scope=''):
+def get_loss_layer(mlp_out, task, boundaries, batch_size, types=[], precision=None, scalar=True, scope=''):
     """The loss layer used for the MLP network is obtained through this class."""
-    return multi_softmax_loss_layer(labels=task, logits=mlp_out, boundaries=boundaries, precision=precision, scalar=scalar, scope=scope)
+    return multi_mix_loss_layer(labels=task, logits=mlp_out, boundaries=boundaries, types=types, batch_size=batch_size, precision=precision, scalar=scalar, scope=scope)
 
 
 def tf_classification_network(dim_input=27, dim_output=2, batch_size=25, network_config=None, input_layer=None, eta=None):
     n_layers = 2 if 'n_layers' not in network_config else network_config['n_layers'] + 1
     boundaries = network_config.get('output_boundaries', [(0, dim_output)])
+    types = network_config.get('types', [])
     dim_hidden = network_config.get('dim_hidden', 40)
     if type(dim_hidden) is int:
         dim_hidden = (n_layers - 1) * [dim_hidden]
@@ -160,9 +176,9 @@ def tf_classification_network(dim_input=27, dim_output=2, batch_size=25, network
     scaled_mlp_applied = mlp_applied
     if eta is not None:
         scaled_mlp_applied = mlp_applied * eta
-    prediction = multi_sotfmax_prediction_layer(scaled_mlp_applied, boundaries)
+    prediction = multi_mix_prediction_layer(scaled_mlp_applied, boundaries, types=types)
     fc_vars = weights_FC + biases_FC
-    loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, precision=precision)
+    loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, batch_size=batch_size, precision=precision, types=types)
     return TfMap.init_from_lists([fc_input, action, precision], [prediction], [loss_out]), fc_vars, []
 
 
@@ -387,7 +403,7 @@ def multi_modal_class_network(dim_input=27, dim_output=2, batch_size=25, network
     if eta is not None:
         scaled_mlp_applied = fc_output * eta
     prediction = multi_sotfmax_prediction_layer(scaled_mlp_applied, boundaries)
-    loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, precision=precision)
+    loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, batch_size=batch_size, precision=precision)
     return TfMap.init_from_lists([nn_input, action, precision], [prediction], [loss_out]), fc_vars, last_conv_vars
 
 
@@ -412,8 +428,12 @@ def fp_multi_modal_class_network(dim_input=27, dim_output=2, batch_size=25, netw
         dim_hidden = (n_layers - 1) * [dim_hidden]
     else:
         dim_hidden = copy(dim_hidden)
-    dim_hidden.append(dim_output)
     boundaries = network_config['output_boundaries']
+    dim_act = max([b[1] for b in boundaries])
+    dim_hidden.append(dim_act)
+    types = network_config.get('types', [])
+    aux_boundaries = network_config.get('aux_boundaries', [])
+    aux_types = network_config.get('aux_types', ['cont'])
 
     # List of indices for state (vector) data and image (tensor) data in observation.
     x_idx, img_idx, i = [], [], 0
@@ -493,16 +513,46 @@ def fp_multi_modal_class_network(dim_input=27, dim_output=2, batch_size=25, netw
 
     fc_input = tf.concat(axis=1, values=[fp, state_input])
 
-    fc_output, weights_FC, biases_FC = get_mlp_layers(fc_input, n_layers, dim_hidden)
-    fc_vars = weights_FC + biases_FC
+    last_conv_vars = fc_input
+    losses = []
+    preds = []
+    fc_vars = []
+    offset = 0
+    if len(aux_boundaries):
+        base = aux_boundaries[0][0]
+        dout = aux_boundaries[-1][-1] - aux_boundaries[0][0]
+        fc_output, weights_FC, biases_FC = get_mlp_layers(fc_input, n_layers, dim_hidden[:-1]+[dout], offset=offset)
+        offset += n_layers
+        fc_vars += weights_FC + biases_FC
+        scaled_mlp_applied = fc_output
+        for ind, (lb, ub) in enumerate(aux_boundaries):
+            if ind < len(aux_types) and aux_types[ind] is 'discrete':
+                if eta is not None:
+                    scaled_mlp_applied = fc_output * eta
+                preds.append(sotfmax_prediction_layer(scaled_mlp_applied[:, lb-base:ub-base]))
+                losses.append(softmax_loss_layer(action[:,lb:ub], scaled_mlp_applied[:,lb-base:ub-base]))
+            else:
+                preds.append(fc_output[:, lb-base:ub-base])
+                losses.append(euclidean_loss_layer(scaled_mlp_applied[:, lb-base:ub-base], action[:,lb:ub], None, batch_size))
+
+        if network_config.get('stop_aux', True):
+            fc_input = tf.concat(axis=1, values=[tf.stop_gradient(fc_output), fc_input])
+        else:
+            fc_input = tf.concat(axis=1, values=[fc_output, fc_input])
+
+        losses = [tf.reduce_sum(losses)]
+
+    fc_output, weights_FC, biases_FC = get_mlp_layers(fc_input, n_layers, dim_hidden, offset=offset)
+    fc_vars += weights_FC + biases_FC
     last_conv_vars = fc_input
 
     scaled_mlp_applied = fc_output
     if eta is not None:
         scaled_mlp_applied = fc_output * eta
-    prediction = multi_sotfmax_prediction_layer(scaled_mlp_applied, boundaries)
-    loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, precision=precision)
-    return TfMap.init_from_lists([nn_input, action, precision], [prediction], [loss_out]), fc_vars, last_conv_vars
+    preds = [multi_mix_prediction_layer(scaled_mlp_applied, boundaries)] + preds
+    loss = get_loss_layer(mlp_out=scaled_mlp_applied, task=action[:,:dim_hidden[-1]], boundaries=boundaries, batch_size=batch_size, precision=precision, types=types)
+    losses = [loss] + losses
+    return TfMap.init_from_lists([nn_input, action, precision], preds, losses), fc_vars, last_conv_vars
 
 
 def conv2d(img, w, b, strides=[1, 1, 1, 1]):

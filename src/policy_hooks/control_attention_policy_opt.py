@@ -49,11 +49,11 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         if self._hyperparams.get('share_buffer', False):
             self.buffers = self._hyperparams['buffers']
             self.buf_sizes = self._hyperparams['buffer_sizes']
-        self._dPrim = primBounds[-1][-1]
+        auxBounds = self._hyperparams.get('aux_boundaries', [])
+        self._dPrim = max([b[1] for b in primBounds] + [b[1] for b in auxBounds])# primBounds[-1][-1]
         self._dPrimObs = dPrimObs
         self._dValObs = dValObs
         self._primBounds = primBounds
-        self._nacts = self._hyperparams['nacts']
         self.task_map = {}
         self.device_string = "/cpu:0"
         if self._hyperparams['use_gpu'] == 1:
@@ -290,6 +290,28 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             self.cur_hllr *= self.lr_scale
 
 
+    def _create_network(self, name, info):
+        with tf.variable_scope(name):
+            self.etas[name] = tf.placeholder_with_default(1., shape=())
+            tf_map_generator = info['network_model']
+            info['network_params']['eta'] = self.etas[name]
+            #self.class_tensors[name] = tf.placeholder(shape=[None, 1], dtype='float32')
+            tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=info['dO'], \
+                                                               dim_output=info['dOut'], \
+                                                               batch_size=info['batch_size'], \
+                                                               network_config=info['network_params'], \
+                                                               input_layer=info['input_layer'])
+
+            self.obs_tensors[name] = tf_map.get_input_tensor()
+            self.precision_tensors[name] = tf_map.get_precision_tensor()
+            self.action_tensors[name] = tf_map.get_target_output_tensor()
+            self.act_ops[name] = tf_map.get_output_op()
+            self.feat_ops[name] = tf_map.get_feature_op()
+            self.loss_scalars[name] = tf_map.get_loss_op()
+            self.fc_vars[name] = fc_vars
+            self.last_conv_vars[name] = last_conv_vars
+
+
     def init_network(self):
         """ Helper method to initialize the tf networks used """
 
@@ -325,7 +347,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 self.primitive_last_conv_vars = last_conv_vars
 
                 # Setup the gradients
-                self.primitive_grads = [tf.gradients(self.primitive_act_op[:,u], self.primitive_obs_tensor)[0] for u in range(self._dPrim)]
+                #self.primitive_grads = [tf.gradients(self.primitive_act_op[:,u], self.primitive_obs_tensor)[0] for u in range(self._dPrim)]
 
         for scope in self.valid_scopes:
             if self.scope is None or scope == self.scope:
@@ -347,7 +369,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                     self.task_map[scope]['last_conv_vars'] = last_conv_vars
 
                     # Setup the gradients
-                    self.task_map[scope]['grads'] = [tf.gradients(self.task_map[scope]['act_op'][:,u], self.task_map[scope]['obs_tensor'])[0] for u in range(self._dU)]
+                    #self.task_map[scope]['grads'] = [tf.gradients(self.task_map[scope]['act_op'][:,u], self.task_map[scope]['obs_tensor'])[0] for u in range(self._dU)]
 
 
     def init_solver(self):
@@ -414,7 +436,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             for bound in self._primBounds:
                 labels.append(tgt_mu[n, bound[0]:bound[1]])
             accs = []
-            for i in range(len(distrs)):
+            for i in range(len(labels)):
                 #if prc[n][i] < 1e-3 or np.abs(np.max(labels[i])-np.min(labels[i])) < 1e-2:
                 #    accs.append(1)
                 #    continue
@@ -438,7 +460,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         if len(obs.shape) < 2:
             obs = obs.reshape(1, -1)
         with tf.device(self.device_string):
-            distr = self.sess.run(self.primitive_act_op, feed_dict={self.primitive_obs_tensor:obs, self.primitive_eta: eta}).flatten()
+            distr = self.sess.run(self.primitive_act_op, feed_dict={self.primitive_obs_tensor:obs, self.primitive_eta: eta})[0].flatten()
         res = []
         for bound in self._primBounds:
             res.append(distr[bound[0]:bound[1]])
@@ -465,12 +487,12 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 feed_dict = {self.primitive_obs_tensor: obs,
                              self.primitive_action_tensor: tgt_mu,
                              self.primitive_precision_tensor: tgt_prc}
-                val_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, train=False)
+                val_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, train=False)[0]
             else:
                 feed_dict = {self.task_map[task]['obs_tensor']: obs,
                              self.task_map[task]['action_tensor']: tgt_mu,
                              self.task_map[task]['precision_tensor']: tgt_prc}
-                val_loss = self.task_map[task]['solver'](feed_dict, self.sess, device_string=self.device_string, train=False)
+                val_loss = self.task_map[task]['solver'](feed_dict, self.sess, device_string=self.device_string, train=False)[0]
         self.average_val_losses.append(val_loss)
         return val_loss
 
@@ -482,7 +504,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             for i in range(self._hyperparams['iterations']):
                 feed_dict = {self.hllr_tensor: self.cur_hllr} if task == 'primitive' else {self.lr_tensor: self.cur_lr}
                 solver = self.primitive_solver if task == 'primitive' else self.task_map[task]['solver']
-                train_loss = solver(feed_dict, self.sess, device_string=self.device_string, train=True)
+                train_loss = solver(feed_dict, self.sess, device_string=self.device_string, train=True)[0]
                 average_loss += train_loss
         self.tf_iter += self._hyperparams['iterations']
         self.average_losses.append(average_loss / self._hyperparams['iterations'])
@@ -510,7 +532,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             A tensorflow object with updated weights.
         """
         N = obs.shape[0]
-        dP, dO = self._dPrim, self._dPrimObs
 
         #tgt_wt *= (float(N) / np.sum(tgt_wt))
         # Allow weights to be at most twice the robust median.
@@ -521,8 +542,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         # tgt_wt /= mn
 
         # Reshape inputs.
-        obs = np.reshape(obs, (N, dO))
-        tgt_mu = np.reshape(tgt_mu, (N, dP))
+        obs = np.reshape(obs, (N, -1))
+        tgt_mu = np.reshape(tgt_mu, (N, -1))
 
         '''
         tgt_prc = np.reshape(tgt_prc, (N, dP, dP))
@@ -572,7 +593,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                          self.hllr_tensor: self.cur_hllr}
             if len(aux) and self.primitive_class_tensor is not None:
                 feed_dict[self.primitive_class_tensor] = aux[idx_i]
-            train_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, train=(not check_val))
+            train_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, train=(not check_val))[0]
 
             average_loss += train_loss
 

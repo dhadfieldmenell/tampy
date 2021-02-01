@@ -81,6 +81,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.target_vecs = []
         self.master_config = hyperparams['master_config']
         self.view = hyperparams['master_config'].get('view', False)
+        self.camera_id = 0
         self.rank = hyperparams['master_config'].get('rank', 0)
         self.process_id = self.master_config['id']
         self.goal_type = self.master_config.get('goal_type', 'default')
@@ -92,10 +93,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             self.target_vecs.append(target_vec)
         self.cur_state = self.x0[0]
         self.goals = self.target_vecs
-        self.task_to_onehot = {}
-        for i, task in enumerate(self.plans.keys()):
-            self.task_to_onehot[i] = task
-            self.task_to_onehot[task] = i
+        #self.task_to_onehot = {}
+        #for i, task in enumerate(self.plans.keys()):
+        #    self.task_to_onehot[i] = task
+        #    self.task_to_onehot[task] = i
         self.sensor_dims = self._hyperparams['sensor_dims']
         self.discrete_prim = self._hyperparams.get('discrete_prim', True)
 
@@ -109,7 +110,9 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self._task_done = 0.
         self.current_cond = 0
         opts = self._hyperparams['prob'].get_prim_choices(self.task_list)
-        self.label_options = list(itertools.product(*[list(range(len(opts[e]))) for e in opts])) # range(self.num_tasks), *[range(n) for n in self.num_prims]))
+        self.discrete_opts = [enum for enum, enum_opts in opts.items() if hasattr(enum_opts, '__len__')]
+        self.continuous_opts = [enum for enum, enum_opts in opts.items() if not hasattr(enum_opts, '__len__')]
+        #self.label_options = list(itertools.product(*[list(range(len(opts[e]))) for e in opts])) # range(self.num_tasks), *[range(n) for n in self.num_prims]))
         self.hist_len = self._hyperparams['hist_len']
         self.task_hist_len = self._hyperparams['master_config'].get('task_hist_len', 0)
         self.traj_hist = None
@@ -386,11 +389,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
 
     @abstractmethod
-    def encode_action(self, action):
-        raise NotImplementedError
-
-
-    @abstractmethod
     def reset(self, m):
         raise NotImplementedError
 
@@ -503,7 +501,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             self.replace_cond(c, curric_step)
 
     def replace_cond(self, cond, curric_step=-1):
-        self.init_vecs[cond], self.targets[cond] = self.prob.get_random_initial_state_vec(self.config, self.targets, self.dX, self.state_inds, 1)
+        self.init_vecs[cond], self.targets[cond] = self.prob.get_random_initial_state_vec(self.config, self.plans, self.dX, self.state_inds, 1)
         self.init_vecs[cond], self.targets[cond] = self.init_vecs[cond][0], self.targets[cond][0]
         self.x0[cond] = self.init_vecs[cond][:self.symbolic_bound]
         self.target_vecs[cond] = np.zeros((self.target_dim,))
@@ -722,7 +720,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 break
 
         for enum in prim_choices:
-            if enum is TASK_ENUM: continue
+            if enum is TASK_ENUM or not hasattr(prim_choices[enum], '__len__'): continue
             l.append(-1)
             for act in [action, next_act]:
                 for i, opt in enumerate(prim_choices[enum]):
@@ -736,7 +734,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
     def encode_plan(self, plan, permute=False):
         encoded = []
-        prim_choices = self.prob.get_prim_choices(self.task_list)
         for a in plan.actions:
             encoded.append(self.encode_action(a))
         encoded = [tuple(l) for l in encoded]
@@ -883,7 +880,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             path[-1].task_end = True
             path[-1].set(TASK_DONE_ENUM, np.array([0, 1]), t=path[-1].T-1)
             if nzero > 0:
-                zero_sample = self.sample_optimal_trajectory(path[-1].end_state, task, 0, opt_traj[-1:], targets=targets)
+                zero_traj = np.tile(opt_traj[-1], [nzero, 1])
+                zero_sample = self.sample_optimal_trajectory(path[-1].end_state, task, 0, zero_traj, targets=targets)
                 zero_sample.use_ts[:] = 0.
                 zero_sample.use_ts[:nzero] = 1.
                 zero_sample.prim_use_ts[:] = 0.
@@ -904,8 +902,11 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         if len(path):
             for s in path:
                 cost = self.postcond_cost(s, s.task, s.T-1)
-                if cost < 1e-3:
+                if path[-1].success > 0.99 or cost < 1e-3:
                     self.optimal_samples[self.task_list[s.task[0]]].append(s)
+                elif path[-1].success > 0.99:
+                    preds = self._failed_preds(s.get_X(s.T-1),task, 0, active_ts=(-1,-1))
+                    print('Failed to add sample from successful path. Post cost:', cost, 'Task:', s.task, preds)
         print(('Plans run vs. success:', self.n_plans_run, self.n_plans_suc_run, self.process_id))
         return path
 
@@ -1022,6 +1023,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
         if active_ts == None:
             active_ts = (1, plan.horizon-1)
+        elif active_ts[0] == -1:
+            active_ts = (plan.horizon-1, plan.horizon-1)
 
         failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
         failed_preds = [p for p in failed_preds if not type(p[1].expr) is EqExpr]
@@ -1047,8 +1050,12 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                     viol = failed[1].check_pred_violation(t, negated=failed[0], tol=1e-3)
                     if viol is not None:
                         cost += np.max(viol)
+                    if np.any(np.isnan(viol)):
+                        print('Nan in failed pred check', failed, 'ts:', t, 'task:', task, 'viol:', viol)
+                        print(failed[1].get_param_vector(t), failed)
+
                 except Exception as e:
-                    print('Exception in cost check')
+                    print('Exception in cost check for', failed, 'with viol', viol)
                     print(e)
                     cost += 1e1
 
@@ -1066,19 +1073,21 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return pol
 
 
-    def get_annotated_image(self, s, t):
+    def get_annotated_image(self, s, t, cam_id=None):
+        if cam_id is None: cam_id = self.camera_id
         x = s.get_X(t=t)
         task = s.get(FACTOREDTASK_ENUM, t=t)
         u = s.get(ACTION_ENUM, t=t)
         textover = self.mjc_env.get_text_overlay(body='Task: {0}'.format(task))
         self.reset_to_state(x)
-        im = self.mjc_env.render(camera_id=0, height=self.image_height, width=self.image_width, view=False, overlays=(textover,))
+        im = self.mjc_env.render(camera_id=self.camera_id, height=self.image_height, width=self.image_width, view=False, overlays=(textover,))
         return im
 
 
-    def get_image(self, x, depth=False):
+    def get_image(self, x, depth=False, cam_id=None):
         self.reset_to_state(x)
-        im = self.mjc_env.render(camera_id=0, height=self.image_height, width=self.image_width, view=False, depth=depth)
+        if cam_id is None: cam_id = self.camera_id
+        im = self.mjc_env.render(camera_id=cam_id, height=self.image_height, width=self.image_width, view=False, depth=depth)
         return im
 
     

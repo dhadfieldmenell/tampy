@@ -90,18 +90,23 @@ def load_agent(config):
     prim_bounds = []
     prim_dims = OrderedDict({})
     config['prim_dims'] = prim_dims
-    options = prob.get_prim_choices()
-    nacts = np.prod([len(options[e]) for e in options])
+    options = prob.get_prim_choices(task_list)
     ind = len(task_list)
     prim_bounds.append((0, ind))
     for enum in options:
         if enum == utils.TASK_ENUM: continue
-        n_options = len(options[enum])
+        if hasattr(options[enum], '__len__'):
+            n_options = len(options[enum])
+        else:
+            n_options = options[enum]
+
         next_ind = ind+n_options
         prim_dims[enum] = n_options
         ind = next_ind
+
     for enum in prim_dims:
         sensor_dims[enum] = prim_dims[enum]
+
     ind = 0
     prim_bounds = []
     if config.get('onehot_task', False):
@@ -111,13 +116,26 @@ def load_agent(config):
     else:
         prim_bounds.append((0, len(task_list)))
         ind = len(task_list)
-        for enum in config['prim_out_include']:
+        for enum in options:
             if enum == utils.TASK_ENUM: continue
-            prim_bounds.append((ind, ind+prim_dims[enum]))
-            ind += prim_dims[enum]
+            prim_bounds.append((ind, ind+sensor_dims[enum]))
+            ind += sensor_dims[enum]
+
+        for enum in config['prim_out_include']:
+            if enum == utils.TASK_ENUM or enum in options: continue
+            prim_bounds.append((ind, ind+sensor_dims[enum]))
+            ind += sensor_dims[enum]
+
     sensor_dims[utils.TASK_HIST_ENUM] = int(config['task_hist_len'] * ind)
+
+    aux_bounds = []
+    if len(prim_bounds) > len(options.keys()):
+        aux_bounds = prim_bounds[len(options.keys()):]
+        prim_bounds = prim_bounds[:len(options.keys())]
+
     config['prim_bounds'] = prim_bounds
     config['prim_dims'] = prim_dims
+    config['aux_bounds'] = aux_bounds
 
     config['target_f'] = None # prob.get_next_target
     config['encode_f'] = None # prob.sorting_state_encode

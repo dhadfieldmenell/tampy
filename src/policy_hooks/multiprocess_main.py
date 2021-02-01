@@ -95,33 +95,6 @@ class MultiProcessMain(object):
             plan.symbolic_bound = self.symbolic_bound
             plan.target_dim = self.target_dim
             plan.target_inds = self.target_inds
-        self.prim_bounds = []
-        self.prim_dims = OrderedDict({})
-        self.config['prim_dims'] = self.prim_dims
-        options = prob.get_prim_choices()
-        self.nacts = np.prod([len(options[e]) for e in options])
-        ind = len(self.task_list)
-        self.prim_bounds.append((0, ind))
-        for enum in options:
-            if enum == utils.TASK_ENUM: continue
-            n_options = len(options[enum])
-            next_ind = ind+n_options
-            self.prim_dims[enum] = n_options
-            ind = next_ind
-        ind = 0
-        self.prim_bounds = []
-        if self.config.get('onehot_task', False):
-            self.config['prim_out_include'] = [utils.ONEHOT_TASK_ENUM]
-            self.prim_bounds.append((0, len(list(plans.keys()))))
-        else:
-            self.prim_bounds.append((0, len(self.task_list)))
-            ind = len(self.task_list)
-            for enum in self.config['prim_out_include']:
-                if enum == utils.TASK_ENUM: continue
-                self.prim_bounds.append((ind, ind+self.prim_dims[enum]))
-                ind += self.prim_dims[enum]
-        self.config['prim_bounds'] = self.prim_bounds
-        self.config['prim_dims'] = self.prim_dims
         self.config['target_f'] = None # prob.get_next_target
         self.config['encode_f'] = None # prob.sorting_state_encode
 
@@ -151,7 +124,7 @@ class MultiProcessMain(object):
         for condition in range(len(self.agent.x0)):
             self.mcts.append(MCTS(
                                   self.task_list,
-                                  self.prim_dims,
+                                  self.config['agent']['prim_dims'],
                                   None,
                                   None,
                                   None,
@@ -173,6 +146,7 @@ class MultiProcessMain(object):
                                   ff_thresh=1.,#self.config.get('ff_thresh', 0),
                                   eta=self.config.get('eta', 1.),
                                   ))
+        self._map_cont_discr_tasks()
         self._set_alg_config()
         self.config['mcts'] = self.mcts
         # self.config['agent'] = self.agent
@@ -182,7 +156,7 @@ class MultiProcessMain(object):
         self.config['symbolic_bound'] = self.symbolic_bound
         self.config['dO'] = self.agent.dO
         self.config['dPrimObs'] = self.agent.dPrim
-        self.config['dValObs'] = self.agent.dVal + np.sum([len(options[e]) for e in options])
+        self.config['dValObs'] = self.agent.dVal #+ np.sum([len(options[e]) for e in options])
         self.config['dPrimOut'] = self.agent.dPrimOut
         self.config['state_inds'] = self.state_inds
         self.config['action_inds'] = self.action_inds
@@ -191,12 +165,26 @@ class MultiProcessMain(object):
         self.config['target_inds'] = self.target_inds
         self.config['target_dim'] = self.target_dim
         self.config['task_list'] = self.task_list
-        self.config['time_log'] = 'tf_saved/'+self.config['weight_dir']+'/timing_info.txt'
+        self.config['time_log'] = 'experiment_logs/'+self.config['weight_dir']+'/timing_info.txt'
         self.config['time_limit'] = time_limit
         self.config['start_t'] = time.time()
 
         self.roscore = None
         self.processes = []
+
+
+    def _map_cont_discr_tasks(self):
+        self.task_types = []
+        self.discrete_opts = []
+        self.continuous_opts = []
+        opts = self.agent.prob.get_prim_choices(self.agent.task_list)
+        for key, val in opts.items():
+            if hasattr(val, '__len__'):
+                self.task_types.append('discrete')
+                self.discrete_opts.append(key)
+            else:
+                self.task_types.append('continuous')
+                self.continuous_opts.append(key)
 
 
     def _set_alg_config(self):
@@ -241,7 +229,6 @@ class MultiProcessMain(object):
 
         self.config['algorithm']['policy_opt'] = {
             'q_imwt': self.config.get('q_imwt', 0),
-            'nacts': self.nacts,
             'll_policy': self.config.get('ll_policy', ''),
             'hl_policy': self.config.get('hl_policy', ''),
             'type': ControlAttentionPolicyOpt,
@@ -269,8 +256,11 @@ class MultiProcessMain(object):
                 'num_filters': [32, 32, 8],
                 'filter_sizes': [8, 6, 4],
                 'dim_hidden': self.config['prim_dim_hidden'],
-                'output_boundaries': self.prim_bounds,
+                'output_boundaries': self.config['prim_bounds'],
+                'aux_boundaries': self.config['aux_bounds'],
+                'types': self.task_types,
             },
+            'aux_boundaries': self.config['aux_bounds'],
             'lr': self.config['lr'],
             'hllr': self.config['hllr'],
             'network_model': tf_network,
@@ -473,13 +463,14 @@ class MultiProcessMain(object):
         hyperparams['load_render'] = True
         hyperparams['agent']['image_height']  = 256
         hyperparams['agent']['image_width']  = 256
+        hyperparams['visual_cameras'] = [1,3]
         descr = hyperparams.get('descr', '')
         # hyperparams['weight_dir'] = hyperparams['weight_dir'].replace('exp_id0', 'rerun_{0}'.format(descr))
         hyperparams['id'] = 'test'
         self.allocate_shared_buffers(hyperparams)
         self.allocate_queues(hyperparams)
         server = RolloutServer(hyperparams)
-        newdir = 'tf_saved/'+hyperparams['weight_dir'].replace('exp_id0', 'rerun_{0}'.format(descr))
+        newdir = 'experiment_logs/'+hyperparams['weight_dir'].replace('exp_id0', 'rerun_{0}'.format(descr))
         if not os.path.isdir(newdir):
             os.mkdir(newdir)
         server.hl_test_log = newdir + '/hl_test_rerun_log.npy'
@@ -539,8 +530,8 @@ class MultiProcessMain(object):
             if p.is_alive(): p.terminate()
 
     def check_dirs(self):
-        if not os.path.exists('tf_saved/'+self.config['weight_dir']):
-            os.makedirs('tf_saved/'+self.config['weight_dir'])
+        if not os.path.exists('experiment_logs/'+self.config['weight_dir']):
+            os.makedirs('experiment_logs/'+self.config['weight_dir'])
         #if not os.path.exists('tf_saved/'+self.config['weight_dir']+'_trained'):
         #    os.makedirs('tf_saved/'+self.config['weight_dir']+'_trained')
 

@@ -3,6 +3,7 @@ from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes import robot_predicates
 from core.util_classes.items import Item
 from core.util_classes.robots import Robot
+import core.util_classes.transform_utils as T
 
 from core.util_classes.openrave_body import USE_OPENRAVE
 from functools import reduce
@@ -1369,7 +1370,7 @@ def test_resample_order(attr_inds, res):
 
 
 #@profile
-def resample_eereachable(pred, negated, t, plan):
+def resample_eereachable(pred, negated, t, plan, inv=False):
     attr_inds, res = OrderedDict(), OrderedDict()
     robot, robot_body = pred.robot, pred._param_to_body[pred.robot]
     if hasattr(pred, 'obj'):

@@ -364,6 +364,8 @@ class CollisionPredicate(RobotPredicate):
     #@profile
     def robot_obj_collision(self, x):
         # Parse the pose value
+        if np.any(np.isnan(x)):
+            x[np.isnan(x)] = 0.
         self._plot_handles = []
         flattened = tuple(x.flatten())
         # cache prevents plotting
@@ -380,12 +382,16 @@ class CollisionPredicate(RobotPredicate):
         pos_inds, rot_inds = self.attr_map[obj, 'pose'], self.attr_map[obj, 'rotation']
         can_pos, can_rot = x[pos_inds], x[rot_inds]
         obj_body.set_pose(can_pos, can_rot)
+        obj_body._pos = can_pos.flatten() 
+        obj_body._orn = can_rot.flatten()
 
         collisions = p.getClosestPoints(robot_body.body_id, obj_body.body_id, const.MAX_CONTACT_DISTANCE)
         # Calculate value and jacobian
         col_val, col_jac = self._calc_grad_and_val(robot_body, obj_body, collisions)
         # self._cache[flattened] = (col_val.copy(), col_jac.copy())
         # print "col_val", np.max(col_val)
+        obj_body._pos = None
+        obj_body._orn = None
         return col_val, col_jac
 
     #@profile
@@ -459,7 +465,10 @@ class CollisionPredicate(RobotPredicate):
         obj = self.params[self.ind1]
         col_links = robot.geom.col_links
         obj_links = obj.geom.col_links
-        pos, orn = obj_body.current_pose()
+        if hasattr(obj_body, '_pos') and obj_body._pos is not None:
+            pos, orn = obj_body._pos, obj_body._orn
+        else:
+            pos, orn = obj_body.current_pose()
         pos, orn = np.array(pos), np.array(orn)
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(pos, orn)
         rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
@@ -1208,18 +1217,16 @@ class Near(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.obj, self.target = params
-        attr_inds = OrderedDict([(self.obj, [("pose", np.array([0,1,2], dtype=np.int)),
-                                             ("rotation", np.array([0,1,2], dtype=np.int))]),
-                                 (self.target, [("value", np.array([0,1,2], dtype=np.int)),
-                                                ("rotation", np.array([0,1,2], dtype=np.int))])])
+        attr_inds = OrderedDict([(self.obj, [("pose", np.array([0,1,2], dtype=np.int))]),
+                                 (self.target, [("value", np.array([0,1,2], dtype=np.int))])])
 
         # A = np.c_[np.eye(6), -np.eye(6)]
         # b, val = np.zeros((6, 1)), np.zeros((6, 1))
         # aff_e = AffExpr(A, b)
         # e = EqExpr(aff_e, val)
 
-        A = np.c_[np.r_[np.eye(6), -np.eye(6)], np.r_[-np.eye(6), np.eye(6)]]
-        b, val = np.zeros((12, 1)), NEAR_TOL*np.ones((12, 1))
+        A = np.c_[np.r_[np.eye(3), -np.eye(3)], np.r_[-np.eye(3), np.eye(3)]]
+        b, val = np.zeros((6, 1)), NEAR_TOL*np.ones((6, 1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
 
@@ -1313,7 +1320,7 @@ class WithinJointLimit(RobotPredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.robot, = params
-        attrs = self.robot.geom.arms + self.robot.geom.grippers + ['pose']
+        attrs = self.robot.geom.arms + self.robot.geom.grippers + ["pose"]
         attr_inds, attr_dim = init_robot_pred(self, self.robot, attrs={self.robot: attrs})
 
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
@@ -1627,7 +1634,7 @@ class InGripper(PosePredicate):
             opt_coeff[Float]:In Gripper coeffitions, used during optimazation
     """
     #@profile
-    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
         assert len(params) == 2
         self._env = env
         self.robot, self.obj = params
@@ -1639,8 +1646,12 @@ class InGripper(PosePredicate):
         self.rot_coeff = const.IN_GRIPPER_ROT_COEFF
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
-        self.eval_dim = 3 # 4
-        e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
+        if hasattr(self, 'dist'):
+            self.eval_dim = 6
+            e = LEqExpr(Expr(self.tile_f, self.tile_grad), self.dist*np.ones((self.eval_dim, 1)))
+        else:
+            self.eval_dim = 3 # 4
+            e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
         super(InGripper, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = 2)
         self.spacial_anchor = True
 
@@ -1652,6 +1663,14 @@ class InGripper(PosePredicate):
         return self.coeff * self.pos_check_jac(x)
         # return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.rot_check_jac(x)])
 
+    def tile_f(self, x):
+        val = self.eval_f(x)
+        return np.r_[val, -1.*val]
+
+    def tile_grad(self, x):
+        grad = self.eval_grad(x)
+        return np.r_[grad, -1.*grad]
+
 class InGripperLeft(InGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         super(InGripperLeft, self).__init__(name, params, expected_param_types, env, debug)
@@ -1661,6 +1680,16 @@ class InGripperRight(InGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         super(InGripperRight, self).__init__(name, params, expected_param_types, env, debug)
         self.arm = "right"
+
+class NearGripperLeft(InGripperLeft):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        self.dist = 0.03
+        super(NearGripperLeft, self).__init__(name, params, expected_param_types, env, debug)
+
+class NearGripperRight(InGripperRight):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        self.dist = 0.03
+        super(NearGripperRight, self).__init__(name, params, expected_param_types, env, debug)
 
 class AlmostInGripper(PosePredicate):
     """
@@ -1796,12 +1825,20 @@ class EEReachable(PosePredicate):
         self.rot_coeff = const.EEREACHABLE_ROT_COEFF
         self.approach_dist = const.APPROACH_DIST
         self.retreat_dist = const.RETREAT_DIST
+        if not hasattr(self, 'f_tol'):
+            self.f_tol = 0
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
-        self.eval_dim = 3+3*(1+(active_range[1] - active_range[0]))
+        #self.eval_dim = 3+3*(1+(active_range[1] - active_range[0]))
+        self.eval_dim = 3*(1+(active_range[1] - active_range[0]))
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
-        pos_expr = Expr(self.eval_f, self.eval_grad)
-        e = EqExpr(pos_expr, np.zeros((self.eval_dim, 1)))
+        if self.f_tol > 0:
+            self.eval_dim *= 2
+            pos_expr = Expr(self.eval_f, self.eval_grad)
+            e = LEqExpr(pos_expr, self.f_tol*np.ones((self.eval_dim, 1)))
+        else:
+            pos_expr = Expr(self.eval_f, self.eval_grad)
+            e = EqExpr(pos_expr, np.zeros((self.eval_dim, 1)))
 
         if not hasattr(self, 'arm'):
             self.arm = self.robot.geom.arms[0]
@@ -1843,11 +1880,14 @@ class EEReachable(PosePredicate):
         for s in range(start, end+1):
             rel_pt = self.get_rel_pt(s)
             f_res.append(self.coeff * self.rel_ee_pos_check_f(x[i:i+self.attr_dim], rel_pt))
-            if s == 0:
-                f_res.append(self.rot_coeff * self.ee_rot_check_f(x[i:i+self.attr_dim]))
+            #if s == 0:
+            #    f_res.append(self.rot_coeff * self.ee_rot_check_f(x[i:i+self.attr_dim]))
             i += self.attr_dim
 
-        return np.vstack(f_res)
+        f_res = np.vstack(f_res)
+        if self.f_tol > 0:
+            f_res = np.r_[f_res, -1.*f_res]
+        return f_res
 
     #@profile
     def stacked_grad(self, x):
@@ -1865,15 +1905,18 @@ class EEReachable(PosePredicate):
         start, end = self.active_range
         dim, step = 3, end + 1 - start
         i, j = 0, 0
-        grad = np.zeros((dim*step + 3, self.attr_dim*step))
+        grad = np.zeros((dim*step, self.attr_dim*step))
         for s in range(start, end+1):
             rel_pt = self.get_rel_pt(s)
             grad[j:j+dim, i:i+self.attr_dim] = self.coeff *  self.rel_ee_pos_check_jac(x[i:i+self.attr_dim], rel_pt)
             j += dim
-            if s == 0:
-                grad[j:j+3, i:i+self.attr_dim] = self.rot_coeff *  self.ee_rot_check_jac(x[i:i+self.attr_dim])
-                j += dim
+            #if s == 0:
+            #    grad[j:j+3, i:i+self.attr_dim] = self.rot_coeff *  self.ee_rot_check_jac(x[i:i+self.attr_dim])
+            #    j += dim
             i += self.attr_dim
+
+        if self.f_tol > 0:
+            grad = np.r_[grad, -1.*grad]
 
         return grad
 
@@ -1899,6 +1942,11 @@ class ApproachLeft(EEReachableLeft):
     def get_rel_pt(self, rel_step):
         return self.approach_dist*self.axis
 
+class NearApproachLeft(ApproachLeft):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.f_tol = 0.02
+        super(NearApproachLeft, self).__init__(name, params, expected_param_types, env, debug)
+
 class EEReachableRight(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "right"
@@ -1911,6 +1959,11 @@ class ApproachRight(EEReachableRight):
 
     def get_rel_pt(self, rel_step):
         return self.approach_dist*self.axis
+
+class NearApproachRight(ApproachRight):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.f_tol = 0.02
+        super(NearApproachRight, self).__init__(name, params, expected_param_types, env, debug)
 
 class EEReachableLeftInv(EEReachableLeft):
     def get_rel_pt(self, rel_step):

@@ -32,6 +32,7 @@ class PolicyServer(object):
         hyperparams['policy_opt']['use_gpu'] = 1
         hyperparams['agent']['master_config'] = hyperparams
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
+        self.map_cont_discr_tasks()
         self.stopped = False
         self.warmup = hyperparams['tf_warmup_iters']
         self.queues = hyperparams['queues']
@@ -47,7 +48,7 @@ class PolicyServer(object):
       
         hyperparams['dPrim'] = len(hyperparams['prim_bounds'])
         dO = hyperparams['dPrimObs'] if self.task == 'primitive' else hyperparams['dO']
-        dU = hyperparams['prim_bounds'][-1][-1] if self.task == 'primitive' else hyperparams['dU']
+        dU = max([b[1] for b in hyperparams['prim_bounds']] + [b[1] for b in hyperparams['aux_bounds']]) if self.task == 'primitive' else hyperparams['dU']
         dP = hyperparams['dPrim'] if self.task == 'primitive' else hyperparams['dU']
         precShape = tf.TensorShape([None, dP]) if self.task == 'primitive' else tf.TensorShape([None, dP, dP])
         data = tf.data.Dataset.from_tensor_slices([0, 1, 2])
@@ -97,6 +98,20 @@ class PolicyServer(object):
         self.log_infos = []
         with open(self.policy_opt_log, 'w+') as f:
             f.write('')
+
+
+    def map_cont_discr_tasks(self):
+        self.task_types = []
+        self.discrete_opts = []
+        self.continuous_opts = []
+        opts = self.agent.prob.get_prim_choices(self.agent.task_list)
+        for key, val in opts.items():
+            if hasattr(val, '__len__'):
+                self.task_types.append('discrete')
+                self.discrete_opts.append(key)
+            else:
+                self.task_types.append('continuous')
+                self.continuous_opts.append(key)
 
 
     def run(self):
