@@ -92,8 +92,8 @@ class PolicyServer(object):
         self.update_queue = []
         self.policy_var = {}
         self.policy_loss = []
-        self.train_losses = {'all': [], 'optimal':[], 'rollout':[]}
-        self.val_losses = {'all': [], 'optimal':[], 'rollout':[]}
+        self.train_losses = {'all': [], 'optimal':[], 'rollout':[], 'aux': []}
+        self.val_losses = {'all': [], 'optimal':[], 'rollout':[], 'aux': []}
         self.policy_component_loss = []
         self.log_infos = []
         with open(self.policy_opt_log, 'w+') as f:
@@ -121,13 +121,19 @@ class PolicyServer(object):
             self.policy_opt.update(self.task)
             self.n_updates += 1
             mu, obs, prc = self.data_gen.get_batch()
-            if len(mu): self.train_losses['all'].append(self.policy_opt.check_validation(mu, obs, prc, task=self.task))
+            if len(mu):
+                losses = self.policy_opt.check_validation(mu, obs, prc, task=self.task)
+                self.train_losses['all'].append(losses[0])
+                self.train_losses['aux'].append(losses)
             mu, obs, prc = self.data_gen.get_batch(val=True)
-            if len(mu): self.val_losses['all'].append(self.policy_opt.check_validation(mu, obs, prc, task=self.task))
+            if len(mu): 
+                losses = self.policy_opt.check_validation(mu, obs, prc, task=self.task)
+                self.val_losses['all'].append(losses[0])
+                self.val_losses['aux'].append(losses)
 
             for lab in ['optimal', 'rollout']:
                 mu, obs, prc = self.data_gen.get_batch(label=lab, val=True)
-                if len(mu): self.val_losses[lab].append(self.policy_opt.check_validation(mu, obs, prc, task=self.task))
+                if len(mu): self.val_losses[lab].append(self.policy_opt.check_validation(mu, obs, prc, task=self.task)[0])
 
             if not self.iters % 10:
                 self.policy_opt.write_shared_weights([self.task])
@@ -155,8 +161,10 @@ class PolicyServer(object):
         info = {
                 'time': time.time() - self.start_t,
                 'train_loss': np.mean(self.train_losses['all'][-10:]),
+                'train_aux_loss': self.train_losses['aux'][-1],
                 'train_component_loss': np.mean(self.train_losses['all'][-10:], axis=0),
                 'val_loss': np.mean(self.val_losses['all'][-10:]),
+                'val_aux_loss': self.val_losses['aux'][-1],
                 'val_component_loss': np.mean(self.val_losses['all'][-10:], axis=0),
                 'scope': self.task,
                 'n_updates': self.n_updates,

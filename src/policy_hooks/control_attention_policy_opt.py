@@ -15,7 +15,7 @@ import tensorflow as tf
 from gps.algorithm.policy_opt.config import POLICY_OPT_TF
 from gps.algorithm.policy_opt.policy_opt import PolicyOpt
 #from gps.algorithm.policy.tf_policy import TfPolicy
-from gps.algorithm.policy_opt.tf_utils import TfSolver
+from policy_hooks.utils.tf_utils import TfSolver
 
 from policy_hooks.tf_policy import TfPolicy
 
@@ -345,6 +345,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 self.primitive_loss_scalar = tf_map.get_loss_op()
                 self.primitive_fc_vars = fc_vars
                 self.primitive_last_conv_vars = last_conv_vars
+                self.primitive_aux_losses = tf_map.aux_loss_ops
 
                 # Setup the gradients
                 #self.primitive_grads = [tf.gradients(self.primitive_act_op[:,u], self.primitive_obs_tensor)[0] for u in range(self._dPrim)]
@@ -386,7 +387,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                                weight_decay=self._hyperparams['prim_weight_decay'],
                                                fc_vars=self.primitive_fc_vars,
                                                last_conv_vars=self.primitive_last_conv_vars,
-                                               vars_to_opt=vars_to_opt)
+                                               vars_to_opt=vars_to_opt,
+                                               aux_losses=self.primitive_aux_losses)
         self.lr_tensor = tf.Variable(initial_value=self._hyperparams['lr'], name='lr')
         self.cur_lr = self._hyperparams['lr']
         for scope in self.valid_scopes:
@@ -487,13 +489,13 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 feed_dict = {self.primitive_obs_tensor: obs,
                              self.primitive_action_tensor: tgt_mu,
                              self.primitive_precision_tensor: tgt_prc}
-                val_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, train=False)[0]
+                val_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, train=False)
             else:
                 feed_dict = {self.task_map[task]['obs_tensor']: obs,
                              self.task_map[task]['action_tensor']: tgt_mu,
                              self.task_map[task]['precision_tensor']: tgt_prc}
-                val_loss = self.task_map[task]['solver'](feed_dict, self.sess, device_string=self.device_string, train=False)[0]
-        self.average_val_losses.append(val_loss)
+                val_loss = self.task_map[task]['solver'](feed_dict, self.sess, device_string=self.device_string, train=False)
+        #self.average_val_losses.append(val_loss)
         return val_loss
 
 

@@ -13,22 +13,24 @@ class TfMap:
     to make well-defined the tf inputs, outputs, and losses used in the policy_opt_tf class."""
 
     def __init__(self, input_tensor, target_output_tensor,
-                 precision_tensor, output_op, loss_op, fp=None):
+                 precision_tensor, output_op, loss_op, fp=None,
+                 aux_losses=[]):
         self.input_tensor = input_tensor
         self.target_output_tensor = target_output_tensor
         self.precision_tensor = precision_tensor
         self.output_op = output_op
         self.loss_op = loss_op
         self.img_feat_op = fp
+        self.aux_loss_ops = aux_losses
 
     @classmethod
-    def init_from_lists(cls, inputs, outputs, loss, fp=None):
+    def init_from_lists(cls, inputs, outputs, loss, fp=None, aux_losses=[]):
         inputs = check_list_and_convert(inputs)
         outputs = check_list_and_convert(outputs)
         loss = check_list_and_convert(loss)
         if len(inputs) < 3:  # pad for the constructor if needed.
             inputs += [None]*(3 - len(inputs))
-        return cls(inputs[0], inputs[1], inputs[2], outputs, loss, fp=fp)
+        return cls(inputs[0], inputs[1], inputs[2], outputs, loss, fp=fp, aux_losses=aux_losses)
 
     def get_input_tensor(self):
         return self.input_tensor
@@ -68,13 +70,15 @@ class TfSolver:
     """ A container for holding solver hyperparams in tensorflow. Used to execute backwards pass. """
     def __init__(self, loss_scalar, solver_name='adam', base_lr=None, lr_policy=None,
                  momentum=None, weight_decay=None, fc_vars=None,
-                 last_conv_vars=None, vars_to_opt=None):
+                 last_conv_vars=None, vars_to_opt=None,
+                 aux_losses=[]):
         self.base_lr = base_lr
         self.lr_policy = lr_policy
         self.momentum = momentum
         self.solver_name = solver_name
         self.loss_scalar = [loss_scalar] if type(loss_scalar) is not list else loss_scalar
         self._loss_scalar = [loss for loss in self.loss_scalar]
+        self.aux_losses = aux_losses
         if self.lr_policy != 'fixed':
             raise NotImplementedError('learning rate policies other than fixed are not implemented')
 
@@ -158,6 +162,6 @@ class TfSolver:
                 loss = sess.run(self.loss_scalar+[self.solver_op], feed_dict)
             return loss
         else:
-            loss = sess.run(self._loss_scalar, feed_dict)
+            loss = sess.run(self._loss_scalar+self.aux_losses, feed_dict)
             return loss
 

@@ -405,7 +405,7 @@ class RolloutServer(Server):
         opt_path = None
         if self.render and save_video:
             print('Saving video...', val)
-            self.save_video(path, val > 0)
+            self.save_video(path, val > 0, lab='_{0}'.format(n_plans))
             if opt_path is not None: self.save_video(opt_path, val > 0, lab='_mp')
             print('Saved video. Rollout success was: ', val > 0)
         self.last_hl_test = time.time()
@@ -430,7 +430,8 @@ class RolloutServer(Server):
             if self.run_hl_test or time.time() - self.last_hl_test > 120:
                 self.agent.replace_cond(0)
                 self.agent.reset(0)
-                self.test_hl()
+                save_video = self.run_hl_test and np.random.uniform() < 0.05
+                self.test_hl(save_video=save_video)
 
             if self.run_hl_test or self._n_plans < ff_iters: continue
 

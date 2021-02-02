@@ -307,6 +307,8 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     }
 
     #config['prim_obs_include'].append(utils.EE_ENUM)
+    config['prim_out_include'].append(utils.EE_ENUM)
+    config['prim_out_include'].append(utils.END_POSE_ENUM)
     for o in range(no):
         config['sensor_dims'][utils.OBJ_DELTA_ENUMS[o]] = 2
         config['sensor_dims'][utils.OBJ_ENUMS[o]] = 2
@@ -315,6 +317,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         #config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
         #config['prim_obs_include'].append(utils.TARG_ENUMS[o])
         #config['prim_out_include'].append(utils.OBJ_DELTA_ENUMS[o])
+        #config['prim_out_include'].append(utils.OBJ_ENUMS[o])
         #config['prim_out_include'].append(utils.TARG_ENUMS[o])
     return config
 

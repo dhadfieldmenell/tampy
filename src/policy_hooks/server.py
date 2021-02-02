@@ -429,6 +429,8 @@ class Server(object):
 
     def save_video(self, rollout, success=None, ts=None, lab='', annotate=True):
         if not self.render: return
+        old_h = self.agent.image_height
+        old_w = self.agent.image_width
         self.agent.image_height = 256
         self.agent.image_width = 256
         suc_flag = ''
@@ -455,6 +457,8 @@ class Server(object):
                 im = np.concatenate(ims, axis=1)
                 buf.append(im)
         np.save(fname, np.array(buf))
+        self.agent.image_height = old_h
+        self.agent.image_width = old_w
 
 
 class DummyPolicy:

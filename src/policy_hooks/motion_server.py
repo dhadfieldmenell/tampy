@@ -59,9 +59,8 @@ class MotionServer(Server):
         # print('Time to plan:', time.time() - init_t)
         if success:
             path = self.agent.run_plan(plan, node.targets, permute=self.permute_hl)
-            #s = np.random.randint(len(path))
-            #t = np.random.randint(path[s].T)
-            #self.save_image(path[s], ts=t, render=False)
+            if self.render and np.random.uniform() < 0.01:
+                self.save_video(path, path[-1].success, lab=self.id+'_optimal_run')
             self.log_path(path, 10)
             for step in path: step.source_label = 'optimal'
             print(self.id, 'Successful refine from', node.label)

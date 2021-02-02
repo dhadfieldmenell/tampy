@@ -225,12 +225,19 @@ class RobotAgent(TAMPAgent):
         self._col = []
         ctrl = {attr: u[inds] for (param_name, attr), inds in self.action_inds.items()}
         n_steps = 10
-        targ_pos = self.mjc_env.get_attr('baxter', 'left_ee_pos') + ctrl['left_ee_pos']
-        targ_pos[2] = min(Z_MAX, targ_pos[2])
-        for n in range(n_steps+1):
-            self.mjc_env.step(ctrl, mode=self.ctrl_mode, gen_obs=False, view=(self.view and n==0))
-            pos = targ_pos - self.mjc_env.get_attr('baxter', 'left_ee_pos')
-            ctrl['left_ee_pos'] = pos 
+        if 'left_ee_pos' in ctrl:
+            targ_pos = self.mjc_env.get_attr('baxter', 'left_ee_pos') + ctrl['left_ee_pos']
+            targ_pos[2] = min(Z_MAX, targ_pos[2])
+            for n in range(n_steps+1):
+                self.mjc_env.step(ctrl, mode=self.ctrl_mode, gen_obs=False, view=(self.view and n==0))
+                pos = targ_pos - self.mjc_env.get_attr('baxter', 'left_ee_pos')
+                ctrl['left_ee_pos'] = pos
+        elif 'left' in ctrl:
+            targ_pos = self.mjc_env.get_attr('baxter', 'left') + ctrl['left']
+            for n in range(n_steps+1):
+                self.mjc_env.step(ctrl, mode=self.ctrl_mode, gen_obs=False, view=(self.view and n==0))
+                pos = targ_pos - self.mjc_env.get_attr('baxter', 'left')
+                ctrl['left'] = pos
 
         col = 1 if len(self._col) > 0 else 0
         return True, col
@@ -812,7 +819,11 @@ class RobotAgent(TAMPAgent):
             grippts= []
             d = 0
             if inds is None:
-                inds = self.state_inds['baxter', 'left_ee_pos']
+                if ('baxter', 'left_ee_pos') in self.action_inds:
+                    inds = self.state_inds['baxter', 'left_ee_pos']
+                elif ('baxter', 'left') in self.action_inds:
+                    inds = self.state_inds['baxter', 'left']
+
             for t in range(len(step)):
                 xpts.append(d)
                 fpts.append(step[t])

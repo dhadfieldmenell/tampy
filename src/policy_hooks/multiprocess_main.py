@@ -403,6 +403,7 @@ class MultiProcessMain(object):
         hyperparams['run_hl_test'] = True
         hyperparams['id'] = 'test'
         hyperparams['view'] = hyperparams['view_policy']
+        hyperparams['load_render'] = True
         hyperparams['check_precond'] = False
         self.create_server(RolloutServer, copy.copy(hyperparams))
         hyperparams['id'] = 'moretest'

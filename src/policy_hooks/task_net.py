@@ -535,12 +535,12 @@ def fp_multi_modal_class_network(dim_input=27, dim_output=2, batch_size=25, netw
                 preds.append(fc_output[:, lb-base:ub-base])
                 losses.append(euclidean_loss_layer(scaled_mlp_applied[:, lb-base:ub-base], action[:,lb:ub], None, batch_size))
 
-        if network_config.get('stop_aux', True):
-            fc_input = tf.concat(axis=1, values=[tf.stop_gradient(fc_output), fc_input])
-        else:
-            fc_input = tf.concat(axis=1, values=[fc_output, fc_input])
-
         losses = [tf.reduce_sum(losses)]
+        if network_config.get('aux_in', False):
+            if network_config.get('stop_aux', True):
+                fc_input = tf.concat(axis=1, values=[tf.stop_gradient(fc_output), fc_input])
+            else:
+                fc_input = tf.concat(axis=1, values=[fc_output, fc_input])
 
     fc_output, weights_FC, biases_FC = get_mlp_layers(fc_input, n_layers, dim_hidden, offset=offset)
     fc_vars += weights_FC + biases_FC
@@ -551,8 +551,17 @@ def fp_multi_modal_class_network(dim_input=27, dim_output=2, batch_size=25, netw
         scaled_mlp_applied = fc_output * eta
     preds = [multi_mix_prediction_layer(scaled_mlp_applied, boundaries)] + preds
     loss = get_loss_layer(mlp_out=scaled_mlp_applied, task=action[:,:dim_hidden[-1]], boundaries=boundaries, batch_size=batch_size, precision=precision, types=types)
-    losses = [loss] + losses
-    return TfMap.init_from_lists([nn_input, action, precision], preds, losses), fc_vars, last_conv_vars
+
+    aux_losses = [l for l in losses]
+    aux_losses.append(loss)
+    if network_config.get('collapse_loss', True) and len(losses):
+        for i in range(len(losses)):
+            losses[i] = losses[i] * tf.sqrt(tf.stop_gradient(tf.reduce_sum(loss**2)) / (tf.stop_gradient(tf.reduce_sum(losses[i]**2)) + 1e-5))
+        losses = [loss + tf.reduce_mean(losses)]
+    else:
+        losses = [loss] + losses
+
+    return TfMap.init_from_lists([nn_input, action, precision], preds, losses, aux_losses=aux_losses), fc_vars, last_conv_vars
 
 
 def conv2d(img, w, b, strides=[1, 1, 1, 1]):
