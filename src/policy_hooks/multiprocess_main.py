@@ -1,26 +1,29 @@
-from multiprocessing import Process, Pool, Queue
-from multiprocessing.managers import SyncManager
-from queue import PriorityQueue
 import multiprocessing as mp
+from multiprocessing.managers import SyncManager
+from multiprocessing import Process, Pool, Queue
+from queue import PriorityQueue
 import atexit
 from collections import OrderedDict
 import subprocess
 import ctypes
 import logging
 import imp
+import importlib
 import os
 import os.path
+import pickle
 import psutil
 import sys
+import shutil
 import copy
 import argparse
 from datetime import datetime
 from threading import Thread
 import pprint
 import psutil
-import sys
 import time
 import traceback
+import random
 
 import numpy as np
 import tensorflow as tf
@@ -46,7 +49,17 @@ import policy_hooks.hl_retrain as hl_retrain
 from policy_hooks.utils.load_agent import *
 
 
-def spawn_server(cls, hyperparams):
+DIR_KEY = 'experiment_logs/'
+def spawn_server(cls, hyperparams, load_at_spawn=False):
+    if load_at_spawn:
+        new_config, config_mod = load_config(hyperparams['args'])
+        new_config.update(hyperparams)
+        hyperparams = new_config
+        hyperparams['main'].init(hyperparams)
+        hyperparams['policy_opt']['share_buffer'] = True
+        hyperparams['policy_opt']['buffers'] = hyperparams['buffers']
+        hyperparams['policy_opt']['buffer_sizes'] = hyperparams['buffer_sizes']
+
     server = cls(hyperparams)
     server.run()
 
@@ -55,13 +68,23 @@ class QueueManager(SyncManager):
 QueueManager.register('PriorityQueue', PriorityQueue)
 
 class MultiProcessMain(object):
-    def __init__(self, config):
+    def __init__(self, config, load_at_spawn=False):
         self.monitor = True
         self.cpu_use = []
         self.config = config
+        if load_at_spawn:
+            setup_dirs(config, config['args'])
+            self.pol_list = ('control',)
+            config['main'] = self
+        else:
+            self.init(config)
+            self.check_dirs()
+
+    def init(self, config):
+        self.config = config
         prob = config['prob']
         self.config['group_id'] = config.get('group_id', 0)
-        self.config['id'] = -1
+        if 'id' not in self.config: self.config['id'] = -1
         time_limit = config.get('time_limit', 14400)
 
         conditions = self.config['num_conds']
@@ -114,7 +137,6 @@ class MultiProcessMain(object):
         self.policy_opt = None
 
         self.weight_dir = self.config['weight_dir']
-        self.check_dirs()
 
         self.traj_opt_steps = self.config['traj_opt_steps']
         self.num_samples = self.config['num_samples']
@@ -315,15 +337,18 @@ class MultiProcessMain(object):
     def allocate_shared_buffers(self, config):
         buffers = {}
         buf_sizes = {}
-        if self.config['policy_opt'].get('split_nets', False):
-            for scope in self.task_list:
-                buffers[scope] = mp.Array(ctypes.c_char, (2**28))
-                buf_sizes[scope] = mp.Value('i')
-                buf_sizes[scope].value = 0
-        else:
-            buffers['control'] = mp.Array(ctypes.c_char, (2**28))
-            buf_sizes['control'] = mp.Value('i')
-            buf_sizes['control'].value = 0
+        #if self.config['policy_opt'].get('split_nets', False):
+        #    for scope in self.task_list:
+        #        buffers[scope] = mp.Array(ctypes.c_char, (2**28))
+        #        buf_sizes[scope] = mp.Value('i')
+        #        buf_sizes[scope].value = 0
+        #else:
+        #    buffers['control'] = mp.Array(ctypes.c_char, (2**28))
+        #    buf_sizes['control'] = mp.Value('i')
+        #    buf_sizes['control'].value = 0
+        buffers['control'] = mp.Array(ctypes.c_char, (2**28))
+        buf_sizes['control'] = mp.Value('i')
+        buf_sizes['control'].value = 0
         buffers['primitive'] = mp.Array(ctypes.c_char, 20 * (2**28))
         buf_sizes['primitive'] = mp.Value('i')
         buf_sizes['primitive'].value = 0
@@ -342,9 +367,8 @@ class MultiProcessMain(object):
         buf_sizes['n_rollout'] = mp.Value('i')
         buf_sizes['n_rollout'].value = 0
         config['share_buffer'] = True
-        config['policy_opt']['share_buffer'] = True
-        config['policy_opt']['buffers'] = buffers
-        config['policy_opt']['buffer_sizes'] = buf_sizes
+        config['buffers'] = buffers
+        config['buffer_sizes'] = buf_sizes
 
 
     def spawn_servers(self, config):
@@ -358,7 +382,7 @@ class MultiProcessMain(object):
     def start_servers(self):
         for p in self.processes:
             p.start()
-            time.sleep(0.5)
+            time.sleep(0.1)
         for t in self.threads:
             t.start()
 
@@ -368,7 +392,7 @@ class MultiProcessMain(object):
             spawn_server(server_cls, hyperparams)
 
         if process:
-            p = Process(target=spawn_server, args=(server_cls, hyperparams))
+            p = Process(target=spawn_server, args=(server_cls, hyperparams, True))
             p.name = str(server_cls) + '_run_training'
             p.daemon = True
             self.processes.append(p)
@@ -538,7 +562,7 @@ class MultiProcessMain(object):
 
 
     def start(self, kill_all=False):
-        self.check_dirs()
+        #self.check_dirs()
         if self.config.get('share_buffer', True):
             self.allocate_shared_buffers(self.config)
             self.allocate_queues(self.config)
@@ -607,4 +631,85 @@ class MultiProcessMain(object):
             queues['{0}_pol'.format(task)] = Queue(queue_size)
         config['queues'] = queues
         return queues
+
+
+def load_config(args, config=None, reload_module=None):
+    config_file = args.config
+    if reload_module is not None:
+        config_module = reload_module
+        imp.reload(config_module)
+    else:
+        config_module = importlib.import_module(config_file)
+    config = config_module.refresh_config(args.nobjs, args.nobjs)
+    config['use_local'] = not args.remote
+    config['num_conds'] = args.nconds if args.nconds > 0 else config['num_conds']
+    config['common']['num_conds'] = config['num_conds']
+    config['algorithm']['conditions'] = config['num_conds']
+    config['num_objs'] = args.nobjs if args.nobjs > 0 else config['num_objs']
+    #config['weight_dir'] = get_dir_name(config['base_weight_dir'], config['num_objs'], config['num_targs'], i, config['descr'], args)
+    #config['weight_dir'] = config['base_weight_dir'] + str(config['num_objs'])
+    config['log_timing'] = args.timing
+    # config['pretrain_timeout'] = args.pretrain_timeout
+    config['hl_timeout'] = args.hl_timeout if args.hl_timeout > 0 else config['hl_timeout']
+    config['mcts_server'] = args.mcts_server or args.all_servers
+    config['mp_server'] = args.mp_server or args.all_servers
+    config['pol_server'] = args.policy_server or args.all_servers
+    config['log_server'] = args.log_server or args.all_servers
+    config['view_server'] = args.view_server
+    config['pretrain_steps'] = args.pretrain_steps if args.pretrain_steps > 0 else config['pretrain_steps']
+    config['viewer'] = args.viewer
+    config['server_id'] = args.server_id if args.server_id != '' else str(random.randint(0,2**32))
+    return config, config_module
+
+
+def setup_dirs(c, args):
+    current_id = 0 if c.get('index', -1) < 0 else c['index']
+    if c.get('index', -1) < 0:
+        while os.path.isdir(DIR_KEY+c['weight_dir']+'_'+str(current_id)):
+            current_id += 1
+    c['group_id'] = current_id
+    c['weight_dir'] = c['weight_dir']+'_{0}'.format(current_id)
+    dir_name = ''
+    sub_dirs = [DIR_KEY] + c['weight_dir'].split('/')
+
+    try:
+        from mpi4py import MPI
+        rank = MPI.COMM_WORLD.Get_rank()
+    except Exception as e:
+        rank = 0
+    if rank < 0: rank = 0
+
+    c['rank'] = rank
+    if rank == 0:
+        for d_ind, d in enumerate(sub_dirs):
+            dir_name += d + '/'
+            if not os.path.isdir(dir_name):
+                os.mkdir(dir_name)
+        if args.hl_retrain:
+            src = DIR_KEY + args.hl_data + '/hyp.py'
+        elif len(args.expert_path):
+            src = args.expert_path+'/hyp.py'
+        else:
+            src = c['source'].replace('.', '/')+'.py'
+        shutil.copyfile(src, DIR_KEY+c['weight_dir']+'/hyp.py')
+        with open(DIR_KEY+c['weight_dir']+'/__init__.py', 'w+') as f:
+            f.write('')
+        with open(DIR_KEY+c['weight_dir']+'/args.pkl', 'wb+') as f:
+            pickle.dump(args, f, protocol=0)
+        with open(DIR_KEY+c['weight_dir']+'/args.txt', 'w+') as f:
+            f.write(str(vars(args)))
+    else:
+        time.sleep(0.1) # Give others a chance to let base set up dirs
+    return current_id
+
+
+def check_dirs(config):
+    if not os.path.exists('experiment_logs/'+config['weight_dir']):
+        os.makedirs('experiment_logs/'+config['weight_dir'])
+
+
+def get_dir_name(base, no, nt, ind, descr, args=None):
+    dir_name = base + 'objs{0}_{1}/{2}'.format(no, nt, descr)
+    return dir_name
+
 

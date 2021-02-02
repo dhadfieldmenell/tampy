@@ -55,11 +55,11 @@ class MotionServer(Server):
 
         plan.freeze_actions(plan.start)
         init_t = time.time()
-        success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=True)
-        # print('Time to plan:', time.time() - init_t)
+        success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=False)
+        print('Time to plan:', time.time() - init_t)
         if success:
             path = self.agent.run_plan(plan, node.targets, permute=self.permute_hl)
-            if self.render and np.random.uniform() < 0.01:
+            if self.render and np.random.uniform() < 0.1:
                 self.save_video(path, path[-1].success, lab=self.id+'_optimal_run')
             self.log_path(path, 10)
             for step in path: step.source_label = 'optimal'

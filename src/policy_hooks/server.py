@@ -410,18 +410,21 @@ class Server(object):
             f.write('\n')
 
 
-    def save_image(self, rollout, success=None, ts=0, render=True):
+    def save_image(self, rollout=None, success=None, ts=0, render=True, x=None):
         if not self.render: return
         suc_flag = ''
         if success is not None:
             suc_flag = 'succeeded' if success else 'failed'
         fname = '/home/michaelmcdonald/Dropbox/videos/{0}_{1}_{2}.png'.format(self.id, self.cur_vid_id, suc_flag)
         self.cur_vid_id += 1
-        self.agent.target_vecs[0][:] = rollout.targets
+        if rollout is not None: self.agent.target_vecs[0][:] = rollout.targets
         if render:
-            im = self.agent.get_image(rollout.get_X(t=ts))
+            if x is None:
+                x = rollout.get_X(t=ts)
+            im = self.agent.get_image(x)
         else:
             im = rollout.get(IM_ENUM, t=ts).reshape((self.agent.image_height, self.agent.image_width, 3))
+            im = (128 * im) + 128
             im = im.astype(np.uint8)
         im = Image.fromarray(im)
         im.save(fname)
@@ -440,6 +443,7 @@ class Server(object):
         self.cur_vid_id += 1
         buf = []
         for step in rollout:
+            self.agent.target_vecs[0] = step.targets
             if not step.draw: continue
             if ts is None: 
                 ts_range = range(step.T)
@@ -452,7 +456,6 @@ class Server(object):
                     if annotate and ind == 0:
                         ims.append(self.agent.get_annotated_image(step, t, cam_id=cam_id))
                     else:
-                        self.agent.target_vecs[0] = step.targets
                         ims.append(self.agent.get_image(step.get_X(t=t), cam_id=cam_id))
                 im = np.concatenate(ims, axis=1)
                 buf.append(im)

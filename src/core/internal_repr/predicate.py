@@ -44,13 +44,13 @@ class Predicate(object):
             import ipdb; ipdb.set_trace()
 
     def check_pred_violation(self, t, negated=False, tol=1e-3):
-        if self.get_expr(negated=negated) is None:
-            return None
-
+        expr = self.get_expr(negated=negated)
         # if not self.test(t, negated=negated, tol=tol):
         #     return None
-
-        violation = np.abs(self.get_expr(negated=negated).expr.eval(self.get_param_vector(t)))
+        if expr is None: 
+            violation = np.abs(self.expr.expr.eval(self.get_param_vector(t)))
+        else:
+            violation = np.abs(expr.expr.eval(self.get_param_vector(t)))
 
         return violation
 

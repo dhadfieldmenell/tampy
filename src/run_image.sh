@@ -19,7 +19,7 @@ do
                                                        -task 4 \
                                                        -rollout 8 \
                                                        -roll_hl \
-                                                       -descr aux_not_fed_through_images_64_hl & 
+                                                       -descr aux_abs_scale_images_64_hl & 
 
         sleep 3h
         pkill -f run_train -9

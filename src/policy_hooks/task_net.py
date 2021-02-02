@@ -535,8 +535,7 @@ def fp_multi_modal_class_network(dim_input=27, dim_output=2, batch_size=25, netw
                 preds.append(fc_output[:, lb-base:ub-base])
                 losses.append(euclidean_loss_layer(scaled_mlp_applied[:, lb-base:ub-base], action[:,lb:ub], None, batch_size))
 
-        losses = [tf.reduce_sum(losses)]
-        if network_config.get('aux_in', False):
+        if network_config.get('aux_in', True):
             if network_config.get('stop_aux', True):
                 fc_input = tf.concat(axis=1, values=[tf.stop_gradient(fc_output), fc_input])
             else:
@@ -556,7 +555,7 @@ def fp_multi_modal_class_network(dim_input=27, dim_output=2, batch_size=25, netw
     aux_losses.append(loss)
     if network_config.get('collapse_loss', True) and len(losses):
         for i in range(len(losses)):
-            losses[i] = losses[i] * tf.sqrt(tf.stop_gradient(tf.reduce_sum(loss**2)) / (tf.stop_gradient(tf.reduce_sum(losses[i]**2)) + 1e-5))
+            losses[i] = losses[i] * 0.05 # tf.sqrt(tf.stop_gradient(tf.reduce_sum(loss**2)) / (tf.stop_gradient(tf.reduce_sum(losses[i]**2)) + 1e-5))
         losses = [loss + tf.reduce_mean(losses)]
     else:
         losses = [loss] + losses

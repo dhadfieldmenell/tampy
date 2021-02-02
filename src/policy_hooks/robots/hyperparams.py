@@ -257,6 +257,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'split_mcts_alg': True,
         'robot_name': 'baxter',
         'ctrl_mode': 'end_effector_pos',
+        'visual_cameras': [1,3],
 
         'state_include': [utils.STATE_ENUM],
         'obs_include': [utils.TASK_ENUM,

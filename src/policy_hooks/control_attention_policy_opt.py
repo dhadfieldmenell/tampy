@@ -45,8 +45,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.batch_size = self._hyperparams['batch_size']
 
         self.input_layer = inputs
-        self.share_buffers = self._hyperparams.get('share_buffer', False)
-        if self._hyperparams.get('share_buffer', False):
+        self.share_buffers = self._hyperparams.get('share_buffer', True)
+        if self._hyperparams.get('share_buffer', True):
             self.buffers = self._hyperparams['buffers']
             self.buf_sizes = self._hyperparams['buffer_sizes']
         auxBounds = self._hyperparams.get('aux_boundaries', [])

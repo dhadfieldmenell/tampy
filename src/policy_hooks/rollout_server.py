@@ -430,7 +430,7 @@ class RolloutServer(Server):
             if self.run_hl_test or time.time() - self.last_hl_test > 120:
                 self.agent.replace_cond(0)
                 self.agent.reset(0)
-                save_video = self.run_hl_test and np.random.uniform() < 0.05
+                save_video = self.run_hl_test and np.random.uniform() < 0.2
                 self.test_hl(save_video=save_video)
 
             if self.run_hl_test or self._n_plans < ff_iters: continue

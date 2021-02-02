@@ -907,7 +907,7 @@ class NAMOSortingAgent(TAMPAgent):
 
             if IM_ENUM in self._hyperparams['obs_include'] or \
                IM_ENUM in self._hyperparams['prim_obs_include']:
-                self.reset_mjc_env(sample.get_X(t=t), targets, draw_targets=True)
+                self.reset_mjc_env(sample.get_X(t=t), targets=targets, draw_targets=True)
                 im = self.mjc_env.render(height=self.image_height, width=self.image_width, view=self.view)
                 im = (im - 128.) / 128.
                 sample.set(IM_ENUM, im.flatten(), t)

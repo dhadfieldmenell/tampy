@@ -1046,10 +1046,11 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 if t + failed[1].active_range[1] > active_ts[1]:
                     break
 
+                viol = None
                 try:
                     viol = failed[1].check_pred_violation(t, negated=failed[0], tol=1e-3)
                     if viol is not None:
-                        cost += np.max(viol)
+                        cost += np.max(np.abs(viol))
                     if np.any(np.isnan(viol)):
                         print('Nan in failed pred check', failed, 'ts:', t, 'task:', task, 'viol:', viol)
                         print(failed[1].get_param_vector(t), failed)
