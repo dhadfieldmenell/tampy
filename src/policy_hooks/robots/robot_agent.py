@@ -123,6 +123,7 @@ class RobotAgent(TAMPAgent):
         items = config['include_items']
         prim_options = self.prob.get_prim_choices(self.task_list)
         config['load_render'] = hyperparams['master_config'].get('load_render', False)
+        config['xmlid'] = '{0}_{1}'.format(self.process_id, self.rank)
         self.mjc_env = self.env_cls.load_config(config)
         # self.viewer = OpenRAVEViewer(self.env)
         # import ipdb; ipdb.set_trace()

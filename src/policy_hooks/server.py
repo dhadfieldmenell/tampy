@@ -130,7 +130,7 @@ class Server(object):
 
     
     def init_policy_opt(self, hyperparams):
-        hyperparams['policy_opt']['gpu_id'] = np.random.randint(1,4)
+        hyperparams['policy_opt']['gpu_id'] = np.random.randint(1,3)
         hyperparams['policy_opt']['use_gpu'] = 1
         hyperparams['policy_opt']['split_hl_loss'] = hyperparams['split_hl_loss']
         hyperparams['policy_opt']['weight_dir'] = hyperparams['weight_dir'] # + '_trained'
