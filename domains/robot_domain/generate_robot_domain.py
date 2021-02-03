@@ -194,7 +194,7 @@ class Action(object):
 class Move(Action):
     def __init__(self):
         self.name = 'moveto'
-        self.timesteps = 11 # 25
+        self.timesteps = 17 # 25
         end = self.timesteps - 1
         self.end = end
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose)'

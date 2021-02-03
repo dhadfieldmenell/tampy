@@ -8,5 +8,5 @@ Init: (geom cloth0), (pose cloth0 [0, 0, 0]), (rotation cloth0 [0, 0, 0]), (valu
 
 Goal: (RobotAt baxter robot_end_pose)
 
-Invariants: (StationaryBase baxter), (StationaryRightArm baxter), (LeftGripperDownRot baxter), 
+Invariants: (StationaryBase baxter), (StationaryRightArm baxter), 
 
