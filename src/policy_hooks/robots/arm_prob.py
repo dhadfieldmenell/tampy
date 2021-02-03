@@ -114,11 +114,14 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         ee_sol = None
         quat = None # (0,1,0,0)
         while ee_sol is None:
-            ee_x = np.random.uniform(0.1, 0.9)
-            ee_y = np.random.uniform(0.1, 0.9)
-            ee_z = np.random.uniform(0.15, 0.6)
+            ee_x = np.random.uniform(0.3, 0.8)
+            ee_y = np.random.uniform(0.3, 0.8)
+            ee_z = np.random.uniform(0.25, 0.6)
             body.set_dof({'left': np.zeros(7)})
             ee_sol = body.get_ik_from_pose((ee_x, ee_y, ee_z), quat, 'left')
+            #lb, ub = body._geom.get_joint_limits('left')
+            #scale = 0.25
+            #ee_sol = np.random.uniform(scale*np.array(lb), scale*np.array(ub))
             ee_info = body.fwd_kinematics('left', dof_map={'left': ee_sol})
 
         x0[state_inds['baxter', 'left']] = ee_sol
