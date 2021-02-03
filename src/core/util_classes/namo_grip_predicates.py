@@ -73,7 +73,8 @@ if USE_TF:
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
         config = tf.ConfigProto(inter_op_parallelism_threads=1, \
                                 intra_op_parallelism_threads=1, \
-                                allow_soft_placement=True)
+                                allow_soft_placement=True, \
+                                device_count={'GPU': 0})
         config.gpu_options.allow_growth = True
         TF_SESS[0] = tf.Session(config=config)
         os.environ["CUDA_VISIBLE_DEVICES"] = cuda_vis

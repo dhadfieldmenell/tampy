@@ -10,7 +10,7 @@ import time
 import traceback
 
 import numpy as np
-import tensorflow as tf
+#import tensorflow as tf
 
 from gps.algorithm.policy_opt.config import POLICY_OPT_TF
 from gps.algorithm.policy_opt.policy_opt import PolicyOpt
@@ -27,6 +27,7 @@ SCOPE_LIST = ['primitive']
 class ControlAttentionPolicyOpt(PolicyOpt):
     """ Policy optimization using tensor flow for DAG computations/nonlinear function approximation. """
     def __init__(self, hyperparams, dO, dU, dPrimObs, dValObs, primBounds, inputs=None):
+        global tf
         import tensorflow as tf
         self.scope = hyperparams['scope'] if 'scope' in hyperparams else None
         # tf.reset_default_graph()

@@ -26,7 +26,6 @@ import traceback
 import random
 
 import numpy as np
-import tensorflow as tf
 
 import software_constants
 from gps.algorithm.cost.cost_utils import *

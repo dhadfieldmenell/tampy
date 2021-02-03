@@ -138,6 +138,7 @@ class NAMOSortingAgent(TAMPAgent):
             items.append({'name': 'wall{0}'.format(i), 'type': 'box', 'is_fixed': True, 'pos': pos, 'dimensions': next_dim, 'rgba': (0.5, 0.5, 0.5, 1)})
 
         config['load_render'] = hyperparams['master_config'].get('load_render', False)
+        config['xmlid'] = '{0}_{1}'.format(self.process_id, self.rank)
         self.mjc_env = MJCEnv.load_config(config)
         # self.viewer = OpenRAVEViewer(self.env)
         # import ipdb; ipdb.set_trace()

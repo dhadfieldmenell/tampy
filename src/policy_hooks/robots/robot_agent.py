@@ -388,6 +388,7 @@ class RobotAgent(TAMPAgent):
         #sample.set(ONEHOT_TASK_ENUM, onehot_task, t)
         sample.set(DONE_ENUM, np.zeros(1), t)
         sample.set(TASK_DONE_ENUM, np.array([1, 0]), t)
+        sample.set(LEFT_ENUM, mp_state[self.state_inds['baxter', 'left']], t)
 
         prim_choices = self.prob.get_prim_choices(self.task_list)
         if task is not None:

@@ -16,6 +16,7 @@ UPDATE_TIME = 60
 
 class PolicyServer(object):
     def __init__(self, hyperparams):
+        global tf
         import tensorflow as tf
         self.group_id = hyperparams['group_id']
         self.task = hyperparams['scope']

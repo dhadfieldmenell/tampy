@@ -5,7 +5,6 @@ from sco.expr import BoundExpr, QuadExpr, AffExpr
 from core.util_classes.namo_predicates import ColObjPred
 from pma import backtrack_ll_solver
 
-
 class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
         return a.params[0] # Experiment with avoiding robot pose symbols

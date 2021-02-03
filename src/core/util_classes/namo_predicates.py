@@ -54,15 +54,17 @@ if USE_TF:
     TF_SESS = [None]
     tf_cache = {}
     def get_tf_graph(tf_name):
-        if tf_name not in tf_cache: init_tf_graph()
+        if TF_SESS[0] is None: init_tf_graph()
+        #if tf_name not in tf_cache: init_tf_graph()
         return tf_cache[tf_name]
-    
+
     def init_tf_graph():
         cuda_vis = os.environ.get("CUDA_VISIBLE_DEVICES", "")
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
         config = tf.ConfigProto(inter_op_parallelism_threads=1, \
                                 intra_op_parallelism_threads=1, \
-                                allow_soft_placement=True)
+                                allow_soft_placement=True, \
+                                device_count={'GPU': 0})
         config.gpu_options.allow_growth = True
         TF_SESS[0] = tf.Session(config=config)
         os.environ["CUDA_VISIBLE_DEVICES"] = cuda_vis
@@ -1127,8 +1129,9 @@ class ColObjPred(CollisionPredicate):
                 if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
                     vals.append(0)
                 else:
-                    with tf.device('/cpu:0'):
-                        val = np.array([TF_SESS[0].run(cur_tensor, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})])
+                    #with tf.device('/cpu:0'):
+                    #    val = np.array([TF_SESS[0].run(cur_tensor, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})])
+                    val = np.array([TF_SESS[0].run(cur_tensor, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})])
                     vals.append(val)
             return self.neg_coeff*np.sum(vals, axis=0)
 
@@ -1149,8 +1152,9 @@ class ColObjPred(CollisionPredicate):
                 if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
                     vals.append(np.zeros((1,8)))
                 else:
-                    with tf.device('/cpu:0'):
-                        v = TF_SESS[0].run(cur_grads, feed_dict={in_tensor: pt, radius_tensor: self.radius**2}).T
+                    #with tf.device('/cpu:0'):
+                    #    v = TF_SESS[0].run(cur_grads, feed_dict={in_tensor: pt, radius_tensor: self.radius**2}).T
+                    v = TF_SESS[0].run(cur_grads, feed_dict={in_tensor: pt, radius_tensor: self.radius**2}).T
                     v[np.isnan(v)] = 0.
                     v[np.isinf(v)] = 0.
                     curcoeff = float(COL_TS-i)/COL_TS
@@ -1176,8 +1180,9 @@ class ColObjPred(CollisionPredicate):
                 if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
                     vals.append(np.zeros((8,8)))
                 else:
-                    with tf.device('/cpu:0'):
-                        v = TF_SESS[0].run(cur_hess, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})
+                    #with tf.device('/cpu:0'):
+                    #    v = TF_SESS[0].run(cur_hess, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})
+                    v = TF_SESS[0].run(cur_hess, feed_dict={in_tensor: pt, radius_tensor: self.radius**2})
                     v[np.isnan(v)] = 0.
                     v[np.isinf(v)] = 0.
                     v = v.reshape((4,4))

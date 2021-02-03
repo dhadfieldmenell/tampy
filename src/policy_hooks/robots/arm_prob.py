@@ -112,16 +112,14 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         x0 = np.zeros((dX,))
 
         ee_sol = None
-        quat = (0,1,0,0)
+        quat = None # (0,1,0,0)
         while ee_sol is None:
-            ee_x = np.random.uniform(0.2, 0.8)
-            ee_y = np.random.uniform(0.2, 0.8)
-            ee_z = np.random.uniform(0.15, 0.45)
+            ee_x = np.random.uniform(0.1, 0.9)
+            ee_y = np.random.uniform(0.1, 0.9)
+            ee_z = np.random.uniform(0.15, 0.6)
             body.set_dof({'left': np.zeros(7)})
             ee_sol = body.get_ik_from_pose((ee_x, ee_y, ee_z), quat, 'left')
             ee_info = body.fwd_kinematics('left', dof_map={'left': ee_sol})
-            if np.any(np.abs(np.array(ee_info['quat']) - np.array(quat)) > 1e-2):
-                ee_sol = None
 
         x0[state_inds['baxter', 'left']] = ee_sol
         x0[state_inds['baxter', 'left_ee_pos']] = ee_info['pos']

@@ -71,7 +71,9 @@ def load_agent(config):
         utils.TASK_ENUM: len(task_list),
         utils.TARGETS_ENUM: target_dim,
         utils.ONEHOT_TASK_ENUM: len(list(plans.keys())),
-        utils.IM_ENUM: im_h * im_w * im_c
+        utils.IM_ENUM: im_h * im_w * im_c,
+        utils.LEFT_IMAGE_ENUM: im_h * im_w * im_c,
+        utils.RIGHT_IMAGE_ENUM: im_h * im_w * im_c,
     }
     for enum in config['sensor_dims']:
         sensor_dims[enum] = config['sensor_dims'][enum]

@@ -264,6 +264,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                         #utils.OBJ_POSE_ENUM,
                         #utils.TARG_POSE_ENUM,
                         utils.END_POSE_ENUM,
+                        utils.LEFT_ENUM,
                         # utils.DONE_ENUM,
                         ],
         'prim_obs_include': [
@@ -290,6 +291,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.TRUETARG_ENUM: len(prob.END_TARGETS),
                 utils.ATGOAL_ENUM: no,
                 utils.FACTOREDTASK_ENUM: len(list(prob.get_prim_choices().keys())),
+                utils.LEFT_ENUM: 7,
                 # utils.INIT_OBJ_POSE_ENUM: 2,
             },
         'visual': False,

@@ -12,7 +12,7 @@ from software_constants import *
 from PIL import Image
 import pybullet as P
 from scipy.cluster.vq import kmeans2 as kmeans
-import tensorflow as tf
+# import tensorflow as tf
 
 from core.internal_repr.plan import Plan
 from policy_hooks.sample import Sample
@@ -26,6 +26,8 @@ LOG_DIR = 'experiment_logs/'
 
 class Server(object):
     def __init__(self, hyperparams):
+        global tf
+        import tensorflow as tf
         self.id = hyperparams['id']
         self._hyperparams = hyperparams
         self.config = hyperparams

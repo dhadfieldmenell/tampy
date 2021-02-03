@@ -13,7 +13,7 @@ do
                                                        -add_noop 3 --permute_hl 0 \
                                                        -post -pre \
                                                        -expl_wt 10 -expl_eta 4 \
-                                                       -col_coeff 0.05 \
+                                                       -col_coeff 0.005 \
                                                        -motion 32 \
                                                        -task 4 \
                                                        -rollout 8 \
