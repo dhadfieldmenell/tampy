@@ -41,7 +41,7 @@ from policy_hooks.tamp_agent import TAMPAgent
 
 
 NEAR_TOL = 0.05
-LOCAL_NEAR_TOL = 0.075 # 0.3
+LOCAL_NEAR_TOL = 0.05 # 0.3
 MAX_SAMPLELISTS = 1000
 MAX_TASK_PATHS = 100
 GRIP_TOL = 0.
@@ -65,7 +65,9 @@ class optimal_pol:
             for param, attr in self.action_inds:
                 cur_val = X[self.state_inds[param, attr]] if (param, attr) in self.state_inds else None
                 if attr.find('grip') >= 0:
-                    u[self.action_inds[param, attr]] = self.opt_traj[t, self.state_inds[param, attr]]
+                    val = self.opt_traj[t, self.state_inds[param, attr]]
+                    val = -1. if val < 0.02 else 1.
+                    u[self.action_inds[param, attr]] = val 
                 elif attr.find('ee_pos') >= 0:
                     cur_ee = cur_val if cur_val is not None else self.opt_traj[t, self.state_inds[param, attr]]
                     next_ee = self.opt_traj[t+1, self.state_inds[param, attr]]
@@ -77,7 +79,9 @@ class optimal_pol:
         else:
             for param, attr in self.action_inds:
                 if attr.find('grip') >= 0:
-                    u[self.action_inds[param, attr]] = self.opt_traj[-1, self.state_inds[param, attr]]
+                    val = self.opt_traj[-1, self.state_inds[param, attr]]
+                    val = -1. if val < 0.02 else 1.
+                    u[self.action_inds[param, attr]] = val 
         if np.any(np.isnan(u)):
             u[np.isnan(u)] = 0.
         return u
@@ -133,6 +137,19 @@ class RobotAgent(TAMPAgent):
         self.targ_labels = {i: np.array(self.prob.END_TARGETS[i]) for i in range(len(self.prob.END_TARGETS))}
         self.targ_labels.update({i: self.targets[0]['aux_target_{0}'.format(i-no)] for i in range(no, no+self.prob.n_aux)})
 
+    def get_annotated_image(self, s, t, cam_id=None):
+        if cam_id is None: cam_id = self.camera_id
+        x = s.get_X(t=t)
+        task = s.get(FACTOREDTASK_ENUM, t=t)
+        #ee = x[self.state_inds['baxter', 'left_ee_pos']]
+        ee = s.get(END_POSE_ENUM, t=t).round(2)
+        grip = x[self.state_inds['baxter', 'left_gripper']].round(3)
+        textover1 = self.mjc_env.get_text_overlay(body='Task: {0}'.format(task))
+        textover2 = self.mjc_env.get_text_overlay(body='{0} {1}'.format(ee, grip), position='bottom left')
+        self.reset_to_state(x)
+        im = self.mjc_env.render(camera_id=cam_id, height=self.image_height, width=self.image_width, view=False, overlays=(textover1, textover2))
+        return im
+
     def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None):
         assert not np.any(np.isnan(state))
         start_t = time.time()
@@ -181,7 +198,8 @@ class RobotAgent(TAMPAgent):
 
             U_full = policy.act(X, sample.get_obs(t=t).copy(), t, cur_noise)
             U_nogrip = U_full.copy()
-            if np.all(np.abs(U_nogrip)) < 1e-2:
+            U_nogrip[self.action_inds['baxter', 'left_gripper']] = 0.
+            if np.all(np.abs(U_nogrip)) < 1e-3:
                 self._noops += 1
                 self.eta_scale = 1. / np.log(self._noops+2)
             else:
@@ -388,7 +406,14 @@ class RobotAgent(TAMPAgent):
         #sample.set(ONEHOT_TASK_ENUM, onehot_task, t)
         sample.set(DONE_ENUM, np.zeros(1), t)
         sample.set(TASK_DONE_ENUM, np.array([1, 0]), t)
-        sample.set(LEFT_ENUM, mp_state[self.state_inds['baxter', 'left']], t)
+        if RIGHT_ENUM in self.sensor_dims:
+            sample.set(RIGHT_ENUM, mp_state[self.state_inds['baxter', 'right']], t)
+        if LEFT_ENUM in self.sensor_dims:
+            sample.set(LEFT_ENUM, mp_state[self.state_inds['baxter', 'left']], t)
+        if LEFT_GRIPPER_ENUM in self.sensor_dims:
+            sample.set(LEFT_GRIPPER_ENUM, mp_state[self.state_inds['baxter', 'left_gripper']], t)
+        if RIGHT_GRIPPER_ENUM in self.sensor_dims:
+            sample.set(RIGHT_GRIPPER_ENUM, mp_state[self.state_inds['baxter', 'right_gripper']], t)
 
         prim_choices = self.prob.get_prim_choices(self.task_list)
         if task is not None:
@@ -531,7 +556,10 @@ class RobotAgent(TAMPAgent):
             if aname in ['left', 'right']:
                 lb, ub = self.mjc_env.geom.get_joint_limits(aname)
                 val = np.maximum(np.minimum(val, ub), lb)
-            x[inds] = val[:len(inds)]
+            if len(inds) == 1:
+                x[inds] = np.mean(val)
+            else:
+                x[inds] = val[:len(inds)]
 
         return x
 
@@ -811,7 +839,7 @@ class RobotAgent(TAMPAgent):
         return l # tuple(l)
 
 
-    def retime_traj(self, traj, vel=0.03, inds=None, minpts=10):
+    def retime_traj(self, traj, vel=0.01, inds=None, minpts=10):
         new_traj = []
         if len(np.shape(traj)) == 2:
             traj = [traj]
@@ -821,9 +849,9 @@ class RobotAgent(TAMPAgent):
             grippts= []
             d = 0
             if inds is None:
-                if ('baxter', 'left_ee_pos') in self.action_inds:
+                if ('baxter', 'left_ee_pos') in self.state_inds:
                     inds = self.state_inds['baxter', 'left_ee_pos']
-                elif ('baxter', 'left') in self.action_inds:
+                elif ('baxter', 'left') in self.state_inds:
                     inds = self.state_inds['baxter', 'left']
 
             for t in range(len(step)):
@@ -955,4 +983,12 @@ class RobotAgent(TAMPAgent):
             return True
         return super(RobotAgent, self).backtrack_solve(plan, anum, n_resamples, rollout)
 
+
+    def get_inv_cov(self):
+        vec = np.ones(self.dU)
+        if ('baxter', 'left') in self.action_inds:
+            inds = self.action_inds['baxter', 'left']
+            lb, ub = list(self.plans.values())[0].params['baxter'].geom.get_joint_limits('left')
+            vec[inds] = 1. / (np.array(ub)-np.array(lb))**2
+        return np.diag(vec)
 

@@ -15,7 +15,6 @@ Constants used in robot_predicates
 """
 # Needed
 POSE_TOL = 1e-4
-EEREACHABLE_STEPS = 3
 COLLISION_TOL = 1e-3
 MAX_CONTACT_DISTANCE = .1
 # BASKET_OFFSET = 0.317
@@ -23,7 +22,7 @@ MAX_CONTACT_DISTANCE = .1
 BASKET_OFFSET = 0.33
 BASKET_NARROW_OFFSET = 0.215
 BASKET_GRIP_OFFSET = 0
-GRASP_DIST = 0.12
+GRASP_DIST = 0.2
 
 # EEReachable Constants
 APPROACH_DIST = 0.04
@@ -37,8 +36,8 @@ COLLIDES_DSAFE = 1e-3
 
 # Plan Coefficient
 
-EEREACHABLE_COEFF = 1e-2
-EEREACHABLE_ROT_COEFF = 1e-3
+EEREACHABLE_COEFF = 1e-1
+EEREACHABLE_ROT_COEFF = 1e-2
 IN_GRIPPER_COEFF = 5e0
 IN_GRIPPER_ROT_COEFF = 2e0
 WASHER_IN_GRIPPER_ROT_COEFF = 1e-2
@@ -56,7 +55,7 @@ EEGRASP_VALID_COEFF = 1e2
 
 # Gripper Value
 GRIPPER_OPEN_VALUE = 0.02
-GRIPPER_CLOSE_VALUE = 0.015
+GRIPPER_CLOSE_VALUE = 0.0
 # BASKET_OFFSET = 0.317
 # BASKET_OFFSET = 0.325
 BASKET_OFFSET = 0.33
@@ -80,9 +79,9 @@ RESAMPLE_FACTOR_LR = [0.1, 0.1, 0.05]
 Following constants are for testing purposes
 """
 # Tolerance
-TOL = 1e-4
+TOL = 1e-3
 # Predicate Gradient Test Option
-TEST_GRAD = True
+TEST_GRAD = False
 
 ATTRMAP = {"Rotation": [("value", np.array([0], dtype=np.int))],
             "Distance": [("value", np.array([0], dtype=np.int))],

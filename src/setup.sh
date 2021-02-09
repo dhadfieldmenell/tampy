@@ -21,8 +21,8 @@ pip install numpy seaborn numba pandas pybullet dm_control numdifftools ipdb
 git clone https://github.com/dhadfieldmenell/tampy.git
 git clone https://github.com/m-j-mcdonald/sco.git
 cd tampy
-git checkout python3 
-git pull origin python3 
+git checkout refactor
+git pull origin refactor
 cd ../sco
 git checkout python3
 pip install h5py psutil
@@ -33,6 +33,7 @@ cd ~
 echo 'export GUROBI_HOME=/home/${USER}/gurobi901/linux64' >> ~/.bashrc
 echo 'export PATH="${PATH}:${GUROBI_HOME}:${GUROBI_HOME}/bin":/home/${USER}/.local/bin' >> ~/.bashrc
 echo 'export LD_LIBRARY_PATH="${GUROBI_HOME}/lib:/home/${USER}/.mujoco/mujoco200_linux/bin"' >> ~/.bashrc
+echo 'export LD_LIBRARY_PATH="${USER}/.mujoco/mujoco200/bin"' >> ~/.bashrc
 echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/sco:/home/${USER}/tamp_work/tampy/src' >> ~/.bashrc
 
 # Setup gurobi (need to get license separately)
@@ -56,8 +57,10 @@ cd .mujoco
 wget https://www.roboti.us/download/mujoco200_linux.zip -O mujoco.zip
 unzip mujoco.zip
 cp ~/mjkey.txt .
+ln -s mujoco200_linux mujoco200
 
 # Setup additional codebases
+pip install robosuite
 git clone https://github.com/m-j-mcdonald/BaxterGym.git
 git clone https://github.com/m-j-mcdonald/gps.git
 pip install tensorflow==1.10.0

@@ -287,8 +287,7 @@ class BacktrackLLSolver(LLSolver):
         if DEBUG:
             print((plan.get_failed_preds(active_ts=active_ts, tol=1e-3), active_ts))
 
-        if success:
-            self._cleanup_plan(plan, active_ts)
+        self._cleanup_plan(plan, active_ts)
         return success
 
     #@profile

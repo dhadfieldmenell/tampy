@@ -31,7 +31,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         attempt = 0
         while not len(iks) and attempt < 20:
             if rand:
-                target_loc += np.multiply(np.random.sample(3) - [0.5,0.5,0.5], [0.01, 0.01, 0])
+                target_loc += np.clip(np.random.normal(0, 0.015, 3), -0.03, 0.03)
 
             iks = robot_body.get_ik_from_pose(target_loc, quat, arm)
             rand = not len(iks)
@@ -92,6 +92,8 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         if a_name.find('move_to_grasp') >= 0 or (a_name.find('putdown') >= 0 and a_name.find('move_to') < 0):
             gripper_open = True
 
+        rand = False # a_name.find('move') >= 0
+
         if next_act is not None:
             next_obj = next_act.params[1]
             next_a_name = next_act.name.lower()
@@ -105,14 +107,14 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         for i in range(resample_size):
             ### Cases for when behavior can be inferred from current action
             if a_name.find('grasp') >= 0 or a_name.find('putdown') >= 0:
-                pose = self.vertical_gripper(robot, arm, obj, gripper_open, (st, et), rand=(i>0))
+                pose = self.vertical_gripper(robot, arm, obj, gripper_open, (st, et), rand=(rand or (i>0)))
 
             ### Cases for when behavior cannot be inferred from current action
             elif next_act is None:
                 pose = None
 
             elif next_a_name.find('grasp') >= 0 or next_a_name.find('putdown') >= 0:
-                pose = self.vertical_gripper(robot, next_arm, next_obj, next_gripper_open, (next_st, next_et), rand=(i>0))
+                pose = self.vertical_gripper(robot, next_arm, next_obj, next_gripper_open, (next_st, next_et), rand=(rand or (i>0)))
 
             if pose is None: break
             robot_pose.append(pose)
@@ -127,6 +129,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                 attr = '{}_ee_pos'.format(arm)
                 if not hasattr(param, attr): continue
                 for t in range(active_ts[0], active_ts[1]):
+                    if np.any(np.isnan(getattr(param, arm)[:,t])): continue
                     param.openrave_body.set_dof({arm: getattr(param, arm)[:,t]})
                     info = param.openrave_body.fwd_kinematics(arm)
                     getattr(param, attr)[:,t] = info['pos']

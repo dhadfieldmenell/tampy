@@ -38,15 +38,14 @@ RIGHT_INIT_EE = [ 0.3, -0.8,  0.2]
 TABLE_INIT = [1.23/2-0.1, 0, 0.97/2-0.375-0.665-0.05]
 
 ZPOS = -0.029 - 0.05
-END_TARGETS = [(0.1, 0.75, ZPOS),
-               (0.15, 0.75, ZPOS),
-               (0.3, 0.75, ZPOS),
+END_TARGETS = [(0.1, 0.85, ZPOS),
+               (0.3, 0.80, ZPOS),
                (0.45, 0.75, ZPOS),
-               (0.6, 0.75, ZPOS)]
+               (0.60, 0.75, ZPOS),
+               (0.75, 0.7, ZPOS)]
 
 possible_can_locs = []
 possible_can_locs.extend(list(itertools.product(list(range(50, 80, 2)), list(range(20, 60, 2)))))
-
 
 for i in range(len(possible_can_locs)):
     loc = list(possible_can_locs[i])
@@ -57,7 +56,7 @@ for i in range(len(possible_can_locs)):
 
 
 def prob_file(descr=None):
-    return "../domains/robot_domain/probs/left_arm_prob{0}_{1}.prob".format(NUM_OBJS, len(END_TARGETS))
+    return "../domains/robot_domain/probs/left_arm_joint_prob{0}_{1}.prob".format(NUM_OBJS, len(END_TARGETS))
 
 
 def get_prim_choices(task_list=None):
@@ -108,24 +107,27 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
     targ_maps = []
     robot = list(plans.values())[0].params['baxter']
     body = robot.openrave_body
+    lb, ub = body._geom.get_joint_limits('left')
+    jnt_rng = np.array(ub)-np.array(lb)
     for i in range(conditions):
         x0 = np.zeros((dX,))
 
         ee_sol = None
-        quat = None # (0,1,0,0)
+        quat = (0,1,0,0)
         while ee_sol is None:
-            ee_x = np.random.uniform(0.3, 0.8)
-            ee_y = np.random.uniform(0.3, 0.8)
-            ee_z = np.random.uniform(0.25, 0.6)
+            ee_x = np.random.uniform(0.4, 0.9)
+            ee_y = np.random.uniform(-0.1, 0.7)
+            ee_z = np.random.uniform(0.1, 0.5)
+            in_grip = False # np.random.uniform() < 0.2 and ee_z > 0.1
             body.set_dof({'left': np.zeros(7)})
             ee_sol = body.get_ik_from_pose((ee_x, ee_y, ee_z), quat, 'left')
+            if not in_grip: ee_sol += np.random.normal(0, 0.02, 7) * jnt_rng
+            ee_sol = np.maximum(np.minimum(ee_sol, ub), lb)
             #lb, ub = body._geom.get_joint_limits('left')
             #scale = 0.25
             #ee_sol = np.random.uniform(scale*np.array(lb), scale*np.array(ub))
             ee_info = body.fwd_kinematics('left', dof_map={'left': ee_sol})
 
-        x0[state_inds['baxter', 'left']] = ee_sol
-        x0[state_inds['baxter', 'left_ee_pos']] = ee_info['pos']
         can_locs = copy.deepcopy(possible_can_locs)
         locs = []
         spacing = 0.04
@@ -171,6 +173,14 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
 
             spacing -= 0.1
 
+        x0[state_inds['baxter', 'left']] = ee_sol
+        x0[state_inds['baxter', 'left_gripper']] = np.random.choice([0., 0.03])
+        x0[state_inds['baxter', 'left_ee_pos']] = ee_info['pos']
+        if in_grip:
+            x0[state_inds['baxter', 'left_gripper']] = 0.0186564444
+            ind = np.random.choice(range(len(locs)))
+            locs[ind] = ee_info['pos']
+
         for l in range(len(locs)):
             locs[l] = np.array(locs[l])
 
@@ -179,7 +189,6 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         x0[state_inds['baxter', 'right']] = R_ARM_INIT
         #x0[state_inds['baxter', 'left_ee_pos']] = LEFT_INIT_EE
         x0[state_inds['baxter', 'right_ee_pos']] = RIGHT_INIT_EE
-        x0[state_inds['baxter', 'left_gripper']] = 0.02
         x0[state_inds['baxter', 'right_gripper']] = 0.02
         x0 = x0.round(4)
 
@@ -199,13 +208,6 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
             next_map = {'can{0}_end_target'.format(o): targs[no] for no, o in enumerate(inds[:config['num_targs']])}
             if config['num_targs'] < config['num_objs']:
                 next_map.update({'can{0}_end_target'.format(o): locs[o+1] for o in inds[config['num_targs']:config['num_objs']]})
-        for a in range(n_aux):
-            if a == 0:
-                next_map['aux_target_{0}'.format(a)] = (0, 0)
-            elif a % 2:
-                next_map['aux_target_{0}'.format(a)] = (-int(a/2.+0.5), 0)
-            else:
-                next_map['aux_target_{0}'.format(a)] = (int(a/2.+0.5), 0)
         targ_maps.append(next_map)
     return x0s, targ_maps
 

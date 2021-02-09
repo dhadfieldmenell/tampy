@@ -88,10 +88,11 @@ class RolloutServer(Server):
         #distr = [np.prod([distrs[i][l[i]] for i in range(len(l))]) for l in labels]
         #distr = np.array(distr)
         ind = []
-        enums = list(self.agent.prob.get_prim_choices(self.agent.task_list).keys())
+        opts = self.agent.prob.get_prim_choices(self.task_list)
+        enums = list(opts.keys())
         for i, d in enumerate(distrs):
             enum = enums[i]
-            if enum in self.agent.discrete_opts:
+            if not np.isscalar(opts[enum]):
                 val = np.max(d)
                 ind.append(np.random.choice([i for i in range(len(d)) if d[i] >= val]))
             else:
@@ -116,14 +117,18 @@ class RolloutServer(Server):
         precond_viols = []
         def task_f(sample, t, curtask):
             task = self.get_task(sample.get_X(t=t), sample.targets, curtask, self.soft)
-            if not self.compare_tasks(task, curtask):
+            onehot_task = tuple([val for val in task if np.isscalar(val)])
+            cur_onehot_task = tuple([val for val in curtask if np.isscalar(val)])
+            if onehot_task != cur_onehot_task: # not self.compare_tasks(task, curtask):
                 if self.check_postcond:
                     postcost = self.agent.postcond_cost(sample, curtask, t)
-                    if postcost > 1e-3: task = curtask
+                    if postcost > 1e-3:
+                        task = curtask
                 if self.check_precond:
                     precost = self.agent.precond_cost(sample, task, t)
-                    if precost > 1e-3: precond_viols.append((cur_ids[0], t))
-            if task == curtask:
+                    if precost > 1e-3:
+                        precond_viols.append((cur_ids[0], t))
+            if onehot_task == cur_onehot_task:
                 counts.append(counts[-1]+1)
             else:
                 counts.append(0)
@@ -148,7 +153,6 @@ class RolloutServer(Server):
 
             task_name = self.task_list[l[0]]
             pol = self.agent.policies[task_name]
-            plan = self.agent.plans[l]
             sample = self.agent.sample_task(pol, 0, state, cur_tasks[-1], skip_opt=True, hor=t_per_task, task_f=task_f)
             path.append(sample)
             state = sample.get(STATE_ENUM, t=sample.T-1)
@@ -187,6 +191,8 @@ class RolloutServer(Server):
         self.log_path(path, -20)
         #return val, path, max(0, s-last_switch), 0
         bad_pt = precond_viols[0] if len(precond_viols) else switch_pts[-1]
+        if np.random.uniform() < 0.25:
+            self.save_video(path, val)
         return val, path, bad_pt[0], bad_pt[1]
  
         
@@ -269,6 +275,7 @@ class RolloutServer(Server):
             prob = plan.prob
             domain = plan.domain
             abs_prob = self.agent.hl_solver.translate_problem(prob, goal=goal, initial=initial)
+            set_params_attrs(plan.params, self.agent.state_inds, x0, 0)
             hlnode = HLSearchNode(abs_prob,
                                  domain,
                                  prob,
@@ -334,14 +341,14 @@ class RolloutServer(Server):
             targets[self.agent.target_inds['{0}_end_target'.format(obj_name), 'value']] = x0[self.agent.state_inds[obj_name, 'pose']]
         if rlen is None:
             if self.agent.retime:
-                rlen = 5 + 6*n
+                rlen = 6 * n * len(self.agent.task_list)
             else:
                 rlen = 2 + n * len(self.agent.task_list)
-        self.agent.T = 20 # self.config['task_durations'][self.task_list[0]]
+        self.agent.T = 30 # self.config['task_durations'][self.task_list[0]]
         val, path = self.test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], eta=eta, lab=-5)
         if not self.adj_eta:
             self.adj_eta = True
-            adj_val, adj_path = self.test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], eta=eta, lab=-10)
+            adj_val, adj_path = self.test_run(x0, targets, rlen, hl=True, soft=True, eta=eta, lab=-10)
             self.adj_eta = False
         else:
             adj_val = val
@@ -386,7 +393,7 @@ class RolloutServer(Server):
         if save:
             if all([s.opt_strength == 0 for s in path]): self.hl_data.append(res)
             if val > 1-1e-2:
-                print('Rollout succeeded in test!', self.id)
+                print('-----> SUCCESS! Rollout succeeded in test!', self.id)
             # if self.use_qfunc: self.log_td_error(path)
             np.save(self.hl_test_log.format('', 'rerun_' if ckpt_ind is not None else ''), np.array(self.hl_data))
 
@@ -430,18 +437,22 @@ class RolloutServer(Server):
             if self.run_hl_test or time.time() - self.last_hl_test > 120:
                 self.agent.replace_cond(0)
                 self.agent.reset(0)
-                save_video = self.run_hl_test and np.random.uniform() < 0.2
+                n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans'].value
+                save_video = self.run_hl_test and n_plans > 500
                 self.test_hl(save_video=save_video)
 
             if self.run_hl_test or self._n_plans < ff_iters: continue
 
             self.set_policies()
             node = self.pop_queue(self.rollout_queue)
+            #if node is None:
+            #    new_node = self.spawn_problem()
+            #    self.push_queue(new_node, self.rollout_queue)
+            #else:
+            #    self.send_rollout(node)
             if node is None:
-                new_node = self.spawn_problem()
-                self.push_queue(new_node, self.rollout_queue)
-            else:
-                self.send_rollout(node)
+                node = self.spawn_problem()
+            self.send_rollout(node)
 
             if self.fail_plan:
                 self.plan_from_fail(mode=self.fail_mode)
@@ -461,6 +472,7 @@ class RolloutServer(Server):
         x0 = node.x0
         targets = node.targets
         val, path, s, t = self.rollout(x0, targets)
+        print('Rolled out success from server {0}: {1}'.format(self.id, val))
         if val < 1:
             state = x0
             if len(path):
@@ -468,6 +480,7 @@ class RolloutServer(Server):
             initial, goal = self.agent.get_hl_info(state, targets)
             concr_prob = node.concr_prob
             abs_prob = self.agent.hl_solver.translate_problem(concr_prob, initial=initial, goal=goal)
+            set_params_attrs(concr_prob.init_state.params, self.agent.state_inds, state, 0)
             hlnode = HLSearchNode(abs_prob,
                                   node.domain,
                                   concr_prob,
@@ -496,7 +509,6 @@ class RolloutServer(Server):
         while t < max_t and val < 1-1e-2:
             l = self.get_task(state, targets, l, soft)
             if l is None: break
-            plan = self.agent.plans[l]
             task_name = self.task_list[l[0]]
             pol = self.agent.policies[task_name]
             s = self.agent.sample_task(pol, 0, state, l, noisy=False, task_f=task_f, skip_opt=True)

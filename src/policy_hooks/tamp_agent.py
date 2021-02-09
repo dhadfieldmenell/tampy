@@ -784,10 +784,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             if rollout and self.policy_initialized(policy):
                 sample = self.sample_task(policy, 0, x0.copy(), task, hor=40)
                 cost = self.postcond_cost(sample, task, sample.T-1)
+                #traj = self.reverse_retime([sample], plan, (st, et))
                 
                 if cost < 1e-3:
                     self.optimal_samples[self.task_list[task[0]]].append(sample)
-                    self.reverse_retime([sample], plan, (st, et))
 
             if a > anum or xsaved is None:
                 fill_vector(plan.params, self.state_inds, x0, st)
@@ -826,11 +826,11 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         perm = {}
         old_x0 = x0.copy()
         old_targets = targets
-        if permute:
-            tasks, targets, perm = self.permute_tasks(tasks, targets, plan)
-            for pname, aname in self.state_inds:
-                if pname in perm:
-                    x0[self.state_inds[perm[pname], aname]] = getattr(plan.params[pname], aname)[:,0]
+        #if permute:
+        #    tasks, targets, perm = self.permute_tasks(tasks, targets, plan)
+        #    for pname, aname in self.state_inds:
+        #        if pname in perm:
+        #            x0[self.state_inds[perm[pname], aname]] = getattr(plan.params[pname], aname)[:,0]
         if reset:
             self.reset_to_state(x0)
         if amax is None:
@@ -1008,7 +1008,13 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         if len(np.shape(Xs)) == 1:
             Xs = Xs.reshape(1, Xs.shape[0])
         Xs = Xs[:, self._x_data_idx[STATE_ENUM]]
-        plan = self.plans[task]
+
+        true_task = task
+        task = [val for val in true_task if np.isscalar(val)]
+        task = tuple(task)
+
+        onehot_task = tuple([val for val in task if np.isscalar(val)])
+        plan = self.plans[onehot_task] if onehot_task in self.plans else self.plans[task[0]]
         if targets is None or not len(targets):
             targets = self.target_vecs[condition]
         for tname, attr in self.target_inds:
@@ -1032,12 +1038,14 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
 
     def cost_f(self, Xs, task, condition, active_ts=None, debug=False, targets=[]):
-        task = tuple(task)
+        true_task = task
+        task = [val for val in true_task if np.isscalar(val)]
+
+        onehot_task = tuple([val for val in task if np.isscalar(val)])
+        plan = self.plans[onehot_task] if onehot_task in self.plans else self.plans[task[0]]
         if active_ts == None:
-            plan = self.plans[task]
             active_ts = (1, plan.horizon-1)
         elif active_ts[0] == -1:
-            plan = self.plans[task]
             active_ts = (plan.horizon-1, plan.horizon-1)
         failed_preds = self._failed_preds(Xs, task, condition, active_ts=active_ts, debug=debug, targets=targets)
         cost = 0
@@ -1079,9 +1087,11 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         x = s.get_X(t=t)
         task = s.get(FACTOREDTASK_ENUM, t=t)
         u = s.get(ACTION_ENUM, t=t)
-        textover = self.mjc_env.get_text_overlay(body='Task: {0}'.format(task))
+        u = str(u.round(2))[1:-1]
+        textover1 = self.mjc_env.get_text_overlay(body='Task: {0}'.format(task))
+        textover2 = self.mjc_env.get_text_overlay(body='{0}'.format(u), position='bottom left')
         self.reset_to_state(x)
-        im = self.mjc_env.render(camera_id=self.camera_id, height=self.image_height, width=self.image_width, view=False, overlays=(textover,))
+        im = self.mjc_env.render(camera_id=cam_id, height=self.image_height, width=self.image_width, view=False, overlays=(textover1, textover2))
         return im
 
 
@@ -1102,9 +1112,11 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
         ts = np.linspace(0, T, ts[1]-ts[0])
         cur_s, cur_t = 0, 0
+        cur_offset = 0
+        traj = []
         for ind, t in enumerate(ts):
             t = int(t)
-            cur_t = t
+            cur_t = t - cur_offset
             if cur_t >= cur_s.T:
                 cur_t -= cur_s.T
                 cur_s += 1
@@ -1112,6 +1124,11 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 cur_s = len(samples)-1
                 cur_t = samples[-1].T-1
             sample = samples[cur_s]
-            set_params_attrs(plan.params, self.state_inds, sample.get(STATE_ENUM, t=cur_t), ind)
+            traj.append(sample.get(STATE_ENUM, t=cur_t))
+            #set_params_attrs(plan.params, self.state_inds, sample.get(STATE_ENUM, t=cur_t), ind)
+        return np.array(traj)
 
+
+    def get_inv_cov(self):
+        return None
 

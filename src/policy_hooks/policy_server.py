@@ -152,13 +152,14 @@ class PolicyServer(object):
 
     def get_log_info(self):
         test_acc, train_acc = -1, -1
-        if self.task == 'primitive':
-            obs, mu, prc = self.data_gen.get_batch()
-            train_acc = self.policy_opt.task_acc(obs, mu, prc)
-            train_component_acc = self.policy_opt.task_acc(obs, mu, prc, scalar=False)
-            obs, mu, prc = self.data_gen.get_batch(val=True)
-            test_acc = self.policy_opt.task_acc(obs, mu, prc)
-            test_component_acc = self.policy_opt.task_acc(obs, mu, prc, scalar=False)
+        test_component_acc, train_component_acc = -1, -1
+        #if self.task == 'primitive':
+        #    obs, mu, prc = self.data_gen.get_batch()
+        #    train_acc = self.policy_opt.task_acc(obs, mu, prc)
+        #    train_component_acc = self.policy_opt.task_acc(obs, mu, prc, scalar=False)
+        #    obs, mu, prc = self.data_gen.get_batch(val=True)
+        #    test_acc = self.policy_opt.task_acc(obs, mu, prc)
+        #    test_component_acc = self.policy_opt.task_acc(obs, mu, prc, scalar=False)
         info = {
                 'time': time.time() - self.start_t,
                 'train_loss': np.mean(self.train_losses['all'][-10:]),

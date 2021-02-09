@@ -257,7 +257,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'split_mcts_alg': True,
         'robot_name': 'baxter',
         'ctrl_mode': 'joint_angle',
-        'visual_cameras': [1,3],
+        'visual_cameras': [2,5],
 
         'state_include': [utils.STATE_ENUM],
         'obs_include': [utils.TASK_ENUM,
@@ -265,6 +265,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                         #utils.TARG_POSE_ENUM,
                         utils.END_POSE_ENUM,
                         utils.LEFT_ENUM,
+                        utils.LEFT_GRIPPER_ENUM,
                         # utils.DONE_ENUM,
                         ],
         'prim_obs_include': [
@@ -281,6 +282,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.TARG_POSE_ENUM: 3,
                 utils.LIDAR_ENUM: N_DIRS,
                 utils.EE_ENUM: 3,
+                utils.LEFT_EE_POS_ENUM: 3,
                 utils.END_POSE_ENUM: 3,
                 utils.GRIPPER_ENUM: 1,
                 utils.GOAL_ENUM: 3*no,
@@ -292,6 +294,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.ATGOAL_ENUM: no,
                 utils.FACTOREDTASK_ENUM: len(list(prob.get_prim_choices().keys())),
                 utils.LEFT_ENUM: 7,
+                utils.LEFT_GRIPPER_ENUM: 1,
                 # utils.INIT_OBJ_POSE_ENUM: 2,
             },
         'visual': False,
@@ -306,7 +309,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'prim_first_wt': 1e1,
     }
 
-    #config['prim_obs_include'].append(utils.EE_ENUM)
+    #config['prim_obs_include'].append(utils.LEFT_EE_POS_ENUM)
     for o in range(no):
         config['sensor_dims'][utils.OBJ_DELTA_ENUMS[o]] = 3
         config['sensor_dims'][utils.OBJ_ENUMS[o]] = 3

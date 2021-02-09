@@ -41,13 +41,15 @@ visual = False # len(os.environ.get('DISPLAY', '')) > 0
 problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, env, use_tf=True, sess=None, visual=visual)
 params = problem.init_state.params
 xpos = np.random.uniform(0.4, 0.8)
-ypos = np.random.uniform(0.1, 0.6)
+ypos = np.random.uniform(0.4, 0.9)
 params['cloth0'].pose[:,0] = [xpos, ypos, -0.029]
 
 xpos = np.random.uniform(0.1, 0.5)
 ypos = np.random.uniform(0.7, 0.8)
+xpos = 0.75
+ypos = 0.75
 params['cloth0_end_target'].value[:,0] = [xpos, ypos, -0.02]
-
+params['baxter'].left_gripper[:,0] = 0.0
 for i in range(1):
     params['cloth{}_init_target'.format(i)].value[:,0] = params['cloth{}'.format(i)].pose[:,0]
 
@@ -70,7 +72,8 @@ for t in range(plan.horizon):
     #info = baxter.openrave_body.param_fwd_kinematics(baxter, ['left', 'right'], t)
     #left_pos, left_quat = np.array(info['left']['pos']), info['left']['quat']
     #right_pos, right_quat = np.array(info['right']['pos']), info['right']['quat']
-    left_pos, right_pos = baxter.left_ee_pos[:,t], baxter.right_ee_pos[:,t]
+    #left_pos, right_pos = baxter.left_ee_pos[:,t], baxter.right_ee_pos[:,t]
+    left_pos, right_pos = baxter.left[:,t], baxter.right[:,t]
     lgrip, rgrip = baxter.left_gripper[:,t], baxter.right_gripper[:,t]
     act = np.r_[right_pos, rgrip, left_pos, lgrip]
     cmds.append(act)
@@ -94,7 +97,7 @@ for i in range(10):
 
 env.render(view=True, camera_id=1)
 import ipdb; ipdb.set_trace()
-nsteps = 5
+nsteps = 10
 for act in plan.actions:
     for t in range(act.active_timesteps[0], act.active_timesteps[1]):
         base_act = cmds.pop(0)
@@ -103,7 +106,8 @@ for act in plan.actions:
             act[:3] -= env.get_right_ee_pos()
             act[4:7] -= env.get_left_ee_pos()
             incl = ['joint_angle'] if n > 0 else ['forward_image']
-            env.step(act, mode='end_effector_pos', view=(n==0), obs_include=incl)
+            #env.step(act, mode='end_effector_pos', view=(n==0), obs_include=incl)
+            env.step(act, mode='joint_angle', view=(n==0), obs_include=incl)
         print(env.get_left_ee_pos(), env.get_item_pos('cloth0'), base_act[4:7], base_act[7], plan.params['baxter'].left_ee_pos[:,t])
     import ipdb; ipdb.set_trace()
 import ipdb; ipdb.set_trace()

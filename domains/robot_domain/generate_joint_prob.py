@@ -7,7 +7,7 @@ import random
 # SEED = 1234
 NUM_PROBS = 1
 NUM_CLOTH = 1
-filename = "probs/left_arm_prob{}_{}.prob"
+filename = "probs/left_arm_joint_prob{}_{}.prob"
 GOAL = "(RobotAt baxter robot_end_pose)"
 
 

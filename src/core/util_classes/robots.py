@@ -148,7 +148,7 @@ class Robot(object):
 
     def infer_gripper_axis(self, arm):
         """
-        Helper function to infer direction gripper points in from current rotation
+        Helper function to infer direction gripper points from current rotation
         """
         ee_link = self.get_ee_link(arm)
         parent = p.getJointInfo(self.id, ee_link)[-1]
@@ -363,6 +363,25 @@ class Baxter(Robot):
         #self.col_links = set([self.ik_solver.name2id(name) for name in self.col_link_names])
         #self.dof_map = {"lArmPose": [31, 32, 33, 34, 35, 37, 38],
         #                "rArmPose": [13, 14, 15, 16, 17, 19, 20]}
+
+
+class Sawyer(Robot):
+    """
+    Defines geometry used in the Baxter domain.
+    """
+    def __init__(self):
+        self._type = "sawyer"
+        baxter_shape = baxter_gym.__path__[0] + "/robot_info/sawyer/robot.xml"
+        super(Baxter, self).__init__(baxter_shape)
+
+        self.jnt_names = {'left':  ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', 'left_w1', 'left_w2'],
+                          'left_gripper': ['left_gripper_l_finger_joint', 'left_gripper_r_finger_joint'],
+                          }
+        self.ee_link_names = {'left': 'left_gripper'}
+        self.arms = ['left']
+        self.ee_attrs = ['left_ee_pos']
+        self.arm_bnds = {'left': (0,7)}
+        self.col_link_names = set([])
 
 
 class HSR(Robot):

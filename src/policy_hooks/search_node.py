@@ -47,6 +47,9 @@ class HLSearchNode(SearchNode):
         self.x0 = x0
         self.expansions = expansions
         self.llnode = llnode
+        self._trace = [label] 
+        if llnode is not None:
+            self._trace.extend(llnode._trace)
 
     def is_hl_node(self):
         return True
@@ -63,7 +66,7 @@ class HLSearchNode(SearchNode):
         return plan_obj
 
 class LLSearchNode(SearchNode):
-    def __init__(self, plan_str, domain, prob, initial, priority=1, keep_failed=False, ref_plan=None, x0=None, targets=None, expansions=0, label=''):
+    def __init__(self, plan_str, domain, prob, initial, priority=1, keep_failed=False, ref_plan=None, x0=None, targets=None, expansions=0, label='', refnode=None):
         self.curr_plan = 'no plan'
         self.plan_str = plan_str
         self.domain = domain
@@ -76,6 +79,10 @@ class LLSearchNode(SearchNode):
         self.ref_plan = ref_plan
         self.x0 = x0
         self.label = label
+        #self.refnode = refnode
+        self._trace = [label] 
+        if refnode is not None:
+            self._trace.extend(refnode._trace)
 
         # If true, replanning is done from the end of the first failed action instead of the start
         # This is useful if trajectories are rolled out online and you do not wish to perform state resets
@@ -164,7 +171,7 @@ class LLSearchNode(SearchNode):
 
     def solved(self):
         if self._solved is None:
-            return len(self.curr_plan.get_failed_preds()) == 0
+            return len(self.curr_plan.get_failed_preds(tol=1e-3)) == 0
         return self._solved
 
     def is_ll_node(self):
@@ -189,7 +196,7 @@ class LLSearchNode(SearchNode):
             anum = self.curr_plan.start
             st = self.curr_plan.actions[anum].active_timesteps[0]
         et = self.curr_plan.horizon - 1
-        failed_pred = self.curr_plan.get_failed_pred(active_ts=(st,et), hl_ignore=True)
+        failed_pred = self.curr_plan.get_failed_pred(active_ts=(st,et), hl_ignore=True, tol=1e-3)
         if hasattr(failed_pred[1], 'hl_ignore') and failed_pred[1].hl_ignore:
             return failed_pred[2], None, failed_pred[0]
         return failed_pred[2], failed_pred[1], failed_pred[0]

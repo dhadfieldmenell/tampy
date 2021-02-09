@@ -19,7 +19,7 @@ from policy_hooks.utils.tf_utils import TfSolver
 
 from policy_hooks.tf_policy import TfPolicy
 
-MAX_QUEUE_SIZE = 100000
+MAX_QUEUE_SIZE = 200000
 MAX_UPDATE_SIZE = 10000
 SCOPE_LIST = ['primitive']
 
@@ -462,12 +462,14 @@ class ControlAttentionPolicyOpt(PolicyOpt):
     def task_distr(self, obs, eta=1.):
         if len(obs.shape) < 2:
             obs = obs.reshape(1, -1)
+
         with tf.device(self.device_string):
             distr = self.sess.run(self.primitive_act_op, feed_dict={self.primitive_obs_tensor:obs, self.primitive_eta: eta})[0].flatten()
         res = []
         for bound in self._primBounds:
             res.append(distr[bound[0]:bound[1]])
         return res
+
 
     def check_task_error(self, obs, mu):
         err = 0.

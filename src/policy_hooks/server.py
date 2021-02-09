@@ -19,6 +19,7 @@ from policy_hooks.sample import Sample
 from policy_hooks.sample_list import SampleList
 from policy_hooks.utils.policy_solver_utils import *
 from policy_hooks.msg_classes import *
+from policy_hooks.save_video import save_video
 from policy_hooks.search_node import *
 
 
@@ -57,7 +58,7 @@ class Server(object):
             self.cur_vid_id = 0
             if not os.path.isdir(LOG_DIR+hyperparams['weight_dir']+'/videos'):
                 os.makedirs(LOG_DIR+hyperparams['weight_dir']+'/videos')
-            self.video_dir = LOG_DIR+hyperparams['weight_dir']+'/videos'
+            self.video_dir = LOG_DIR+hyperparams['weight_dir']+'/videos/'
 
         self.task_queue = hyperparams['task_queue']
         self.motion_queue = hyperparams['motion_queue']
@@ -115,6 +116,8 @@ class Server(object):
         self.ff_data_file = LOG_DIR+hyperparams['weight_dir']+'/ff_samples_{0}_{1}.pkl'
         self.log_file = LOG_DIR + hyperparams['weight_dir'] + '/{0}_log.txt'.format(self.id)
         self.verbose_log_file = LOG_DIR + hyperparams['weight_dir'] + '/{0}_verbose.txt'.format(self.id)
+        self.n_plans = 0
+        self.n_failed = 0
 
     
     def map_cont_discr_tasks(self):
@@ -222,6 +225,7 @@ class Server(object):
             alg_key = 'control'
         else:
             alg_key = task
+
         if self.policy_opt.task_map[alg_key]['policy'].scale is None:
             if opt_s is not None:
                 return opt_s.get_U(t) # + self.alg_map[task].cur[0].traj_distr.chol_pol_covar[t].T.dot(noise)
@@ -240,10 +244,11 @@ class Server(object):
         #    return distrs
         if not soft: return distrs
         out = []
-        enums = list(self.agent.prob.get_prim_choices(self.task_list).keys())
+        opts = self.agent.prob.get_prim_choices(self.task_list)
+        enums = list(opts.keys())
         for ind, d in enumerate(distrs):
             enum = enums[ind]
-            if enum in self.agent.discrete_opts:
+            if not np.isscalar(opts[enum]):
                 p = d / np.sum(d)
                 ind = np.random.choice(list(range(len(d))), p=p)
                 d[ind] += 1e2
@@ -297,16 +302,16 @@ class Server(object):
         if self.policy_opt.share_buffers:
             self.policy_opt.read_shared_weights()
         chol_pol_covar = {}
-        for task in self.agent.task_list:
-            if task not in self.policy_opt.valid_scopes:
-                task_name = 'control'
-            else:
-                task_name = task
+        #for task in self.agent.task_list:
+        #    if task not in self.policy_opt.valid_scopes:
+        #        task_name = 'control'
+        #    else:
+        #        task_name = task
 
-            #if self.policy_opt.task_map[task_name]['policy'].scale is None:
-            #    chol_pol_covar[task] = np.eye(self.agent.dU) # self.alg_map[task].cur[0].traj_distr.chol_pol_covar
-            #else:
-            #    chol_pol_covar[task] = self.policy_opt.task_map[task_name]['policy'].chol_pol_covar
+        #    #if self.policy_opt.task_map[task_name]['policy'].scale is None:
+        #    #    chol_pol_covar[task] = np.eye(self.agent.dU) # self.alg_map[task].cur[0].traj_distr.chol_pol_covar
+        #    #else:
+        #    #    chol_pol_covar[task] = self.policy_opt.task_map[task_name]['policy'].chol_pol_covar
 
         rollout_policies = {task: DummyPolicy(task,
                                               self.policy_call,
@@ -389,7 +394,9 @@ class Server(object):
                 info['targets'] = {tname: sample.targets[self.agent.target_inds[tname, attr]] for tname, attr in self.agent.target_inds}
                 info['opt_success'] = sample.opt_suc
                 info['tasks'] = sample.get(FACTOREDTASK_ENUM)
+                info['goal_pose'] = sample.get(ABS_POSE_ENUM)
                 info['end_state'] = sample.end_state
+                info['plan_fail_rate'] = self.n_failed / self.n_plans if self.n_plans > 0 else 0.
                 # info['prim_obs'] = sample.get_prim_obs().round(4)
             data.append(info)
         return data
@@ -439,9 +446,10 @@ class Server(object):
         self.agent.image_height = 256
         self.agent.image_width = 256
         suc_flag = ''
+        cam_ids = self.config.get('visual_cameras', [self.agent.camera_id])
         if success is not None:
-            suc_flag = 'succeeded' if success else 'failed'
-        fname = self.video_dir + '/{0}_{1}_{2}_{3}{4}.npy'.format(self.id, self.group_id, self.cur_vid_id, suc_flag, lab)
+            suc_flag = 'success' if success else 'fail'
+        fname = self.video_dir + '/{0}_{1}_{2}_{3}{4}_{5}.npy'.format(self.id, self.group_id, self.cur_vid_id, suc_flag, lab, str(cam_ids)[1:-1].replace(' ', ''))
         self.cur_vid_id += 1
         buf = []
         for step in rollout:
@@ -454,14 +462,15 @@ class Server(object):
 
             for t in ts_range:
                 ims = []
-                for ind, cam_id in enumerate(self.config.get('visual_cameras', [None])):
+                for ind, cam_id in enumerate(cam_ids):
                     if annotate and ind == 0:
                         ims.append(self.agent.get_annotated_image(step, t, cam_id=cam_id))
                     else:
                         ims.append(self.agent.get_image(step.get_X(t=t), cam_id=cam_id))
                 im = np.concatenate(ims, axis=1)
                 buf.append(im)
-        np.save(fname, np.array(buf))
+        #np.save(fname, np.array(buf))
+        save_video(fname, dname=self._hyperparams['descr'], arr=np.array(buf), savepath=self.video_dir)
         self.agent.image_height = old_h
         self.agent.image_width = old_w
 

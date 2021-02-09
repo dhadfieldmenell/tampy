@@ -102,6 +102,8 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False,
                                     all_data[k][full_exp][cur_dir][cur_dir][-1]['smallest tolerance'] = pt[14]
                                 if len(pt) > 15:
                                     all_data[k][full_exp][cur_dir][cur_dir][-1]['success with postcond'] = pt[15]
+                                if len(pt) > 16:
+                                    all_data[k][full_exp][cur_dir][cur_dir][-1]['success with adj_eta'] = pt[16]
                                 # all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta+1)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'description': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9], 'number of plans': pt[10]})
 
                     i += 1
@@ -799,13 +801,13 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
     # yvar_labs = np.concatenate([[v+'{0}'.format('_'+str(i) if inds_to_var.get(v, 0) > 1 else '') for i in range(inds_to_var.get(v, 1))] for v in yvars])
     plot(data, ['description', 'key', 'exp id']+xvars+flat_yvar_labs, '{0}_vs_{1}'.format(xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind, inter=inter, rolling=rolling, window=window, xlim=xlim, ylim=ylim)
 
-include=['namo']
+include=['cont']
 exclude=[]
-keywords=['aux']
+keywords=['namo']
 #gen_data_plots(xvar='time', yvar=[['train_accuracy', 'test_accuracy']], keywords=keywords, lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='1objlossesspreadtargs', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
 #gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='lossdataloadtargs', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
-gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
-gen_data_plots(xvar='time', yvar=['success with postcond', 'subgoals anywhere'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadpostpreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0,1), (0,1)])
+gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=100, ylim=[(0.,1.), (0.,1.), (0, 1.)])
+gen_data_plots(xvar='time', yvar=['success with postcond', 'success with adj_eta'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadpostpreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0,1), (0,1)])
 gen_data_plots(xvar='time', yvar=['number of plans'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadratetargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300)
 gen_data_plots(xvar='time', yvar=['collision'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='coldataloadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
 gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadnplansend', exclude=exclude, split_runs=False, include=include, inter=5, window=500, ylim=[(0.,1.), (0.,1.), (0, 1.)])

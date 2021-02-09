@@ -73,7 +73,8 @@ class MultiProcessMain(object):
         self.config = config
         if load_at_spawn:
             setup_dirs(config, config['args'])
-            self.pol_list = ('control',)
+            task_file = config.get('task_map_file', '')
+            self.pol_list = ('control',) if not config['args'].split_nets else tuple(get_tasks(task_file).keys())
             config['main'] = self
         else:
             self.init(config)
@@ -241,6 +242,8 @@ class MultiProcessMain(object):
 
         if self.config.get('add_hl_image', False):
             primitive_network_model = fp_multi_modal_class_network
+        elif any([t.find('cont') >= 0 for t in self.task_types]):
+            primitive_network_model = tf_cond_network
         elif self.config.get('split_hl_loss', False):
             primitive_network_model = tf_balanced_classification_network
         elif self.config.get('conditional', False):
@@ -345,9 +348,10 @@ class MultiProcessMain(object):
         #    buffers['control'] = mp.Array(ctypes.c_char, (2**28))
         #    buf_sizes['control'] = mp.Value('i')
         #    buf_sizes['control'].value = 0
-        buffers['control'] = mp.Array(ctypes.c_char, (2**28))
-        buf_sizes['control'] = mp.Value('i')
-        buf_sizes['control'].value = 0
+        for task in self.pol_list:
+            buffers[task] = mp.Array(ctypes.c_char, (2**28))
+            buf_sizes[task] = mp.Value('i')
+            buf_sizes[task].value = 0
         buffers['primitive'] = mp.Array(ctypes.c_char, 20 * (2**28))
         buf_sizes['primitive'] = mp.Value('i')
         buf_sizes['primitive'].value = 0
@@ -355,6 +359,8 @@ class MultiProcessMain(object):
         buf_sizes['n_data'].value = 0
         buf_sizes['n_plans'] = mp.Value('i')
         buf_sizes['n_plans'].value = 0
+        buf_sizes['n_failed'] = mp.Value('i')
+        buf_sizes['n_failed'].value = 0
         buf_sizes['n_mcts'] = mp.Value('i')
         buf_sizes['n_mcts'].value = 0
         buf_sizes['n_ff'] = mp.Value('i')
@@ -410,6 +416,7 @@ class MultiProcessMain(object):
         for task in self.pol_list+('primitive',):
             new_hyperparams = copy.copy(hyperparams)
             new_hyperparams['scope'] = task
+            new_hyperparams['id'] = task
             self.create_server(PolicyServer, new_hyperparams)
 
 
@@ -487,7 +494,6 @@ class MultiProcessMain(object):
         hyperparams['load_render'] = True
         hyperparams['agent']['image_height']  = 256
         hyperparams['agent']['image_width']  = 256
-        hyperparams['visual_cameras'] = [1,3]
         descr = hyperparams.get('descr', '')
         # hyperparams['weight_dir'] = hyperparams['weight_dir'].replace('exp_id0', 'rerun_{0}'.format(descr))
         hyperparams['id'] = 'test'
@@ -686,7 +692,7 @@ def setup_dirs(c, args):
                 os.mkdir(dir_name)
         if args.hl_retrain:
             src = DIR_KEY + args.hl_data + '/hyp.py'
-        elif len(args.expert_path):
+        elif hasattr(args, 'expert_path') and len(args.expert_path):
             src = args.expert_path+'/hyp.py'
         else:
             src = c['source'].replace('.', '/')+'.py'

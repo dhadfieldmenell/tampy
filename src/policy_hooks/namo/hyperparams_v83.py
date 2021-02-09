@@ -19,7 +19,7 @@ from core.util_classes.namo_predicates import ATTRMAP
 from pma.namo_solver import NAMOSolver
 from policy_hooks.namo.namo_agent import NAMOSortingAgent
 from policy_hooks.namo.namo_policy_solver import NAMOPolicySolver
-import policy_hooks.namo.sorting_prob_10 as prob
+import policy_hooks.namo.cont_prob as prob
 prob.NUM_OBJS = NUM_OBJS
 prob.NUM_TARGS = NUM_TARGS
 from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer
@@ -37,11 +37,11 @@ N_SAMPLES = 10
 N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
 OPT_WT_MULT = 5e2
-N_ROLLOUT_SERVERS = 30
+N_ROLLOUT_SERVERS = 32
 N_ALG_SERVERS = 0
 N_OPTIMIZERS = 0
 N_DIRS = 16
-N_GRASPS = 4
+N_GRASPS = 1
 TIME_LIMIT = 14400
 
 
@@ -170,7 +170,8 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.N_GRASPS = N_GRASPS
     prob.FIX_TARGETS = True
 
-    prob.domain_file = "../domains/namo_domain/nopose.domain"
+    prob.domain_file = "../domains/namo_domain/namo_current.domain"
+    prob.mapping_file = "policy_hooks/namo/sorting_task_mapping_9"
     prob.END_TARGETS = prob.END_TARGETS[:8]
     prob.n_aux = 0
     config = {
@@ -202,7 +203,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'weight_decay': 1e-3,
         'prim_weight_decay': 1e-3,
         'val_weight_decay': 1e-3,
-        'batch_size': 500,
+        'batch_size': 100,
         'n_layers': 2,
         'prim_n_layers': 1,
         'val_n_layers': 1,
@@ -237,6 +238,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'agent_type': NAMOSortingAgent,
         'opt_server_type': NAMOMotionPlanServer,
         'mp_solver_type': NAMOPolicySolver,
+        'll_solver_type': NAMOSolver,
         'update_size': 2000,
         'prim_update_size': 5000,
         'val_update_size': 1000,
@@ -247,9 +249,6 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'mcts_early_stop_prob': 0.5,
         'hl_timeout': HL_TIMEOUT,
         'multi_policy': False,
-        'image_width': 107,
-        'image_height': 80,
-        'image_channels': 3,
         'opt_prob': 1.,
         'opt_smooth': False,
         'share_buffer': True,
@@ -261,6 +260,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                         utils.TASK_ENUM,
                         #utils.OBJ_POSE_ENUM,
                         #utils.TARG_POSE_ENUM,
+                        utils.EE_ENUM,
                         utils.END_POSE_ENUM,
                         utils.GRASP_ENUM,
                         # utils.DONE_ENUM,
@@ -269,7 +269,6 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                              # utils.DONE_ENUM,
                              # utils.STATE_ENUM,
                              #utils.GOAL_ENUM,
-                             #utils.TRAJ_HIST_ENUM,
                              utils.ONEHOT_GOAL_ENUM,
                              ],
         'val_obs_include': [utils.ONEHOT_GOAL_ENUM,
@@ -280,6 +279,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.OBJ_POSE_ENUM: 2,
                 utils.TARG_POSE_ENUM: 2,
                 utils.LIDAR_ENUM: N_DIRS,
+                utils.OBJ_LIDAR_ENUM: N_DIRS,
                 utils.EE_ENUM: 2,
                 utils.END_POSE_ENUM: 2,
                 utils.GRIPPER_ENUM: 1,
@@ -297,7 +297,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'visual': False,
         'time_limit': TIME_LIMIT,
         'success_to_replace': 1,
-        'steps_to_replace': no * 50,
+        'steps_to_replace': no * 10,
         'curric_thresh': -1,
         'n_thresh': -1,
         'expand_process': False,
@@ -308,11 +308,13 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     }
 
     config['prim_obs_include'].append(utils.EE_ENUM)
-    config['val_obs_include'].append(utils.EE_ENUM)
     for o in range(no):
+        config['sensor_dims'][utils.OBJ_DELTA_ENUMS[o]] = 2
         config['sensor_dims'][utils.OBJ_ENUMS[o]] = 2
+        config['sensor_dims'][utils.TARG_ENUMS[o]] = 2
         config['prim_obs_include'].append(utils.OBJ_ENUMS[o])
-        config['val_obs_include'].append(utils.OBJ_ENUMS[o])
+        #config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
+        config['prim_obs_include'].append(utils.TARG_ENUMS[o])
     return config
 
 config = refresh_config()

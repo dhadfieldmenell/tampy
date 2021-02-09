@@ -125,6 +125,7 @@ class DataLoader(object):
 
 
     def set_scale(self):
+        if self.scale is not None: return self.scale, self.bias
         obs = []
         for label in self.items:
             for item in self.items[label]:

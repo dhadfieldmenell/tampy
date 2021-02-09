@@ -225,7 +225,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         prior.update(samples, self.local_policy_opt, mode, self.task)
 
 
-    def _update_policy_no_cost(self, optimal_samples=[], label='optimal'):
+    def _update_policy_no_cost(self, optimal_samples=[], label='optimal', inv_cov=None):
         """ Compute the new policy. """
         if not len(self.cur) and not len(optimal_samples): return
 
@@ -241,7 +241,10 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
             m = 0
             traj, pol_info = self.new_traj_distr[m], self.cur[m].pol_info
             for t in range(len(sample.use_ts)):
-                prc[:, t, :, :] = np.tile(traj.inv_pol_covar[t, :, :], [1, 1, 1])
+                if inv_cov is None:
+                    prc[:, t, :, :] = np.tile(traj.inv_pol_covar[t, :, :], [1, 1, 1])
+                else:
+                    prc[:, t, :, :] = np.tile(inv_cov, [1, 1, 1])
                 wt[t] = self._hyperparams['opt_wt'] * sample.use_ts[t]
 
             tgt_mu = np.concatenate((tgt_mu, sample.get_U()))
@@ -263,7 +266,10 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
                 ts = np.random.choice(range(T), data_len, replace=False)
                 ts.sort()
                 for t in range(data_len):
-                    prc[:, t, :, :] = np.tile(traj.inv_pol_covar[ts[t], :, :], [1, 1, 1])
+                    if inv_cov is None:
+                        prc[:, i, :, :] = np.tile(traj.inv_pol_covar[ts[t], :, :], [1, 1, 1])
+                    else:
+                        prc[:, i, :, :] = np.tile(inv_cov, [1, 1, 1])
                     wt[:,t] = 1. * sample.use_ts[ts[t]]
 
                 for i in range(data_len):

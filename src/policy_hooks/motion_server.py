@@ -49,27 +49,30 @@ class MotionServer(Server):
             failed_prefix = plan.get_failed_preds(active_ts=ts, tol=1e-3)
         except Exception as e:
             failed_prefix = ['ERROR IN FAIL CHECK', e]
+
         if len(failed_prefix):
             print('BAD PREFIX! -->', plan.actions[:plan.start], 'FAILED', failed_prefix)
             plan.start = 0
 
+        ts = (0, plan.actions[plan.start].active_timesteps[0])
+        set_params_attrs(plan.params, self.agent.state_inds, node.x0, ts[1])
         plan.freeze_actions(plan.start)
         init_t = time.time()
+        self.n_plans += 1
         success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=False)
+        self.n_failed += 0. if success else 1.
         # print('Time to plan:', time.time() - init_t)
         if success:
             path = self.agent.run_plan(plan, node.targets, permute=self.permute_hl)
-            if self.render and np.random.uniform() < 0.005:
-                self.save_video(path, path[-1].success, lab=self.id+'_optimal_run')
+            if self.render and np.random.uniform() < 0.005 or not path[-1].success and np.random.uniform() < 0.01:
+                self.save_video(path, path[-1].success)
             self.log_path(path, 10)
             for step in path: step.source_label = 'optimal'
-            print(self.id, 'Successful refine from', node.label)
+            print(self.id, 'Successful refine from', node.label, 'rollout succes was:', path[-1].success)
+        
         if not success and node.gen_child():
             fail_step, fail_pred, fail_negated = node.get_failed_pred()
-            if 'cloth0' in plan.params:
-                print('Refine failed:', plan.get_failed_preds((0, fail_step)), fail_pred, fail_step, plan.actions, node.label, plan.params['cloth0'].pose[:,0], plan.params['baxter'].left_ee_pos[:,0])
-            else:
-                print('Refine failed:', plan.get_failed_preds((0, fail_step)), fail_pred, fail_step, plan.actions, node.label)
+            print('Refine failed:', plan.get_failed_preds((0, fail_step)), fail_pred, fail_step, plan.actions, node.label, node._trace)
             n_problem = node.get_problem(fail_step, fail_pred, fail_negated)
             abs_prob = self.agent.hl_solver.translate_problem(n_problem, goal=node.concr_prob.goal)
             prefix = node.curr_plan.prefix(fail_step)
@@ -98,9 +101,10 @@ class MotionServer(Server):
                 self.set_policies()
                 self.refine_plan(node)
 
+            inv_cov = self.agent.get_inv_cov()
             for task in self.alg_map:
                 data = self.agent.get_opt_samples(task, clear=True)
-                if len(data): self.alg_map[task]._update_policy_no_cost(data, label='optimal')
+                if len(data): self.alg_map[task]._update_policy_no_cost(data, label='optimal', inv_cov=inv_cov)
             self.run_hl_update()
             step += 1
         self.policy_opt.sess.close()

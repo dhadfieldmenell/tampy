@@ -19,7 +19,7 @@ from core.util_classes.namo_predicates import ATTRMAP
 from pma.namo_solver import NAMOSolver
 from policy_hooks.namo.namo_agent import NAMOSortingAgent
 from policy_hooks.namo.namo_policy_solver import NAMOPolicySolver
-import policy_hooks.namo.sort_prob as prob
+import policy_hooks.namo.cont_prob as prob
 prob.NUM_OBJS = NUM_OBJS
 prob.NUM_TARGS = NUM_TARGS
 from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer
@@ -281,6 +281,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.OBJ_LIDAR_ENUM: N_DIRS,
                 utils.EE_ENUM: 2,
                 utils.END_POSE_ENUM: 2,
+                utils.ABS_POSE_ENUM: 2,
                 utils.GRIPPER_ENUM: 1,
                 utils.GRASP_ENUM: N_GRASPS,
                 utils.GOAL_ENUM: 2*no,
@@ -306,12 +307,13 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'prim_first_wt': 1e1,
     }
 
-    #config['prim_obs_include'].append(utils.EE_ENUM)
+    config['prim_obs_include'].append(utils.EE_ENUM)
     for o in range(no):
         config['sensor_dims'][utils.OBJ_DELTA_ENUMS[o]] = 2
         config['sensor_dims'][utils.OBJ_ENUMS[o]] = 2
         config['sensor_dims'][utils.TARG_ENUMS[o]] = 2
-        #config['prim_obs_include'].append(utils.OBJ_ENUMS[o])
+        config['sensor_dims'][utils.TARG_DELTA_ENUMS[o]] = 2
+        config['prim_obs_include'].append(utils.OBJ_ENUMS[o])
         config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
         config['prim_obs_include'].append(utils.TARG_ENUMS[o])
     return config

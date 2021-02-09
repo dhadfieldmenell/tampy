@@ -168,7 +168,8 @@ class NAMOSortingAgent(TAMPAgent):
         x0 = state[self._x_data_idx[STATE_ENUM]].copy()
         task = tuple(task)
         if self.discrete_prim:
-            plan = self.plans[task]
+            onehot_task = tuple([val for val in task if np.isscalar(val)])
+            plan = self.plans[onehot_task]
         else:
             plan = self.plans[task[0]]
         for (param, attr) in self.state_inds:
@@ -223,8 +224,8 @@ class NAMOSortingAgent(TAMPAgent):
             if task_f is not None:
                 sample.task = task
                 task = task_f(sample, t, task)
-                if task not in self.plans:
-                    task = self.task_to_onehot[task[0]]
+                #if task not in self.plans:
+                #    task = self.task_to_onehot[task[0]]
                 self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
 
             grasp = np.array([0, -0.601])
@@ -658,7 +659,8 @@ class NAMOSortingAgent(TAMPAgent):
         failed_preds = []
         iteration = 0
         iteration += 1
-        plan = self.plans[task]
+        onehot_task = tuple([val for val in task if np.isscalar(val)])
+        plan = self.plans[onehot_task]
         prim_choices = self.prob.get_prim_choices(self.task_list)
         # obj_name = prim_choices[OBJ_ENUM][task[1]]
         # targ_name = prim_choices[TARG_ENUM][task[2]]
@@ -794,7 +796,8 @@ class NAMOSortingAgent(TAMPAgent):
         if task is None:
             task = list(self.plans.keys())[0]
         mp_state = mp_state.copy()
-        plan = self.plans[task]
+        onehot_task = tuple([val for val in task if np.isscalar(val)])
+        plan = self.plans[onehot_task]
         ee_pose = mp_state[self.state_inds['pr2', 'pose']]
         if targets is None:
             targets = self.target_vecs[cond].copy()
@@ -826,7 +829,8 @@ class NAMOSortingAgent(TAMPAgent):
         sample.set(DONE_ENUM, np.zeros(1), t)
         sample.set(TASK_DONE_ENUM, np.array([1, 0]), t)
         grasp = np.array([0, -0.601])
-        sample.set(FACTOREDTASK_ENUM, np.array(task), t)
+        onehottask = tuple([val for val in task if np.isscalar(val)])
+        sample.set(FACTOREDTASK_ENUM, np.array(onehottask), t)
         if GRASP_ENUM in prim_choices:
             grasp = self.set_grasp(grasp, task[3])
             grasp_vec = np.zeros(self._hyperparams['sensor_dims'][GRASP_ENUM])
@@ -846,6 +850,7 @@ class NAMOSortingAgent(TAMPAgent):
             sample.obj = task[1]
             if self.task_list[task[0]].find('move') >= 0:
                 sample.set(END_POSE_ENUM, obj_pose + grasp, t)
+                sample.set(ABS_POSE_ENUM, mp_state[self.state_inds[obj_name, 'pose']], t)
 
         if TARG_ENUM in prim_choices:
             targ_vec = np.zeros((len(prim_choices[TARG_ENUM])), dtype='float32')
@@ -862,6 +867,18 @@ class NAMOSortingAgent(TAMPAgent):
             sample.targ = task[2]
             if self.task_list[task[0]].find('transfer') >= 0:
                 sample.set(END_POSE_ENUM, targ_pose + grasp, t)
+                sample.set(ABS_POSE_ENUM, targets[self.target_inds[targ_name, 'value']], t)
+
+        if ABS_POSE_ENUM in prim_choices:
+            ind = list(prim_choices.keys()).index(ABS_POSE_ENUM)
+            if ind < len(task) and type(task[ind]) is not int:
+                sample.set(ABS_POSE_ENUM, task[ind], t)
+                sample.set(END_POSE_ENUM, task[ind] - mp_state[self.state_inds['pr2', 'pose']] + grasp, t)
+
+        if END_POSE_ENUM in prim_choices:
+            ind = list(prim_choices.keys()).index(END_POSE_ENUM)
+            if ind < len(task) and type(task[ind]) is not int:
+                sample.set(END_POSE_ENUM, task[ind], t)
 
         sample.task = task
         sample.condition = cond
@@ -876,7 +893,8 @@ class NAMOSortingAgent(TAMPAgent):
             sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
             targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
             sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose, t)
-            sample.set(TARG_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
+            sample.set(TARG_ENUMS[i], targ, t)
+            sample.set(TARG_DELTA_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
 
         if INGRASP_ENUM in self._hyperparams['sensor_dims']:
             vec = np.zeros(len(prim_choices[OBJ_ENUM]))
@@ -1280,7 +1298,8 @@ class NAMOSortingAgent(TAMPAgent):
             self.target_vecs[condition] = targets
 
         exclude_targets = []
-        plan = self.plans[task]
+        onehot_task = tuple([val for val in task if np.isscalar(val)])
+        plan = self.plans[onehot_task]
         sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, opt_traj), condition, state, task, noisy=False, skip_opt=True)
         sample.set_ref_X(sample.get_X())
         sample.set_ref_U(sample.get_U())
@@ -1306,7 +1325,8 @@ class NAMOSortingAgent(TAMPAgent):
 
     def cost_info(self, Xs, task, cond, active_ts=(0,0)):
         failed_preds = self._failed_preds(Xs, task, cond, active_ts=active_ts)
-        plan = self.plans[task]
+        onehot_task = tuple([val for val in task if np.isscalar(val)])
+        plan = self.plans[onehot_task]
         if active_ts[0] == -1:
             active_ts = (plan.horizon-1, plan.horizon-1)
         cost_info = [str(plan.actions)]
@@ -1351,6 +1371,7 @@ class NAMOSortingAgent(TAMPAgent):
         attr_dict = {}
         plan = self.plans[task]
         init = copy.deepcopy(sample)
+        onehot_task = tuple([val for val in task if np.isscalar(val)])
         if task[0] == 0:
             pname = self.prob.get_prim_choices()[OBJ_ENUM][task[1]]
             tname = self.prob.get_prim_choices()[TARG_ENUM][task[2]]
@@ -1366,7 +1387,7 @@ class NAMOSortingAgent(TAMPAgent):
             goal_ee = x[self.state_inds[pname, 'pose']] + g
             attr_dict[('robot_end_pose', 'value')] = goal_ee
         elif task[0] == 1:
-            plan = self.plans[task]
+            plan = self.plans[onehot_task]
             pname = self.prob.get_prim_choices()[OBJ_ENUM][task[1]]
             tname = self.prob.get_prim_choices()[TARG_ENUM][task[2]]
             g = plan.params['grasp{0}'.format(task[3])].value[:,0] # plan.params['grasp0'].value[:,0]
@@ -1559,8 +1580,8 @@ class NAMOSortingAgent(TAMPAgent):
             if xhist_idx is not None:
                 hist = hl_obs[t:t+nperm][:,xhist_idx].reshape((-1,self.hist_len,self.dX))
                 new_hist = hist.copy()
-                new_hist[:, np.r_[cur_inds]] = new_hist[:, np.r_[cur_inds[order]]]
-                new_obs[t:t+nperm][:,xhist_idx] = new_hist.reshape((-1, 1, self.hist_len*self.dX))
+                new_hist[:, :, np.r_[cur_inds]] = new_hist[:, :, np.r_[cur_inds[order]]]
+                new_obs[t:t+nperm][:,xhist_idx] = new_hist.reshape((-1, self.hist_len*self.dX))
             for n in range(no):
                 if obs_idx is not None: new_obs[t:t+nperm][:,obs_idx[rev_order[n]]] = hl_obs[t:t+nperm][:,obs_idx[n]]
                 if obs_idx2 is not None: new_obs[t:t+nperm][:,obs_idx2[rev_order[n]]] = hl_obs[t:t+nperm][:,obs_idx2[n]]
@@ -1633,7 +1654,7 @@ class NAMOSortingAgent(TAMPAgent):
                 break
 
         for enum in prim_choices:
-            if enum is TASK_ENUM: continue
+            if enum is TASK_ENUM or np.isscalar(prim_choices[enum]): continue
             l.append(0)
             if hasattr(prim_choices[enum], '__len__'):
                 for i, opt in enumerate(prim_choices[enum]):
@@ -1643,8 +1664,10 @@ class NAMOSortingAgent(TAMPAgent):
             else:
                 if self.task_list[l[0]].find('move') >= 0:
                     l[-1] = tuple(action.params[1].pose[:,action.active_timesteps[0]])
-                elif self.task_list[l[0]].find('place') >= 0:
+                elif self.task_list[l[0]].find('place') >= 0 or self.task_list[l[0]].find('transfer') >= 0:
                     l[-1] = tuple(action.params[4].value[:,0])
+                else:
+                    l = l[:-1]
 
         if self.task_list[l[0]].find('move') >= 0 and TARG_ENUM in prim_choices:
             l[keys.index(TARG_ENUM)] = np.random.randint(len(prim_choices[TARG_ENUM]))

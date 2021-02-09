@@ -941,7 +941,7 @@ def resample_obstructs(pred, negated, t, plan):
         attempt += 1
         target_ee = ee_pos + step * np.multiply(np.random.sample(3)+[-0.5,-0.5,0.25], const.RESAMPLE_FACTOR)
         #ik_arm_poses = rave_body.get_ik_from_pose(target_ee, [0, np.pi/2, 0], arm)
-        ik_arm_poses = rave_body.get_ik_from_pose(target_ee, orn, arm, multiple=True)
+        ik_arm_poses = rave_body.get_ik_from_pose(target_ee, orn, arm, multiple=10)
         arm_pose = closest_arm_pose(ik_arm_poses, getattr(robot, arm)[:, action.active_timesteps[0]])
         if arm_pose is None:
             step += 1
@@ -1394,5 +1394,5 @@ def resample_eereachable(pred, negated, t, plan, inv=False):
         ik = robot_body.get_ik_from_pose(targ_pos+vec, quat, arm)
         add_to_attr_inds_and_res(ts, attr_inds, res, robot, [(arm, np.array(ik).flatten())])
 
-    return np.array(res), attr_inds
+    return res, attr_inds
 

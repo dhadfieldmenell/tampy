@@ -67,14 +67,19 @@ OBJ_LIDAR_ENUM = 57
 ARM_ENUM = 58
 LEFT_ENUM = 59
 RIGHT_ENUM = 60
+ABS_POSE_ENUM = 61
 
 OBJ_ENUMS = {}
 for i in range(100):
     OBJ_ENUMS[i] = 100 + i
 
 TARG_ENUMS = {}
-for i in range(100):
+for i in range(50):
     TARG_ENUMS[i] = 200 + i
+
+TARG_DELTA_ENUMS = {}
+for i in range(50):
+    TARG_DELTA_ENUMS[i] = 250 + i
 
 GOAL_ENUMS = {}
 for i in range(100):

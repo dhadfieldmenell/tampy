@@ -153,8 +153,9 @@ class NAMOGripAgent(NAMOSortingAgent):
         # self.reset_to_state(state)
         x0 = state[self._x_data_idx[STATE_ENUM]].copy()
         task = tuple(task)
+        onehot_task = tuple([val for val in task if np.isscalar(val)])
         if self.discrete_prim:
-            plan = self.plans[task]
+            plan = self.plans[onehot_task]
         else:
             plan = self.plans[task[0]]
         if hor is None:
@@ -375,7 +376,8 @@ class NAMOGripAgent(NAMOSortingAgent):
         if task is None:
             task = list(self.plans.keys())[0]
         mp_state = mp_state.copy()
-        plan = self.plans[task]
+        onehot_task = tuple([val for val in task if np.isscalar(val)])
+        plan = self.plans[onehot_task]
         ee_pose = mp_state[self.state_inds['pr2', 'pose']]
         if targets is None:
             targets = self.target_vecs[cond].copy()
@@ -395,79 +397,77 @@ class NAMOGripAgent(NAMOSortingAgent):
             sample.set(STATE_HIST_ENUM, self._x_delta.flatten(), t)
         if self.task_hist_len > 0:
             sample.set(TASK_HIST_ENUM, self._prev_task.flatten(), t)
-        onehot_task = np.zeros(self.sensor_dims[ONEHOT_TASK_ENUM])
-        onehot_task[self.task_to_onehot[task]] = 1.
-        sample.set(ONEHOT_TASK_ENUM, onehot_task, t)
-
-        task_ind = task[0]
-        obj_ind = task[1]
-        targ_ind = task[2]
+        
         prim_choices = self.prob.get_prim_choices(self.task_list)
 
+        task_ind = task[0]
         task_vec = np.zeros((len(self.task_list)), dtype=np.float32)
         task_vec[task[0]] = 1.
         sample.task_ind = task[0]
         sample.set(TASK_ENUM, task_vec, t)
 
+        #post_cost = self.cost_f(sample.get_X(t=t), task, cond, active_ts=(sample.T-1, sample.T-1), targets=targets)
+        #done = np.ones(1) if post_cost == 0 else np.zeros(1)
+        #sample.set(DONE_ENUM, done, t)
         sample.set(DONE_ENUM, np.zeros(1), t)
         sample.set(TASK_DONE_ENUM, np.array([1, 0]), t)
-        # sample.set(DONE_ENUM, self.goal_f(cond, mp_state), t)
         grasp = np.array([0, -0.601])
+        onehottask = tuple([val for val in task if np.isscalar(val)])
+        sample.set(FACTOREDTASK_ENUM, np.array(onehottask), t)
+
         theta = mp_state[self.state_inds['pr2', 'theta']][0]
-        if self.discrete_prim:
-            sample.set(FACTOREDTASK_ENUM, np.array(task), t)
-            if GRASP_ENUM in prim_choices:
-                grasp = self.set_grasp(grasp, task[3])
-                grasp_vec = np.zeros(self._hyperparams['sensor_dims'][GRASP_ENUM])
-                grasp_vec[task[3]] = 1.
-                sample.set(GRASP_ENUM, grasp_vec, t)
-
-            obj_vec = np.zeros((len(prim_choices[OBJ_ENUM])), dtype='float32')
-            targ_vec = np.zeros((len(prim_choices[TARG_ENUM])), dtype='float32')
-            obj_vec[task[1]] = 1.
-            targ_vec[task[2]] = 1.
-            if self.task_list[task[0]] == 'moveto':
-                obj_vec[task[1]] = 1.
-                targ_vec[:] = 1. / len(targ_vec)
-            #elif self.task_list[task[0]] == 'transfer':
-            #    obj_vec[:] = 1. / len(obj_vec)
-            #    targ_vec[task[2]] = 1.
-            #elif self.task_list[task[0]] == 'place':
-            #    obj_vec[:] = 1. / len(obj_vec)
-            #    targ_vec[task[2]] = 1.
-            sample.obj_ind = task[1]
-            sample.targ_ind = task[2]
-            sample.set(OBJ_ENUM, obj_vec, t)
-            sample.set(TARG_ENUM, targ_vec, t)
-
-            obj_name = list(prim_choices[OBJ_ENUM])[obj_ind]
-            targ_name = list(prim_choices[TARG_ENUM])[targ_ind]
-            obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - mp_state[self.state_inds['pr2', 'pose']]
-            targ_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds['pr2', 'pose']]
-            targ_off_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds[obj_name, 'pose']]
-        else:
-            obj_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
-            targ_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
-
         if LOCAL_FRAME:
             rot = np.array([[np.cos(-theta), -np.sin(-theta)],
                             [np.sin(-theta), np.cos(-theta)]])
-            obj_pose = rot.dot(obj_pose)
-            targ_pose = rot.dot(targ_pose)
-            targ_off_pose = rot.dot(targ_off_pose)
         else:
             rot = np.eye(2)
-        # if task[0] == 1:
-        #     obj_pose = np.zeros_like(obj_pose)
-        sample.set(OBJ_POSE_ENUM, obj_pose.copy(), t)
 
-        # if task[0] == 0:
-        #     targ_pose = np.zeros_like(targ_pose)
-        sample.set(TARG_POSE_ENUM, targ_pose.copy(), t)
+        if OBJ_ENUM in prim_choices:
+            obj_vec = np.zeros((len(prim_choices[OBJ_ENUM])), dtype='float32')
+            obj_vec[task[1]] = 1.
+            sample.obj_ind = task[1]
+            obj_ind = task[1]
+            obj_name = list(prim_choices[OBJ_ENUM])[obj_ind]
+            sample.set(OBJ_ENUM, obj_vec, t)
+            obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - mp_state[self.state_inds['pr2', 'pose']]
+            obj_pose = rot.dot(obj_pose)
+            sample.set(OBJ_POSE_ENUM, obj_pose.copy(), t)
+            sample.obj = task[1]
+            if self.task_list[task[0]].find('move') >= 0:
+                sample.set(END_POSE_ENUM, obj_pose, t)
+                sample.set(ABS_POSE_ENUM, mp_state[self.state_inds[obj_name, 'pose']], t)
+
+        if TARG_ENUM in prim_choices:
+            targ_vec = np.zeros((len(prim_choices[TARG_ENUM])), dtype='float32')
+            targ_vec[task[2]] = 1.
+            if self.task_list[task[0]].find('move') >= 0:
+                targ_vec[:] = 1. / len(targ_vec)
+            sample.targ_ind = task[2]
+            targ_ind = task[2]
+            targ_name = list(prim_choices[TARG_ENUM])[targ_ind]
+            sample.set(TARG_ENUM, targ_vec, t)
+            targ_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds['pr2', 'pose']]
+            targ_off_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds[obj_name, 'pose']]
+            targ_pose = rot.dot(targ_pose)
+            targ_off_pose = rot.dot(targ_off_pose)
+            sample.set(TARG_POSE_ENUM, targ_pose.copy(), t)
+            sample.targ = task[2]
+            if self.task_list[task[0]].find('place') >= 0 or self.task_list[task[0]].find('transfer') >= 0:
+                sample.set(END_POSE_ENUM, targ_pose, t)
+                sample.set(ABS_POSE_ENUM, targets[self.target_inds[targ_name, 'value']], t)
+
+        if ABS_POSE_ENUM in prim_choices:
+            ind = list(prim_choices.keys()).index(ABS_POSE_ENUM)
+            if ind < len(task) and type(task[ind]) is not int:
+                sample.set(ABS_POSE_ENUM, task[ind], t)
+                sample.set(END_POSE_ENUM, task[ind] - mp_state[self.state_inds['pr2', 'pose']], t)
+
+        if END_POSE_ENUM in prim_choices:
+            ind = list(prim_choices.keys()).index(END_POSE_ENUM)
+            if ind < len(task) and type(task[ind]) is not int:
+                sample.set(END_POSE_ENUM, task[ind], t)
 
         sample.task = task
-        sample.obj = task[1]
-        sample.targ = task[2]
         sample.condition = cond
         sample.task_name = self.task_list[task[0]]
         sample.set(TARGETS_ENUM, targets.copy(), t)
@@ -476,15 +476,6 @@ class NAMOGripAgent(NAMOSortingAgent):
             sample.set(ONEHOT_GOAL_ENUM, self.onehot_encode_goal(sample.get(GOAL_ENUM, t)), t)
         sample.targets = targets.copy()
 
-        if self.task_list[task[0]] == 'moveto':
-            sample.set(END_POSE_ENUM, obj_pose, t)
-            #sample.set(END_POSE_ENUM, obj_pose.copy(), t)
-        if self.task_list[task[0]] == 'transfer':
-            sample.set(END_POSE_ENUM, targ_pose, t)
-            #sample.set(END_POSE_ENUM, targ_pose.copy(), t)
-        if self.task_list[task[0]] == 'place':
-            sample.set(END_POSE_ENUM, targ_pose, t)
-            #sample.set(END_POSE_ENUM, targ_pose.copy(), t)
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
             sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
             targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
@@ -516,8 +507,11 @@ class NAMOGripAgent(NAMOSortingAgent):
                 plan = list(self.plans.values())[0]
                 sample.set(MJC_SENSOR_ENUM, self.mjc_env.get_sensors(), t)
 
-            if IM_ENUM in self._hyperparams['obs_include']:
-                im = self.mjc_env.render(height=self.image_height, width=self.image_width)
+            if IM_ENUM in self._hyperparams['obs_include'] or \
+               IM_ENUM in self._hyperparams['prim_obs_include']:
+                self.reset_mjc_env(sample.get_X(t=t), targets=targets, draw_targets=True)
+                im = self.mjc_env.render(height=self.image_height, width=self.image_width, view=self.view)
+                im = (im - 128.) / 128.
                 sample.set(IM_ENUM, im.flatten(), t)
 
     
@@ -584,7 +578,8 @@ class NAMOGripAgent(NAMOSortingAgent):
             self.target_vecs[condition] = targets
 
         exclude_targets = []
-        plan = self.plans[task]
+        onehot_task = tuple([val for val in task if np.isscalar(val)])
+        plan = self.plans[onehot_task]
         if run_traj:
             sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, opt_traj), condition, state, task, noisy=False, skip_opt=True)
         else:
@@ -647,7 +642,8 @@ class NAMOGripAgent(NAMOSortingAgent):
         failed_preds = []
         iteration = 0
         iteration += 1
-        plan = self.plans[task]
+        onehot_task = tuple([val for val in task if np.isscalar(val)])
+        plan = self.plans[onehot_task]
         prim_choices = self.prob.get_prim_choices(self.task_list)
         # obj_name = prim_choices[OBJ_ENUM][task[1]]
         # targ_name = prim_choices[TARG_ENUM][task[2]]

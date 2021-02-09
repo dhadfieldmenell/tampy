@@ -11,7 +11,7 @@ import time
 
 from policy_hooks.multiprocess_main import MultiProcessMain
 
-USE_BASELINES = True
+USE_BASELINES = False
 if USE_BASELINES:
     from policy_hooks.baselines.argparse import argsparser as baseline_argsparser
 
@@ -183,7 +183,8 @@ def setup_dirs(c, args):
 
 def main():
     args = argsparser()
-    if args.run_baseline: run_baseline(args)
+    if args.run_baseline:
+        run_baseline(args)
 
     exps = None
     if args.file == "":
@@ -232,7 +233,8 @@ def main():
 
             print('\n\n\n\n\n\nLOADING NEXT EXPERIMENT\n\n\n\n\n\n')
             old_dir = c['weight_dir']
-            c = {'args': args}
+            old_file = c['task_map_file']
+            c = {'args': args, 'task_map_file': old_file}
             c.update(vars(args))
             c['source'] = exps_info[ind][ind2]
             c['weight_dir'] = old_dir
@@ -329,7 +331,7 @@ def argsparser():
 
     # HL args
     parser.add_argument('-check_t', '--check_prim_t', type=int, default=1)
-    parser.add_argument('-n_resample', '--n_resample', type=int, default=1)
+    parser.add_argument('-n_resample', '--n_resample', type=int, default=5)
     parser.add_argument('-ff', '--ff_thresh', type=float, default=0)
     parser.add_argument('-hlfeed', '--hl_feedback_thresh', type=float, default=0.)
     parser.add_argument('-ff_only', '--ff_only', action='store_true', default=False)
@@ -403,9 +405,9 @@ def argsparser():
     parser.add_argument('-q', '--use_qfunc', action='store_true', default=False)
 
     ## Baselines - these are passed through to other codebases
+    parser.add_argument('-run_baseline', '--run_baseline', action='store_true', default=False)
     if USE_BASELINES:
         parser.add_argument('-baseline', '--baseline', type=str, default='')
-        parser.add_argument('-run_baseline', '--run_baseline', action='store_true', default=False)
         parser.add_argument('-ref_key', '--reference_keyword', type=str, default='')
         parser.add_argument('-reward_type', '--reward_type', type=str, default='binary')
         baseline_argsparser(parser)

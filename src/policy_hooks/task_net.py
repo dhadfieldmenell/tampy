@@ -25,10 +25,11 @@ def euclidean_loss_layer(a, b, precision, batch_size):
                     = (u-uhat)'*A*(u-uhat)"""
     scale_factor = tf.constant(2*batch_size, dtype='float')
     if precision is None:
-        uPu = tf.reduce_sum((a-b)**2)
+        uPu = tf.reduce_sum((a-b)**2, axis=1)
+        #uPu = tf.reduce_sum(tf.abs(a-b), axis=1)
     else:
         uP = batched_matrix_vector_multiply(a-b, precision)
-        uPu = tf.reduce_sum(uP*(a-b))  # this last dot product is then summed, so we just the sum all at once.
+        uPu = tf.reduce_sum(uP*(a-b), axis=1)  # this last dot product is then summed, so we just the sum all at once.
     return uPu/scale_factor
 
 
@@ -76,7 +77,9 @@ def multi_mix_loss_layer(labels, logits, boundaries, types, batch_size, precisio
             if precision is not None:
                 loss *= precision[:, i] / (1+tf.reduce_mean(precision[:,i]))
         else:
-            loss = euclidean_loss_layer(labels, logits, precision, batch_size)
+            loss = 1e4 * euclidean_loss_layer(labels[:,start:end], logits[:,start:end], None, batch_size)
+            if precision is not None:
+                loss *= precision[:, i] / (1+tf.reduce_mean(precision[:,i]))
 
         # loss /= float(end - start)
         # losses.append(tf.reduce_mean(loss, axis=0))
@@ -177,6 +180,54 @@ def tf_classification_network(dim_input=27, dim_output=2, batch_size=25, network
     if eta is not None:
         scaled_mlp_applied = mlp_applied * eta
     prediction = multi_mix_prediction_layer(scaled_mlp_applied, boundaries, types=types)
+    fc_vars = weights_FC + biases_FC
+    loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, batch_size=batch_size, precision=precision, types=types)
+    return TfMap.init_from_lists([fc_input, action, precision], [prediction], [loss_out]), fc_vars, []
+
+
+def tf_cond_network(dim_input=27, dim_output=2, batch_size=25, network_config=None, input_layer=None, eta=None):
+    print('building conditional network on discr to cont')
+    n_layers = 2 if 'n_layers' not in network_config else network_config['n_layers'] + 1
+    boundaries = network_config.get('output_boundaries', [(0, dim_output)])
+    types = network_config.get('types', [])
+    dim_hidden = network_config.get('dim_hidden', 40)
+    if type(dim_hidden) is int:
+        dim_hidden = (n_layers - 1) * [dim_hidden]
+    else:
+        dim_hidden = copy(dim_hidden)
+    #dim_hidden.append(dim_output)
+
+    if input_layer is None:
+        nn_input, action, precision = get_input_layer(dim_input, dim_output, len(boundaries))
+    else:
+        nn_input, action, precision = input_layer 
+    fc_input = nn_input
+    mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, n_layers-2, dim_hidden[:-1], nonlin=True)
+   
+    offset = len(dim_hidden)
+    ntask = np.sum([en-st for (st, en) in boundaries[:-1]])
+    dh = [dim_hidden[-1], ntask]
+    cur_input = mlp_applied
+    mlp_applied, weights_FC, biases_FC = get_mlp_layers(cur_input, len(dh), dh, offset)
+    scaled_mlp_applied = mlp_applied
+    if eta is not None:
+        scaled_mlp_applied = mlp_applied * eta
+    discr_mlp = scaled_mlp_applied
+    prediction = multi_mix_prediction_layer(scaled_mlp_applied, boundaries[:-1], types=types[:-1])
+    
+    onehot_preds = [tf.one_hot(tf.argmax(prediction[:,lb:ub], axis=1), ub-lb) for lb, ub in boundaries[:-1]]
+    onehot_preds = tf.concat(onehot_preds, axis=1)
+    #cur_input = tf.concat([nn_input, cur_input, tf.stop_gradient(prediction)], axis=1)
+    #cur_input = tf.concat([cur_input, tf.stop_gradient(onehot_preds)], axis=1)
+    cur_input = tf.concat([nn_input, cur_input, tf.stop_gradient(onehot_preds)], axis=1)
+    offset += len(dh)
+    ncont = np.sum([en-st for (st, en) in boundaries[-1:]])
+    dh = dim_hidden[-2:] + [ncont]
+    mlp_applied, weights_FC_2, biases_FC_2 = get_mlp_layers(cur_input, len(dh), dh, offset)
+    prediction = tf.concat([prediction, mlp_applied], axis=1)
+    scaled_mlp_applied = tf.concat([discr_mlp, mlp_applied], axis=1)
+
+    #prediction = multi_mix_prediction_layer(scaled_mlp_applied, boundaries[:-1], types=types[:-1])
     fc_vars = weights_FC + biases_FC
     loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, batch_size=batch_size, precision=precision, types=types)
     return TfMap.init_from_lists([fc_input, action, precision], [prediction], [loss_out]), fc_vars, []
@@ -548,7 +599,7 @@ def fp_multi_modal_class_network(dim_input=27, dim_output=2, batch_size=25, netw
     scaled_mlp_applied = fc_output
     if eta is not None:
         scaled_mlp_applied = fc_output * eta
-    preds = [multi_mix_prediction_layer(scaled_mlp_applied, boundaries)] + preds
+    preds = [multi_mix_prediction_layer(scaled_mlp_applied, boundaries, types=types)] + preds
     loss = get_loss_layer(mlp_out=scaled_mlp_applied, task=action[:,:dim_hidden[-1]], boundaries=boundaries, batch_size=batch_size, precision=precision, types=types)
 
     aux_losses = [l for l in losses]
