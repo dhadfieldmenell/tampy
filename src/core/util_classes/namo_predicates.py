@@ -58,7 +58,8 @@ if USE_TF:
         #if tf_name not in tf_cache: init_tf_graph()
         return tf_cache[tf_name]
 
-    def init_tf_graph():
+    def init_sess():
+        if len(TF_SESS): return TF_SESS[0]
         cuda_vis = os.environ.get("CUDA_VISIBLE_DEVICES", "")
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
         config = tf.ConfigProto(inter_op_parallelism_threads=1, \
@@ -68,6 +69,10 @@ if USE_TF:
         config.gpu_options.allow_growth = True
         TF_SESS[0] = tf.Session(config=config)
         os.environ["CUDA_VISIBLE_DEVICES"] = cuda_vis
+        return TF_SESS[0]
+
+    def init_tf_graph():
+        init_sess()
 
         tf_cache['bump_in'] = tf.placeholder(float, (4,1), name='bump_in')
         tf_cache['bump_radius'] = tf.placeholder(float, (), name='bump_radius')

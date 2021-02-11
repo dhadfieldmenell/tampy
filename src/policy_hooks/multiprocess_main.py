@@ -240,7 +240,9 @@ class MultiProcessMain(object):
         self.config['algorithm']['init_traj_distr']['dQ'] = self.dU
         self.config['algorithm']['init_traj_distr']['dt'] = 1.0
 
-        if self.config.get('add_hl_image', False):
+        if self.config.get('add_hl_image', False) and any([t.find('cont') >= 0 for t in self.task_types]):
+            primitive_network_model = fp_multi_modal_cond_network
+        elif self.config.get('add_hl_image', False):
             primitive_network_model = fp_multi_modal_class_network
         elif any([t.find('cont') >= 0 for t in self.task_types]):
             primitive_network_model = tf_cond_network

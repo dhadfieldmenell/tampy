@@ -39,6 +39,16 @@ class GreenCircle(Circle):
         super(GreenCircle, self).__init__(radius)
         self.color = "green"
 
+class Door2d(Item):
+    """
+    Defines geometry used in the NAMO domain.
+    """
+    def __init__(self, radius, length):
+        super(Door2d, self).__init__()
+        self._type = "circle"
+        self.radius = float(radius)
+        self.length = float(length)
+
 class Wall(Item):
 
     """

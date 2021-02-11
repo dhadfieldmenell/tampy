@@ -64,7 +64,7 @@ class MotionServer(Server):
         # print('Time to plan:', time.time() - init_t)
         if success:
             path = self.agent.run_plan(plan, node.targets, permute=self.permute_hl)
-            if self.render and np.random.uniform() < 0.005 or not path[-1].success and np.random.uniform() < 0.01:
+            if self.render and np.random.uniform() < 0.01 or not path[-1].success and np.random.uniform() < 0.01:
                 self.save_video(path, path[-1].success)
             self.log_path(path, 10)
             for step in path: step.source_label = 'optimal'

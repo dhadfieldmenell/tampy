@@ -69,6 +69,7 @@ ln -s mujoco200 mujoco200_linux
 cd ~/tamp_work
 git clone https://github.com/m-j-mcdonald/BaxterGym.git
 git clone https://github.com/m-j-mcdonald/gps.git
+pip install robosuite
 pip install tensorflow==1.10.0
 pip install -e BaxterGym
 cd BaxterGym/baxter_gym

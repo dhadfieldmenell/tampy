@@ -202,10 +202,15 @@ def tf_cond_network(dim_input=27, dim_output=2, batch_size=25, network_config=No
     else:
         nn_input, action, precision = input_layer 
     fc_input = nn_input
+
     mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, n_layers-2, dim_hidden[:-1], nonlin=True)
    
     offset = len(dim_hidden)
-    ntask = np.sum([en-st for (st, en) in boundaries[:-1]])
+    task_bounds = [(st, en) for i, (st, en) in enumerate(boundaries) if not len(types) or types[i].find('discr') >= 0]
+    cont_bounds = [(st, en) for i, (st, en) in enumerate(boundaries) if len(types) and types[i].find('cont') >= 0]
+    task_types = len(task_bounds) * ['discrete']
+    cont_types = len(task_bounds) * ['continuous']
+    ntask = np.sum([en-st for (st, en) in task_bounds])
     dh = [dim_hidden[-1], ntask]
     cur_input = mlp_applied
     mlp_applied, weights_FC, biases_FC = get_mlp_layers(cur_input, len(dh), dh, offset)
@@ -213,15 +218,15 @@ def tf_cond_network(dim_input=27, dim_output=2, batch_size=25, network_config=No
     if eta is not None:
         scaled_mlp_applied = mlp_applied * eta
     discr_mlp = scaled_mlp_applied
-    prediction = multi_mix_prediction_layer(scaled_mlp_applied, boundaries[:-1], types=types[:-1])
+    prediction = multi_mix_prediction_layer(scaled_mlp_applied, task_bounds, types=task_types)
     
-    onehot_preds = [tf.one_hot(tf.argmax(prediction[:,lb:ub], axis=1), ub-lb) for lb, ub in boundaries[:-1]]
+    onehot_preds = [tf.one_hot(tf.argmax(prediction[:,lb:ub], axis=1), ub-lb) for lb, ub in task_bounds]
     onehot_preds = tf.concat(onehot_preds, axis=1)
     #cur_input = tf.concat([nn_input, cur_input, tf.stop_gradient(prediction)], axis=1)
-    #cur_input = tf.concat([cur_input, tf.stop_gradient(onehot_preds)], axis=1)
-    cur_input = tf.concat([nn_input, cur_input, tf.stop_gradient(onehot_preds)], axis=1)
+    cur_input = tf.concat([cur_input, tf.stop_gradient(onehot_preds)], axis=1)
+    #cur_input = tf.concat([nn_input, cur_input, tf.stop_gradient(onehot_preds)], axis=1)
     offset += len(dh)
-    ncont = np.sum([en-st for (st, en) in boundaries[-1:]])
+    ncont = np.sum([en-st for (st, en) in cont_bounds])
     dh = dim_hidden[-2:] + [ncont]
     mlp_applied, weights_FC_2, biases_FC_2 = get_mlp_layers(cur_input, len(dh), dh, offset)
     prediction = tf.concat([prediction, mlp_applied], axis=1)
@@ -458,7 +463,6 @@ def multi_modal_class_network(dim_input=27, dim_output=2, batch_size=25, network
     return TfMap.init_from_lists([nn_input, action, precision], [prediction], [loss_out]), fc_vars, last_conv_vars
 
 
-
 def fp_multi_modal_class_network(dim_input=27, dim_output=2, batch_size=25, network_config=None, input_layer=None, eta=None):
     """
     An example a network in tf that has both state and image inputs, with the feature
@@ -612,6 +616,148 @@ def fp_multi_modal_class_network(dim_input=27, dim_output=2, batch_size=25, netw
         losses = [loss] + losses
 
     return TfMap.init_from_lists([nn_input, action, precision], preds, losses, aux_losses=aux_losses), fc_vars, last_conv_vars
+
+
+
+def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, network_config=None, input_layer=None, eta=None):
+    """
+    An example a network in tf that has both state and image inputs, with the feature
+    point architecture (spatial softmax + expectation).
+    Args:
+        dim_input: Dimensionality of input.
+        dim_output: Dimensionality of the output.
+        batch_size: Batch size.
+        network_config: dictionary of network structure parameters
+    Returns:
+        A tfMap object that stores inputs, outputs, and scalar loss.
+    """
+    pool_size = 2
+    filter_size = 3
+    n_layers = 2 if 'n_layers' not in network_config else network_config['n_layers'] + 1
+    dim_hidden = network_config.get('dim_hidden', 40)
+    if type(dim_hidden) is int:
+        dim_hidden = (n_layers - 1) * [dim_hidden]
+    else:
+        dim_hidden = copy(dim_hidden)
+    boundaries = network_config['output_boundaries']
+    dim_act = max([b[1] for b in boundaries])
+    dim_hidden.append(dim_act)
+    types = network_config.get('types', [])
+    aux_boundaries = network_config.get('aux_boundaries', [])
+    aux_types = network_config.get('aux_types', ['cont'])
+
+    # List of indices for state (vector) data and image (tensor) data in observation.
+    x_idx, img_idx, i = [], [], 0
+    for sensor in network_config['obs_include']:
+        dim = network_config['sensor_dims'][sensor]
+        if sensor in network_config['obs_image_data']:
+            img_idx = img_idx + list(range(i, i+dim))
+        else:
+            x_idx = x_idx + list(range(i, i+dim))
+        i += dim
+
+    if input_layer is None:
+        nn_input, action, precision = get_input_layer(dim_input, dim_output, len(boundaries))
+    else:
+        nn_input, action, precision = input_layer
+
+    state_input = nn_input[:, 0:x_idx[-1]+1]
+    image_input = nn_input[:, x_idx[-1]+1:img_idx[-1]+1]
+
+    # image goes through 3 convnet layers
+    num_filters = network_config['num_filters']
+    filter_sizes = network_config['filter_sizes']
+    n_conv = len(num_filters)
+
+    im_height = network_config['image_height']
+    im_width = network_config['image_width']
+    num_channels = network_config['image_channels']
+    image_input = tf.reshape(image_input, [-1, im_width, im_height, num_channels])
+
+    weights = {}
+    biases = {}
+    conv_layers = []
+    cur_in = num_channels
+    cur_in_layer = image_input
+    for i in range(n_conv):
+        filter_size = filter_sizes[i]
+        weights['conv_wc{0}'.format(i)] = init_weights([filter_size, filter_size, cur_in, num_filters[i]], name='conv_wc{0}'.format(i)) # 5x5 conv, 1 input, 32 outputs
+        biases['conv_bc{0}'.format(i)] = init_bias([num_filters[i]], name='conv_bc{0}'.format(i))
+        cur_in = num_filters[i]
+        if i == 0:
+            conv_layers.append(conv2d(img=cur_in_layer, w=weights['conv_wc{0}'.format(i)], b=biases['conv_bc{0}'.format(i)], strides=[1,2,2,1]))
+        else:
+            conv_layers.append(conv2d(img=cur_in_layer, w=weights['conv_wc{0}'.format(i)], b=biases['conv_bc{0}'.format(i)]))
+        cur_in_layer = conv_layers[-1]
+
+    _, num_rows, num_cols, num_fp = conv_layers[-1].get_shape()
+    num_rows, num_cols, num_fp = [int(x) for x in [num_rows, num_cols, num_fp]]
+    x_map = np.empty([num_rows, num_cols], np.float32)
+    y_map = np.empty([num_rows, num_cols], np.float32)
+
+    for i in range(num_rows):
+        for j in range(num_cols):
+            x_map[i, j] = (i - num_rows / 2.0) / num_rows
+            y_map[i, j] = (j - num_cols / 2.0) / num_cols
+
+    x_map = tf.convert_to_tensor(x_map)
+    y_map = tf.convert_to_tensor(y_map)
+
+    x_map = tf.reshape(x_map, [num_rows * num_cols])
+    y_map = tf.reshape(y_map, [num_rows * num_cols])
+
+    # rearrange features to be [batch_size, num_fp, num_rows, num_cols]
+    features = tf.reshape(tf.transpose(conv_layers[-1], [0,3,1,2]),
+                          [-1, num_rows*num_cols])
+    softmax = tf.nn.softmax(features)
+
+    fp_x = tf.reduce_sum(tf.multiply(x_map, softmax), [1], keep_dims=True)
+    fp_y = tf.reduce_sum(tf.multiply(y_map, softmax), [1], keep_dims=True)
+
+    fp = tf.reshape(tf.concat(axis=1, values=[fp_x, fp_y]), [-1, num_fp*2])
+
+    ### FC Layers
+    fc_input = tf.concat(axis=1, values=[fp, state_input])
+
+    last_conv_vars = fc_input
+    losses = []
+    preds = []
+    fc_vars = []
+    offset = 0
+
+    mlp_applied, weights_FC, biases_FC = get_mlp_layers(fc_input, n_layers-2, dim_hidden[:-1], nonlin=True)
+   
+    offset = len(dim_hidden)
+    task_bounds = [(st, en) for i, (st, en) in enumerate(boundaries) if not len(types) or types[i].find('discr') >= 0]
+    cont_bounds = [(st, en) for i, (st, en) in enumerate(boundaries) if len(types) and types[i].find('cont') >= 0]
+    task_types = len(task_bounds) * ['discrete']
+    cont_types = len(task_bounds) * ['continuous']
+    ntask = np.sum([en-st for (st, en) in task_bounds])
+    dh = [dim_hidden[-1], ntask]
+    cur_input = mlp_applied
+    mlp_applied, weights_FC, biases_FC = get_mlp_layers(cur_input, len(dh), dh, offset)
+    scaled_mlp_applied = mlp_applied
+    if eta is not None:
+        scaled_mlp_applied = mlp_applied * eta
+    discr_mlp = scaled_mlp_applied
+    prediction = multi_mix_prediction_layer(scaled_mlp_applied, task_bounds, types=task_types)
+    
+    onehot_preds = [tf.one_hot(tf.argmax(prediction[:,lb:ub], axis=1), ub-lb) for lb, ub in task_bounds]
+    onehot_preds = tf.concat(onehot_preds, axis=1)
+    cur_input = tf.concat([cur_input, tf.stop_gradient(onehot_preds)], axis=1)
+    offset += len(dh)
+    ncont = np.sum([en-st for (st, en) in cont_bounds])
+    dh = dim_hidden[-2:] + [ncont]
+    mlp_applied, weights_FC_2, biases_FC_2 = get_mlp_layers(cur_input, len(dh), dh, offset)
+    prediction = tf.concat([prediction, mlp_applied], axis=1)
+    scaled_mlp_applied = tf.concat([discr_mlp, mlp_applied], axis=1)
+
+    fc_vars = weights_FC + biases_FC
+    loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, batch_size=batch_size, precision=precision, types=types)
+    losses = [loss_out]
+    preds = [prediction]
+
+    return TfMap.init_from_lists([nn_input, action, precision], preds, losses), fc_vars, last_conv_vars
 
 
 def conv2d(img, w, b, strides=[1, 1, 1, 1]):

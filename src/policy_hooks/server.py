@@ -57,7 +57,11 @@ class Server(object):
         if self.render:
             self.cur_vid_id = 0
             if not os.path.isdir(LOG_DIR+hyperparams['weight_dir']+'/videos'):
-                os.makedirs(LOG_DIR+hyperparams['weight_dir']+'/videos')
+                try:
+                    os.makedirs(LOG_DIR+hyperparams['weight_dir']+'/videos')
+                except:
+                    pass
+
             self.video_dir = LOG_DIR+hyperparams['weight_dir']+'/videos/'
 
         self.task_queue = hyperparams['task_queue']
@@ -394,7 +398,7 @@ class Server(object):
                 info['targets'] = {tname: sample.targets[self.agent.target_inds[tname, attr]] for tname, attr in self.agent.target_inds}
                 info['opt_success'] = sample.opt_suc
                 info['tasks'] = sample.get(FACTOREDTASK_ENUM)
-                info['goal_pose'] = sample.get(ABS_POSE_ENUM)
+                info['goal_pose'] = sample.get(END_POSE_ENUM)
                 info['end_state'] = sample.end_state
                 info['plan_fail_rate'] = self.n_failed / self.n_plans if self.n_plans > 0 else 0.
                 # info['prim_obs'] = sample.get_prim_obs().round(4)
@@ -441,6 +445,7 @@ class Server(object):
 
     def save_video(self, rollout, success=None, ts=None, lab='', annotate=True):
         if not self.render: return
+        init_t = time.time()
         old_h = self.agent.image_height
         old_w = self.agent.image_width
         self.agent.image_height = 256
@@ -470,9 +475,12 @@ class Server(object):
                 im = np.concatenate(ims, axis=1)
                 buf.append(im)
         #np.save(fname, np.array(buf))
+        print('Time to create video:', time.time() - init_t)
+        init_t = time.time()
         save_video(fname, dname=self._hyperparams['descr'], arr=np.array(buf), savepath=self.video_dir)
         self.agent.image_height = old_h
         self.agent.image_width = old_w
+        print('Time to save video:', time.time() - init_t)
 
 
 class DummyPolicy:

@@ -182,7 +182,8 @@ class NAMOGripAgent(NAMOSortingAgent):
             if task_f is not None:
                 prev_task = task
                 task = task_f(sample, t, task)
-                if task not in self.plans:
+                onehot_task = tuple([val for val in task if np.isscalar(val)])
+                if onehot_task not in self.plans:
                     task = self.task_to_onehot[task[0]]
                 self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
 
@@ -430,11 +431,13 @@ class NAMOGripAgent(NAMOSortingAgent):
             obj_name = list(prim_choices[OBJ_ENUM])[obj_ind]
             sample.set(OBJ_ENUM, obj_vec, t)
             obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - mp_state[self.state_inds['pr2', 'pose']]
+            base_pos = obj_pose
             obj_pose = rot.dot(obj_pose)
             sample.set(OBJ_POSE_ENUM, obj_pose.copy(), t)
             sample.obj = task[1]
             if self.task_list[task[0]].find('move') >= 0:
                 sample.set(END_POSE_ENUM, obj_pose, t)
+                sample.set(REL_POSE_ENUM, base_pos, t)
                 sample.set(ABS_POSE_ENUM, mp_state[self.state_inds[obj_name, 'pose']], t)
 
         if TARG_ENUM in prim_choices:
@@ -448,19 +451,27 @@ class NAMOGripAgent(NAMOSortingAgent):
             sample.set(TARG_ENUM, targ_vec, t)
             targ_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds['pr2', 'pose']]
             targ_off_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds[obj_name, 'pose']]
+            base_pos = targ_pose
             targ_pose = rot.dot(targ_pose)
             targ_off_pose = rot.dot(targ_off_pose)
             sample.set(TARG_POSE_ENUM, targ_pose.copy(), t)
             sample.targ = task[2]
             if self.task_list[task[0]].find('place') >= 0 or self.task_list[task[0]].find('transfer') >= 0:
                 sample.set(END_POSE_ENUM, targ_pose, t)
+                sample.set(REL_POSE_ENUM, base_pos, t)
                 sample.set(ABS_POSE_ENUM, targets[self.target_inds[targ_name, 'value']], t)
 
         if ABS_POSE_ENUM in prim_choices:
             ind = list(prim_choices.keys()).index(ABS_POSE_ENUM)
-            if ind < len(task) and type(task[ind]) is not int:
+            if ind < len(task) and not np.isscalar(task[ind]):
                 sample.set(ABS_POSE_ENUM, task[ind], t)
-                sample.set(END_POSE_ENUM, task[ind] - mp_state[self.state_inds['pr2', 'pose']], t)
+                sample.set(END_POSE_ENUM, rot.dot(task[ind] - mp_state[self.state_inds['pr2', 'pose']]), t)
+
+        if REL_POSE_ENUM in prim_choices:
+            ind = list(prim_choices.keys()).index(REL_POSE_ENUM)
+            if ind < len(task) and not np.isscalar(task[ind]):
+                sample.set(REL_POSE_ENUM, task[ind], t)
+                sample.set(END_POSE_ENUM, rot.dot(task[ind]), t)
 
         if END_POSE_ENUM in prim_choices:
             ind = list(prim_choices.keys()).index(END_POSE_ENUM)
@@ -480,7 +491,8 @@ class NAMOGripAgent(NAMOSortingAgent):
             sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
             targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
             sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose, t)
-            sample.set(TARG_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
+            sample.set(TARG_ENUMS[i], targ, t)
+            sample.set(TARG_DELTA_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
 
         if INGRASP_ENUM in self._hyperparams['sensor_dims']:
             vec = np.zeros(len(prim_choices[OBJ_ENUM]))
@@ -509,13 +521,12 @@ class NAMOGripAgent(NAMOSortingAgent):
 
             if IM_ENUM in self._hyperparams['obs_include'] or \
                IM_ENUM in self._hyperparams['prim_obs_include']:
-                self.reset_mjc_env(sample.get_X(t=t), targets=targets, draw_targets=True)
                 im = self.mjc_env.render(height=self.image_height, width=self.image_width, view=self.view)
                 im = (im - 128.) / 128.
                 sample.set(IM_ENUM, im.flatten(), t)
 
     
-    def reset_mjc_env(x, targets):
+    def reset_mjc_env(x, targets, draw_targets=True):
         # this is elsewhere
         pass
 
@@ -893,10 +904,10 @@ class NAMOGripAgent(NAMOSortingAgent):
                     taskname = self.task_list[task[0]]
                     objname = prim_opts[OBJ_ENUM][task[1]]
                     targname = prim_opts[TARG_ENUM][task[2]]
-                    graspname = prim_opts[GRASP_ENUM][task[3]]
+                    #graspname = prim_opts[GRASP_ENUM][task[3]]
                     obj = plan.params[objname]
                     targ = plan.params[targname]
-                    grasp = plan.params[graspname]
+                    #grasp = plan.params[graspname]
                     if taskname.find('moveto') >= 0:
                         pred = HLGraspFailed('hlgraspfailed', [obj], ['Can'])
                     elif taskname.find('transfer') >= 0:

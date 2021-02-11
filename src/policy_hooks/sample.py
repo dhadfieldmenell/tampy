@@ -61,6 +61,7 @@ class Sample(object):
             self._obs.fill(np.nan)  # Invalidate existing obs.
             self._val_obs.fill(np.nan)  # Invalidate existing obs.
             self._prim_obs.fill(np.nan)  # Invalidate existing obs.
+            self._prim_out.fill(np.nan)  # Invalidate existing out.
             self._meta.fill(np.nan)  # Invalidate existing meta data.
         else:
             if sensor_name not in self._data:
@@ -72,6 +73,7 @@ class Sample(object):
             self._obs[t, :].fill(np.nan)
             self._val_obs[t, :].fill(np.nan)
             self._prim_obs[t, :].fill(np.nan)
+            self._prim_out[t, :].fill(np.nan)
 
     def get(self, sensor_name, t=None):
         """ Get trajectory data for a particular sensor. """

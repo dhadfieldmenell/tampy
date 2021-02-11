@@ -117,13 +117,20 @@ class RolloutServer(Server):
         precond_viols = []
         def task_f(sample, t, curtask):
             task = self.get_task(sample.get_X(t=t), sample.targets, curtask, self.soft)
+            task = tuple([val for val in task if np.isscalar(val)])
             onehot_task = tuple([val for val in task if np.isscalar(val)])
             cur_onehot_task = tuple([val for val in curtask if np.isscalar(val)])
             if onehot_task != cur_onehot_task: # not self.compare_tasks(task, curtask):
                 if self.check_postcond:
                     postcost = self.agent.postcond_cost(sample, curtask, t)
                     if postcost > 1e-3:
-                        task = curtask
+                        newtask = []
+                        for ind, val in enumerate(task):
+                            if np.isscalar(val):
+                                newtask.append(curtask[ind])
+                            else:
+                                newtask.append(val)
+                        task = tuple(newtask)
                 if self.check_precond:
                     precost = self.agent.precond_cost(sample, task, t)
                     if precost > 1e-3:
@@ -142,6 +149,7 @@ class RolloutServer(Server):
         s_per_task = 4 if self.agent.retime else 2
         self.adj_eta = True
         l = self.get_task(x, targets, None, self.soft)
+        l = tuple([val for val in l if np.isscalar(val)])
         cur_tasks.append(l)
         s, t = 0, 0
         val = 0
@@ -156,6 +164,7 @@ class RolloutServer(Server):
             sample = self.agent.sample_task(pol, 0, state, cur_tasks[-1], skip_opt=True, hor=t_per_task, task_f=task_f)
             path.append(sample)
             state = sample.get(STATE_ENUM, t=sample.T-1)
+            l = task_f(sample, sample.T-1, l)
             #next_l = self.get_task(state, targets, l, self.soft)
             #if self.check_postcond:
             #    postcost = self.agent.postcond_cost(sample, l)
@@ -191,7 +200,7 @@ class RolloutServer(Server):
         self.log_path(path, -20)
         #return val, path, max(0, s-last_switch), 0
         bad_pt = precond_viols[0] if len(precond_viols) else switch_pts[-1]
-        if np.random.uniform() < 0.25:
+        if np.random.uniform() < 0.05:
             self.save_video(path, val)
         return val, path, bad_pt[0], bad_pt[1]
  

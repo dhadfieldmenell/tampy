@@ -1662,6 +1662,7 @@ class NAMOSortingAgent(TAMPAgent):
                         l[-1] = i
                         break
             else:
+                raise Exception('THIS SHOUDLN"T HAPPEN?', enum, prim_choices[enum])
                 if self.task_list[l[0]].find('move') >= 0:
                     l[-1] = tuple(action.params[1].pose[:,action.active_timesteps[0]])
                 elif self.task_list[l[0]].find('place') >= 0 or self.task_list[l[0]].find('transfer') >= 0:
