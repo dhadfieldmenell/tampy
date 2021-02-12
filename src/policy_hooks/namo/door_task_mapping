@@ -1,18 +1,22 @@
 {
     'moveto': [
-        '0: MOVETO PR2 {0} {0}_INIT_TARGET ROBOT_INIT_POSE ROBOT_END_POSE {2} {1}',
+        '0: MOVETO PR2 {0} {0}_INIT_TARGET ROBOT_INIT_POSE ROBOT_END_POSE {1}',
     ],
 
-    'transfer': [
-        '0: TRANSFER PR2 ROBOT_INIT_POSE ROBOT_END_POSE {0} {1} {2} {0}_INIT_TARGET'
+    'put_in_closet': [
+        '0: PUT_IN_CLOSET PR2 ROBOT_INIT_POSE ROBOT_END_POSE {0} DOOR {0}_INIT_TARGET'
     ],
 
-    'place': [
-        '0: PLACE PR2 ROBOT_INIT_POSE ROBOT_END_POSE {0} {1} {2} {0}_INIT_TARGET'
+    'leave_closet': [
+        '0: LEAVE_CLOSET PR2 ROBOT_INIT_POSE ROBOT_END_POSE {0} DOOR {0}_INIT_TARGET'
     ],
 
     'open_door': [
         '0: OPEN_DOOR PR2 DOOR ROBOT_INIT_POSE ROBOT_END_POSE'
+    ],
+
+    'close_door': [
+        '0: CLOSE_DOOR PR2 DOOR ROBOT_INIT_POSE ROBOT_END_POSE'
     ],
 
 

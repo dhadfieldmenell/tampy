@@ -631,6 +631,7 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
     Returns:
         A tfMap object that stores inputs, outputs, and scalar loss.
     """
+    print('Building mixed output fp net')
     pool_size = 2
     filter_size = 3
     n_layers = 2 if 'n_layers' not in network_config else network_config['n_layers'] + 1

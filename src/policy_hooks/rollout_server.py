@@ -146,7 +146,7 @@ class RolloutServer(Server):
         rlen = 3 * self.agent.num_objs if not self.agent.retime else 6 * self.agent.num_objs
         ts = 100 if self.agent.retime else 50
         t_per_task = 30
-        s_per_task = 4 if self.agent.retime else 2
+        s_per_task = 5 if self.agent.retime else 2
         self.adj_eta = True
         l = self.get_task(x, targets, None, self.soft)
         l = tuple([val for val in l if np.isscalar(val)])
@@ -159,12 +159,11 @@ class RolloutServer(Server):
         while val < 1 and s < rlen:
             if self.check_precond and len(precond_viols): break
 
-            task_name = self.task_list[l[0]]
+            task_name = self.task_list[cur_tasks[-1][0]]
             pol = self.agent.policies[task_name]
             sample = self.agent.sample_task(pol, 0, state, cur_tasks[-1], skip_opt=True, hor=t_per_task, task_f=task_f)
             path.append(sample)
             state = sample.get(STATE_ENUM, t=sample.T-1)
-            l = task_f(sample, sample.T-1, l)
             #next_l = self.get_task(state, targets, l, self.soft)
             #if self.check_postcond:
             #    postcost = self.agent.postcond_cost(sample, l)

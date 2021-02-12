@@ -61,7 +61,7 @@ class MotionServer(Server):
         self.n_plans += 1
         success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=False)
         self.n_failed += 0. if success else 1.
-        # print('Time to plan:', time.time() - init_t)
+        #print('Time to plan:', time.time() - init_t)
         if success:
             path = self.agent.run_plan(plan, node.targets, permute=self.permute_hl)
             if self.render and np.random.uniform() < 0.01 or not path[-1].success and np.random.uniform() < 0.01:

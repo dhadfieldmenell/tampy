@@ -2,7 +2,7 @@ import numpy as np
 
 from sco.expr import BoundExpr, QuadExpr, AffExpr
 from pma import backtrack_ll_solver
-from core.util_classes.namo_grip_predicates import RETREAT_DIST, dsafe, opposite_angle, gripdist, ColObjPred
+from core.util_classes.namo_grip_predicates import RETREAT_DIST, dsafe, opposite_angle, gripdist, ColObjPred, DoorColObjPred
 
 class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
@@ -30,12 +30,20 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         for i in range(resample_size):
             if act.name.find('open_door') >= 0:
                 door = plan.params['door']
-                target_pos = np.array([[-2.5], [1.5]])
-                robot_pose.append({'pose': target_pos, 'gripper': np.array([[-1.]]), 'theta': np.array([[-np.pi/2]])})
+                #target_pos = np.array([[-1.5], [0.]])
+                #robot_pose.append({'pose': target_pos, 'gripper': np.array([[-1.]]), 'theta': np.array([[0.]])})
+                target_pos = np.array([[-3.5], [1.5]])
+                robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[-np.pi/2.]])})
             elif act.name.find('close_door') >= 0:
+                target_pos = np.array([[0.5], [1.2]])
                 door = plan.params['door']
-                target_pos = np.array([[0.5], [1.5]])
-                robot_pose.append({'pose': target_pos, 'gripper': np.array([[-1.]]), 'theta': np.array([[0.]])})
+                robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[0.]])})
+            elif act.name.find('in_closet') >= 0:
+                target_pos = np.array([[0.], [5.]])
+                robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[0.]])})
+            elif act.name.find('leave_closet') >= 0:
+                target_pos = np.array([[0.], [1.]])
+                robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[0.]])})
             elif act.name == 'moveto' or act.name == 'new_quick_movetograsp' or act.name == 'quick_moveto':
                 target = act.params[2]
                 grasp = act.params[5]
@@ -150,31 +158,39 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             bexpr = BoundExpr(quad_expr, sco_var)
             transfer_objs.append(bexpr)
 
-    #def _add_col_obj(self, plan, norm='min-vel', coeff=None, active_ts=None):
-    #    """
-    #        This function returns the expression e(x) = P|x - cur|^2
-    #        Which says the optimized trajectory should be close to the
-    #        previous trajectory.
-    #        Where P is the KT x KT matrix, where Px is the difference of parameter's attributes' current value and parameter's next timestep value
-    #    """
-    #    if active_ts is None:
-    #        active_ts = (0, plan.horizon-1)
+    def _add_col_obj(self, plan, norm='min-vel', coeff=None, active_ts=None):
+        """
+            This function returns the expression e(x) = P|x - cur|^2
+            Which says the optimized trajectory should be close to the
+            previous trajectory.
+            Where P is the KT x KT matrix, where Px is the difference of parameter's attributes' current value and parameter's next timestep value
+        """
+        if active_ts is None:
+            active_ts = (0, plan.horizon-1)
 
-    #    start, end = active_ts
-    #    if coeff is None:
-    #        coeff = self.col_coeff
+        start, end = active_ts
+        if coeff is None:
+            coeff = self.col_coeff
 
-    #    objs = []
-    #    robot = plan.params['pr2']
-    #    for param in plan.params.values():
-    #        if param._type != 'Can': continue
-    #        expected_param_types = ['Robot', 'Can']
-    #        params = [robot, param]
-    #        pred = ColObjPred('obstr', params, expected_param_types, plan.env, coeff=coeff)
-    #        for t in range(active_ts[0], active_ts[1]-1):
-    #            var = self._spawn_sco_var_for_pred(pred, t)
-    #            bexpr = BoundExpr(pred.neg_expr.expr, var)
-    #            objs.append(bexpr)
-    #            self._prob.add_obj_expr(bexpr)
-    #    return objs
+        objs = []
+        robot = plan.params['pr2']
+        act = [act for act in plan.actions if act.active_timesteps[0] <= 0 and act.active_timesteps[1] <= active_ts[1]][0]
+        for param in plan.params.values():
+            if param._type == 'Can':
+                expected_param_types = ['Robot', 'Can']
+                params = [robot, param]
+                pred = ColObjPred('obstr', params, expected_param_types, plan.env, coeff=coeff)
+            elif param._type == 'Door' and act.name.lower().find('in_closet') < 0:
+                expected_param_types = ['Door', 'Robot']
+                params = [param, robot]
+                pred = DoorColObjPred('obstr', params, expected_param_types, plan.env, coeff=coeff)
+            else:
+                continue
+
+            for t in range(active_ts[0], active_ts[1]-1):
+                var = self._spawn_sco_var_for_pred(pred, t)
+                bexpr = BoundExpr(pred.neg_expr.expr, var)
+                objs.append(bexpr)
+                self._prob.add_obj_expr(bexpr)
+        return objs
 

@@ -173,6 +173,9 @@ class OpenRAVEBody(object):
         else:
             self.body_id = P.createCollisionShape(shapeType=P.GEOM_SPHERE, radius=geom.radius)
 
+    def _add_door(self, geom):
+        self.body_id = OpenRAVEBody.create_door(self._env, geom.length)
+
     def _add_wall(self, geom):
         if USE_OPENRAVE:
             self.env_body = OpenRAVEBody.create_wall(self._env, geom.wall_type)
@@ -322,6 +325,27 @@ class OpenRAVEBody(object):
         infobox._fTransparency = transparency
         infobox._vDiffuseColor = color
         return infobox
+
+    @staticmethod
+    def create_door(env, door_len):
+        door_color = [0.5, 0.2, 0.1]
+        box_infos = []
+        cols = [P.createCollisionShape(shapeType=P.GEOM_BOX, halfExtents=[door_len/2., 0.1, 0.4]),
+                P.createCollisionShape(shapeType=P.GEOM_CYLINDER, radius=0.3, height=0.4),]
+        link_pos = [(door_len/2., 0., 0.), (door_len, -0.5, 0.)]
+        door = P.createMultiBody(basePosition=[0,0,0],
+                                linkMasses=[1 for _ in cols],
+                                linkCollisionShapeIndices=[ind for ind in cols],
+                                linkVisualShapeIndices=[-1 for _ in cols],
+                                linkPositions=[pos for pos in link_pos],
+                                linkOrientations=[[0,0,0,1] for _ in cols],
+                                linkInertialFramePositions=[[0,0,0] for _ in cols],
+                                linkInertialFrameOrientations=[[0,0,0,1] for _ in cols],
+                                linkParentIndices=[0 for _ in cols],
+                                linkJointTypes=[P.JOINT_FIXED for _ in cols],
+                                linkJointAxis=[[0,0,1] for _ in cols]
+                               )
+        return door
 
     @staticmethod
     def create_wall(env, wall_type):

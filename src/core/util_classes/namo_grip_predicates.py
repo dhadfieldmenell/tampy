@@ -69,8 +69,8 @@ if USE_TF:
         return tf_cache[tf_name]
 
     def init_tf_graph():
-        cuda_vis = os.environ.get("CUDA_VISIBLE_DEVICES", "")
-        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        cuda_vis = os.environ.get("CUDA_VISIBLE_DEVICES", "-1")
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
         config = tf.ConfigProto(inter_op_parallelism_threads=1, \
                                 intra_op_parallelism_threads=1, \
                                 allow_soft_placement=True, \
@@ -103,7 +103,7 @@ if USE_TF:
         tf_cache['thetadir_tf_forgrads'] = thetadir_tf_forgrads
         thetadir_tf_revgrads = tf.gradients(thetadir_tf_opp, thetadir_tf_in)[0]
         tf_cache['thetadir_tf_revgrads'] = thetadir_tf_revgrads
-        
+         
         tf_cache['bump_in'] = tf.placeholder(float, (4,1), name='bump_in')
         tf_cache['bump_radius'] = tf.placeholder(float, (), name='bump_radius')
         pos1 = tf_cache['bump_in'][:2]
@@ -112,6 +112,18 @@ if USE_TF:
         tf_cache['bump_out'] = tf.exp(-1. * tf_cache['bump_radius'] / (tf_cache['bump_radius'] - tf_cache['bump_diff']))
         tf_cache['bump_grads'] = tf.gradients(tf_cache['bump_out'], tf_cache['bump_in'])[0]
         tf_cache['bump_hess'] = tf.hessians(tf_cache['bump_out'], tf_cache['bump_in'])[0]
+
+        tf_cache['door_bump_in'] = tf.placeholder(float, (5,1), name='door_bump_in')
+        tf_cache['door_bump_radius'] = tf.placeholder(float, (), name='door_bump_radius')
+        tf_cache['door_len'] = tf.placeholder(float, (), name='door_len')
+        pos1 = tf_cache['door_bump_in'][:2]
+        theta = tf_cache['door_bump_in'][2]
+        pos2 = tf_cache['door_bump_in'][3:]
+        true_pos1 = pos1 + [tf_cache['door_len'] * tf.cos(theta), tf_cache['door_len'] * tf.sin(theta)]
+        tf_cache['door_bump_diff'] = tf.reduce_sum((pos2-true_pos1)**2)
+        tf_cache['door_bump_out'] = tf.exp(-1. * tf_cache['door_bump_radius'] / (tf_cache['door_bump_radius'] - tf_cache['door_bump_diff']))
+        tf_cache['door_bump_grads'] = tf.gradients(tf_cache['door_bump_out'], tf_cache['door_bump_in'])[0]
+        tf_cache['door_bump_hess'] = tf.hessians(tf_cache['door_bump_out'], tf_cache['door_bump_in'])[0]
 
 
 
@@ -752,6 +764,100 @@ class NotRobotNear(At):
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
 
+class AtCloset(At):
+
+    # RobotAt Robot RobotPose
+
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
+        ## At Robot RobotPose
+        self.r, = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int)),
+                                           ("theta", np.array([0], dtype=np.int))])])
+
+        A = np.eye(3)
+        b = np.array([[0.], [-2.2], [0.]])
+        val = np.zeros((3, 1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+
+class OpenDoorApproach(At):
+
+    # RobotAt Robot RobotPose
+
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
+        ## At Robot RobotPose
+        self.r, = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int)),
+                                           ("theta", np.array([0], dtype=np.int))])])
+
+        A = np.eye(3)
+        dist = gripdist + dsafe
+        b = np.array([[-0.5], [-(2.5-dist-1.2)], [0.]])
+        val = np.zeros((3, 1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+
+class OpenDoorReady(At):
+
+    # RobotAt Robot RobotPose
+
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
+        ## At Robot RobotPose
+        self.r, = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int)),
+                                           ("theta", np.array([0], dtype=np.int))])])
+
+        A = np.eye(3)
+        dist = gripdist + dsafe
+        b = np.array([[-0.5], [-(2.5-dist)], [0.]])
+        val = np.zeros((3, 1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+
+class CloseDoorApproach(At):
+
+    # RobotAt Robot RobotPose
+
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
+        ## At Robot RobotPose
+        self.r, = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int)),
+                                           ("theta", np.array([0], dtype=np.int))])])
+
+        A = np.c_[np.eye(3)]
+        dist = gripdist + dsafe
+        b = np.array([[3.+dist], [-1.5], [np.pi/2]])
+        val = np.zeros((3, 1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+
+class CloseDoorReady(At):
+
+    # RobotAt Robot RobotPose
+
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
+        ## At Robot RobotPose
+        self.r, = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int)),
+                                           ("theta", np.array([0], dtype=np.int))])])
+
+        A = np.c_[np.eye(3)]
+        dist = gripdist + dsafe
+        b = np.array([[1.5+dist], [-1.5], [np.pi/2]])
+        val = np.zeros((3, 1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+
 class RobotWithinBounds(At):
 
     # RobotAt Robot Can
@@ -832,7 +938,7 @@ class InCloset(ExprPredicate):
 
     def __init__(self, name, params, expected_param_types, env=None, sess=None):
         ## At Can Target
-        self.can, self.targ = params
+        self.can, = params
         k = 'value' if self.can.is_symbol() else 'pose'
         attr_inds = OrderedDict([(self.can, [(k, np.array([0,1], dtype=np.int))])])
 
@@ -1860,6 +1966,7 @@ class InGraspAngle(ExprPredicate):
 
 class DoorInGrasp(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
+        self.coeff = 1e0
         self.r, self.door = params
         door_geom = self.door.geom
         self.handle_pos = np.array([door_geom.length, -0.2-door_geom.radius])
@@ -1869,7 +1976,6 @@ class DoorInGrasp(ExprPredicate):
         self.dist = 0.
         self.dsafe = dsafe
         self.gripdist = gripdist
-        self.coeff = 1.
         if self.r.is_symbol():
             k = 'value'
         else:
@@ -2806,6 +2912,119 @@ class ColObjPred(CollisionPredicate):
                     new_v = np.r_[np.c_[curcoeff*v, np.zeros((4,4))], np.c_[np.zeros((4,4)), (1-curcoeff)*v]]
                     vals.append(new_v.reshape((8,8)))
             return np.sum(vals, axis=0).reshape((8,8))
+        j = self.grad(x)
+        return j.T.dot(j)
+
+
+class DoorColObjPred(CollisionPredicate):
+    def __init__(self, name, params, expected_param_types, env=None, coeff=1e3, debug=False):
+        self._env = env
+        self.hl_ignore = True
+        self.door, self.robot = params
+        attr_inds = OrderedDict([(self.door, [("pose", np.array([0, 1], dtype=np.int)),
+                                               ("theta", np.array([0], dtype=np.int))]),
+                                 (self.robot, [("pose", np.array([0, 1], dtype=np.int))])])
+        self._param_to_body = {self.door: self.lazy_spawn_or_body(self.door, self.door.name, self.door.geom),
+                               self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
+
+        self.rs_scale = RS_SCALE
+        self.radius = 2.3
+        #f = lambda x: -self.distance_from_obj(x)[0]
+        #grad = lambda x: -self.distance_from_obj(x)[1]
+
+        self.coeff = coeff
+        self.neg_coeff = coeff
+        self.neg_grad_coeff = 1e-1 # 1e-3
+        col_expr = Expr(self.f, self.grad)
+        val = np.zeros((1,1))
+        e = LEqExpr(col_expr, val)
+
+        col_expr_neg = Expr(lambda x: self.coeff*self.f(x), lambda x: self.coeff*self.grad(x), lambda x: self.coeff*self.hess_neg(x))
+        self.neg_expr = LEqExpr(col_expr_neg, -val)
+
+        super(DoorColObjPred, self).__init__(name, e, attr_inds, params,
+                                        expected_param_types, ind0=0, ind1=1, active_range=(0,1))
+        self.dsafe = 2.
+
+    def f(self, x):
+        xs = [float(COL_TS-t)/COL_TS*x[:5] + float(t)/COL_TS*x[5:] for t in range(COL_TS+1)]
+        if USE_TF:
+            cur_tensor = get_tf_graph('door_bump_out')
+            in_tensor = get_tf_graph('door_bump_in')
+            radius_tensor = get_tf_graph('door_bump_radius')
+            len_tensor = get_tf_graph('door_len')
+            vals = []
+            for i in range(COL_TS+1):
+                pt = xs[i]
+                true_pt = pt[:2] + [1.5*np.cos(x[2]), 1.5*np.sin(x[2])]
+                if np.sum((true_pt-pt[3:])**2) > (self.radius-1e-3)**2:
+                    vals.append(0)
+                else:
+                    val = np.array([TF_SESS[0].run(cur_tensor, feed_dict={in_tensor:     pt, 
+                                                                          radius_tensor: self.radius**2,
+                                                                          len_tensor:    1.5})])
+                    vals.append(val)
+            return np.sum(vals, axis=0)
+
+        col_vals = self.distance_from_obj(x)[0]
+        col_vals = np.clip(col_vals, 0., 4)
+        return -col_vals
+        #return -self.distance_from_obj(x)[0] # twostep_f([x[:4]], self.distance_from_obj, 2, pts=1)
+
+    def grad(self, x):
+        xs = [float(COL_TS-t)/COL_TS*x[:5] + float(t)/COL_TS*x[5:] for t in range(COL_TS+1)]
+        if USE_TF:
+            cur_grads = get_tf_graph('door_bump_grads')
+            in_tensor = get_tf_graph('door_bump_in')
+            radius_tensor = get_tf_graph('door_bump_radius')
+            len_tensor = get_tf_graph('door_len')
+            vals = []
+            for i in range(COL_TS+1):
+                pt = xs[i]
+                true_pt = pt[:2] + [1.5*np.cos(x[2]), 1.5*np.sin(x[2])]
+                if np.sum((true_pt-pt[3:])**2) > (self.radius-1e-3)**2:
+                    vals.append(np.zeros((1,10)))
+                else:
+                    v = TF_SESS[0].run(cur_grads, feed_dict={in_tensor:     pt,
+                                                             len_tensor:    1.5,
+                                                             radius_tensor: self.radius**2}).T
+                    v[np.isnan(v)] = 0.
+                    v[np.isinf(v)] = 0.
+                    curcoeff = float(COL_TS-i)/COL_TS
+                    vals.append(np.c_[curcoeff*v, (1-curcoeff)*v])
+            return np.sum(vals, axis=0)
+        return -self.coeff*self.distance_from_obj(x)[1] # twostep_f([x[:4]], self.distance_from_obj, 2, pts=1, grad=True)
+
+    def f_neg(self, x):
+        return -self.neg_coeff * self.f(x)
+
+    def grad_neg(self, x):
+        return -self.neg_grad_coeff * self.grad(x)
+
+    def hess_neg(self, x):
+        xs = [float(COL_TS-t)/COL_TS*x[:5] + float(t)/COL_TS*x[5:] for t in range(COL_TS+1)]
+        if USE_TF:
+            cur_hess = get_tf_graph('door_bump_hess')
+            in_tensor = get_tf_graph('door_bump_in')
+            radius_tensor = get_tf_graph('door_bump_radius')
+            len_tensor = get_tf_graph('door_len')
+            vals = []
+            for i in range(COL_TS+1):
+                pt = xs[i]
+                true_pt = pt[:2] + [1.5*np.cos(x[2]), 1.5*np.sin(x[2])]
+                if np.sum((true_pt-pt[3:])**2) > (self.radius-1e-3)**2:
+                    vals.append(np.zeros((10,10)))
+                else:
+                    v = TF_SESS[0].run(cur_hess, feed_dict={in_tensor:     pt,
+                                                            len_tensor:    1.5,
+                                                            radius_tensor: self.radius**2})
+                    v[np.isnan(v)] = 0.
+                    v[np.isinf(v)] = 0.
+                    v = v.reshape((5,5))
+                    curcoeff = float(COL_TS-i)/COL_TS
+                    new_v = np.r_[np.c_[curcoeff*v, np.zeros((5,5))], np.c_[np.zeros((5,5)), (1-curcoeff)*v]]
+                    vals.append(new_v.reshape((10,10)))
+            return np.sum(vals, axis=0).reshape((10,10))
         j = self.grad(x)
         return j.T.dot(j)
 

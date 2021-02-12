@@ -74,7 +74,7 @@ class MoveTo(Action):
                 ('(ThetaDirValid ?robot)', '{0}:{1}'.format(1, et-3)),
                 ('(ForThetaDirValid ?robot)', '{0}:{1}'.format(et-3, et-1)),
                 # ('(RobotStationary ?robot)', '{0}:{1}'.format(0,0)),
-                ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
+                #('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
                 # ('(LinearApproach ?robot)', '17:17'),
         ]
         self.eff = [\
@@ -121,7 +121,7 @@ class Transfer(Action):
                 ('(StationaryRot ?robot)', '{0}:{1}'.format(et-2, et-1)),
                 ('(not (GripperClosed ?robot))', '{0}:{1}'.format(et, et-1)),
                 ('(ThetaDirValid ?robot)', '{0}:{1}'.format(1, et-1)),
-                ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
+                #('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
                 ]
         self.eff = [\
                 ('(At ?c ?t)', '{0}:{1}'.format(et-1, et)),
@@ -158,7 +158,7 @@ class Place(Action):
                 # ('(LinearRetreat ?robot)', '0:{0}'.format(et-1)),
                 ('(StationaryRot ?robot)', '0:{0}'.format(et-1)),
                 # ('(RevThetaDirValid ?robot)', '0:{0}'.format(et-1)),
-                ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
+                #('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
                 ('(RobotStationary ?robot)', '{0}:{0}'.format(0)),
                 ('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
                 ]
