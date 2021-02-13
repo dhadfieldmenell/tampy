@@ -1646,6 +1646,7 @@ class InGripper(PosePredicate):
         if not hasattr(self, 'rot_coeff'): self.rot_coeff = const.IN_GRIPPER_ROT_COEFF
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
+        self.rel_pt = self.obj.geom.grasp_pt if hasattr(self.obj.geom, 'grasp_pt') else np.zeros(3)
         if hasattr(self, 'dist'):
             self.eval_dim = 6
             e = LEqExpr(Expr(self.tile_f, self.tile_grad), self.coeff*self.dist*np.ones((self.eval_dim, 1)))
@@ -1656,11 +1657,11 @@ class InGripper(PosePredicate):
         self.spacial_anchor = True
 
     def stacked_f(self, x):
-        return self.coeff * self.pos_check_f(x)
+        return self.coeff * self.pos_check_f(x, sef.rel_pt)
         # return np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.rot_check_f(x)])
 
     def stacked_grad(self, x):
-        return self.coeff * self.pos_check_jac(x)
+        return self.coeff * self.pos_check_jac(x, self.rel_pt)
         # return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.rot_check_jac(x)])
 
     def tile_f(self, x):

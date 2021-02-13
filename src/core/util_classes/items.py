@@ -45,6 +45,7 @@ class Door2d(Item):
     """
     def __init__(self, radius, length):
         super(Door2d, self).__init__()
+        self.dof_map = {'door_hinge': 0}
         self._type = "door"
         self.radius = float(radius)
         self.length = float(length)

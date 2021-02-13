@@ -351,13 +351,11 @@ class Baxter(Robot):
                               "collision_head_link_2", "right_upper_shoulder", "right_lower_shoulder",
                               "right_upper_elbow", "right_lower_elbow",
                               "right_upper_forearm", "right_lower_forearm",
-                              "right_wrist", "right_hand", "right_gripper_base", "right_gripper",
-                              "right_gripper_l_finger", "right_gripper_r_finger", "right_gripper_l_finger_tip",
+                              "right_wrist", "right_hand", "right_gripper_base", "right_gripper_l_finger_tip",
                               "right_gripper_r_finger_tip", "left_upper_shoulder", "left_lower_shoulder",
                               "left_upper_elbow", "left_lower_elbow",
                               "left_upper_forearm", "left_lower_forearm",
-                              "left_wrist", "left_hand", "left_gripper_base", "left_gripper",
-                              "left_gripper_l_finger", "left_gripper_r_finger", "left_gripper_l_finger_tip",
+                              "left_wrist", "left_hand", "left_gripper_base", "left_gripper_l_finger_tip",
                               "left_gripper_r_finger_tip"])
         #self.ik_solver = BaxterIKController(lambda: np.zeros(14))
         #self.col_links = set([self.ik_solver.name2id(name) for name in self.col_link_names])
@@ -374,14 +372,16 @@ class Sawyer(Robot):
         baxter_shape = baxter_gym.__path__[0] + "/robot_info/sawyer/robot.xml"
         super(Baxter, self).__init__(baxter_shape)
 
-        self.jnt_names = {'left':  ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', 'left_w1', 'left_w2'],
-                          'left_gripper': ['left_gripper_l_finger_joint', 'left_gripper_r_finger_joint'],
+        self.jnt_names = {'right':  ['right_j0','right_j1','right_j2','right_j3','right_j4','right_j5','right_j6'],
+                          'right_gripper': [],
                           }
-        self.ee_link_names = {'left': 'left_gripper'}
-        self.arms = ['left']
-        self.ee_attrs = ['left_ee_pos']
-        self.arm_bnds = {'left': (0,7)}
-        self.col_link_names = set([])
+        self.ee_link_names = {'right': 'right_hand'}
+        self.arms = ['right']
+        self.ee_attrs = ['right_ee_pos']
+        self.arm_bnds = {'right': (0,7)}
+        self.col_link_names = set(['right_arm_base_link', 'right_l0', 'right_l1', 
+                                   'right_l2', 'right_l3', 'right_l4', 'right_l5',
+                                   'right_l6'])
 
 
 class HSR(Robot):

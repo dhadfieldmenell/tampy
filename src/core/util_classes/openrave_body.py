@@ -23,7 +23,7 @@ CLOSET_POINTS = [[-6.0,-8.0],[-6.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],
 CLOSET_POINTS = [[-7.0,-9.0],[-7.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[14.0,4.0],[14.0,-9.0],[-7.0,-9.0]]
 CLOSET_POINTS = [[-7.0,-10.0],[-7.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[14.0,4.0],[14.0,-10.0],[-7.0,-10.0]]
 CLOSET_POINTS = [[-7.0,-12.0],[-7.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[14.0,4.0],[14.0,-12.0],[-7.0,-12.0]]
-CLOSET_POINTS = [[-7.0,-12.0],[-7.0,4.0],[1.5,4.0],[1.5,8.0],[5.5,8.0],[5.5,4.0],[14.0,4.0],[14.0,-12.0],[-7.0,-12.0]]
+CLOSET_POINTS = [[-7.0,-10.0],[-7.0,4.0],[1.5,4.0],[1.5,8.0],[5.5,8.0],[5.5,4.0],[14.0,4.0],[14.0,-10.0],[-7.0,-10.0]]
 
 class OpenRAVEBody(object):
     def __init__(self, env, name, geom):
@@ -174,7 +174,7 @@ class OpenRAVEBody(object):
             self.body_id = P.createCollisionShape(shapeType=P.GEOM_SPHERE, radius=geom.radius)
 
     def _add_door(self, geom):
-        self.body_id = OpenRAVEBody.create_door(self._env, geom.length)
+        self.body_id, self.col_body_id = OpenRAVEBody.create_door(self._env, geom.length)
 
     def _add_wall(self, geom):
         if USE_OPENRAVE:
@@ -234,7 +234,8 @@ class OpenRAVEBody(object):
         """
         # make sure only sets dof for robot
         # assert isinstance(self._geom, Robot)
-        if not isinstance(self._geom, Robot): return
+        #if not isinstance(self._geom, Robot): return
+        if not hasattr(self._geom, 'dof_map'): return
 
         if USE_OPENRAVE:
             # Get current dof value for each joint
@@ -290,7 +291,6 @@ class OpenRAVEBody(object):
     def create_cylinder(env, body_name, t, dims, color=[0, 1, 1]):
         infocylinder = OpenRAVEBody.create_body_info(GeometryType.Cylinder, dims, color)
         if type(env) != Environment:
-            # import ipdb; ipdb.set_trace()
             print("Environment object is not valid")
         cylinder = RaveCreateKinBody(env, '')
         cylinder.InitFromGeometries([infocylinder])
@@ -330,9 +330,10 @@ class OpenRAVEBody(object):
     def create_door(env, door_len):
         door_color = [0.5, 0.2, 0.1]
         box_infos = []
-        cols = [P.createCollisionShape(shapeType=P.GEOM_BOX, halfExtents=[door_len/2., 0.1, 0.4]),
+        cols = [P.createCollisionShape(shapeType=P.GEOM_CYLINDER, radius=0.05, height=0.1),
+                P.createCollisionShape(shapeType=P.GEOM_BOX, halfExtents=[door_len/2.-0.1, 0.1, 0.4]),
                 P.createCollisionShape(shapeType=P.GEOM_CYLINDER, radius=0.3, height=0.4),]
-        link_pos = [(door_len/2., 0., 0.), (door_len, -0.5, 0.)]
+        link_pos = [(0, 0, 0), (door_len/2., 0., 0.), (door_len/2., -0.5, 0.)]
         door = P.createMultiBody(basePosition=[0,0,0],
                                 linkMasses=[1 for _ in cols],
                                 linkCollisionShapeIndices=[ind for ind in cols],
@@ -341,11 +342,11 @@ class OpenRAVEBody(object):
                                 linkOrientations=[[0,0,0,1] for _ in cols],
                                 linkInertialFramePositions=[[0,0,0] for _ in cols],
                                 linkInertialFrameOrientations=[[0,0,0,1] for _ in cols],
-                                linkParentIndices=[0 for _ in cols],
-                                linkJointTypes=[P.JOINT_FIXED for _ in cols],
+                                linkParentIndices=[0, 1, 2],
+                                linkJointTypes=[P.JOINT_REVOLUTE]+[P.JOINT_FIXED for _ in cols[1:]],
                                 linkJointAxis=[[0,0,1] for _ in cols]
                                )
-        return door
+        return door, cols
 
     @staticmethod
     def create_wall(env, wall_type):
@@ -600,7 +601,6 @@ class OpenRAVEBody(object):
         trans = transform[:3,3]
         rot_matrix = transform[:3,:3]
         yaw, pitch, roll = OpenRAVEBody._ypr_from_rot_matrix(rot_matrix)
-        # ipdb.set_trace()
         return np.array((trans[0], trans[1], trans[2], yaw, pitch, roll))
 
     @staticmethod
@@ -629,7 +629,6 @@ class OpenRAVEBody(object):
         Ry[[[0],[2]],[0,2]] = Ry_2d
         Rx = I.copy()
         Rx[1:3,1:3] = Rx_2d
-        # ipdb.set_trace()
         return Rz, Ry, Rx
 
     @staticmethod
@@ -640,7 +639,6 @@ class OpenRAVEBody(object):
         pitch = atan2(-r[2,0],np.sqrt(r[2,1]**2+r[2,2]**2))
         # gamma
         roll = atan2(r[2,1], r[2,2])
-        # ipdb.set_trace()
         return (yaw, pitch, roll)
 
     @staticmethod

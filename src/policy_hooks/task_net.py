@@ -734,7 +734,7 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
     task_types = len(task_bounds) * ['discrete']
     cont_types = len(task_bounds) * ['continuous']
     ntask = np.sum([en-st for (st, en) in task_bounds])
-    dh = [dim_hidden[-1], ntask]
+    dh = [dim_hidden[0], ntask]
     cur_input = mlp_applied
     mlp_applied, weights_FC, biases_FC = get_mlp_layers(cur_input, len(dh), dh, offset)
     scaled_mlp_applied = mlp_applied
@@ -743,12 +743,13 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
     discr_mlp = scaled_mlp_applied
     prediction = multi_mix_prediction_layer(scaled_mlp_applied, task_bounds, types=task_types)
     
-    onehot_preds = [tf.one_hot(tf.argmax(prediction[:,lb:ub], axis=1), ub-lb) for lb, ub in task_bounds]
-    onehot_preds = tf.concat(onehot_preds, axis=1)
-    cur_input = tf.concat([cur_input, tf.stop_gradient(onehot_preds)], axis=1)
+    #onehot_preds = [tf.one_hot(tf.argmax(prediction[:,lb:ub], axis=1), ub-lb) for lb, ub in task_bounds]
+    #onehot_preds = tf.concat(onehot_preds, axis=1)
+    #cur_input = tf.concat([cur_input, tf.stop_gradient(onehot_preds)], axis=1)
+    cur_input = tf.concat([cur_input, tf.stop_gradient(prediction)], axis=1)
     offset += len(dh)
     ncont = np.sum([en-st for (st, en) in cont_bounds])
-    dh = dim_hidden[-2:] + [ncont]
+    dh = dim_hidden[:1] + [ncont]
     mlp_applied, weights_FC_2, biases_FC_2 = get_mlp_layers(cur_input, len(dh), dh, offset)
     prediction = tf.concat([prediction, mlp_applied], axis=1)
     scaled_mlp_applied = tf.concat([discr_mlp, mlp_applied], axis=1)

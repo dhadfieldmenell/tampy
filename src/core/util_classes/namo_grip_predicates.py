@@ -271,6 +271,8 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False, isrobot=False):
             filldim = dim - cur_jac.shape[1]
             # cur_jac = np.c_[cur_jac[:,:2], np.zeros((N_COLS, filldim)), cur_jac[:,2:]]
             #res.append(dist(next_pos)[1])
+            if filldim > 0:
+                cur_jac = np.c_[cur_jac, np.zeros((len(cur_jac), filldim))]
             jac = np.r_[jac, np.c_[coeff*cur_jac, (1-coeff)*cur_jac]]
             #jac = np.r_[jac, np.c_[cur_jac, cur_jac]]
         return jac
@@ -351,6 +353,8 @@ class CollisionPredicate(ExprPredicate):
         b0.set_dof({'left_grip': x[2], 'right_grip': x[2], 'robot_theta': x[3], 'ypos': 0., 'xpos': 0.})
         b0.set_pose(pose0)
         b1.set_pose(pose1)
+        if 'door' in b1._geom.get_types():
+            b1.set_dof({'door_hinge': x[6]})
         return pose0, pose1
 
 
@@ -1534,7 +1538,7 @@ class Obstructs(CollisionPredicate):
 class WideObstructs(Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.15
+        self.dsafe = 0.05
         self.check_aabb = False # True
 
 
@@ -1544,6 +1548,62 @@ class ObstructsNoSym(Obstructs):
 
 class WideObstructsNoSym(WideObstructs):
     pass
+
+
+class DoorObstructs(CollisionPredicate):
+
+    # Obstructs, Robot, RobotPose, RobotPose, Can;
+
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
+        self._env = env
+        #self.hl_ignore = True
+        self.r, self.startp, self.endp, self.door = params
+
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int)),
+                                           ("gripper", np.array([0], dtype=np.int)),
+                                           ("theta", np.array([0],   dtype=np.int))]),
+                                 (self.door, [("pose", np.array([0, 1], dtype=np.int)),
+                                              ("theta", np.array([0], dtype=np.int))])])
+        self._param_to_body = {self.r: self.lazy_spawn_or_body(self.r, self.r.name, self.r.geom),
+                               self.door: self.lazy_spawn_or_body(self.door, self.door.name, self.door.geom)}
+
+        self.rs_scale = RS_SCALE
+
+        self.neg_coeff = 1e2 # 1e3
+        self.neg_grad_coeff = 1e-2 # 1e-3
+
+        col_expr = Expr(self.f, self.grad)
+        val = np.zeros((1,1))
+        e = LEqExpr(col_expr, val)
+
+        col_expr_neg = Expr(self.f_neg, self.grad_neg)
+        self.neg_expr = LEqExpr(col_expr_neg, -val)
+
+        super(DoorObstructs, self).__init__(name, e, attr_inds, params,
+                                        expected_param_types, ind0=0, ind1=3)
+        # self.priority=1
+        self.dsafe = 0.1
+
+    def f(self, x):
+        return -twostep_f([x[:7], x[7:14]], self.distance_from_obj, 7)
+
+    def grad(self, x):
+        grad = -twostep_f([x[:7], x[7:14]], self.distance_from_obj, 7, grad=True)
+        rotjac = np.arctan2(grad[:,0] - grad[:,7], grad[:,1] - grad[:,8])
+        grad[:,3] = -rotjac
+        return grad
+
+    def f_neg(self, x):
+        return -self.neg_coeff * self.f(x)
+
+    def grad_neg(self, x):
+        return -self.neg_grad_coeff * self.grad(x)
+
+    def get_expr(self, negated):
+        if negated:
+            return self.neg_expr
+        else:
+            return None
 
 
 def sample_pose(plan, pose, robot, rs_scale):

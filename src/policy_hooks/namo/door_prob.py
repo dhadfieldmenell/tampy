@@ -31,6 +31,7 @@ CONST_ORDER = False
 # domain_file = "../domains/namo_domain/new_namo.domain"
 domain_file = "../domains/namo_domain/namo_current_door.domain"
 mapping_file = "policy_hooks/namo/door_task_mapping"
+pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
 
 descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.format(NUM_OBJS, SORT_CLOSET, USE_PERTURB, OPT_MCTS_FEEDBACK)
 
@@ -49,7 +50,7 @@ n_aux = 4
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25
 #possible_can_locs.extend(list(itertools.product(list(range(-45, 45, 4)), list(range(-40, -10, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-60, 60, 2)), list(range(-60, -10, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-70, 70, 2)), list(range(-80, -10, 2)))))
 
 
 for i in range(len(possible_can_locs)):
@@ -80,7 +81,8 @@ def get_prim_choices(task_list=None):
             out[utils.TARG_ENUM] += ['end_target_{0}'.format(i)]
     else:
         out[utils.TARG_ENUM] += ['can{0}_end_target'.format(i) for i in range(NUM_OBJS)]
-    out[utils.GRASP_ENUM] = ['grasp{0}'.format(i) for i in range(N_GRASPS)]
+    #out[utils.GRASP_ENUM] = ['grasp{0}'.format(i) for i in range(N_GRASPS)]
+    out[utils.ABS_POSE_ENUM] = 2
     return out
 
 
@@ -121,7 +123,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         # can_locs = copy.deepcopy(END_TARGETS)
         locs = []
         pr2_loc = None
-        spacing = 2.5
+        spacing = 1.5
         valid = [1 for _ in range(len(can_locs))]
         while len(locs) < config['num_objs'] + 1:
             locs = []
@@ -224,23 +226,21 @@ def get_plans(use_tf=False):
         next_task_str = copy.deepcopy(tasks[task])
         for i in range(len(prim_options[utils.OBJ_ENUM])):
             for j in range(len(prim_options[utils.TARG_ENUM])):
-                for k in range(len(prim_options[utils.GRASP_ENUM])):
-                    obj = prim_options[utils.OBJ_ENUM][i]
-                    targ = prim_options[utils.TARG_ENUM][j]
-                    grasp = prim_options[utils.GRASP_ENUM][k]
-                    new_task_str = []
-                    for step in next_task_str:
-                        new_task_str.append(step.format(obj, targ, grasp))
-                    plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params, sess=sess, use_tf=use_tf)
-                    params = plan.params
-                    plans[(task_ids.index(task), i, j, k)] = plan
-                    if env is None:
-                        env = plan.env
-                        for param in list(plan.params.values()):
-                            if hasattr(param, 'geom'):
-                                if not hasattr(param, 'openrave_body') or param.openrave_body is None:
-                                    param.openrave_body = OpenRAVEBody(env, param.name, param.geom)
-                                openrave_bodies[param.name] = param.openrave_body
+                obj = prim_options[utils.OBJ_ENUM][i]
+                targ = prim_options[utils.TARG_ENUM][j]
+                new_task_str = []
+                for step in next_task_str:
+                    new_task_str.append(step.format(obj, targ, 'grasp0'))
+                plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params, sess=sess, use_tf=use_tf)
+                params = plan.params
+                plans[(task_ids.index(task), i, j)] = plan
+                if env is None:
+                    env = plan.env
+                    for param in list(plan.params.values()):
+                        if hasattr(param, 'geom'):
+                            if not hasattr(param, 'openrave_body') or param.openrave_body is None:
+                                param.openrave_body = OpenRAVEBody(env, param.name, param.geom)
+                            openrave_bodies[param.name] = param.openrave_body
     return plans, openrave_bodies, env
 
 def get_end_targets(num_cans=NUM_OBJS, num_targs=NUM_OBJS, targs=None, randomize=False, possible_locs=END_TARGETS):

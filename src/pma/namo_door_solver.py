@@ -42,7 +42,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 target_pos = np.array([[0.], [5.]])
                 robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[0.]])})
             elif act.name.find('leave_closet') >= 0:
-                target_pos = np.array([[0.], [1.]])
+                target_pos = np.array([[0.], [0.5]])
                 robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[0.]])})
             elif act.name == 'moveto' or act.name == 'new_quick_movetograsp' or act.name == 'quick_moveto':
                 target = act.params[2]

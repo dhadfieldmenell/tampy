@@ -65,7 +65,7 @@ class MoveTo(Action):
                 ('(forall (?w - Obstacle) (StationaryW ?w))', '0:{0}'.format(et-1)),
                 ('(IsMP ?robot)', '0:{0}'.format(et-1)),
                 ('(forall (?w - Obstacle) (forall (?obj - Can) (not (Collides ?obj ?w))))', '1:{0}'.format(et-1)),
-                ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '1:{0}'.format(et-1)),
+                ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '1:{0}'.format(et-3)),
                 ('(forall (?obj - Can) (not (Obstructs ?robot ?sp ?gp ?obj)))', '0:0'),
                 ('(forall (?obj - Can) (not (WideObstructs ?robot ?sp ?gp ?obj)))', '0:-1'),
                 ('(forall (?obj - Can) (not (WideObstructs ?robot ?sp ?gp ?obj)))', '1:{0}'.format(et-4)),
@@ -82,7 +82,7 @@ class MoveTo(Action):
                 # ('(InGraspAngle ?robot ?can)', '{0}:{0}'.format(et)),
                 ('(forall (?obj - Can / ?can) (forall (?gr - Grasp) (not (NearGraspAngle ?robot ?obj))))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
-                ('(StationaryRot ?robot)', '{0}:{1}'.format(et-3, et-1)),
+                ('(StationaryRot ?robot)', '{0}:{1}'.format(et-4, et-1)),
                 ('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
         ]
 

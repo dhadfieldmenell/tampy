@@ -50,7 +50,7 @@ n_aux = 4
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25
 #possible_can_locs.extend(list(itertools.product(list(range(-45, 45, 4)), list(range(-40, -10, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-60, 60, 2)), list(range(-60, -10, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-70, 70, 2)), list(range(-80, 0, 2)))))
 
 
 for i in range(len(possible_can_locs)):
@@ -122,7 +122,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         # can_locs = copy.deepcopy(END_TARGETS)
         locs = []
         pr2_loc = None
-        spacing = 2.5
+        spacing = 2.
         valid = [1 for _ in range(len(can_locs))]
         while len(locs) < config['num_objs'] + 1:
             locs = []

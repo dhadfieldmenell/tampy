@@ -21,7 +21,7 @@ from core.util_classes.openrave_body import *
 NAMO_XML = baxter_gym.__path__[0] + '/robot_info/lidar_namo.xml'
 
 plans = prob.get_plans(use_tf=True)
-plan = plans[0][(0,0,0,0)]
+plan = list(plans[0].values())[0]
 domain = plan.domain
 problem = plan.prob
 state = problem.init_state
@@ -136,7 +136,7 @@ for t in range(plan.horizon-1):
     cmd_x, cmd_y = rel_x, rel_y
     cmd_theta = pr2.theta[0, t+1] - cur_theta
     nsteps = 20
-    gripper = pr2.gripper[0,t+1]
+    gripper = pr2.gripper[0,t]
     if gripper < 0:
         gripper = -0.1
     else:

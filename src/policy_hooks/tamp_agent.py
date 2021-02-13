@@ -826,11 +826,11 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         perm = {}
         old_x0 = x0.copy()
         old_targets = targets
-        #if permute:
-        #    tasks, targets, perm = self.permute_tasks(tasks, targets, plan)
-        #    for pname, aname in self.state_inds:
-        #        if pname in perm:
-        #            x0[self.state_inds[perm[pname], aname]] = getattr(plan.params[pname], aname)[:,0]
+        if permute:
+            tasks, targets, perm = self.permute_tasks(tasks, targets, plan)
+            for pname, aname in self.state_inds:
+                if pname in perm:
+                    x0[self.state_inds[perm[pname], aname]] = getattr(plan.params[pname], aname)[:,0]
         if reset:
             self.reset_to_state(x0)
         if amax is None:
@@ -884,7 +884,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 zero_sample = self.sample_optimal_trajectory(path[-1].end_state, task, 0, zero_traj, targets=targets)
                 zero_sample.use_ts[:] = 0.
                 zero_sample.use_ts[:nzero] = 1.
-                zero_sample.prim_use_ts[:] = 0.
+                zero_sample.prim_use_ts[:] = np.zeros(len(zero_sample.prim_use_ts))
                 zero_sample.step = path[-1].step + 1
                 zero_sample.draw = False
                 zero_sample.success = path[-1].success
