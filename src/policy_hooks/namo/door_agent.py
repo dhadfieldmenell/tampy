@@ -282,6 +282,8 @@ class NAMODoorAgent(NAMOGripAgent):
             sample.set(REL_POSE_ENUM, base_pos, t)
             sample.set(ABS_POSE_ENUM, handle_pos[:2], t)
 
+        sample.set(TRUE_POSE_ENUM, sample.get(REL_POSE_ENUM, t=t), t)
+
         if ABS_POSE_ENUM in prim_choices:
             ind = list(prim_choices.keys()).index(ABS_POSE_ENUM)
             if ind < len(task) and not np.isscalar(task[ind]):

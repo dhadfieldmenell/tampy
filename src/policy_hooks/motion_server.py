@@ -63,12 +63,13 @@ class MotionServer(Server):
         self.n_failed += 0. if success else 1.
         #print('Time to plan:', time.time() - init_t)
         if success:
-            path = self.agent.run_plan(plan, node.targets, permute=self.permute_hl)
+            wt = self.explore_wt if node.label.lower().find('rollout') >= 0 else 1.
+            path = self.agent.run_plan(plan, node.targets, permute=self.permute_hl, wt=wt)
             if self.render and np.random.uniform() < 0.01 or not path[-1].success and np.random.uniform() < 0.01:
                 self.save_video(path, path[-1].success)
             self.log_path(path, 10)
             for step in path: step.source_label = 'optimal'
-            print(self.id, 'Successful refine from', node.label, 'rollout succes was:', path[-1].success)
+            print(self.id, 'Successful refine from', node.label, 'rollout succes was:', path[-1].success, 'first ts:', plan.start)
         
         if not success and node.gen_child():
             fail_step, fail_pred, fail_negated = node.get_failed_pred()
@@ -94,12 +95,20 @@ class MotionServer(Server):
         step = 0
         while not self.stopped:
             node = self.pop_queue(self.in_queue)
+            #if node is None:
+            #    hlnode = self.spawn_problem()
+            #    self.push_queue(hlnode, self.task_queue)
+            #    time.sleep(1.)
+            #else:
+            #    self.set_policies()
+            #    self.refine_plan(node)
+
             if node is None:
-                hlnode = self.spawn_problem()
-                self.push_queue(hlnode, self.task_queue)
-            else:
-                self.set_policies()
-                self.refine_plan(node)
+                time.sleep(0.01)
+                continue
+
+            self.set_policies()
+            self.refine_plan(node)
 
             inv_cov = self.agent.get_inv_cov()
             for task in self.alg_map:

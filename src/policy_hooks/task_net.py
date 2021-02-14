@@ -68,7 +68,7 @@ def multi_softmax_loss_layer(labels, logits, boundaries, precision=None, scalar=
     return stacked_loss # tf.reduce_sum(stacked_loss, axis=0)
 
 
-def multi_mix_loss_layer(labels, logits, boundaries, types, batch_size, precision=None, scalar=True, scope=''):
+def multi_mix_loss_layer(labels, logits, boundaries, types, batch_size, precision=None, scalar=True, scope='', contwt=1e4):
     start = 0
     losses = []
     for i, (start, end) in enumerate(boundaries):
@@ -77,7 +77,7 @@ def multi_mix_loss_layer(labels, logits, boundaries, types, batch_size, precisio
             if precision is not None:
                 loss *= precision[:, i] / (1+tf.reduce_mean(precision[:,i]))
         else:
-            loss = 1e4 * euclidean_loss_layer(labels[:,start:end], logits[:,start:end], None, batch_size)
+            loss = contwt * euclidean_loss_layer(labels[:,start:end], logits[:,start:end], None, batch_size)
             if precision is not None:
                 loss *= precision[:, i] / (1+tf.reduce_mean(precision[:,i]))
 
@@ -154,9 +154,9 @@ def get_sigmoid_loss_layer(mlp_out, labels):
     return tf.nn.sigmoid_cross_entropy_with_logits(labels=labels, logits=mlp_out, name='sigmoid_loss')
 
 
-def get_loss_layer(mlp_out, task, boundaries, batch_size, types=[], precision=None, scalar=True, scope=''):
+def get_loss_layer(mlp_out, task, boundaries, batch_size, types=[], precision=None, scalar=True, scope='', wt=1e4):
     """The loss layer used for the MLP network is obtained through this class."""
-    return multi_mix_loss_layer(labels=task, logits=mlp_out, boundaries=boundaries, types=types, batch_size=batch_size, precision=precision, scalar=scalar, scope=scope)
+    return multi_mix_loss_layer(labels=task, logits=mlp_out, boundaries=boundaries, types=types, batch_size=batch_size, precision=precision, scalar=scalar, scope=scope, contwt=wt)
 
 
 def tf_classification_network(dim_input=27, dim_output=2, batch_size=25, network_config=None, input_layer=None, eta=None):
@@ -726,6 +726,7 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
     fc_vars = []
     offset = 0
 
+    #mlp_applied, weights_FC, biases_FC = get_mlp_layers(fc_input, n_layers-2, dim_hidden[:-1], nonlin=True)
     mlp_applied, weights_FC, biases_FC = get_mlp_layers(fc_input, n_layers-2, dim_hidden[:-1], nonlin=True)
    
     offset = len(dim_hidden)
@@ -734,7 +735,7 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
     task_types = len(task_bounds) * ['discrete']
     cont_types = len(task_bounds) * ['continuous']
     ntask = np.sum([en-st for (st, en) in task_bounds])
-    dh = [dim_hidden[0], ntask]
+    dh = dim_hidden[:1] + [ntask]
     cur_input = mlp_applied
     mlp_applied, weights_FC, biases_FC = get_mlp_layers(cur_input, len(dh), dh, offset)
     scaled_mlp_applied = mlp_applied
@@ -743,10 +744,10 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
     discr_mlp = scaled_mlp_applied
     prediction = multi_mix_prediction_layer(scaled_mlp_applied, task_bounds, types=task_types)
     
-    #onehot_preds = [tf.one_hot(tf.argmax(prediction[:,lb:ub], axis=1), ub-lb) for lb, ub in task_bounds]
-    #onehot_preds = tf.concat(onehot_preds, axis=1)
-    #cur_input = tf.concat([cur_input, tf.stop_gradient(onehot_preds)], axis=1)
-    cur_input = tf.concat([cur_input, tf.stop_gradient(prediction)], axis=1)
+    onehot_preds = [tf.one_hot(tf.argmax(prediction[:,lb:ub], axis=1), ub-lb) for lb, ub in task_bounds]
+    onehot_preds = tf.concat(onehot_preds, axis=1)
+    cur_input = tf.concat([cur_input, tf.stop_gradient(onehot_preds)], axis=1)
+    #cur_input = tf.concat([cur_input, tf.stop_gradient(prediction)], axis=1)
     offset += len(dh)
     ncont = np.sum([en-st for (st, en) in cont_bounds])
     dh = dim_hidden[:1] + [ncont]
@@ -755,7 +756,7 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
     scaled_mlp_applied = tf.concat([discr_mlp, mlp_applied], axis=1)
 
     fc_vars = weights_FC + biases_FC
-    loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, batch_size=batch_size, precision=precision, types=types)
+    loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, batch_size=batch_size, precision=precision, types=types, wt=5e2)
     losses = [loss_out]
     preds = [prediction]
 

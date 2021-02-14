@@ -461,6 +461,7 @@ class NAMOGripAgent(NAMOSortingAgent):
                 sample.set(REL_POSE_ENUM, base_pos, t)
                 sample.set(ABS_POSE_ENUM, targets[self.target_inds[targ_name, 'value']], t)
 
+        sample.set(TRUE_POSE_ENUM, sample.get(ABS_POSE_ENUM, t=t), t)
         if ABS_POSE_ENUM in prim_choices:
             ind = list(prim_choices.keys()).index(ABS_POSE_ENUM)
             if ind < len(task) and not np.isscalar(task[ind]):
@@ -951,12 +952,13 @@ class NAMOGripAgent(NAMOSortingAgent):
         if cam_id is None: cam_id = self.camera_id
         x = s.get_X(t=t)
         task = s.get(FACTOREDTASK_ENUM, t=t)
-        u = s.get(ACTION_ENUM, t=t)
-        u = str(u.round(2))[1:-1]
-        pos = s.get(REL_POSE_ENUM, t=t)
-        pos = str(pos.round(2))[1:-1]
+        pos = s.get(TRUE_POSE_ENUM, t=t)
+        #pos = str(pos.round(2))[1:-1]
+        predpos = s.get(ABS_POSE_ENUM, t=t)
+        #predpos = str(predpos.round(2))[1:-1]
+        offset = str((pos - predpos).round(2))[1:-1]
         textover1 = self.mjc_env.get_text_overlay(body='Task: {0}'.format(task))
-        textover2 = self.mjc_env.get_text_overlay(body='{0}; {1}'.format(u, pos), position='bottom left')
+        textover2 = self.mjc_env.get_text_overlay(body='Error: {0}'.format(offset), position='bottom left')
         self.reset_to_state(x)
         im = self.mjc_env.render(camera_id=cam_id, height=self.image_height, width=self.image_width, view=False, overlays=(textover1, textover2))
         return im

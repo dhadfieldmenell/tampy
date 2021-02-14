@@ -37,7 +37,7 @@ d_c = main.parse_file_to_dict(domain_fname)
 domain = parse_domain_config.ParseDomainConfig.parse(d_c)
 hls = FFSolver(d_c)
 p_c = main.parse_file_to_dict(prob)
-visual = False # len(os.environ.get('DISPLAY', '')) > 0
+visual = len(os.environ.get('DISPLAY', '')) > 0
 problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, env, use_tf=True, sess=None, visual=visual)
 params = problem.init_state.params
 xpos = np.random.uniform(0.4, 0.8)
@@ -62,7 +62,7 @@ for i in range(1):
 goal = '(At cloth0 cloth0_end_target)'
 solver = RobotSolver()
 
-plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=10)
+plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=5)
 if len(sys.argv) > 1 and sys.argv[1] == 'end':
     sys.exit(0)
 

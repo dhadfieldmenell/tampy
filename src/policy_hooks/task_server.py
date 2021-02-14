@@ -21,6 +21,8 @@ from policy_hooks.search_node import *
 
 class TaskServer(Server):
     def __init__(self, hyperparams):
+        os.nice(1)
+
         super(TaskServer, self).__init__(hyperparams)
         self.in_queue = self.task_queue
         self.out_queue = self.motion_queue
@@ -34,7 +36,7 @@ class TaskServer(Server):
     def find_task_plan(self):
         node = self.pop_queue(self.task_queue)
         if node is None:
-            return
+            node = self.spawn_problem()
 
         plan_str = self.agent.hl_solver.run_planner(node.abs_prob, node.domain, node.prefix, label=self.id)
         if plan_str == Plan.IMPOSSIBLE: return

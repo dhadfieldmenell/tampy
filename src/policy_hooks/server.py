@@ -94,6 +94,7 @@ class Server(object):
         self.adj_eta = False
         self.prim_decay = hyperparams.get('prim_decay', 1.)
         self.prim_first_wt = hyperparams.get('prim_first_wt', 1.)
+        self.explore_wt = hyperparams['explore_wt']
         self.check_prim_t = hyperparams.get('check_prim_t', 1)
         self.init_policy_opt(hyperparams)
         self.agent.plans, self.agent.openrave_bodies, self.agent.env = self.agent.prob.get_plans(use_tf=True)
@@ -357,6 +358,7 @@ class Server(object):
                 with self.policy_opt.buf_sizes[lab].get_lock():
                     self.policy_opt.buf_sizes[lab].value += 1
                 samples[0].source_label = ''
+
         for ind, sample in enumerate(samples):
             mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
             tgt_mu = np.concatenate((tgt_mu, mu))
@@ -368,6 +370,7 @@ class Server(object):
             wt = np.array([sample.prim_use_ts[t] * self.prim_decay**t for t in range(sample.T)])
             if sample.task_start and ind > 0 and sample.opt_strength > 0.999: wt[0] = self.prim_first_wt
             if sample.opt_strength < 1-1e-3: wt[:] *= self.explore_wt
+            wt[:] *= sample.wt
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs = sample.get_prim_obs()
             if np.any(np.isnan(obs)):
@@ -376,8 +379,8 @@ class Server(object):
             prc = np.concatenate([self.agent.get_mask(sample, enum) for enum in opts], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
             if not self.config['hl_mask']:
                 prc[:] = 1.
-
             tgt_prc = np.concatenate((tgt_prc, prc))
+
         if len(tgt_mu):
             # print('Sending update to primitive net')
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', self.label_type, aux=tgt_aux)

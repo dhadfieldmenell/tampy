@@ -290,6 +290,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.END_POSE_ENUM: 2,
                 utils.ABS_POSE_ENUM: 2,
                 utils.REL_POSE_ENUM: 2,
+                utils.TRUE_POSE_ENUM: 2,
                 utils.GRIPPER_ENUM: 1,
                 utils.VEL_ENUM: 1,
                 utils.THETA_ENUM: 1,

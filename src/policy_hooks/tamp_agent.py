@@ -782,9 +782,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             cost = 1.
             policy = self.policies[self.task_list[task[0]]]
             if rollout and self.policy_initialized(policy):
-                sample = self.sample_task(policy, 0, x0.copy(), task, hor=40)
+                hor = 100 if self.retime else 30
+                sample = self.sample_task(policy, 0, x0.copy(), task, hor=hor)
                 cost = self.postcond_cost(sample, task, sample.T-1)
-                #traj = self.reverse_retime([sample], plan, (st, et))
+                traj = self.reverse_retime([sample], plan, (st, et))
                 
                 if cost < 1e-3:
                     self.optimal_samples[self.task_list[task[0]]].append(sample)
@@ -815,7 +816,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return success
 
 
-    def run_plan(self, plan, targets, tasks=None, reset=True, permute=False, save=True, amin=0, amax=None, record=True):
+    def run_plan(self, plan, targets, tasks=None, reset=True, permute=False, save=True, amin=0, amax=None, record=True, wt=1.):
         if record: self.n_plans_run += 1
         path = []
         nzero = self.master_config.get('add_noop', 0)
@@ -892,6 +893,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 zero_sample.task = task
                 path.append(zero_sample)
             path[-1].task_end = True
+
         if len(path) and path[-1].success > 0.99:
             for sample in path: sample.opt_strength = 1.
             if save: self.add_task_paths([path])

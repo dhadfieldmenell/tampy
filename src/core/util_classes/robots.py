@@ -375,13 +375,13 @@ class Sawyer(Robot):
         self.jnt_names = {'right':  ['right_j0','right_j1','right_j2','right_j3','right_j4','right_j5','right_j6'],
                           'right_gripper': [],
                           }
-        self.ee_link_names = {'right': 'right_hand'}
+        self.ee_link_names = {'right': 'right_gripper'}
         self.arms = ['right']
         self.ee_attrs = ['right_ee_pos']
         self.arm_bnds = {'right': (0,7)}
         self.col_link_names = set(['right_arm_base_link', 'right_l0', 'right_l1', 
                                    'right_l2', 'right_l3', 'right_l4', 'right_l5',
-                                   'right_l6'])
+                                   'right_l6', 'gripper_base'])
 
 
 class HSR(Robot):

@@ -100,10 +100,10 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False,
                                     all_data[k][full_exp][cur_dir][cur_dir][-1]['any target'] = pt[13]
                                 if len(pt) > 14:
                                     all_data[k][full_exp][cur_dir][cur_dir][-1]['smallest tolerance'] = pt[14]
-                                if len(pt) > 15:
-                                    all_data[k][full_exp][cur_dir][cur_dir][-1]['success with postcond'] = pt[15]
                                 if len(pt) > 16:
-                                    all_data[k][full_exp][cur_dir][cur_dir][-1]['success with adj_eta'] = pt[16]
+                                    all_data[k][full_exp][cur_dir][cur_dir][-1]['success with postcond'] = pt[16]
+                                if len(pt) > 17:
+                                    all_data[k][full_exp][cur_dir][cur_dir][-1]['success with adj_eta'] = pt[17]
                                 # all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta+1)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'description': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9], 'number of plans': pt[10]})
 
                     i += 1

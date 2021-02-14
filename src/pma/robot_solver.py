@@ -4,6 +4,7 @@ import pybullet as p
 import core.util_classes.common_constants as const
 from core.util_classes.openrave_body import OpenRAVEBody
 import core.util_classes.robot_sampling as robot_sampling
+import core.util_classes.transform_utils as T
 from pma import backtrack_ll_solver
 
 
@@ -26,6 +27,12 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         gripper_axis = robot.geom.get_gripper_axis(arm)
         target_axis = [0, 0, -1]
         quat = OpenRAVEBody.quat_from_v1_to_v2(gripper_axis, target_axis)
+        if 'box' in obj.get_type(True):
+            euler = obj.rotation[:,ts[0]]
+            obj_quat = T.euler_to_quaternion(euler, 'xyzw')
+            robot_mat = T.quat2mat(quat)
+            obj_mat = T.quat2mat(obj_quat)
+            quat = T.mat2quat(obj_mat.dot(robot_mat))
 
         iks = []
         attempt = 0

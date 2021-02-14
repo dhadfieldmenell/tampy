@@ -120,14 +120,17 @@ dp.add('RobotAt', ['Robot', 'RobotPose'])
 dp.add('IsMP', ['Robot'])
 dp.add('WithinJointLimit', ['Robot'])
 dp.add('Stationary', ['Item'])
+dp.add('StationaryRot', ['Item'])
 dp.add('StationaryNEq', ['Item', 'Item'])
 dp.add('StationaryBase', ['Robot'])
 dp.add('StationaryArms', ['Robot'])
 dp.add('StationaryLeftArm', ['Robot'])
 dp.add('StationaryRightArm', ['Robot'])
 dp.add('StationaryW', ['Obstacle'])
+dp.add('CloseGripper', ['Robot'])
 dp.add('CloseGripperLeft', ['Robot'])
 dp.add('CloseGripperRight', ['Robot'])
+dp.add('OpenGripper', ['Robot'])
 dp.add('OpenGripperLeft', ['Robot'])
 dp.add('OpenGripperRight', ['Robot'])
 dp.add('CloseGripper', ['Robot'])
@@ -137,15 +140,22 @@ dp.add('ObstructsHolding', ['Robot', 'RobotPose', 'RobotPose', 'CollisionShape',
 dp.add('Collides', ['CollisionShape', 'CollisionShape'])
 dp.add('RCollides', ['Robot', 'CollisionShape'])
 dp.add('RSelfCollides', ['Robot'])
+dp.add('EEReachable', ['Robot', 'Reachable'])
+dp.add('EEReachableRot', ['Robot', 'Reachable'])
 dp.add('EEReachableLeft', ['Robot', 'Reachable'])
 dp.add('EEReachableRight', ['Robot', 'Reachable'])
+dp.add('EEReachableLeftRot', ['Robot', 'Reachable'])
+dp.add('EEReachableRightRot', ['Robot', 'Reachable'])
+dp.add('Approach', ['Robot', 'Reachable'])
 dp.add('ApproachLeft', ['Robot', 'Reachable'])
 dp.add('ApproachRight', ['Robot', 'Reachable'])
+dp.add('NearApproach', ['Robot', 'Reachable'])
 dp.add('NearApproachLeft', ['Robot', 'Reachable'])
 dp.add('NearApproachRight', ['Robot', 'Reachable'])
 dp.add('InGripperLeft', ['Robot', 'Item'])
 dp.add('InGripperRight', ['Robot', 'Item'])
 dp.add('InGripper', ['Robot', 'Item'])
+dp.add('NearGripper', ['Robot', 'Item'])
 dp.add('NearGripperLeft', ['Robot', 'Item'])
 dp.add('NearGripperRight', ['Robot', 'Item'])
 dp.add('GripperAtLeft', ['Robot', 'Item'])
@@ -359,6 +369,9 @@ class Grasp(Action):
                 (Stationary ?obj)\
             )', '0:{}'.format(grasp_time-1)),
             ('(forall (?obj - Item) \
+                (StationaryRot ?obj)\
+            )', '0:{}'.format(grasp_time+const.EEREACHABLE_STEPS)),
+            ('(forall (?obj - Item) \
                 (StationaryNEq ?obj ?item)\
             )', '0:{}'.format(end-1)),
             ('(forall (?obs - Obstacle)\
@@ -410,6 +423,7 @@ class GraspLeft(Grasp):
             ('(not (InGripperRight ?robot ?item))', '0:0'),
             ('(not (InGripperLeft ?robot ?item))', '0:0'),
             ('(EEReachableLeft ?robot ?item)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
+            ('(EEReachableLeftRot ?robot ?item)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
             ('(OpenGripperLeft ?robot)', '{}:{}'.format(1,  self.grasp_time-1)),
             ('(CloseGripperLeft ?robot)', '{}:{}'.format(self.grasp_time,  self.end-1)),
             ('(InGripperLeft ?robot ?item)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
@@ -419,7 +433,7 @@ class GraspLeft(Grasp):
                 (not (InGripperLeft ?robot ?item))\
             )', '0:{}'.format(0)),
             ('(forall (?obj - Item)\
-                (not (InGripperLeft ?robot ?item))\
+                (not (NearGripperLeft ?robot ?item))\
             )', '0:0'),
             #('(StationaryLeftArm ?robot)', '{0}:{0}'.format(self.grasp_time-1)),
             ('(StationaryRightArm ?robot)', '0:{}'.format(self.end-1))])
@@ -450,7 +464,7 @@ class GraspRight(Grasp):
                 (not (InGripperRight ?robot ?item))\
             )', '0:{}'.format(self.grasp_time-1)),
             ('(forall (?obj - Item)\
-                (not (InGripperRight ?robot ?item))\
+                (not (NearGripperRight ?robot ?item))\
             )', '0:0'),
             #('(StationaryRightArm ?robot)', '{0}:{0}'.format(self.grasp_time-1)),
             ('(StationaryLeftArm ?robot)', '0:{}'.format(self.end-1))])
@@ -538,6 +552,7 @@ class PutdownLeft(Putdown):
             ('(NearGripperLeft ?robot ?item)', '0:0'),
             ('(InGripperLeft ?robot ?item)', '1:1'),
             ('(EEReachableLeft ?robot ?target)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
+            ('(EEReachableLeftRot ?robot ?item)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
             ('(CloseGripperLeft ?robot)', '{}:{}'.format(1,  self.putdown_time-1)),
             ('(OpenGripperLeft ?robot)', '{}:{}'.format(self.putdown_time,  self.end-1)),
             ('(InGripperLeft ?robot ?item)', '{}:{}'.format(self.putdown_time, self.putdown_time)),

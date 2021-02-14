@@ -18,6 +18,7 @@ class Sample(object):
         self._data = {}
         self.reinit()
         self.draw = True
+        self.wt = 1.
 
     def reinit(self):
         self.dX = self.agent.dX

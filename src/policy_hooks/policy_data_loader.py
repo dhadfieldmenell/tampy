@@ -3,7 +3,7 @@ import queue
 import time
 
 
-MAX_BUFFER = 500000
+MAX_BUFFER = 200000
 
 class DataLoader(object):
     def __init__(self, config, task, in_queue, batch_size, normalize=False, policy=None, x_idx=None, aug_f=None, min_buffer=10**3):

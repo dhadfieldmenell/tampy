@@ -53,7 +53,7 @@ class Action(object):
 class MoveTo(Action):
     def __init__(self):
         self.name = 'moveto'
-        self.timesteps = 25
+        self.timesteps = 20
         et = self.timesteps - 1
         self.args = '(?robot - Robot ?can - Can ?target - Target ?sp - RobotPose ?gp - RobotPose ?g - Grasp ?end - Target)' 
         self.pre = [\
@@ -73,7 +73,7 @@ class MoveTo(Action):
         ]
         self.eff = [\
                 ('(NearGraspAngle ?robot ?can)', '{0}:{1}'.format(et, et)),
-                #('(InGraspAngle ?robot ?can)', '{0}:{0}'.format(et)),
+                ('(InGraspAngle ?robot ?can)', '{0}:{0}'.format(et-1)),
                 ('(forall (?obj - Can / ?can) (forall (?gr - Grasp) (not (NearGraspAngle ?robot ?obj))))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
                 ('(StationaryRot ?robot)', '{0}:{1}'.format(et-4, et-1)),
@@ -84,7 +84,7 @@ class MoveTo(Action):
 class Transfer(Action):
     def __init__(self):
         self.name = 'transfer'
-        self.timesteps = 25
+        self.timesteps = 20
         et = self.timesteps - 1
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can ?t - Target ?g - Grasp ?init - Target)'
         self.pre = [\
@@ -102,7 +102,7 @@ class Transfer(Action):
                 ('(GripperClosed ?robot)', '1:{0}'.format(et-1)),
                 # ('(InGraspAngle ?robot ?c)', '1:{0}'.format(et-1)),
                 #('(InGraspAngle ?robot ?c)', '1:{0}'.format(1)),
-                #('(InGraspAngle ?robot ?c)', '{0}:{0}'.format(et-1)),
+                ('(InGraspAngle ?robot ?c)', '{0}:{0}'.format(et-1)),
                 ('(NearGraspAngle ?robot ?c)', '{0}:{0}'.format(et-1)),
                 ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?t ?t ?obj ?c)))', '0:{0}'.format(0)),
                 ('(forall (?obj - Can) (not (WideObstructsHolding ?robot ?t ?t ?obj ?c)))', '2:{0}'.format(et-2)),
@@ -112,7 +112,7 @@ class Transfer(Action):
                 ('(forall (?obj - Can) (StationaryNEq ?obj ?c))', '0:{0}'.format(et-1)), 
                 ('(forall (?w - Obstacle) (StationaryW ?w))', '0:{0}'.format(et-1)), 
                 ('(IsMP ?robot)', '0:{0}'.format(et-1)),
-                ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '1:{0}'.format(et-1)),
+                ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '2:{0}'.format(et-1)),
                 ('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
                 ('(StationaryRot ?robot)', '{0}:{1}'.format(et-2, et-1)),
                 ('(not (GripperClosed ?robot))', '{0}:{1}'.format(et, et-1)),
@@ -140,11 +140,12 @@ class Place(Action):
         et = self.timesteps - 1
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can ?t - Target ?g - Grasp ?init - Target)'
         self.pre = [\
-                ('(At ?c ?t)', '0:0'),
+                ('(At ?c ?t)', '0:-1'),
                 ('(Near ?c ?t)', '0:0'),
+                ('(At ?c ?t)', '1:1'),
                 # ('(forall (?obj - Can) (not (TargetCanGraspCollides ?t ?obj ?g)))', '0:0'),
                 # ('(forall (?w - Obstacle) (not (TargetGraspCollides ?t ?w ?g)))', '0:0'),
-                ('(NearGraspAngle ?robot ?c)', '0:-1'),
+                ('(NearGraspAngle ?robot ?c)', '0:0'),
                 ('(not (GripperClosed ?robot))', '1:{0}'.format(et-1)),
                 ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?t ?t ?obj ?c)))', '0:{0}'.format(et-1)),
                 ('(forall (?obj - Can ) (not (Obstructs ?robot ?c ?c ?obj)))', '2:{0}'.format(et-1)),

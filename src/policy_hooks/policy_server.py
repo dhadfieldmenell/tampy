@@ -5,6 +5,7 @@ import threading
 import time
 import queue
 import numpy as np
+import os
 
 from policy_hooks.control_attention_policy_opt import ControlAttentionPolicyOpt
 from policy_hooks.msg_classes import *

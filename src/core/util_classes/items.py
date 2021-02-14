@@ -6,6 +6,7 @@ class Item(object):
         self._type = "item"
         self._base_type = "item"
         self.col_links = set([-1])
+        self.grasp_point = [0., 0., 0.]
 
     def get_types(self):
         return [self._type, self._base_type]
@@ -147,6 +148,8 @@ class Box(Obstacle):
         self.length = dim[0]
         self.height = dim[1]
         self.width = dim[2]
+        z = self.height - 0.08
+        self.grasp_point = [0., 0., z]
 
 class Basket(Item):
     """

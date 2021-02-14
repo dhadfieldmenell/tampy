@@ -131,6 +131,7 @@ class RolloutServer(Server):
                             else:
                                 newtask.append(val)
                         task = tuple(newtask)
+                
                 if self.check_precond:
                     precost = self.agent.precond_cost(sample, task, t)
                     if precost > 1e-3:
@@ -145,8 +146,8 @@ class RolloutServer(Server):
 
         rlen = 3 * self.agent.num_objs if not self.agent.retime else 6 * self.agent.num_objs
         ts = 100 if self.agent.retime else 50
-        t_per_task = 30
-        s_per_task = 5 if self.agent.retime else 2
+        t_per_task = 100 if self.agent.retime else 30
+        s_per_task = 2 # 5 if self.agent.retime else 2
         self.adj_eta = True
         l = self.get_task(x, targets, None, self.soft)
         l = tuple([val for val in l if np.isscalar(val)])
@@ -199,7 +200,7 @@ class RolloutServer(Server):
         self.log_path(path, -20)
         #return val, path, max(0, s-last_switch), 0
         bad_pt = precond_viols[0] if len(precond_viols) else switch_pts[-1]
-        if np.random.uniform() < 0.05:
+        if np.random.uniform() < 0.25:
             self.save_video(path, val)
         return val, path, bad_pt[0], bad_pt[1]
  
@@ -425,10 +426,10 @@ class RolloutServer(Server):
             print('Saved video. Rollout success was: ', val > 0)
         self.last_hl_test = time.time()
         self.agent.debug = True
-        if not self.run_hl_test and self.explore_wt > 0:
-            if val > 0.999:
-                for s in path: s.source_label = 'rollout'
-                self.agent.add_task_paths([path])
+        #if not self.run_hl_test and self.explore_wt > 0:
+        #    if val > 0.999:
+        #        for s in path: s.source_label = 'rollout'
+        #        self.agent.add_task_paths([path])
         # print('TESTED HL')
         return val, path
 
