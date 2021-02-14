@@ -82,7 +82,7 @@ def get_prim_choices(task_list=None):
     else:
         out[utils.TARG_ENUM] += ['can{0}_end_target'.format(i) for i in range(NUM_OBJS)]
     #out[utils.GRASP_ENUM] = ['grasp{0}'.format(i) for i in range(N_GRASPS)]
-    out[utils.ABS_POSE_ENUM] = 2
+    #out[utils.ABS_POSE_ENUM] = 2
     return out
 
 
@@ -178,6 +178,8 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         for o in range(config['num_objs']):
             x0[state_inds['can{0}'.format(o), 'pose']] = locs[o+1]
         x0[state_inds['pr2', 'gripper']] = -0.1
+        x0[state_inds['pr2', 'theta']] = np.random.uniform(-np.pi, np.pi)
+        x0[state_inds['door', 'pose']] = [-1., 3.]
         x0s.append(x0)
         if FIX_TARGETS:
             targ_range = list(range(config['num_objs'] - config['num_targs']))

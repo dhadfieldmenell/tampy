@@ -138,6 +138,14 @@ class RolloutServer(Server):
                     precost = self.agent.precond_cost(sample, task, t)
                     if precost > 1e-3:
                         precond_viols.append((cur_ids[0], t))
+                        newtask = []
+                        for ind, val in enumerate(task):
+                            if np.isscalar(val):
+                                newtask.append(curtask[ind])
+                            else:
+                                newtask.append(val)
+                        task = tuple(newtask)
+
             if onehot_task == cur_onehot_task:
                 counts.append(counts[-1]+1)
             else:
@@ -146,10 +154,10 @@ class RolloutServer(Server):
             cur_tasks.append(task)
             return task
 
-        rlen = 3 * self.agent.num_objs if not self.agent.retime else 6 * self.agent.num_objs
-        ts = 100 if self.agent.retime else 50
-        t_per_task = 100 if self.agent.retime else 30
-        s_per_task = 2 # 5 if self.agent.retime else 2
+        ntask = len(self.agent.task_list)
+        rlen = ntask * self.agent.num_objs if not self.agent.retime else (3*ntask) * self.agent.num_objs
+        t_per_task = 120 if self.agent.retime else 40
+        s_per_task = 1 
         self.adj_eta = True
         l = self.get_task(x, targets, None, self.soft)
         l = tuple([val for val in l if np.isscalar(val)])
@@ -160,33 +168,17 @@ class RolloutServer(Server):
         path = []
         last_switch = 0
         while val < 1 and s < rlen:
-            if self.check_precond and len(precond_viols): break
+            #if self.check_precond and len(precond_viols): break
 
             task_name = self.task_list[cur_tasks[-1][0]]
             pol = self.agent.policies[task_name]
-            sample = self.agent.sample_task(pol, 0, state, cur_tasks[-1], skip_opt=True, hor=t_per_task, task_f=task_f)
+            sample = self.agent.sample_task(pol, 0, state, cur_tasks[-1], skip_opt=True, hor=t_per_task-1, task_f=task_f)
             path.append(sample)
             state = sample.get(STATE_ENUM, t=sample.T-1)
-            #next_l = self.get_task(state, targets, l, self.soft)
-            #if self.check_postcond:
-            #    postcost = self.agent.postcond_cost(sample, l)
-            #    if postcost > 1e-3:
-            #        next_l = l
-
-            #if tuple(l) != tuple(next_l):
-            #    for step in path[-last_switch-1:]:
-            #        self.agent.optimal_samples[self.agent.task_list[l[0]]].append(step)
-            #    last_switch = 0
-            #else:
-            #    last_switch += 1
-
-            #l = next_l
             s += 1
             cur_ids.append(s)
             val = 1 - self.agent.goal_f(0, sample.get_X(sample.T-1), targets)
-            #if last_switch >= s_per_task:
-            #    break
-            if counts[-1] > s_per_task * t_per_task: break
+            if counts[-1] >= s_per_task * t_per_task: break
 
         if len(path):
             val = 1 - self.agent.goal_f(0, path[-1].get_X(path[-1].T-1), targets)

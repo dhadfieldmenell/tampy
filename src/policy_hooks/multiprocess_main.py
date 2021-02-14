@@ -267,7 +267,7 @@ class MultiProcessMain(object):
                 'sensor_dims': self.sensor_dims,
                 'n_layers': self.config['n_layers'],
                 'num_filters': [32, 32, 16],
-                'filter_sizes': [8, 6, 4],
+                'filter_sizes': [5, 5, 5],
                 'q_imwt': 1,
                 'dim_hidden': self.config['dim_hidden'],
             },
@@ -635,7 +635,7 @@ class MultiProcessMain(object):
         config['rollout_queue'] = self.queue_manager.PriorityQueue(queue_size)
 
         for task in self.pol_list+('primitive',):
-            queues['{0}_pol'.format(task)] = Queue(queue_size)
+            queues['{0}_pol'.format(task)] = Queue(50)
         config['queues'] = queues
         return queues
 
