@@ -31,24 +31,24 @@ iks = body.get_ik_from_pose(pos, quat, 'left', multiple=True)
 bt_ll.DEBUG = True
 env = None
 openrave_bodies = None
-domain_fname = "../domains/robot_domain/robot.domain"
+domain_fname = "../domains/robot_domain/left_robot.domain"
 prob = "../domains/robot_domain/probs/left_arm_prob1.prob"
 d_c = main.parse_file_to_dict(domain_fname)
 domain = parse_domain_config.ParseDomainConfig.parse(d_c)
 hls = FFSolver(d_c)
 p_c = main.parse_file_to_dict(prob)
-visual = len(os.environ.get('DISPLAY', '')) > 0
+visual = False # len(os.environ.get('DISPLAY', '')) > 0
 problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, env, use_tf=True, sess=None, visual=visual)
 params = problem.init_state.params
 xpos = np.random.uniform(0.4, 0.8)
 ypos = np.random.uniform(0.4, 0.9)
-params['cloth0'].pose[:,0] = [xpos, ypos, -0.029]
+params['cloth0'].pose[:,0] = [xpos, ypos, -0.04]
 
 xpos = np.random.uniform(0.1, 0.5)
 ypos = np.random.uniform(0.7, 0.8)
 xpos = 0.75
 ypos = 0.75
-params['cloth0_end_target'].value[:,0] = [xpos, ypos, -0.02]
+params['cloth0_end_target'].value[:,0] = [xpos, ypos, -0.04]
 params['baxter'].left_gripper[:,0] = 0.0
 for i in range(1):
     params['cloth{}_init_target'.format(i)].value[:,0] = params['cloth{}'.format(i)].pose[:,0]
@@ -65,6 +65,7 @@ solver = RobotSolver()
 plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=5)
 if len(sys.argv) > 1 and sys.argv[1] == 'end':
     sys.exit(0)
+
 
 baxter = plan.params['baxter']
 cmds = []

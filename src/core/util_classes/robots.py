@@ -370,7 +370,7 @@ class Sawyer(Robot):
     def __init__(self):
         self._type = "sawyer"
         baxter_shape = baxter_gym.__path__[0] + "/robot_info/sawyer/robot.xml"
-        super(Baxter, self).__init__(baxter_shape)
+        super(Sawyer, self).__init__(baxter_shape)
 
         self.jnt_names = {'right':  ['right_j0','right_j1','right_j2','right_j3','right_j4','right_j5','right_j6'],
                           'right_gripper': [],

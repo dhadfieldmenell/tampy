@@ -115,6 +115,8 @@ class RolloutServer(Server):
         cur_ids = [0]
         cur_tasks = []
         precond_viols = []
+        self.agent.target_vecs[0] = targets
+        self.agent.reset_to_state(x)
         def task_f(sample, t, curtask):
             task = self.get_task(sample.get_X(t=t), sample.targets, curtask, self.soft)
             task = tuple([val for val in task if np.isscalar(val)])

@@ -12,14 +12,18 @@ Types: Robot, RobotPose, CollisionShape
 
 # Define the class location of each non-standard attribute type used in the above parameter type descriptions.
 
-Attribute Import Paths: Baxter core.util_classes.robots, Vector1d core.util_classes.matrix, Vector3d core.util_classes.matrix, ArmPose7d core.util_classes.matrix, Table core.util_classes.items, Box core.util_classes.items, Basket core.util_classes.items, Cloth core.util_classes.items
+Attribute Import Paths: Vector1d core.util_classes.matrix, Vector3d core.util_classes.matrix, ArmPose7d core.util_classes.matrix, Table core.util_classes.items, Box core.util_classes.items, Basket core.util_classes.items, Cloth core.util_classes.items"""
+robots = ['Baxter', 'Sawyer']
+for robot in robots:
+    dom_str += ", {} core.util_classes.robots".format(robot)
+
+dom_str += """
 
 Predicates Import Path: core.util_classes.robot_predicates
 
 """
 
 # Automated handling to setup robot types
-robots = ['Baxter']
 r_types = ""
 for r in robots:
     r_types += "{}, ".format(r)
@@ -241,7 +245,7 @@ class MoveLeft(Move):
 
 class MoveRight(Move):
     def __init__(self):
-        super(MoveLeft, self).__init__()
+        super(MoveRight, self).__init__()
         self.name = 'move_to_right'
         self.pre.extend([
             ('(forall (?obj - Item)\
@@ -455,6 +459,7 @@ class GraspRight(Grasp):
             ('(not (InGripperRight ?robot ?item))', '0:0'),
             ('(not (InGripperLeft ?robot ?item))', '0:0'),
             ('(EEReachableRight ?robot ?item)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
+            ('(EEReachableRightRot ?robot ?item)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
             ('(OpenGripperRight ?robot)', '{0}:{1}'.format(1,self.grasp_time-1)),
             ('(CloseGripperRight ?robot)', '{0}:{1}'.format(self.grasp_time,self.end-1)),
             ('(InGripperRight ?robot ?item)', '{0}:{1}'.format(self.grasp_time, self.grasp_time)),
@@ -580,6 +585,7 @@ class PutdownRight(Putdown):
             ('(NearGripperRight ?robot ?item)', '0:0'),
             ('(RightGripperDownRot ?robot)', '{0}:{1}'.format(1, self.end-1)),
             ('(EEReachableRight ?robot ?target)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
+            ('(EEReachableRightRot ?robot ?item)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
             ('(CloseGripperRight ?robot)', '{}:{}'.format(1,  self.putdown_time-1)),
             ('(OpenGripperRight ?robot)', '{}:{}'.format(self.putdown_time,  self.end-1)),
             ('(InGripperRight ?robot ?item)', '{}:{}'.format(0, self.putdown_time)),
@@ -594,17 +600,33 @@ class PutdownRight(Putdown):
 
 
 actions = [MoveToGraspLeft(), MoveToPutdownLeft(), GraspLeft(), PutdownLeft()]
-
+left_dom_str = dom_str
 for action in actions:
-    dom_str += '\n\n'
+    left_dom_str += '\n\n'
     print(action.name)
-    dom_str += action.to_str()
+    left_dom_str += action.to_str()
 
 # removes all the extra spaces
-dom_str = dom_str.replace('            ', '')
-dom_str = dom_str.replace('    ', '')
-dom_str = dom_str.replace('    ', '')
+left_dom_str = left_dom_str.replace('            ', '')
+left_dom_str = left_dom_str.replace('    ', '')
+left_dom_str = left_dom_str.replace('    ', '')
+print(left_dom_str)
+f = open('left_robot.domain', 'w')
+f.write(left_dom_str)
 
-print(dom_str)
-f = open('robot.domain', 'w')
-f.write(dom_str)
+
+actions = [MoveToGraspRight(), MoveToPutdownRight(), GraspRight(), PutdownRight()]
+right_dom_str = dom_str
+for action in actions:
+    right_dom_str += '\n\n'
+    print(action.name)
+    right_dom_str += action.to_str()
+
+# removes all the extra spaces
+right_dom_str = right_dom_str.replace('            ', '')
+right_dom_str = right_dom_str.replace('    ', '')
+right_dom_str = right_dom_str.replace('    ', '')
+print(right_dom_str)
+f = open('right_robot.domain', 'w')
+f.write(right_dom_str)
+

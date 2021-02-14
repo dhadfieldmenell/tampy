@@ -1982,7 +1982,7 @@ class EEReachable(PosePredicate):
 
 class EEReachableRot(EEReachable):
     def __init__(self, name, params, expected_param_types, active_range=(-const.EEREACHABLE_STEPS, const.EEREACHABLE_STEPS), env=None, debug=False):
-        self.coeff = 2e-1
+        self.coeff = 1e-2
         super(EEReachableRot, self).__init__(name, params, expected_param_types, active_range, env, debug)
 
     def stacked_f(self, x):

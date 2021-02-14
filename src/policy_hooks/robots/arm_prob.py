@@ -28,7 +28,7 @@ FIX_TARGETS = False
 CONST_TARGETS = False
 CONST_ORDER = False
 
-domain_file = "../domains/robot_domain/robot.domain"
+domain_file = "../domains/robot_domain/left_robot.domain"
 mapping_file = "policy_hooks/robots/robot_task_mapping"
 
 L_ARM_INIT = [0.6910482946928581, -1.195192375312557, -0.43463889146292906, 1.6529797844529845, 0.17016582275197945, 1.150535995620918, 0.9986984772614445] 
