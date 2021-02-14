@@ -284,8 +284,8 @@ class NAMODoorAgent(NAMOGripAgent):
             sample.set(ABS_POSE_ENUM, targ_pose, t)
 
         if task_name.find('close_door') >= 0 or task_name.find('open_door') >= 0:
-            theta = mp_state[self.state_inds['door', 'theta']][0]
-            handle_pos = mp_state[self.state_inds['door', 'pose']] + [1.5*np.sin(theta), 1.5*np.cos(theta)]
+            theta = mp_state[self.state_inds['door', 'theta']][0] - 0.32
+            handle_pos = mp_state[self.state_inds['door', 'pose']] + [1.58*np.sin(theta), 1.58*np.cos(theta)]
             targ_pose = handle_pos - mp_state[self.state_inds['pr2', 'pose']]
             sample.set(END_POSE_ENUM, rot.dot(targ_pose), t)
             sample.set(REL_POSE_ENUM, base_pos, t)
