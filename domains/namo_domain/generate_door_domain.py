@@ -77,6 +77,7 @@ class MoveTo(Action):
                 ('(ForThetaDirValid ?robot)', '{0}:{1}'.format(et-3, et-1)),
                 # ('(RobotStationary ?robot)', '{0}:{1}'.format(0,0)),
                 # ('(LinearApproach ?robot)', '17:17'),
+                ('(At ?can ?target)', '{0}:{0}'.format(et-1)),
         ]
         self.eff = [\
                 ('(NearGraspAngle ?robot ?can)', '{0}:{0}'.format(et)),
@@ -173,7 +174,7 @@ class OpenDoor(Action):
                 ('(DoorNearClosed ?door)', '0:0'),
                 ('(DoorClosed ?door)', '1:{0}'.format(grasp_time)),
                 ('(OpenDoorReady ?robot)', '{0}:{0}'.format(grasp_time-1, grasp_time)),
-                #('(OpenDoorApproach ?robot)', '{0}:{0}'.format(grasp_time-2, grasp_time-2)),
+                ('(OpenDoorApproach ?robot)', '{0}:{0}'.format(grasp_time-2, grasp_time-2)),
                 #('(CloseDoorReady ?robot)', '{0}:{0}'.format(release_time, release_time)),
                 ('(forall (?gr - Grasp) (forall (?obj - Can) (not (NearGraspAngle ?robot ?obj))))', '0:0'),
                 ('(not (GripperClosed ?robot))', '1:{0}'.format(grasp_time-1)),

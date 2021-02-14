@@ -42,7 +42,7 @@ from policy_hooks.utils.tamp_eval_funcs import *
 from policy_hooks.namo.namo_agent import NAMOSortingAgent
 from policy_hooks.namo.grip_agent import NAMOGripAgent
 
-
+LOCAL_NEAR_TOL = 0.5
 MAX_SAMPLELISTS = 1000
 MAX_TASK_PATHS = 100
 GRIP_TOL = 0.
@@ -113,7 +113,7 @@ class NAMODoorAgent(NAMOGripAgent):
             'include_files': [NAMO_XML],
             'include_items': [],
             'view': False,
-            'sim_freq': 50,
+            'sim_freq': 25,
             'timestep': 0.002,
             'image_dimensions': (hyperparams['image_width'], hyperparams['image_height']),
             'step_mult': 5e0,
@@ -197,8 +197,11 @@ class NAMODoorAgent(NAMOGripAgent):
         dirvec = np.array([-np.sin(theta), np.cos(theta)])
         sample.set(THETA_VEC_ENUM, dirvec, t)
         sample.set(VEL_ENUM, mp_state[self.state_inds['pr2', 'vel']], t)
+        doortheta = mp_state[self.state_inds['door', 'theta']][0]
+        handle_pos = mp_state[self.state_inds['door', 'pose']] + [1.5*np.sin(doortheta), 1.5*np.cos(doortheta)]
+        sample.set(DOOR_ENUM, handle_pos, t)
+        sample.set(DOOR_THETA_ENUM, mp_state[self.state_inds['door', 'theta']], t)
         sample.set(STATE_ENUM, mp_state, t)
-        sample.set(DOOR_ENUM, mp_state[self.state_inds['door', 'theta']], t)
         sample.set(GRIPPER_ENUM, mp_state[self.state_inds['pr2', 'gripper']], t)
         if self.hist_len > 0:
             sample.set(TRAJ_HIST_ENUM, self._prev_U.flatten(), t)
@@ -274,14 +277,19 @@ class NAMODoorAgent(NAMOGripAgent):
                 sample.set(REL_POSE_ENUM, base_pos, t)
                 sample.set(ABS_POSE_ENUM, targets[self.target_inds[targ_name, 'value']], t)
 
+        if self.task_list[task[0]].find('put') >= 0 or self.task_list[task[0]].find('leave') >= 0:
+            targ_pose = np.array([0., 5.5])
+            sample.set(END_POSE_ENUM, rot.dot(targ_pose-ee_pose), t)
+            sample.set(REL_POSE_ENUM, targ_pose, t)
+            sample.set(ABS_POSE_ENUM, targ_pose, t)
+
         if task_name.find('close_door') >= 0 or task_name.find('open_door') >= 0:
-            theta = mp_sate[self.state_inds['door', 'theta']]
+            theta = mp_state[self.state_inds['door', 'theta']][0]
             handle_pos = mp_state[self.state_inds['door', 'pose']] + [1.5*np.sin(theta), 1.5*np.cos(theta)]
             targ_pose = handle_pos - mp_state[self.state_inds['pr2', 'pose']]
             sample.set(END_POSE_ENUM, rot.dot(targ_pose), t)
             sample.set(REL_POSE_ENUM, base_pos, t)
             sample.set(ABS_POSE_ENUM, handle_pos[:2], t)
-
         sample.set(TRUE_POSE_ENUM, sample.get(REL_POSE_ENUM, t=t), t)
 
         if ABS_POSE_ENUM in prim_choices:
@@ -365,7 +373,7 @@ class NAMODoorAgent(NAMOGripAgent):
         self.mjc_env.set_user_data('vel', 0.)
         self.mjc_env.set_joints({'robot_x': xval, 'robot_y': yval, 'left_finger_joint': grip, 'right_finger_joint': grip, 'robot_theta': theta, 'door_hinge': door_theta}, forward=False)
         for param_name, attr in self.state_inds:
-            if param_name == 'pr2': continue
+            if param_name == 'pr2' or param_name == 'door': continue
             if attr == 'pose':
                 pos = mp_state[self.state_inds[param_name, 'pose']].copy()
                 targ = self.target_vecs[0][self.target_inds['{0}_end_target'.format(param_name), 'value']]
@@ -532,7 +540,8 @@ class NAMODoorAgent(NAMOGripAgent):
             targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
             for ind in self.targ_labels:
                 if np.all(np.abs(targ - self.targ_labels[ind]) < NEAR_TOL):
-                    goal += '(Near {0} end_target_{1}) '.format(obj, ind)
+                    #goal += '(Near {0} end_target_{1}) '.format(obj, ind)
+                    goal += '(InCloset {0}) '.format(obj)
                     break
         goal += '(DoorClosed Door)'
         return goal
@@ -658,6 +667,32 @@ class NAMODoorAgent(NAMOGripAgent):
         if self.task_list[l[0]].find('door') >= 0 and TARG_ENUM in prim_choices:
             l[keys.index(TARG_ENUM)] = np.random.randint(len(prim_choices[TARG_ENUM]))
         return l # tuple(l)
+
+
+    def goal_f(self, condition, state, targets=None, cont=False, anywhere=False, tol=LOCAL_NEAR_TOL):
+        if targets is None:
+            targets = self.target_vecs[condition]
+        cost = self.prob.NUM_OBJS
+        alldisp = 0
+        plan = list(self.plans.values())[0]
+        no = self._hyperparams['num_objs']
+        if len(np.shape(state)) < 2:
+            state = [state]
+        for param in list(plan.params.values()):
+            if param._type == 'Can':
+                dist = np.inf
+                disp = None
+                for x in state:
+                    curdist = max(0, 3 - x[self.state_inds[param.name, 'pose']][1])
+                    disp = curdist
+                alldisp += curdist # np.linalg.norm(disp)
+                cost -= 1 if np.all(np.abs(disp) < tol) else 0
+
+        door_cost = 0. if state[0][self.state_inds['door', 'theta']][0] > -0.3 else 1.
+        cost += door_cost
+        if cont: return door_cost + alldisp / float(no)
+        # return cost / float(self.prob.NUM_OBJS)
+        return 1. if cost > 0 else 0.
 
 
 

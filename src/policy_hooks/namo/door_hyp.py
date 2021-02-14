@@ -173,7 +173,6 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.FIX_TARGETS = True
 
     prob.domain_file = "../domains/namo_domain/namo_current_door.domain"
-    prob.END_TARGETS = prob.END_TARGETS[:8]
     prob.n_aux = 0
     config = {
         'gui_on': False,
@@ -236,9 +235,9 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'num_objs': no,
         'num_targs': nt,
         'attr_map': ATTRMAP,
-        'agent_type': NAMOGripAgent,
+        'agent_type': NAMODoorAgent,
         'opt_server_type': NAMOMotionPlanServer,
-        'mp_solver_type': NAMOGripPolicySolver,
+        'mp_solver_type': NAMOSolver,
         'll_solver_type': NAMOSolver,
         'update_size': 2000,
         'prim_update_size': 5000,
@@ -290,6 +289,8 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.END_POSE_ENUM: 2,
                 utils.GRIPPER_ENUM: 1,
                 utils.VEL_ENUM: 1,
+                utils.DOOR_ENUM: 2,
+                utils.DOOR_THETA_ENUM: 1,
                 utils.THETA_ENUM: 1,
                 utils.THETA_VEC_ENUM: 2,
                 utils.GRASP_ENUM: N_GRASPS,
@@ -316,15 +317,17 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'prim_first_wt': 1e1,
     }
 
-    #config['prim_obs_include'].append(utils.EE_ENUM)
-    # config['prim_obs_include'].append(utils.THETA_ENUM)
+    config['prim_obs_include'].append(utils.EE_ENUM)
+    config['prim_obs_include'].append(utils.DOOR_ENUM)
+    config['prim_obs_include'].append(utils.DOOR_THETA_ENUM)
     for o in range(no):
         config['sensor_dims'][utils.OBJ_DELTA_ENUMS[o]] = 2
         config['sensor_dims'][utils.OBJ_ENUMS[o]] = 2
         config['sensor_dims'][utils.TARG_ENUMS[o]] = 2
         config['sensor_dims'][utils.TARG_DELTA_ENUMS[o]] = 2
         config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
-        config['prim_obs_include'].append(utils.TARG_DELTA_ENUMS[o])
+        config['prim_obs_include'].append(utils.OBJ_ENUMS[o])
+        config['prim_obs_include'].append(utils.TARG_ENUMS[o])
     return config
 
 config = refresh_config()

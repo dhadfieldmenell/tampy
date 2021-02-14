@@ -36,21 +36,13 @@ pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
 descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.format(NUM_OBJS, SORT_CLOSET, USE_PERTURB, OPT_MCTS_FEEDBACK)
 
 END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
-END_TARGETS.extend([(0.8, 2.),
-                   (-0.8, 2.),
-                   (2.4, 2.),
-                   (-2.4, 2.),
-                   (-3.8, 2.),
-                   (3.8, 2.),
-                   (5.4, 2.),
-                   (-5.4, 2.),
-                   ])
+END_TARGETS.extend([(0., 5.2), (0., 5.), (0., 4)])
 
 n_aux = 4
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25
 #possible_can_locs.extend(list(itertools.product(list(range(-45, 45, 4)), list(range(-40, -10, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-70, 70, 2)), list(range(-80, -10, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-70, 70, 2)), list(range(-70, -20, 2)))))
 
 
 for i in range(len(possible_can_locs)):
@@ -181,19 +173,13 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         x0[state_inds['pr2', 'theta']] = np.random.uniform(-np.pi, np.pi)
         x0[state_inds['door', 'pose']] = [-1., 3.]
         x0s.append(x0)
-        if FIX_TARGETS:
-            targ_range = list(range(config['num_objs'] - config['num_targs']))
-            inds = list(range(len(EMD_TARGETS))) if CONST_TARGETS else np.random.permutation(list(range(len(END_TARGETS))))
-            next_map = {'can{0}_end_target'.format(no): END_TARGETS[o] for no, o in enumerate(inds[:config['num_objs']])}
-            inplace = targ_range if CONST_ORDER else np.random.choice(list(range(config['num_objs'])), len(targ_range), replace=False)
-            for n in targ_range:
-                x0[state_inds['can{0}'.format(inplace[n]), 'pose']] = END_TARGETS[inds[inplace[n]]]
-            next_map.update({'end_target_{0}'.format(i): END_TARGETS[i] for i in range(len(END_TARGETS))})
-        else:
-            inds = np.random.permutation(list(range(config['num_objs'])))
-            next_map = {'can{0}_end_target'.format(o): targs[no] for no, o in enumerate(inds[:config['num_targs']])}
-            if config['num_targs'] < config['num_objs']:
-                next_map.update({'can{0}_end_target'.format(o): locs[o+1] for o in inds[config['num_targs']:config['num_objs']]})
+        targ_range = list(range(config['num_objs'] - config['num_targs']))
+        inds = np.random.permutation(list(range(len(END_TARGETS))))
+        next_map = {'can{0}_end_target'.format(no): END_TARGETS[o] for no, o in enumerate(inds[:config['num_objs']])}
+        inplace = np.random.choice(list(range(config['num_objs'])), len(targ_range), replace=False)
+        for n in targ_range:
+            x0[state_inds['can{0}'.format(inplace[n]), 'pose']] = END_TARGETS[inds[inplace[n]]]
+        next_map.update({'end_target_{0}'.format(i): END_TARGETS[i] for i in range(len(END_TARGETS))})
         for a in range(n_aux):
             if a == 0:
                 next_map['aux_target_{0}'.format(a)] = (0, 0)
