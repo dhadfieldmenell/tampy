@@ -1717,18 +1717,21 @@ class NearGripper(InGripper):
         self.coeff = 4e-2
         self.rot_coeff = 1e-2
         super(NearGripper, self).__init__(name, params, expected_param_types, env, debug)
+        self._rollout = True
 
 class NearGripperLeft(InGripperLeft):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.coeff = 4e-2
         self.rot_coeff = 1e-2
         super(NearGripperLeft, self).__init__(name, params, expected_param_types, env, debug)
+        self._rollout = True
 
 class NearGripperRight(InGripperRight):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.coeff = 4e-2
         self.rot_coeff = 1e-2
         super(NearGripperRight, self).__init__(name, params, expected_param_types, env, debug)
+        self._rollout = True
 
 class AlmostInGripper(PosePredicate):
     """
@@ -1908,6 +1911,7 @@ class EEReachable(PosePredicate):
 
         super(EEReachable, self).__init__(name, e, self.attr_inds, params, expected_param_types, active_range = active_range, priority = 1)
         self.spacial_anchor = True
+        self._rollout = True
 
     #@profile
     def stacked_f(self, x):
@@ -2030,6 +2034,7 @@ class NearApproach(EEReachable):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.coeff = 2e-2
         super(NearApproach, self).__init__(name, params, expected_param_types, env, debug)
+        self._rollout = True
 
 class EEReachableLeft(EEReachable):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
@@ -2054,6 +2059,7 @@ class NearApproachLeft(ApproachLeft):
         # self.f_tol = 0.04
         self.coeff = 2e-2
         super(NearApproachLeft, self).__init__(name, params, expected_param_types, env, debug)
+        self._rollout = True
 
 class EEReachableRight(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
@@ -2078,6 +2084,7 @@ class NearApproachRight(ApproachRight):
         #self.f_tol = 0.04
         self.coeff = 2e-2
         super(NearApproachRight, self).__init__(name, params, expected_param_types, env, debug)
+        self._rollout = True
 
 class EEReachableLeftInv(EEReachableLeft):
     def get_rel_pt(self, rel_step):

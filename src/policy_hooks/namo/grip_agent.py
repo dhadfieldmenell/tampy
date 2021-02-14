@@ -524,7 +524,7 @@ class NAMOGripAgent(NAMOSortingAgent):
                IM_ENUM in self._hyperparams['prim_obs_include']:
                 im = self.mjc_env.render(height=self.image_height, width=self.image_width, view=self.view)
                 im = (im - 128.) / 128.
-                sample.set(IM_ENUM, im.flatten(), t)
+                sample.set(IM_ENUM, im.flatten().astype(np.float32), t)
 
     
     def reset_mjc_env(x, targets, draw_targets=True):

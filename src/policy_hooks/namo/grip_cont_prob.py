@@ -174,6 +174,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         for l in range(len(locs)):
             locs[l] = np.array(locs[l])
         x0[state_inds['pr2', 'pose']] = locs[0]
+        x0[state_inds['pr2', 'theta']] = np.random.uniform(-np.pi, np.pi)
         for o in range(config['num_objs']):
             x0[state_inds['can{0}'.format(o), 'pose']] = locs[o+1]
         x0[state_inds['pr2', 'gripper']] = -0.1

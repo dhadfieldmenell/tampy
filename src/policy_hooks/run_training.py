@@ -289,6 +289,7 @@ def argsparser():
     parser.add_argument('-rollout', '--num_rollout', type=int, default=16)
     parser.add_argument('-hist_len', '--hist_len', type=int, default=1)
     parser.add_argument('-task_hist_len', '--task_hist_len', type=int, default=1)
+    parser.add_argument('-n_gpu', '--n_gpu', type=int, default=4)
     parser.add_argument('-obs_del', '--add_obs_delta', action='store_true', default=False)
     parser.add_argument('-act_hist', '--add_action_hist', action='store_true', default=False)
     parser.add_argument('-task_hist', '--add_task_hist', action='store_true', default=False)

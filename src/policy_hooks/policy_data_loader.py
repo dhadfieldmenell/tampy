@@ -110,7 +110,7 @@ class DataLoader(object):
         if self.scale is None: self.set_scale()
         if self.normalize:
             obs[:, self.x_idx] = obs[:, self.x_idx].dot(self.scale) + self.bias
-        # if self.task == 'primitive': print('Time to get', len(obs), 'batch:', time.time() - start_t)
+        #if self.task == 'primitive': print('Time to get', len(obs), 'batch:', time.time() - start_t)
         return obs, mu, prc
 
 

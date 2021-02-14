@@ -23,6 +23,10 @@ class PolicyServer(object):
         self.task = hyperparams['scope']
         self.task_list = hyperparams['task_list']
         self.seed = int((1e2*time.time()) % 1000.)
+        n_gpu = hyperparams['n_gpu']
+        gpu = 0
+        if n_gpu == 0: gpu = -1
+        os.environ['CUDA_VISIBLE_DEVICES'] = "{0}".format(gpu)
         np.random.seed(self.seed)
         random.seed(self.seed)
         self.start_t = hyperparams['start_t']
@@ -120,7 +124,9 @@ class PolicyServer(object):
         self.iters = 0
         while not self.stopped:
             self.iters += 1
+            init_t = time.time()
             self.policy_opt.update(self.task)
+            #if self.task == 'primitive': print('Time to run update:', time.time() - init_t)
             self.n_updates += 1
             mu, obs, prc = self.data_gen.get_batch()
             if len(mu):

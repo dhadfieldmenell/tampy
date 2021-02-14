@@ -39,6 +39,15 @@ class Server(object):
         random.seed(self.seed)
         np.random.seed(self.seed)
 
+        n_gpu = hyperparams['n_gpu']
+        if n_gpu == 0:
+            gpus = -1
+        elif n_gpu == 1:
+            gpu = 0
+        else:
+            gpus = str(list(range(1, n_gpu+1)))[1:-1]
+        os.environ['CUDA_VISIBLE_DEVICES'] = "{0}".format(gpus)
+
         self.solver = hyperparams['mp_solver_type'](hyperparams)
         self.opt_smooth = hyperparams.get('opt_smooth', False)
         hyperparams['agent']['master_config'] = hyperparams

@@ -1035,7 +1035,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             active_ts = (plan.horizon-1, plan.horizon-1)
 
         failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
-        failed_preds = [p for p in failed_preds if not type(p[1].expr) is EqExpr]
+        failed_preds = [p for p in failed_preds if (p[1]._rollout or not type(p[1].expr) is EqExpr)]
         return failed_preds
 
 

@@ -114,7 +114,9 @@ class ParseDomainConfig(object):
             if token == ")":
                 count -= 1
                 if count == 0:
-                    pred_strs.append(p_s[prev_i:i+1].strip())
+                    next_str = p_s[prev_i:i+1].strip()
+                    if next_str.find('(when') < 0:
+                        pred_strs.append(p_s[prev_i:i+1].strip())
                     prev_i = i + 1
         return pred_strs
 

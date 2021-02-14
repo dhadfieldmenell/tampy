@@ -1035,6 +1035,7 @@ class DoorNearClosed(DoorClosed):
     def __init__(self, name, params, expected_param_types, env=None, sess=None):
         self.coeff = 1e-2
         super(DoorNearClosed, self).__init__(name, params, expected_param_types, env, sess)
+        self._rollout = True
 
 class InContact(CollisionPredicate):
 
@@ -2143,6 +2144,7 @@ class NearGraspAngle(InGraspAngle):
         e = LEqExpr(angle_expr, self.tol*np.ones((1,1)))
 
         super(InGraspAngle, self).__init__(name, e, attr_inds, params, expected_param_types, priority=1)
+        self._rollout = True
 
     def f(self, x):
         x = x.flatten()
@@ -2204,8 +2206,11 @@ class NearGraspAngle(InGraspAngle):
             add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
         return res, attr_inds
 
-class DoorNearGrasp(NearGraspAngle):
-    pass
+class DoorNearGrasp(DoorInGrasp):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
+        super(DoorInGrasp, self).__init__(name, e, attr_inds, params, expected_param_types, priority=2)
+        self.coeff = 5e-2
+        self._rollout = True
 
 class HandleAngleValid(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
@@ -2768,6 +2773,7 @@ class InDoorAngle(ExprPredicate):
         e = EqExpr(AffExpr(A, b), np.zeros((1, 1)))
         super(InDoorAngle, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.hl_include = True
+        self._rollout = True
 
 
 class ThetaDirValid(ExprPredicate):

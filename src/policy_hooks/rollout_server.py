@@ -146,6 +146,15 @@ class RolloutServer(Server):
                                 newtask.append(val)
                         task = tuple(newtask)
 
+                val = 1 - self.agent.goal_f(0, sample.get_X(t), targets)
+                if val > 0.99
+                    newtask = []
+                    for ind, val in enumerate(task):
+                        if np.isscalar(val):
+                            newtask.append(curtask[ind])
+                        else:
+                            newtask.append(val)
+                    task = tuple(newtask)
             if onehot_task == cur_onehot_task:
                 counts.append(counts[-1]+1)
             else:
