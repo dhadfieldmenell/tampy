@@ -108,8 +108,6 @@ class MultiProcessMain(object):
 
         self.target_dim, self.target_inds = utils.get_target_inds(list(plans.values())[0], self.config['attr_map'], target_vector_include)
 
-        x0, targets = prob.get_random_initial_state_vec(self.config, plans, self.dX, self.state_inds, conditions)
-
         for plan in list(plans.values()):
             plan.state_inds = self.state_inds
             plan.action_inds = self.action_inds

@@ -40,7 +40,7 @@ class MotionServer(Server):
         plan = node.curr_plan
         if type(plan) is str: return
 
-        for a in range(plan.start+1):
+        for a in range(min(len(plan.actions)-1, plan.start+1)):
             task = self.agent.encode_action(plan.actions[a])
             self.agent.set_symbols(plan, task, a, targets=node.targets)
 

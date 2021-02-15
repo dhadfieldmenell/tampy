@@ -200,7 +200,7 @@ class Server(object):
 
 
     def new_problem(self):
-        x0, targets = self.prob.get_random_initial_state_vec(self.config, self.agent.plans, self.agent.dX, self.agent.state_inds, 1)
+        x0, targets = self.agent.get_random_initial_state_vec(self.config, self.agent.plans, self.agent.dX, self.agent.state_inds, 1)
         x0, targets = x0[0], targets[0]
         target_vec = np.zeros(self.agent.target_dim)
         for (tname, attr), inds in self.agent.target_inds.items():

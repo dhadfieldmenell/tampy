@@ -1136,3 +1136,5 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
     def get_inv_cov(self):
         return None
 
+    def get_random_initial_state_vec(self, config, plans, dX, state_inds, n=1):
+        return self.prob.get_random_initial_state_vec(config, plans, dX, state_inds, n)

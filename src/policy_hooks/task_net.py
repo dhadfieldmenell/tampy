@@ -691,10 +691,11 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
             #else:
             #    conv_layers.append(conv2d(img=cur_in_layer, w=weights['conv_wc{0}'.format(i)], b=biases['conv_bc{0}'.format(i)]))
             nonlin = i < n_conv - 1 # Don't put relu on the last conv, it goes through spatial softmax
-            if i == 0:
-                conv_layers.append(conv2d(img=cur_in_layer, w=weights['conv_wc{0}'.format(i)], b=biases['conv_bc{0}'.format(i)], strides=[1,2,2,1], nonlin=nonlin))
-            else:
-                conv_layers.append(conv2d(img=cur_in_layer, w=weights['conv_wc{0}'.format(i)], b=biases['conv_bc{0}'.format(i)], nonlin=nonlin))
+            #if i == 0:
+            #    conv_layers.append(conv2d(img=cur_in_layer, w=weights['conv_wc{0}'.format(i)], b=biases['conv_bc{0}'.format(i)], strides=[1,2,2,1], nonlin=nonlin))
+            #else:
+            #    conv_layers.append(conv2d(img=cur_in_layer, w=weights['conv_wc{0}'.format(i)], b=biases['conv_bc{0}'.format(i)], nonlin=nonlin))
+            conv_layers.append(conv2d(img=cur_in_layer, w=weights['conv_wc{0}'.format(i)], b=biases['conv_bc{0}'.format(i)], nonlin=nonlin))
             cur_in_layer = conv_layers[-1]
 
         _, num_rows, num_cols, num_fp = conv_layers[-1].get_shape()
@@ -735,6 +736,7 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
         #mlp_applied, weights_FC, biases_FC = get_mlp_layers(fc_input, n_layers-2, dim_hidden[:-1], nonlin=True)
         mlp_applied, weights_FC, biases_FC = get_mlp_layers(fc_input, n_layers-2, dim_hidden[:1], nonlin=True)
   
+    cur_input = mlp_applied
     with tf.variable_scope('discr_head'):
         offset = len(dim_hidden)
         task_bounds = [(st, en) for i, (st, en) in enumerate(boundaries) if not len(types) or types[i].find('discr') >= 0]
@@ -743,7 +745,6 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
         cont_types = len(task_bounds) * ['continuous']
         ntask = np.sum([en-st for (st, en) in task_bounds])
         dh = dim_hidden[:-1] + [ntask]
-        cur_input = mlp_applied
         mlp_applied, weights_FC, biases_FC = get_mlp_layers(cur_input, len(dh), dh, offset)
         scaled_mlp_applied = mlp_applied
         if eta is not None:
@@ -764,7 +765,7 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
         scaled_mlp_applied = tf.concat([discr_mlp, mlp_applied], axis=1)
 
     fc_vars = weights_FC + biases_FC
-    loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, batch_size=batch_size, precision=precision, types=types, wt=5e4)
+    loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, batch_size=batch_size, precision=precision, types=types, wt=5e3) # wt=5e4)
     losses = [loss_out]
     preds = [prediction]
 
