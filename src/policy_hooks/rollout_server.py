@@ -147,7 +147,7 @@ class RolloutServer(Server):
                         task = tuple(newtask)
 
                 val = 1 - self.agent.goal_f(0, sample.get_X(t), targets)
-                if val > 0.99
+                if val > 0.99:
                     newtask = []
                     for ind, val in enumerate(task):
                         if np.isscalar(val):

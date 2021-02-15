@@ -200,7 +200,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         act = [act for act in plan.actions if act.active_timesteps[0] <= active_ts[0] and act.active_timesteps[1] >= active_ts[1]][0]
         for param in plan.params.values():
             if param._type != 'Can': continue
-            if act.name.lower.find('transfer') >= 0 and param in act.params: continue
+            if act.name.lower().find('transfer') >= 0 and param in act.params: continue
             expected_param_types = ['Robot', 'Can']
             params = [robot, param]
             pred = ColObjPred('obstr', params, expected_param_types, plan.env, coeff=coeff)

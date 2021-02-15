@@ -5,13 +5,13 @@ do
 
         python3 -W ignore policy_hooks/run_training.py -c policy_hooks.namo.hyperparams_v98 \
                                                        -no 2 -nt 2 -spl -llus 10000 -hlus 50000 \
-                                                       -ff 1. -hln 2 -mask -hldim 64 -lldim 64 \
-                                                       -retime -vel 0.3 -eta 7 -softev \
+                                                       -ff 1. -hln 2 -mask -hldim 48 -lldim 64 \
+                                                       -retime -vel 0.4 -eta 7 -softev \
                                                        -obs_del -hist_len 1 \
                                                        -fail -failmode random \
                                                        -prim_first_wt 20 -lr 0.0002 \
                                                        -hllr 0.0004 -lldec 0.000 -hldec 0.00 \
-                                                       -add_noop 2 --permute_hl 1 \
+                                                       -add_noop 2 --permute_hl 0 \
                                                        -post -pre -render -hl_image \
                                                        -imwidth 64 -imheight 64 \
                                                        -expl_wt 10 -expl_eta 4 \
@@ -21,7 +21,7 @@ do
                                                        -rollout 12 \
                                                        -roll_hl \
                                                        -warm 200 \
-                                                       -descr sunday_permute_conttask_grip_images_64_hl & 
+                                                       -descr sunday_conttask_grip_images_96_hl & 
 
         sleep 5h
         pkill -f run_train -9

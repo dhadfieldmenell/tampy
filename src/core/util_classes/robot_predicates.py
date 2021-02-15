@@ -1705,12 +1705,12 @@ class InGripper(PosePredicate):
 class InGripperLeft(InGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         super(InGripperLeft, self).__init__(name, params, expected_param_types, env, debug)
-        self.arm = "left"
+        self.arm = "left" if "left" in self.robot.geom.arms else self.robot.arms[0]
 
 class InGripperRight(InGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         super(InGripperRight, self).__init__(name, params, expected_param_types, env, debug)
-        self.arm = "right"
+        self.arm = "right" if "right" in self.robot.geom.arms else self.robot.arms[0]
 
 class NearGripper(InGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
