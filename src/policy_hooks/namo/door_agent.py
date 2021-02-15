@@ -683,7 +683,7 @@ class NAMODoorAgent(NAMOGripAgent):
                 dist = np.inf
                 disp = None
                 for x in state:
-                    curdist = max(0, 3 - x[self.state_inds[param.name, 'pose']][1])
+                    curdist = max(0, 4 - x[self.state_inds[param.name, 'pose']][1])
                     disp = curdist
                 alldisp += curdist # np.linalg.norm(disp)
                 cost -= 1 if np.all(np.abs(disp) < tol) else 0

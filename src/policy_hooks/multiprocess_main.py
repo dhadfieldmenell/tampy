@@ -501,6 +501,9 @@ class MultiProcessMain(object):
         hyperparams['id'] = 'test'
         self.allocate_shared_buffers(hyperparams)
         self.allocate_queues(hyperparams)
+        hyperparams['policy_opt']['share_buffer'] = True
+        hyperparams['policy_opt']['buffers'] = hyperparams['buffers']
+        hyperparams['policy_opt']['buffer_sizes'] = hyperparams['buffer_sizes']
         server = RolloutServer(hyperparams)
         newdir = 'experiment_logs/'+hyperparams['weight_dir'].replace('exp_id0', 'rerun_{0}'.format(descr))
         if not os.path.isdir(newdir):

@@ -266,6 +266,8 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                         #utils.TARG_POSE_ENUM,
                         utils.END_POSE_ENUM,
                         utils.THETA_VEC_ENUM,
+                        utils.DOOR_ENUM,
+                        utils.DOOR_THETA_ENUM,
                         # utils.GRASP_ENUM,
                         #utils.TRAJ_HIST_ENUM,
                         # utils.DONE_ENUM,
@@ -325,9 +327,9 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         config['sensor_dims'][utils.OBJ_ENUMS[o]] = 2
         config['sensor_dims'][utils.TARG_ENUMS[o]] = 2
         config['sensor_dims'][utils.TARG_DELTA_ENUMS[o]] = 2
-        config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
+        #config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
         config['prim_obs_include'].append(utils.OBJ_ENUMS[o])
-        config['prim_obs_include'].append(utils.TARG_ENUMS[o])
+        #config['prim_obs_include'].append(utils.TARG_ENUMS[o])
     return config
 
 config = refresh_config()
