@@ -40,9 +40,11 @@ def get_baxter_pose_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = OPEN_GRI
     s = ""
     s += "(left {} {}), ".format(name, LArm)
     s += "(left_ee_pos {} {}), ".format(name, [0,0,0])
+    s += "(left_ee_rot {} {}), ".format(name, [0,0,0])
     s += "(left_gripper {} {}), ".format(name, G)
     s += "(right {} {}), ".format(name, RArm)
     s += "(right_ee_pos {} {}), ".format(name, [0,0,0])
+    s += "(right_ee_rot {} {}), ".format(name, [0,0,0])
     s += "(right_gripper {} {}), ".format(name, G)
     s += "(value {} {}), ".format(name, Pos)
     return s
@@ -52,9 +54,11 @@ def get_baxter_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = OPEN_GRIPPER,
     s += "(geom {})".format(name)
     s += "(left {} {}), ".format(name, LArm)
     s += "(left_ee_pos {} {}), ".format(name, [0,0,0])
+    s += "(left_ee_rot {} {}), ".format(name, [0,0,0])
     s += "(left_gripper {} {}), ".format(name, G)
     s += "(right {} {}), ".format(name, RArm)
     s += "(right_ee_pos {} {}), ".format(name, [0,0,0])
+    s += "(right_ee_rot {} {}), ".format(name, [0,0,0])
     s += "(right_gripper {} {}), ".format(name, G)
     s += "(pose {} {}), ".format(name, Pos)
     return s
@@ -63,9 +67,11 @@ def get_undefined_robot_pose_str(name):
     s = ""
     s += "(left {} undefined), ".format(name)
     s += "(left_ee_pos {} undefined), ".format(name)
+    s += "(left_ee_rot {} undefined), ".format(name)
     s += "(left_gripper {} undefined), ".format(name)
     s += "(right {} undefined), ".format(name)
     s += "(right_ee_pos {} undefined), ".format(name)
+    s += "(right_ee_rot {} undefined), ".format(name)
     s += "(right_gripper {} undefined), ".format(name)
     s += "(value {} undefined), ".format(name)
     return s

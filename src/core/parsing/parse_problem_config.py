@@ -85,7 +85,7 @@ class ParseProblemConfig(object):
                         if obj_name in openrave_bodies:
                             params[obj_name].openrave_body = openrave_bodies[obj_name]
                             params[obj_name].geom = params[obj_name].openrave_body._geom
-                    except KeyError:
+                    except KeyError as e:
                         raise ProblemConfigException("Parameter '%s' not defined in domain file."%name)
                     except ValueError as e:
                         print(e)

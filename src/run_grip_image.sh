@@ -6,14 +6,14 @@ do
         python3 -W ignore policy_hooks/run_training.py -c policy_hooks.namo.hyperparams_v98 \
                                                        -no 2 -nt 2 -spl -llus 10000 -hlus 50000 \
                                                        -ff 1. -hln 2 -mask -hldim 64 -lldim 64 \
-                                                       -retime -vel 0.5 -eta 7 -softev \
-                                                       -obs_del -hist_len 1 \
+                                                       -retime -vel 0.3 -eta 7 -softev \
+                                                       -obs_del -hist_len 2 \
                                                        -fail -failmode random \
                                                        -prim_first_wt 20 -lr 0.0002 \
-                                                       -hllr 0.0004 -lldec 0.000 -hldec 0.00 \
-                                                       -add_noop 2 --permute_hl 1 \
+                                                       -hllr 0.001 -lldec 0.000 -hldec 0.00 \
+                                                       -add_noop 0 --permute_hl 1 \
                                                        -post -pre -render -hl_image \
-                                                       -imwidth 64 -imheight 64 \
+                                                       -imwidth 128 -imheight 128 \
                                                        -expl_wt 10 -expl_eta 4 \
                                                        -col_coeff 0.05 \
                                                        -motion 32 \
@@ -21,7 +21,7 @@ do
                                                        -rollout 12 \
                                                        -roll_hl \
                                                        -warm 200 \
-                                                       -descr sunday_nopooling_permute_conttask_grip_images_64_hl & 
+                                                       -descr monday_slower_permute_conttask_grip_images_128_hl & 
 
         sleep 6h
         pkill -f run_train -9

@@ -1375,24 +1375,30 @@ def resample_eereachable(pred, negated, t, plan, inv=False):
     robot, robot_body = pred.robot, pred._param_to_body[pred.robot]
     if hasattr(pred, 'obj'):
         targ_pos = pred.obj.pose[:,t]
+        targ_rot = pred.obj.rotation[:,t]
     elif hasattr(pred, 'targ'):
         targ_pos = pred.targ.value[:,0]
+        targ_rot = pred.targ.rotation[:,0]
 
     acts = [a for a in plan.actions if a.active_timesteps[0] < t and a.active_timesteps[1] >= t]
     if not len(acts): return None, None
     act = acts[0]
     a_st, a_et = act.active_timesteps
     arm = pred.arm
+    targ_quat = T.euler_to_quaternion(targ_rot, 'xyzw')
+    gripper_axis = robot.geom.get_gripper_axis(pred.arm)
+    quat = OpenRAVEBody.quat_from_v1_to_v2(gripper_axis, pred.axis)
+    robot_mat = T.quat2mat(quat)
+    obj_mat = T.quat2mat(targ_quat)
+    quat = T.mat2quat(obj_mat.dot(robot_mat))
     robot_body.set_dof({arm: getattr(robot, arm)[:,t]})
-    info = robot_body.fwd_kinematics(arm)
-    pos, quat = info['pos'], info['quat']
-    mat = T.quat2mat(quat)
+    #info = robot_body.fwd_kinematics(arm)
+    #pos, quat = info['pos'], info['quat']
     st, et = pred.active_range
     for ts in range(max(a_st, t+st), min(a_et-1, t+et)):
         dist = pred.approach_dist if ts <= t else pred.retreat_dist
-        vec = dist * np.abs(t-ts) * pred.axis
+        vec = -pred.rel_pt - dist * np.abs(t-ts) * pred.axis
         ik = robot_body.get_ik_from_pose(targ_pos+vec, quat, arm)
         add_to_attr_inds_and_res(ts, attr_inds, res, robot, [(arm, np.array(ik).flatten())])
-
     return res, attr_inds
 

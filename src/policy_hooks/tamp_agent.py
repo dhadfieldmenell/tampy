@@ -1006,7 +1006,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return x0s
 
 
-    def _failed_preds(self, Xs, task, condition, active_ts=None, debug=False, targets=[]):
+    def _failed_preds(self, Xs, task, condition, active_ts=None, debug=False, targets=[], tol=1e-3):
         if len(np.shape(Xs)) == 1:
             Xs = Xs.reshape(1, Xs.shape[0])
         Xs = Xs[:, self._x_data_idx[STATE_ENUM]]
@@ -1021,7 +1021,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             targets = self.target_vecs[condition]
         for tname, attr in self.target_inds:
             getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
-        tol = 1e-3
         for t in range(active_ts[0], active_ts[1]+1):
             set_params_attrs(plan.params, self.state_inds, Xs[t-active_ts[0]], min(plan.horizon-1, t), plan=plan)
         self.set_symbols(plan, task, condition)

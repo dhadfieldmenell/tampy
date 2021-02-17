@@ -75,6 +75,8 @@ class Can(Item):
         self._type = "can"
         self.radius = float(radius)
         self.height = float(height)
+        z = max(0, self.height - 0.03)
+        self.grasp_point = [0., 0., z]
 
 class BlueCan(Can):
     def __init__(self, radius, height):
@@ -146,9 +148,9 @@ class Box(Obstacle):
             dim = list(eval(dim))
         self.dim = dim
         self.length = dim[0]
-        self.height = dim[1]
-        self.width = dim[2]
-        z = self.height - 0.08
+        self.width = dim[1]
+        self.height = dim[2]
+        z = max(0, self.height - 0.03)
         self.grasp_point = [0., 0., z]
 
 class Basket(Item):

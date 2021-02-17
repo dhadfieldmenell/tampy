@@ -326,7 +326,7 @@ class Baxter(Robot):
                           }
         self.ee_link_names = {'left': 'left_gripper', 'right': 'right_gripper'}
         self.arms = ['left', 'right']
-        self.ee_attrs = ['left_ee_pos', 'right_ee_pos']
+        self.ee_attrs = ['left_ee_pos', 'right_ee_pos', 'left_ee_rot', 'right_ee_rot']
         #self.arm_inds = {'left':  [31, 32, 33, 34, 35, 37, 38],
         #                 'right': [13, 14, 15, 16, 17, 19, 20]}
         #self.ee_links = {'left': 45, 'right': 27}
@@ -369,15 +369,15 @@ class Sawyer(Robot):
     """
     def __init__(self):
         self._type = "sawyer"
-        baxter_shape = baxter_gym.__path__[0] + "/robot_info/sawyer/robot.xml"
-        super(Sawyer, self).__init__(baxter_shape)
+        sawyer_shape = baxter_gym.__path__[0] + "/robot_info/sawyer/robot.xml"
+        super(Sawyer, self).__init__(sawyer_shape)
 
         self.jnt_names = {'right':  ['right_j0','right_j1','right_j2','right_j3','right_j4','right_j5','right_j6'],
-                          'right_gripper': [],
+                          'right_gripper': ['l_finger_joint', 'r_finger_joint'],
                           }
         self.ee_link_names = {'right': 'right_gripper'}
         self.arms = ['right']
-        self.ee_attrs = ['right_ee_pos']
+        self.ee_attrs = ['right_ee_pos', 'right_ee_rot']
         self.arm_bnds = {'right': (0,7)}
         self.col_link_names = set(['right_arm_base_link', 'right_l0', 'right_l1', 
                                    'right_l2', 'right_l3', 'right_l4', 'right_l5',

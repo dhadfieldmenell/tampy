@@ -164,7 +164,7 @@ class RolloutServer(Server):
             return task
 
         ntask = len(self.agent.task_list)
-        rlen = ntask * self.agent.num_objs if not self.agent.retime else (3*ntask) * self.agent.num_objs
+        rlen = ntask * self.agent.num_objs # if not self.agent.retime else (3*ntask) * self.agent.num_objs
         t_per_task = 120 if self.agent.retime else 40
         s_per_task = 1 
         self.adj_eta = True
@@ -442,6 +442,7 @@ class RolloutServer(Server):
         ff_iters = self._hyperparams['warmup_iters']
         self.agent.hl_pol = False
         while not self.stopped:
+            step += 1
             if self._n_plans <= ff_iters:
                 n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
                 self._n_plans = n_plans.value
@@ -476,7 +477,6 @@ class RolloutServer(Server):
 
             if self.hl_rollout_opt:
                 self.run_hl_update()
-            step += 1
         self.policy_opt.sess.close()
 
 

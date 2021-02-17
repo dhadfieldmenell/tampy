@@ -216,7 +216,7 @@ class OpenRAVEBody(object):
                 dof_map = {'pose': base_pose}
                 return self.set_dof(dof_map)
 
-            if isinstance(self._geom, Robot) and not isinstance(self._geom, Washer) and not isinstance(self._geom, NAMO):
+            if isinstance(self._geom, Baxter):
                 pos = np.r_[base_pose[:2], 0]
                 quat = T.euler_to_quaternion([0, 0, base_pose[2]], order='xyzw')
             elif len(base_pose) == 2:
@@ -608,6 +608,7 @@ class OpenRAVEBody(object):
         x, y, z = pose
         if len(rotation) == 4:
             rotation = T.quaternion_to_euler(rotation, order='xyzw')
+            rotation = [rotation[2], rotation[1], rotation[0]]
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(pose, rotation)
         rot_mat = np.dot(Rz, np.dot(Ry, Rx))
         matrix = np.eye(4)

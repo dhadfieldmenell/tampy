@@ -41,6 +41,7 @@ from policy_hooks.tamp_agent import TAMPAgent
 
 import robosuite
 from robosuite.controllers import load_controller_config
+import robosuite.utils.transform_utils as robo_T
 
 NEAR_TOL = 0.05
 LOCAL_NEAR_TOL = 0.05 # 0.3
@@ -53,6 +54,39 @@ LIDAR_DIST = 2.
 DSAFE = 5e-1
 MAX_STEP = max(1.5*dmove, 1)
 Z_MAX = 0.4
+REF_QUAT = np.array([0, 0, -0.7071, -0.7071])
+
+def theta_ctrl(theta, cur_quat, ref_quat=REF_QUAT):
+    cur_quat *= np.sign(cur_quat[np.argmax(np.abs(cur_quat))])
+    ref_quat *= np.sign(ref_quat[np.argmax(np.abs(ref_quat))])
+    delta = np.array([0, 0, theta])
+    delta_mat = T.quat2mat(robo_T.axisangle2quat(delta))
+    ref_quat = T.mat2quat(delta_mat.dot(T.quat2mat(ref_quat)))
+    error = robo_T.get_orientation_error(ref_quat, cur_quat)
+    return error
+
+def theta_error(cur_quat, next_quat):
+    #cur_quat *= np.sign(cur_quat[np.argmax(np.abs(cur_quat))])
+    next_quat *= np.sign(next_quat[np.argmax(np.abs(next_quat))])
+    angle = robo_T.get_orientation_error(next_quat, cur_quat)
+    return angle
+
+def rot_error(rot1, rot2=None):
+    if rot2 is None:
+        rot2 = REF_QUAT
+    else:
+        rot2 = np.array(T.euler_to_quaternion(rot2, 'xyzw'))
+
+    rot1 = np.array(T.euler_to_quaternion(rot1, 'xyzw'))
+    rot1 *= np.sign(rot1[np.argmax(np.abs(rot1))])
+    rot2 *= np.sign(rot1[np.argmax(np.abs(rot1))])
+
+    mat1 = T.quat2mat(rot1)
+    mat2 = T.quat2mat(rot2)
+    quat = T.mat2quat(mat1.dot(mat2))
+    axis = robo_T.quat2axisangle(quat)
+    return axis
+
 
 class optimal_pol:
     def __init__(self, dU, action_inds, state_inds, opt_traj):
@@ -74,6 +108,13 @@ class optimal_pol:
                     cur_ee = cur_val if cur_val is not None else self.opt_traj[t, self.state_inds[param, attr]]
                     next_ee = self.opt_traj[t+1, self.state_inds[param, attr]]
                     u[self.action_inds[param, attr]] = next_ee - cur_ee
+                elif attr.find('ee_rot') >= 0:
+                    cur_ee = cur_val if cur_val is not None else self.opt_traj[t, self.state_inds[param, attr]]
+                    next_ee = self.opt_traj[t+1, self.state_inds[param, attr]]
+                    cur_quat = T.euler_to_quaternion(cur_ee, 'xyzw')
+                    next_quat = T.euler_to_quaternion(next_ee, 'xyzw')
+                    act = theta_error(cur_quat, next_quat)
+                    u[self.action_inds[param, attr]] = act
                 else:
                     cur_attr = cur_val if cur_val is not None else self.opt_traj[t, self.state_inds[param, attr]]
                     next_attr = self.opt_traj[t+1, self.state_inds[param, attr]]
@@ -82,7 +123,7 @@ class optimal_pol:
             for param, attr in self.action_inds:
                 if attr.find('grip') >= 0:
                     val = self.opt_traj[-1, self.state_inds[param, attr]]
-                    val = -1. if val < 0.02 else 1.
+                    val = 1. if val < 0.0 else -1.
                     u[self.action_inds[param, attr]] = val 
         if np.any(np.isnan(u)):
             u[np.isnan(u)] = 0.
@@ -92,7 +133,7 @@ class optimal_pol:
 class EnvWrapper():
     def __init__(self, env, robot_geom):
         self.env = env
-	self.geom = robot_geom
+        self.geom = robot_geom
         self._type_cache = {}
         self.sim = env.sim
         self.model = env.mjpy_model
@@ -100,12 +141,11 @@ class EnvWrapper():
     def get_attr(self, obj, attr, euler=False):
         if attr.find('ee_pos') >= 0:
             obj = 'gripper0_grip_site'
-            ind = self.env.mjpy_model.site_name2id(item_name)
+            ind = self.env.mjpy_model.site_name2id(obj)
             return self.env.sim.data.site_xpos[ind]
         if attr.find('ee_rot') >= 0:
             obj = attr.replace('ee_rot', 'hand')
-            obj = 'robot0_' + obj
-            return self.get_item_pos(obj, euler=euler)[1]
+            return self.get_item_pose(obj, euler=euler)[1]
         if attr in self.geom.jnt_names:
             jnts = self.geom.jnt_names[attr]
             if attr in self.geom.arms:
@@ -115,19 +155,22 @@ class EnvWrapper():
 
             return self.get_joints(jnts)
         if attr == 'pose' or attr == 'pos':
-            return self.get_item_pos(obj)[0]
+            return self.get_item_pose(obj)[0]
         if attr.find('rot') >= 0 or attr.find('quat') >= 0:
-            return self.get_item_pos(obj, euler=euler)[1]
+            return self.get_item_pose(obj, euler=euler)[1]
 
-    def set_attr(self, obj, attr, val, euler=False):
+    def set_attr(self, obj, attr, val, euler=False, forward=False):
         if attr in self.geom.jnt_names:
             jnts = self.geom.jnt_names[attr]
-            jnts = ['robot0_'+jnt for jnt in jnts]
-            return self.set_joints(jnts, val)
+            if attr in self.geom.arms:
+                jnts = ['robot0_'+jnt for jnt in jnts]
+            else:
+                jnts = ['gripper0_'+jnt for jnt in jnts]
+            return self.set_joints(jnts, val, forward=forward)
         if attr == 'pose' or attr == 'pos':
-            return self.set_item_pose(obj, val)
+            return self.set_item_pose(obj, val, forward=forward)
         if attr.find('rot') >= 0 or attr.find('quat') >= 0:
-            return self.set_item_poset(obj, quat=val, euler=euler)
+            return self.set_item_pose(obj, quat=val, euler=euler, forward=forward)
 
     def get_item_pose(self, item_name, order='xyzw', euler=False):
         pos, quat = None, None
@@ -137,21 +180,24 @@ class EnvWrapper():
             adr = self.env.mjpy_model.jnt_qposadr[ind]
             pos = self.env.sim.data.qpos[adr:adr+3]
             quat = self.env.sim.data.qpos[adr+3:adr+7]
+            if item_name in ['milk', 'cereal', 'can', 'bread']:
+                pass
+
         except:
             if item_name.find('right') >= 0 or item_name.find('left') >= 0:
                 item_name = 'robot0_'+item_name
             ind = self.env.mjpy_model.body_name2id(item_name)
             pos = self.env.sim.data.body_xpos[ind]
             quat = self.env.sim.data.body_xquat[ind]
-	if order == 'xyzw':
-	    quat = [quat[1], quat[2], quat[3], quat[0]]
+        if order == 'xyzw':
+            quat = [quat[1], quat[2], quat[3], quat[0]]
         rot = quat
         if euler:
             rot = T.quaternion_to_euler(quat, 'xyzw')
-	return np.array(pos), np.array(rot)
+        return np.array(pos), np.array(rot)
 
     def set_item_pose(self, item_name, pos=None, quat=None, forward=False, order='xyzw', euler=False):
-        if quat is not None and euler:
+        if quat is not None and len(quat) == 3:
             quat = T.euler_to_quaternion(quat, 'xyzw')
         try:
             suffix='_joint0'
@@ -163,7 +209,7 @@ class EnvWrapper():
                 if order == 'xyzw':
                     quat = [quat[3], quat[0], quat[1], quat[2]]
                 self.env.sim.data.qpos[adr+3:adr+7] = quat
-        except:
+        except Exception as e:
             ind = self.env.mjpy_model.body_name2id(item_name)
             if pos is not None: self.env.sim.data.body_xpos[ind] = pos
             if quat is not None:
@@ -174,23 +220,26 @@ class EnvWrapper():
             self.env.sim.forward()
 
     def get_joints(self, jnt_names):
-	vals = []
-	for jnt in jnt_names:
-	    ind = self.env.mjpy_model.joint_name2id(jnt)
-	    adr = self.env.mjpy_model.jnt_qposadr[ind]
-	    vals.append(self.env.sim.data.qpos[adr])
-	return np.array(vals)
+        vals = []
+        for jnt in jnt_names:
+            ind = self.env.mjpy_model.joint_name2id(jnt)
+            adr = self.env.mjpy_model.jnt_qposadr[ind]
+            vals.append(self.env.sim.data.qpos[adr])
+        return np.array(vals)
 
     def set_joints(self, jnt_names, jnt_vals, forward=False):
-	for jnt, val in zip(jnt_names, jnt_vals):
-	    ind = self.env.mjpy_model.joint_name2id(jnt)
-	    adr = self.env.mjpy_model.jnt_qposadr[ind]
-	    self.env.sim.data.qpos[adr] = val
-	if forward:
-	    self.env.sim.forward()
+        for jnt, val in zip(jnt_names, jnt_vals):
+            ind = self.env.mjpy_model.joint_name2id(jnt)
+            adr = self.env.mjpy_model.jnt_qposadr[ind]
+            self.env.sim.data.qpos[adr] = val
+        if forward:
+            self.env.sim.forward()
 
     def forward(self):
         self.env.sim.forward()
+
+    def reset(self):
+        return self.env.reset()
 
 
 class RobotAgent(TAMPAgent):
@@ -199,6 +248,7 @@ class RobotAgent(TAMPAgent):
 
         self.optimal_pol_cls =  optimal_pol
         self.load_render = hyperparams['master_config'].get('load_render', False)
+        controller_config = load_controller_config(default_controller="OSC_POSE")
         self.base_env = robosuite.make(
                 "PickPlace",
                 robots=["Sawyer"],             # load a Sawyer robot and a Panda robot
@@ -207,13 +257,18 @@ class RobotAgent(TAMPAgent):
                 has_renderer=False,                      # on-screen rendering
                 render_camera="frontview",              # visualize the "frontview" camera
                 has_offscreen_renderer=self.load_render,           # no off-screen rendering
-                control_freq=20,                        # 20 hz control for applied actions
+                control_freq=200,                        # 20 hz control for applied actions
                 horizon=300,                            # each episode terminates after 200 steps
                 use_object_obs=True,                   # no observations needed
                 use_camera_obs=False,                   # no observations needed
+                single_object_mode=2,
+                object_type='cereal',
+                ignore_done=True,
             )
 
-	self.mjc_env = EnvWrapper(self.base_env)
+        sawyer_geom = list(self.plans.values())[0].params['sawyer'].geom
+        self.mjc_env = EnvWrapper(self.base_env, sawyer_geom)
+        self.z_offsets = {'cereal': 0.035}
 
         self.check_col = hyperparams['master_config'].get('check_col', True)
         self.camera_id = 1
@@ -223,6 +278,7 @@ class RobotAgent(TAMPAgent):
         self.targ_labels = {i: np.array(self.prob.END_TARGETS[i]) for i in range(len(self.prob.END_TARGETS))}
         self.targ_labels.update({i: self.targets[0]['aux_target_{0}'.format(i-no)] for i in range(no, no+self.prob.n_aux)})
         self.cur_obs = self.base_env.reset()
+        self.replace_cond(0)
 
     def get_annotated_image(self, s, t, cam_id=None):
         x = s.get_X(t=t)
@@ -281,7 +337,7 @@ class RobotAgent(TAMPAgent):
 
             U_full = policy.act(X, sample.get_obs(t=t).copy(), t, cur_noise)
             U_nogrip = U_full.copy()
-            U_nogrip[self.action_inds['baxter', 'left_gripper']] = 0.
+            U_nogrip[self.action_inds['sawyer', 'right_gripper']] = 0.
             if np.all(np.abs(U_nogrip)) < 1e-3:
                 self._noops += 1
                 self.eta_scale = 1. / np.log(self._noops+2)
@@ -328,17 +384,19 @@ class RobotAgent(TAMPAgent):
         ctrl = {attr: u[inds] for (param_name, attr), inds in self.action_inds.items()}
         n_steps = 10
         if 'right_ee_pos' in ctrl:
-            targ_pos = self.mjc_env.get_attr('baxter', 'right_ee_pos') + ctrl['right_ee_pos']
-            targ_rot = np.array([0, 0, ctrl['right_ee_rot'][-1]])
+            targ_pos = self.mjc_env.get_attr('sawyer', 'right_ee_pos') + ctrl['right_ee_pos']
+            targ_quat = None
             gripper = 1 if ctrl['right_gripper'] > 0 else -1
             for n in range(n_steps+1):
-                pos_ctrl = 5 * (targ_pos - self.mjc_env.get_attr('baxter', 'right_ee_pos'))
-                rot_ctrl = 5 * (targ_rot - self.mjc_env.get_attr('baxter', 'right_ee_rot', euler=True))
+                pos_ctrl = 5e1 * (targ_pos - self.mjc_env.get_attr('sawyer', 'right_ee_pos'))
+                cur_quat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
+                rot_ctrl = 5e2 * ctrl['right_ee_rot'] # #robo_T.get_orientation_error(targ_quat, cur_quat)
                 self.cur_obs = self.mjc_env.step(np.r_[pos_ctrl, rot_ctrl, [gripper]])
+
         elif 'right' in ctrl:
-            targ_pos = self.mjc_env.get_attr('baxter', 'right') + ctrl['right']
+            targ_pos = self.mjc_env.get_attr('sawyer', 'right') + ctrl['right']
             for n in range(n_steps+1):
-                ctrl = 5 * np.r_[targ_pos - self.mjc_env.get_attr('baxter', 'right'), gripper]
+                ctrl = 5 * np.r_[targ_pos - self.mjc_env.get_attr('sawyer', 'right'), gripper]
                 self.cur_obs = self.mjc_env.step(ctrl)
 
         col = 0 # 1 if len(self._col) > 0 else 0
@@ -360,8 +418,11 @@ class RobotAgent(TAMPAgent):
             gripper = params[0].geom.get_gripper(arm)
             getattr(params[3], gripper)[:,0] = getattr(params[0], gripper)[:,st]
             ee_attr = '{}_ee_pos'.format(arm)
+            rot_ee_attr = '{}_ee_rot'.format(arm)
             if hasattr(params[0], ee_attr):
                 getattr(params[3], ee_attr)[:,0] = getattr(params[0], ee_attr)[:,st]
+            if hasattr(params[0], rot_ee_attr):
+                getattr(params[3], rot_ee_attr)[:,0] = getattr(params[0], rot_ee_attr)[:,st]
 
         for tname, attr in self.target_inds:
             getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
@@ -522,7 +583,7 @@ class RobotAgent(TAMPAgent):
                 obj_name = list(prim_choices[OBJ_ENUM])[task[1]]
                 targ_name = list(prim_choices[TARG_ENUM])[task[2]]
                 for (pname, aname), inds in self.state_inds.items():
-                    if aname.find('left_ee_pos') >= 0:
+                    if aname.find('right_ee_pos') >= 0:
                         obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - mp_state[inds]
                         targ_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[inds]
                         break
@@ -577,6 +638,19 @@ class RobotAgent(TAMPAgent):
         no = self._hyperparams['num_objs']
         if len(np.shape(state)) < 2:
             state = [state]
+
+        if self.goal_type == 'moveto':
+            choices = self.prob.get_prim_choices(self.task_list)
+            moveto = self.task_list.index('move_to_grasp_right')
+            obj = choices[OBJ_ENUM].index('cereal')
+            targ = choices[TARG_ENUM].index('cereal')
+            task = (moveto, obj, targ)
+            T = self.plans[task].horizon - 1
+            preds = self._failed_preds([state], task, active_ts=(T,T), tol=5e-3)
+            cost = len(preds)
+            if cont: return cost
+            return 1. if len(preds) else 0.
+
         for param in list(plan.params.values()):
             if 'Item' in param.get_type(True) and ('{0}_end_target'.format(param.name), 'value') in self.target_inds:
                 if anywhere:
@@ -620,10 +694,11 @@ class RobotAgent(TAMPAgent):
         self._x_delta[:] = x.reshape((1,-1))
         self._prev_task = np.zeros((self.task_hist_len, self.dPrimOut))
         self.cur_state = x.copy()
-        self.mjc_env.reset()
+        self.base_env.reset()
         for (pname, aname), inds in self.state_inds.items():
+            if pname == 'table': continue
             val = x[inds]
-            if aname.find('ee_pos') >= 0: continue
+            if aname.find('ee_pos') >= 0 or aname.find('ee_rot') >= 0: continue
             self.mjc_env.set_attr(pname, aname, val, forward=False)
         self.mjc_env.forward()
 
@@ -631,7 +706,15 @@ class RobotAgent(TAMPAgent):
     def get_state(self):
         x = np.zeros(self.dX)
         for (pname, aname), inds in self.state_inds.items():
-            val = self.mjc_env.get_attr(pname, aname)
+            val = self.mjc_env.get_attr(pname, aname, euler=True)
+            if pname.find('cereal') >= 0 and aname == 'pose':
+                val[2] -= 0.035
+            #if pname.find('milk') >= 0 and aname == 'pose':
+            #    val[2] -= 0.035
+            #if pname.find('milk') >= 0 and aname == 'pose':
+            #    val[2] -= 0.035
+            #if pname.find('milk') >= 0 and aname == 'pose':
+            #    val[2] -= 0.035
             if aname in ['left', 'right']:
                 lb, ub = self.mjc_env.geom.get_joint_limits(aname)
                 val = np.maximum(np.minimum(val, ub), lb)
@@ -732,34 +815,32 @@ class RobotAgent(TAMPAgent):
         return {GOAL_ENUM: only_goal, ONEHOT_GOAL_ENUM: onehot_goal, TARGETS_ENUM: targets}
 
 
-    def get_random_initial_state_vec(self, config, plans, dX, state_inds, 1):
+    def get_random_initial_state_vec(self, config, plans, dX, state_inds, ncond):
         self.cur_obs = self.base_env.reset()
         x = np.zeros(self.dX)
         for pname, aname in self.state_inds:
-            val = self.mjc_env.get_attr(pname, aname, euler=True)
-            x[self.state_inds[pname, aname]] = val
+            if pname == 'table':
+                val = [0, 0, -3]
+            else:
+                val = self.mjc_env.get_attr(pname, aname, euler=True)
+                inds = self.state_inds[pname, aname]
+                if len(inds) == 1: val = np.mean(val)
+            x[inds] = val
         targets = {}
-        targets[cond]['milk_end_target'] = self.mjc_env.get_item_pose('milk-visual_main')[0]
-        targets[cond]['can_end_target'] = self.mjc_env.get_item_pose('can-visual_main')[0]
-        targets[cond]['cereal_end_target'] = self.mjc_env.get_item_pose('cereal-visual_main')[0]
-        targets[cond]['bread_end_target'] = self.mjc_env.get_item_pose('bread-visual_main')[0]
+        targets['cereal_end_target'] = self.mjc_env.get_item_pose('cereal-visual_main')[0]
         return [x], [targets] 
     
     
     def replace_cond(self, cond, curric_step=-1):
         self.cur_obs = self.base_env.reset()
-        x = np.zeros(self.dX)
-        for pname, aname in self.state_inds:
-            val = self.mjc_env.get_attr(pname, aname, euler=True)
-            x[self.state_inds[pname, aname]] = val
+        x, targets = self.get_random_initial_state_vec(self.config, self.plans, self.dX, self.state_inds, 1)
+        x, targets = x[0], targets[0]
         self.init_vecs[cond] = x
         self.x0[cond] = self.init_vecs[cond][:self.symbolic_bound]
         self.target_vecs[cond] = np.zeros((self.target_dim,))
+        self.targets[cond] = targets
 
-        self.targets[cond]['milk_end_target'] = self.mjc_env.get_item_pose('milk-visual_main')[0]
-        self.targets[cond]['can_end_target'] = self.mjc_env.get_item_pose('can-visual_main')[0]
-        self.targets[cond]['cereal_end_target'] = self.mjc_env.get_item_pose('cereal-visual_main')[0]
-        self.targets[cond]['bread_end_target'] = self.mjc_env.get_item_pose('bread-visual_main')[0]
+        prim_choices = self.prob.get_prim_choices(self.task_list)
         for target_name in self.targets[cond]:
             self.target_vecs[cond][self.target_inds[target_name, 'value']] = self.targets[cond][target_name]
         only_goal = np.concatenate([self.target_vecs[cond][self.target_inds['{0}_end_target'.format(o), 'value']] for o in prim_choices[OBJ_ENUM]])
@@ -772,6 +853,9 @@ class RobotAgent(TAMPAgent):
             targets = self.target_vecs[cond]
         prim_choices = self.prob.get_prim_choices(self.task_list)
         goal = ''
+        if self.goal_type == 'moveto':
+            return '(NearApproachRight sawyer cereal)'
+
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
             goal += '(Near {0} {0}_end_target) '.format(obj)
         return goal

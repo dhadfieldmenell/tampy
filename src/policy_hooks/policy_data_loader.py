@@ -44,7 +44,8 @@ class DataLoader(object):
         start_t = time.time()
         for data in items:
             start_t = time.time()
-            dct = self.items if np.random.uniform() > val_ratio else self.val_items
+            val = np.random.uniform() < val_ratio
+            dct = self.items if not val else self.val_items
             label = data[-1]
             if label not in dct: dct[label] = []
             obs, mu, prc, wt, aux, task, label = data
@@ -53,7 +54,15 @@ class DataLoader(object):
                     dct[label].append((obs[i], mu[i], prc[i], wt[i], aux[i], task, label))
                 else:
                     dct[label].append((obs[i], mu[i], prc[i], wt[i], [], task, label))
-            if len(dct[label]) > MAX_BUFFER: dct[label] = dct[label][-MAX_BUFFER:]
+
+            max_size = MAX_BUFFER if not val else (0.1 * MAX_BUFFER)
+            max_size = int(max_size)
+            if len(dct[label]) > max_size:
+                try:
+                    dct[label] = dct[label][-max_size:]
+                except Exception as e:
+                    print(label, max_size, e)
+                    raise e
 
         return 1
 

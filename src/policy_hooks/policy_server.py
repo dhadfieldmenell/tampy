@@ -10,6 +10,7 @@ import os
 from policy_hooks.control_attention_policy_opt import ControlAttentionPolicyOpt
 from policy_hooks.msg_classes import *
 from policy_hooks.policy_data_loader import DataLoader
+from policy_hooks.utils.policy_solver_utils import *
 
 LOG_DIR = 'experiment_logs/'
 MAX_QUEUE_SIZE = 100
@@ -48,7 +49,8 @@ class PolicyServer(object):
         normalize = self.task != 'primitive'
         self.data_gen = DataLoader(hyperparams, self.task, self.in_queue, self.batch_size, normalize, min_buffer=self.min_buffer)
         aug_f = None
-        if self.task == 'primitive' and hyperparams['permute_hl'] > 0:
+        no_im = IM_ENUM not in hyperparams['prim_obs_include']
+        if self.task == 'primitive' and hyperparams['permute_hl'] > 0 and no_im:
             aug_f = self.agent.permute_hl_data
         self.data_gen = DataLoader(hyperparams, self.task, self.in_queue, self.batch_size, normalize, min_buffer=self.min_buffer, aug_f=aug_f)
       

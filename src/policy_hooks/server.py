@@ -88,6 +88,7 @@ class Server(object):
         self.alg_map = hyperparams['alg_map']
         for alg in list(self.alg_map.values()):
             alg.set_conditions(len(self.agent.x0))
+        self._last_weight_read = time.time()
 
         self.permute_hl = hyperparams['permute_hl'] > 0
         self.task_list = self.agent.task_list
@@ -313,9 +314,11 @@ class Server(object):
 
 
     def set_policies(self):
-        if self.policy_opt.share_buffers:
+        inter = 180
+        if self.policy_opt.share_buffers and time.time() - self._last_weight_read > inter:
             self.policy_opt.read_shared_weights()
         chol_pol_covar = {}
+        self._last_weight_read = time.time()
         #for task in self.agent.task_list:
         #    if task not in self.policy_opt.valid_scopes:
         #        task_name = 'control'

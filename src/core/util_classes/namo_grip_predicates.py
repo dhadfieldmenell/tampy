@@ -59,6 +59,7 @@ ATTRMAP = {
     "Rotation":     (("value", np.array(list(range(1)), dtype=np.int)),),
 }
 
+HANDLE_OFFSET = 0.8
 
 USE_TF = True
 if USE_TF:
@@ -798,7 +799,7 @@ class OpenDoorApproach(At):
 
         A = np.eye(3)
         dist = gripdist + dsafe
-        b = np.array([[-0.5], [-(2.5-dist-1.2)], [0.]])
+        b = np.array([[-0.5], [-((3-HANDLE_OFFSET)-dist-1.2)], [0.]])
         val = np.zeros((3, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
@@ -817,7 +818,7 @@ class OpenDoorReady(At):
 
         A = np.eye(3)
         dist = gripdist + dsafe
-        b = np.array([[-0.5], [-(2.5-dist)], [0.]])
+        b = np.array([[-0.5], [-((3-HANDLE_OFFSET)-dist)], [0.]])
         val = np.zeros((3, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
@@ -855,7 +856,7 @@ class CloseDoorReady(At):
 
         A = np.c_[np.eye(3)]
         dist = gripdist + dsafe
-        b = np.array([[1.5+dist], [-1.5], [np.pi/2]])
+        b = np.array([[(1+HANDLE_OFFSET)+dist], [-1.5], [np.pi/2]])
         val = np.zeros((3, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
@@ -2030,7 +2031,7 @@ class DoorInGrasp(ExprPredicate):
         self.coeff = 1e0
         self.r, self.door = params
         door_geom = self.door.geom
-        self.handle_pos = np.array([door_geom.length, -0.2-door_geom.radius])
+        self.handle_pos = np.array([door_geom.length, -HANDLE_OFFSET])
         self.base_theta = np.arctan2(self.handle_pos[1], self.handle_pos[0])
         self.handle_dist = np.linalg.norm(self.handle_pos)
 

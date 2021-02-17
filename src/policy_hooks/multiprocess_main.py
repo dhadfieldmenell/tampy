@@ -277,8 +277,8 @@ class MultiProcessMain(object):
                 'image_channels': self.config['image_channels'],
                 'sensor_dims': self.sensor_dims,
                 'n_layers': self.config['prim_n_layers'],
-                'num_filters': [32, 32, 8],
-                'filter_sizes': [8, 6, 4],
+                'num_filters': [32, 32, 16],
+                'filter_sizes': [5, 5, 5],
                 'dim_hidden': self.config['prim_dim_hidden'],
                 'output_boundaries': self.config['prim_bounds'],
                 'aux_boundaries': self.config['aux_bounds'],
@@ -627,7 +627,7 @@ class MultiProcessMain(object):
         self.queue_manager = QueueManager()
         self.queue_manager.start()
 
-        queue_size = 100
+        queue_size = 50
         queues = {}
         config['hl_queue'] = Queue(queue_size)
         config['ll_queue'] = Queue(queue_size)

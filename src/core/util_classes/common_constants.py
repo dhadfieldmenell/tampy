@@ -22,11 +22,11 @@ MAX_CONTACT_DISTANCE = .1
 BASKET_OFFSET = 0.33
 BASKET_NARROW_OFFSET = 0.215
 BASKET_GRIP_OFFSET = 0
-GRASP_DIST = 0.2
+GRASP_DIST = 0.175
 
 # EEReachable Constants
-APPROACH_DIST = 0.04
-RETREAT_DIST = 0.04
+APPROACH_DIST = 0.03
+RETREAT_DIST = 0.03
 EEREACHABLE_STEPS = 3
 
 # Collision Constants
@@ -37,7 +37,7 @@ COLLIDES_DSAFE = 1e-3
 # Plan Coefficient
 
 EEREACHABLE_COEFF = 1e-1
-EEREACHABLE_ROT_COEFF = 1e-2
+EEREACHABLE_ROT_COEFF = 1e-1
 IN_GRIPPER_COEFF = 5e0
 IN_GRIPPER_ROT_COEFF = 2e0
 WASHER_IN_GRIPPER_ROT_COEFF = 1e-2
@@ -104,7 +104,15 @@ ATTRMAP = {"Rotation": [("value", np.array([0], dtype=np.int))],
                        ("rotation", np.array([0,1,2], dtype=np.int))),
             "Cloth": (("pose", np.array([0,1,2], dtype=np.int)),
                       ("rotation", np.array([0,1,2], dtype=np.int))),
+            "Can": (("pose", np.array([0,1,2], dtype=np.int)),
+                      ("rotation", np.array([0,1,2], dtype=np.int))),
+            "Box": (("pose", np.array([0,1,2], dtype=np.int)),
+                      ("rotation", np.array([0,1,2], dtype=np.int))),
             "ClothTarget": (("value", np.array([0,1,2], dtype=np.int)),
+                      ("rotation", np.array([0,1,2], dtype=np.int))),
+            "CanTarget": (("value", np.array([0,1,2], dtype=np.int)),
+                      ("rotation", np.array([0,1,2], dtype=np.int))),
+            "BoxTarget": (("value", np.array([0,1,2], dtype=np.int)),
                       ("rotation", np.array([0,1,2], dtype=np.int))),
             "Fabric": (("gripleft", np.array([0,1,2], dtype=np.int)),
                        ("gripright", np.array([0,1,2], dtype=np.int))),

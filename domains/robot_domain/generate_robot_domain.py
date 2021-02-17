@@ -12,7 +12,7 @@ Types: Robot, RobotPose, CollisionShape
 
 # Define the class location of each non-standard attribute type used in the above parameter type descriptions.
 
-Attribute Import Paths: Vector1d core.util_classes.matrix, Vector3d core.util_classes.matrix, ArmPose7d core.util_classes.matrix, Table core.util_classes.items, Box core.util_classes.items, Basket core.util_classes.items, Cloth core.util_classes.items"""
+Attribute Import Paths: Vector1d core.util_classes.matrix, Vector3d core.util_classes.matrix, ArmPose7d core.util_classes.matrix, Table core.util_classes.items, Box core.util_classes.items, Basket core.util_classes.items, Cloth core.util_classes.items, Can core.util_classes.items"""
 robots = ['Baxter', 'Sawyer']
 for robot in robots:
     dom_str += ", {} core.util_classes.robots".format(robot)
@@ -34,7 +34,7 @@ for r in robots:
     rpose_types += "{}Pose, ".format(r)
 rpose_types = rpose_types[:-2] + " - RobotPose"
 
-subtypes = "\nSubtypes: Obstacle, Reachable - CollisionShape; Item, Target - Reachable; Cloth, Can, Basket - Item; ClothTarget, CanTarget, BasketTarget - Target"
+subtypes = "\nSubtypes: Obstacle, Reachable - CollisionShape; Item, Target - Reachable; Cloth, Can, Box, Basket - Item; ClothTarget, BoxTarget, CanTarget, BasketTarget - Target"
 subtypes += "; " + r_types + "; " + rpose_types + "\n"
 dom_str += subtypes + "\n"
 
@@ -67,7 +67,11 @@ pp.add('Target', [('value', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('Basket', [('geom', 'Basket'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('BasketTarget', [('geom', 'Basket'), ('value', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('Cloth', [('geom', 'Cloth'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
-pp.add('ClothTarget', [('value', 'Vector3d'), ('rotation', 'Vector3d')])
+pp.add('Can', [('geom', 'Can'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
+pp.add('Box', [('geom', 'Box'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
+pp.add('ClothTarget', [('value', 'Vector3d'), ('rotation', 'Vector3d'), ('geom', 'Cloth')])
+pp.add('CanTarget', [('value', 'Vector3d'), ('rotation', 'Vector3d'), ('geom', 'Can')])
+pp.add('BoxTarget', [('value', 'Vector3d'), ('rotation', 'Vector3d'), ('geom', 'Box')])
 pp.add('RobotPose', [('value', 'Vector3d')])
 pp.add('Robot', [('pose', 'Vector3d')])
 pp.add('Obstacle', [('geom', 'Box'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
@@ -88,7 +92,9 @@ for r in robots:
         attrs.append((gripper, 'Vector1d'))
         pose_attrs.append((gripper, 'Vector1d'))
         attrs.append(('{}_ee_pos'.format(arm), 'Vector3d'))
+        attrs.append(('{}_ee_rot'.format(arm), 'Vector3d'))
         pose_attrs.append(('{}_ee_pos'.format(arm), 'Vector3d'))
+        pose_attrs.append(('{}_ee_rot'.format(arm), 'Vector3d'))
     pp.add(r, attrs)
     pp.add(r+"Pose", pose_attrs)
 
@@ -428,11 +434,12 @@ class GraspLeft(Grasp):
             ('(not (InGripperRight ?robot ?item))', '0:0'),
             ('(not (InGripperLeft ?robot ?item))', '0:0'),
             ('(not (NearGripperRight ?robot ?item))', '0:0'),
-            ('(EEReachableLeft ?robot ?item)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
-            ('(EEReachableLeftRot ?robot ?item)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
+            ('(EEReachableLeft ?robot ?target)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
+            ('(EEReachableLeftRot ?robot ?target)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
             ('(OpenGripperLeft ?robot)', '{}:{}'.format(1,  self.grasp_time-1)),
-            ('(CloseGripperLeft ?robot)', '{}:{}'.format(self.grasp_time,  self.end-1)),
-            ('(InGripperLeft ?robot ?item)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
+            ('(CloseGripperLeft ?robot)', '{}:{}'.format(self.grasp_time,  self.end)),
+            ('(InGripperLeft ?robot ?item)', '{}:{}'.format(self.grasp_time+1, self.grasp_time)),
+            ('(NearGripperLeft ?robot ?item)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
             #('(LeftGripperDownRot ?robot)', '{0}:{1}'.format(self.grasp_time-steps, self.grasp_time+steps)),
             ('(LeftGripperDownRot ?robot)', '{0}:{1}'.format(2, self.end-2)),
             ('(forall (?obj - Item)\
@@ -459,10 +466,10 @@ class GraspRight(Grasp):
             ('(not (InGripperRight ?robot ?item))', '0:0'),
             ('(not (InGripperLeft ?robot ?item))', '0:0'),
             ('(not (NearGripperLeft ?robot ?item))', '0:0'),
-            ('(EEReachableRight ?robot ?item)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
-            ('(EEReachableRightRot ?robot ?item)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
-            ('(OpenGripperRight ?robot)', '{0}:{1}'.format(1,self.grasp_time-1)),
-            ('(CloseGripperRight ?robot)', '{0}:{1}'.format(self.grasp_time,self.end-1)),
+            ('(EEReachableRight ?robot ?target)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
+            ('(EEReachableRightRot ?robot ?target)', '{}:{}'.format(self.grasp_time, self.grasp_time)),
+            ('(OpenGripperRight ?robot)', '{0}:{1}'.format(1,self.grasp_time)),
+            ('(CloseGripperRight ?robot)', '{0}:{1}'.format(self.grasp_time+1,self.end-1)),
             ('(InGripperRight ?robot ?item)', '{0}:{1}'.format(self.grasp_time, self.grasp_time)),
             #('(RightGripperDownRot ?robot)', '{0}:{1}'.format(self.grasp_time-steps, self.grasp_time+steps)),
             ('(RightGripperDownRot ?robot)', '{0}:{1}'.format(2, self.end-2)),
@@ -555,7 +562,7 @@ class PutdownLeft(Putdown):
             ('(NearGripperLeft ?robot ?item)', '0:0'),
             ('(InGripperLeft ?robot ?item)', '1:1'),
             ('(EEReachableLeft ?robot ?target)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
-            ('(EEReachableLeftRot ?robot ?item)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
+            ('(EEReachableLeftRot ?robot ?target)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
             ('(CloseGripperLeft ?robot)', '{}:{}'.format(1,  self.putdown_time-1)),
             ('(OpenGripperLeft ?robot)', '{}:{}'.format(self.putdown_time,  self.end-1)),
             ('(InGripperLeft ?robot ?item)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
@@ -581,7 +588,7 @@ class PutdownRight(Putdown):
             ('(NearGripperRight ?robot ?item)', '0:0'),
             ('(RightGripperDownRot ?robot)', '{0}:{1}'.format(1, self.end-1)),
             ('(EEReachableRight ?robot ?target)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
-            ('(EEReachableRightRot ?robot ?item)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
+            ('(EEReachableRightRot ?robot ?target)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
             ('(CloseGripperRight ?robot)', '{}:{}'.format(1,  self.putdown_time-1)),
             ('(OpenGripperRight ?robot)', '{}:{}'.format(self.putdown_time,  self.end-1)),
             ('(InGripperRight ?robot ?item)', '{}:{}'.format(0, self.putdown_time)),

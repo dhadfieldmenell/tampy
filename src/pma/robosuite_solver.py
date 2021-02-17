@@ -19,17 +19,18 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         robot_body.set_from_param(robot, start_ts)
 
         old_arm_pose = getattr(robot, arm)[:, start_ts].copy()
+        offset = obj.geom.grasp_point if hasattr(obj.geom, 'grasp_point') else np.zeros(3)
         if obj.is_symbol():
-            target_loc = obj.value[:, 0] + np.array([0, 0, const.GRASP_DIST])
+            target_loc = obj.value[:, 0] + np.array([0, 0, const.GRASP_DIST]) + offset
         else:
-            target_loc = obj.pose[:, start_ts] + np.array([0, 0, const.GRASP_DIST])
+            target_loc = obj.pose[:, start_ts] + np.array([0, 0, const.GRASP_DIST]) + offset
 
         gripper_axis = robot.geom.get_gripper_axis(arm)
         target_axis = [0, 0, -1]
         quat = OpenRAVEBody.quat_from_v1_to_v2(gripper_axis, target_axis)
 
         if 'box' in obj.get_type(True):
-            euler = obj.rotation[:,ts[0]]
+            euler = obj.rotation[:,ts[0]] if not obj.is_symbol() else obj.rotation[:,0]
             obj_quat = T.euler_to_quaternion(euler, 'xyzw')
             robot_mat = T.quat2mat(quat)
             obj_mat = T.quat2mat(obj_quat)
@@ -37,6 +38,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         iks = []
         attempt = 0
+        robot_body.set_dof({arm: np.zeros(len(robot.geom.jnt_names[arm]))})
         while not len(iks) and attempt < 20:
             if rand:
                 target_loc += np.clip(np.random.normal(0, 0.015, 3), -0.03, 0.03)
@@ -59,9 +61,10 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             if aux_gripper is not None:
                 pose[aux_gripper] = getattr(robot, aux_gripper)[:, start_ts].reshape((-1,1))
         for arm in robot.geom.arms:
-            robot_body.set_dof({'left': pose[arm].flatten().tolist()})
+            robot_body.set_dof({arm: pose[arm].flatten().tolist()})
             info = robot_body.fwd_kinematics(arm)
             pose['{}_ee_pos'.format(arm)] = np.array(info['pos']).reshape((-1,1))
+            pose['{}_ee_rot'.format(arm)] = np.array(T.quaternion_to_euler(info['quat'], 'xyzw')).reshape((-1,1))
         return pose
 
 
@@ -84,11 +87,11 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                 getattr(robot, attr)[:, start_ts] = info['pos']
 
         for arm in robot.geom.arms:
-            robot.openrave_body.set_dof({arm: getattr(robot, arm)[:,0]})
+            robot.openrave_body.set_dof({arm: getattr(robot, arm)[:,start_ts]})
         obj = act.params[1]
         for param in plan.params.values():
             if hasattr(param, 'openrave_body') and param.openrave_body is not None:
-                param.openrave_body.set_pose(param.pose[:,0])
+                param.openrave_body.set_pose(param.pose[:,start_ts])
 
         a_name = act.name.lower()
         arm = robot.geom.arms[0]
@@ -135,11 +138,14 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             if 'Robot' not in param.get_type(True): continue
             for arm in param.geom.arms:
                 attr = '{}_ee_pos'.format(arm)
+                rot_attr = '{}_ee_rot'.format(arm)
                 if not hasattr(param, attr): continue
                 for t in range(active_ts[0], active_ts[1]):
                     if np.any(np.isnan(getattr(param, arm)[:,t])): continue
                     param.openrave_body.set_dof({arm: getattr(param, arm)[:,t]})
                     info = param.openrave_body.fwd_kinematics(arm)
                     getattr(param, attr)[:,t] = info['pos']
+                    euler = T.quaternion_to_euler(info['quat'], 'xyzw')
+                    getattr(param, rot_attr)[:,t] = euler
 
 

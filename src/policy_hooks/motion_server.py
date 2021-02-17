@@ -107,7 +107,8 @@ class MotionServer(Server):
                 time.sleep(0.01)
                 continue
 
-            self.set_policies()
+            if not step % 10:
+                self.set_policies()
             self.refine_plan(node)
 
             inv_cov = self.agent.get_inv_cov()

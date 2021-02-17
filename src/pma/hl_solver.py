@@ -6,6 +6,7 @@ from core.internal_repr.plan import Plan
 
 
 CLEANUP = False
+PATCH = True
 
 class HLSolver(object):
     """
@@ -478,8 +479,8 @@ class FFSolver(HLSolver):
                              "%sprob.pddl"%fprefix,
                              "%sprob.pddl.soln"%fprefix,
                              "%sprob.output"%fprefix])
-        #if plan != Plan.IMPOSSIBLE:
-        #    plan = self._patch_redundancy(plan)
+        if PATCH and plan != Plan.IMPOSSIBLE:
+            plan = self._patch_redundancy(plan)
         return plan
 
     def _patch_redundancy(self, plan_str):
@@ -491,14 +492,23 @@ class FFSolver(HLSolver):
         """
         i = 0
         while i < len(plan_str)-1:
-            if "MOVETO" in plan_str[i] and "MOVETO" in plan_str[i+1]:
-                pose = plan_str[i+1].split()[-1]
-                del plan_str[i+1]
-                spl = plan_str[i].split()
-                spl[-1] = pose
-                plan_str[i] = " ".join(spl)
+            if "MOVE_TO" in plan_str[i] and "MOVE_TO" in plan_str[i+1]:
+                #pose = plan_str[i+1].split()[-1]
+                del plan_str[i]
+                #spl = plan_str[i].split()
+                #spl[-1] = pose
+                #plan_str[i] = " ".join(spl)
             else:
                 i += 1
+        #while i < len(plan_str)-1:
+        #    if "MOVETO" in plan_str[i] and "MOVETO" in plan_str[i+1]:
+        #        pose = plan_str[i+1].split()[-1]
+        #        del plan_str[i+1]
+        #        spl = plan_str[i].split()
+        #        spl[-1] = pose
+        #        plan_str[i] = " ".join(spl)
+        #    else:
+        #        i += 1
         for i in range(len(plan_str)):
             spl = plan_str[i].split(":", 1)
             plan_str[i] = "%s:%s"%(i, spl[1])
