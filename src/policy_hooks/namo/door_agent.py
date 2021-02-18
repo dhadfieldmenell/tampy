@@ -137,7 +137,7 @@ class NAMODoorAgent(NAMOGripAgent):
             pos = next_trans[:3,3] # [next_trans[1,3], next_trans[0,3], next_trans[2,3]]
             items.append({'name': 'wall{0}'.format(i), 'type': 'box', 'is_fixed': True, 'pos': pos, 'dimensions': next_dim, 'rgba': (0.2, 0.2, 0.2, 1)})
 
-        items.append({'name': 'door', 'type': 'door_2d', 'handle_dims': (0.325, 0.4), 'door_dims': (0.75, 0.1, 0.4), 'hinge_pos': (-1., 3., 0.5), 'is_fixed': True})
+        items.append({'name': 'door', 'type': 'door_2d', 'handle_offset': HANDLE_OFFSET, 'handle_dims': (0.325, 0.4), 'door_dims': (0.75, 0.1, 0.4), 'hinge_pos': (-1., 3., 0.5), 'is_fixed': True})
 
         no = self._hyperparams['num_objs']
         nt = self._hyperparams['num_targs']
