@@ -1123,8 +1123,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         for ind, t in enumerate(ts):
             t = int(t)
             cur_t = t - cur_offset
-            if cur_t >= cur_s.T:
-                cur_t -= cur_s.T
+            if cur_t >= samples[cur_s].T:
+                cur_t -= samples[cur_s].T
                 cur_s += 1
             if ind == len(ts)-1:
                 cur_s = len(samples)-1
