@@ -127,7 +127,11 @@ class MultiProcessMain(object):
             self.config['agent']['cloth_length'] = self.config['cloth_length']
             self.config['agent']['cloth_spacing'] = self.config['cloth_spacing']
             self.config['agent']['cloth_radius'] = self.config['cloth_radius']
+
+        old_render = self.config['agent']['master_config']['load_render']
+        self.config['agent']['master_config']['load_render'] = False
         self.agent = self.config['agent']['type'](self.config['agent'])
+        self.config['agent']['master_config']['load_render'] = old_render
         if hasattr(self.agent, 'cloth_init_joints'):
             self.config['agent']['cloth_init_joints'] = self.agent.cloth_init_joints
 
@@ -678,7 +682,9 @@ def setup_dirs(c, args):
     c['group_id'] = current_id
     c['weight_dir'] = c['weight_dir']+'_{0}'.format(current_id)
     dir_name = ''
+    dir_name2 = ''
     sub_dirs = [DIR_KEY] + c['weight_dir'].split('/')
+    sub_dirs2 = ['tf_saved/'] + c['weight_dir'].split('/')
 
     try:
         from mpi4py import MPI
@@ -691,8 +697,11 @@ def setup_dirs(c, args):
     if rank == 0:
         for d_ind, d in enumerate(sub_dirs):
             dir_name += d + '/'
+            dir_name2 += sub_dirs2[d_ind] + '/'
             if not os.path.isdir(dir_name):
                 os.mkdir(dir_name)
+            if not os.path.isdir(dir_name2):
+                os.mkdir(dir_name2)
         if args.hl_retrain:
             src = DIR_KEY + args.hl_data + '/hyp.py'
         elif hasattr(args, 'expert_path') and len(args.expert_path):
@@ -714,6 +723,8 @@ def setup_dirs(c, args):
 def check_dirs(config):
     if not os.path.exists('experiment_logs/'+config['weight_dir']):
         os.makedirs('experiment_logs/'+config['weight_dir'])
+    if not os.path.exists('tf_saved/'+config['weight_dir']):
+        os.makedirs('tf_saved/'+config['weight_dir'])
 
 
 def get_dir_name(base, no, nt, ind, descr, args=None):

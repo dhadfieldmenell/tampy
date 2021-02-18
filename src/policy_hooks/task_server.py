@@ -38,7 +38,12 @@ class TaskServer(Server):
         if node is None:
             node = self.spawn_problem()
 
-        plan_str = self.agent.hl_solver.run_planner(node.abs_prob, node.domain, node.prefix, label=self.id)
+        try:
+            plan_str = self.agent.hl_solver.run_planner(node.abs_prob, node.domain, node.prefix, label=self.id)
+        except OSError as e:
+            print('OSError in hl solve:', e)
+            plan_str = Plan.IMPOSIBBLE
+
         if plan_str == Plan.IMPOSSIBLE: return
         new_node = LLSearchNode(plan_str, 
                                 prob=node.concr_prob, 

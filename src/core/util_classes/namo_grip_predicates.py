@@ -818,7 +818,7 @@ class OpenDoorReady(At):
 
         A = np.eye(3)
         dist = gripdist + dsafe
-        b = np.array([[-0.5], [-((3-HANDLE_OFFSET)-dist)], [0.]])
+        b = np.array([[-0.5-dist], [-((3-HANDLE_OFFSET))], [-np.pi/2.]])
         val = np.zeros((3, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
@@ -856,7 +856,7 @@ class CloseDoorReady(At):
 
         A = np.c_[np.eye(3)]
         dist = gripdist + dsafe
-        b = np.array([[(1+HANDLE_OFFSET)+dist], [-1.5], [np.pi/2]])
+        b = np.array([[(1+HANDLE_OFFSET)], [-1.5-dist], [0]])
         val = np.zeros((3, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
@@ -2767,11 +2767,11 @@ class ScalarVelValid(ExprPredicate):
 class InDoorAngle(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.r, self.c = params
-        attr_inds = OrderedDict([(self.c, [("theta", np.array([0], dtype=np.int))]),
-                                 (self.r, [("theta", np.array([0], dtype=np.int))])])
+        attr_inds = OrderedDict([(self.r, [("theta", np.array([0], dtype=np.int))]),
+                                 (self.c, [("theta", np.array([0], dtype=np.int))])])
         A = np.array([[1.,-1.]])
         b = np.zeros((1, 1))
-        e = EqExpr(AffExpr(A, b), np.zeros((1, 1)))
+        e = EqExpr(AffExpr(A, b), np.pi/2.*np.ones((1, 1)))
         super(InDoorAngle, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.hl_include = True
         self._rollout = True

@@ -74,17 +74,17 @@ def get_prim_choices(task_list=None):
 
 def get_vector(config):
     state_vector_include = {
-        'sawyer': ['right', 'right_ee_pos', 'right_ee_rot', 'right_gripper']
+        'sawyer': ['right', 'right_ee_pos', 'right_ee_rot', 'right_gripper', 'pose']
     }
     state_vector_include['cereal'] = ['pose', 'rotation']
     state_vector_include['table'] = ['pose']
 
     action_vector_include = {
-        'sawyer': ['right_ee_pos', 'right_gripper']
+        'sawyer': ['right_ee_pos', 'right_ee_rot', 'right_gripper']
     }
 
     target_vector_include = {
-        'cereal_end_target': ['value'],
+        'cereal_end_target': ['value', 'rotation'],
     }
     #for i in range(n_aux):
     #    target_vector_include['aux_target_{0}'.format(i)] = ['value']

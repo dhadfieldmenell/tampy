@@ -3,6 +3,8 @@ import os
 import pybullet as P
 import sys
 import time
+import scipy as sp
+from scipy.spatial.transform import Rotation
 
 import robosuite
 from robosuite.controllers import load_controller_config
@@ -56,6 +58,8 @@ env = robosuite.make(
     ignore_done=True,
 )
 obs = env.reset()
+env.sim.data.qacc[:] = 0
+env.sim.forward()
 
 bt_ll.DEBUG = True
 openrave_bodies = None
@@ -84,7 +88,7 @@ pos = env.sim.data.qpos[cereal_ind:cereal_ind+3]
 quat = env.sim.data.qpos[cereal_ind+3:cereal_ind+7]
 quat = [quat[1], quat[2], quat[3], quat[0]]
 euler = T.quaternion_to_euler(quat, 'xyzw')
-params['cereal'].pose[:,0] = pos - np.array([0, 0, 0.035])
+params['cereal'].pose[:,0] = pos #- np.array([0, 0, 0.035])
 params['cereal'].rotation[:,0] = euler
 
 params['bread'].pose[:,0] = [10,10,0]
@@ -134,28 +138,56 @@ for t in range(plan.horizon):
 
 grip_ind = env.mjpy_model.site_name2id('gripper0_grip_site')
 hand_ind = env.mjpy_model.body_name2id('robot0_right_hand')
+env.reset()
+env.sim.data.qpos[cereal_ind:cereal_ind+3] = plan.params['cereal'].pose[:,0]
+env.sim.data.qpos[cereal_ind+3:cereal_ind+7] = T.euler_to_quaternion(plan.params['cereal'].rotation[:,0], 'wxyz')
+env.sim.data.qacc[:] = 0
+env.sim.data.qvel[:] = 0
+env.sim.forward()
 env.render()
 import ipdb; ipdb.set_trace()
 nsteps = 50
+cur_ind = 0
 for act in plan.actions:
-    for t in range(act.active_timesteps[0], act.active_timesteps[1]):
-        base_act = cmds.pop(0)
+    for t in range(act.active_timesteps[0], min(act.active_timesteps[1]+1, plan.horizon)):
+        base_act = cmds[cur_ind]
+        cur_ind += 1
+        targ = base_act[3:7]
+        cur = env.sim.data.body_xquat[hand_ind]
+        cur = np.array([cur[1], cur[2], cur[3], cur[0]])
+        truerot = Rotation.from_quat(targ)
+        currot = Rotation.from_quat(cur)
+        base_angle = (truerot * currot.inv()).as_rotvec()
+        #base_angle = robosuite.utils.transform_utils.get_orientation_error(sign*targ, cur)
+        rot = Rotation.from_rotvec(base_angle)
+        targrot = (rot * currot).as_quat()
+        print('TARGETS:', targ, targrot)
         for n in range(nsteps):
             act = base_act.copy()
             act[:3] -= env.sim.data.site_xpos[grip_ind]
             act[:3] *= 5e1
             cur = env.sim.data.body_xquat[hand_ind]
             cur = np.array([cur[1], cur[2], cur[3], cur[0]])
-            targ = act[3:7]
-            sign = np.sign(targ[np.argmax(np.abs(targ))])
-            angle = 5e2*theta_error(cur, targ) #robosuite.utils.transform_utils.get_orientation_error(sign*targ, cur)
+            #targ = act[3:7]
+            sign = np.sign(targ[np.argmax(np.abs(targrot))])
+            cur_sign = np.sign(targ[np.argmax(np.abs(cur))])
+            targ = targrot
+            #if sign != cur_sign:
+            #    sign = -1.
+            #else:
+            #    sign = 1.
+            ##angle = 5e2*theta_error(cur, targ) #robosuite.utils.transform_utils.get_orientation_error(sign*targ, cur)
+            #angle = robosuite.utils.transform_utils.get_orientation_error(sign*targ, cur)
+            #rot = Rotation.from_rotvec(angle)
+            #currot = Rotation.from_quat(cur)
+            angle = -sign*cur_sign*1e1*robosuite.utils.transform_utils.get_orientation_error(sign*targrot, cur_sign*cur)
             #a = np.linalg.norm(angle)
             #if a > 2*np.pi:
             #    angle = (a - 2*np.pi)  * angle / a
             act = np.r_[act[:3], angle, act[-1:]]
             #act[3:6] -= robosuite.utils.transform_utils.quat2axisangle(cur)
             #act[:7] = (act[:7] - np.array([env.sim.data.qpos[ind] for ind in sawyer_inds]))
-            env.step(act)
+            obs = env.step(act)
         print('ANGLE:', t, angle, targ, cur)
         print(base_act[:3], env.sim.data.body_xpos[hand_ind], env.sim.data.site_xpos[grip_ind])
         env.render()

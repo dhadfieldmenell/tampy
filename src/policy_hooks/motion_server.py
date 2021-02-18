@@ -14,6 +14,7 @@ from scipy.cluster.vq import kmeans2 as kmeans
 import tensorflow as tf
 
 from core.internal_repr.plan import Plan
+import core.util_classes.transform_utils as T
 from policy_hooks.sample import Sample
 from policy_hooks.sample_list import SampleList
 from policy_hooks.utils.policy_solver_utils import *
@@ -32,15 +33,13 @@ class MotionServer(Server):
 
     def refine_plan(self, node):
         start_t = time.time()
-        node = self.pop_queue(self.in_queue)
-        size = self.in_queue.qsize()
         if node is None: return
 
         node.gen_plan(self.agent.hl_solver, self.agent.openrave_bodies)
         plan = node.curr_plan
         if type(plan) is str: return
 
-        for a in range(min(len(plan.actions)-1, plan.start+1)):
+        for a in range(min(len(plan.actions), plan.start+1)):
             task = self.agent.encode_action(plan.actions[a])
             self.agent.set_symbols(plan, task, a, targets=node.targets)
 
@@ -59,13 +58,13 @@ class MotionServer(Server):
         plan.freeze_actions(plan.start)
         init_t = time.time()
         self.n_plans += 1
-        success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=False)
+        success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=True)
         self.n_failed += 0. if success else 1.
         #print('Time to plan:', time.time() - init_t)
         if success:
             wt = self.explore_wt if node.label.lower().find('rollout') >= 0 else 1.
             path = self.agent.run_plan(plan, node.targets, permute=self.permute_hl, wt=wt)
-            if self.render and np.random.uniform() < 0.01 or not path[-1].success and np.random.uniform() < 0.01:
+            if self.render: # and np.random.uniform() < 0.01 or not path[-1].success and np.random.uniform() < 0.01:
                 self.save_video(path, path[-1].success)
             self.log_path(path, 10)
             for step in path: step.source_label = 'optimal'

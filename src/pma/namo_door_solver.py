@@ -32,12 +32,12 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 door = plan.params['door']
                 #target_pos = np.array([[-1.5], [0.]])
                 #robot_pose.append({'pose': target_pos, 'gripper': np.array([[-1.]]), 'theta': np.array([[0.]])})
-                target_pos = np.array([[-3.5], [1.5]])
-                robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[-np.pi/2.]])})
+                target_pos = np.array([[-1.8], [0.2]])
+                robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[0]])})
             elif act.name.find('close_door') >= 0:
-                target_pos = np.array([[0.5], [1.2]])
+                target_pos = np.array([[1.8], [2.2]])
                 door = plan.params['door']
-                robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[0.]])})
+                robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[np.pi/2.]])})
             elif act.name.find('in_closet') >= 0:
                 target_pos = np.array([[0.], [5.]])
                 robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[0.]])})

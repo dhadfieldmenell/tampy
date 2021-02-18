@@ -253,7 +253,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'split_mcts_alg': True,
         'robot_name': 'sawyer',
         'ctrl_mode': 'joint_angle',
-        'visual_cameras': [2,5],
+        'visual_cameras': [0],
 
         'state_include': [utils.STATE_ENUM],
         'obs_include': [utils.TASK_ENUM,

@@ -89,13 +89,22 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         for arm in robot.geom.arms:
             robot.openrave_body.set_dof({arm: getattr(robot, arm)[:,start_ts]})
         obj = act.params[1]
+        st, et = act.active_timesteps
         for param in plan.params.values():
             if hasattr(param, 'openrave_body') and param.openrave_body is not None:
-                param.openrave_body.set_pose(param.pose[:,start_ts])
+                if param.is_symbol():
+                    if hasattr(param, 'rotation'):
+                        param.openrave_body.set_pose(param.value[:,0], param.rotation[:,0])
+                    else:
+                        param.openrave_body.set_pose(param.value[:,0])
+                else:
+                    if hasattr(param, 'rotation'):
+                        param.openrave_body.set_pose(param.pose[:,st], param.rotation[:,st])
+                    else:
+                        param.openrave_body.set_pose(param.pose[:,st])
 
         a_name = act.name.lower()
         arm = robot.geom.arms[0]
-        st, et = act.active_timesteps
         if a_name.find('left') >= 0: arm = 'left'
         if a_name.find('right') >= 0: arm = 'right'
 

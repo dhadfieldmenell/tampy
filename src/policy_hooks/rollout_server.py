@@ -202,8 +202,23 @@ class RolloutServer(Server):
 
         self.log_path(path, -20)
         #return val, path, max(0, s-last_switch), 0
-        bad_pt = precond_viols[0] if len(precond_viols) else switch_pts[-1]
-        if np.random.uniform() < 0.25:
+        if len(precond_viols):
+            bad_pt = precon_viols[0]
+        else:
+            bad_pt = switch_pts[-1]
+            plan = self.agent.plans[cur_tasks[-1]]
+            traj, steps = self.agent.reverse_retime(path[bad_pt[0]:], (0, plan.horizon-1), label=True)
+            for t in range(len(traj)):
+                set_params_attr(plan.params, self.state_inds, traj[t], t)
+            self.agent.set_symbols(plan, cur_tasks[-1], targets=targets)
+            failed_preds = plan.get_failed_preds(tol=1e-3)
+            failed_preds = [p for p in failed_preds if (p[1]._rollout or not type(p[1].expr) is EqExpr)]
+            fail_t = min([p[2] for p in failed_preds])
+            fail_s = bad_pt[0] + steps[fail_t]
+            print('MID COND:', fail_s, fail_t, bad_pt, failed_preds)
+            bad_pt = (fail_s, fail_t)
+
+        if np.random.uniform() < 1:#0.25:
             self.save_video(path, val)
         return val, path, bad_pt[0], bad_pt[1]
  
@@ -523,7 +538,7 @@ class RolloutServer(Server):
             if l is None: break
             task_name = self.task_list[l[0]]
             pol = self.agent.policies[task_name]
-            s = self.agent.sample_task(pol, 0, state, l, noisy=False, task_f=task_f, skip_opt=True)
+            s = self.agent.sample_task(pol, 0, state, l, noisy=False, task_f=task_f, skip_opt=True, hor=30)
             val = 1 - self.agent.goal_f(0, s.get_X(s.T-1), targets)
             t += 1
             state = s.end_state # s.get_X(s.T-1)

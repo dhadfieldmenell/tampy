@@ -39,6 +39,10 @@ class Server(object):
         random.seed(self.seed)
         np.random.seed(self.seed)
 
+        self.render = hyperparams.get('load_render', False)
+        if self.id.find('test') < 0 and self.id.find('0') < 0:# and self.id.find('Rollout') < 0:
+            self.render = False
+
         n_gpu = hyperparams['n_gpu']
         if n_gpu == 0:
             gpus = -1
@@ -50,6 +54,11 @@ class Server(object):
 
         self.solver = hyperparams['mp_solver_type'](hyperparams)
         self.opt_smooth = hyperparams.get('opt_smooth', False)
+        self.alg_map = hyperparams['alg_map']
+        for alg in list(self.alg_map.values()):
+            #alg.set_conditions(len(self.agent.x0))
+            alg.set_conditions(1)
+        self.init_policy_opt(hyperparams)
         hyperparams['agent']['master_config'] = hyperparams
         try:
             P.disconnect()
@@ -62,7 +71,6 @@ class Server(object):
         self.prob = self.agent.prob
         self.solver.agent = self.agent
         
-        self.render = hyperparams.get('load_render', False)
         if self.render:
             self.cur_vid_id = 0
             if not os.path.isdir(LOG_DIR+hyperparams['weight_dir']+'/videos'):
@@ -85,9 +93,6 @@ class Server(object):
         self.label_type = 'base'
         self._n_plans = 0
         n_plans = hyperparams['policy_opt']['buffer_sizes']['n_plans']
-        self.alg_map = hyperparams['alg_map']
-        for alg in list(self.alg_map.values()):
-            alg.set_conditions(len(self.agent.x0))
         self._last_weight_read = time.time()
 
         self.permute_hl = hyperparams['permute_hl'] > 0
@@ -106,7 +111,6 @@ class Server(object):
         self.prim_first_wt = hyperparams.get('prim_first_wt', 1.)
         self.explore_wt = hyperparams['explore_wt']
         self.check_prim_t = hyperparams.get('check_prim_t', 1)
-        self.init_policy_opt(hyperparams)
         self.agent.plans, self.agent.openrave_bodies, self.agent.env = self.agent.prob.get_plans(use_tf=True)
         task_plans = list(self.agent.plans.items())
         for task, plan in task_plans:
@@ -205,7 +209,7 @@ class Server(object):
         x0, targets = x0[0], targets[0]
         target_vec = np.zeros(self.agent.target_dim)
         for (tname, attr), inds in self.agent.target_inds.items():
-            if attr != 'value': continue
+            #if attr != 'value': continue
             target_vec[inds] = targets[tname]
         return x0, target_vec
 
@@ -413,7 +417,8 @@ class Server(object):
                 info['targets'] = {tname: sample.targets[self.agent.target_inds[tname, attr]] for tname, attr in self.agent.target_inds}
                 info['opt_success'] = sample.opt_suc
                 info['tasks'] = sample.get(FACTOREDTASK_ENUM)
-                info['goal_pose'] = sample.get(END_POSE_ENUM)
+                #info['goal_pose'] = sample.get(END_POSE_ENUM)
+                info['actions'] = sample.get(ACTION_ENUM)
                 info['end_state'] = sample.end_state
                 info['plan_fail_rate'] = self.n_failed / self.n_plans if self.n_plans > 0 else 0.
                 # info['prim_obs'] = sample.get_prim_obs().round(4)
