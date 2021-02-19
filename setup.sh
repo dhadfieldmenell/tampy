@@ -11,7 +11,7 @@ cd ~/tamp_work
 export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3.6
 virtualenv -p /usr/bin/python3.6 venv
 source venv/bin/activate
-echo 'alias tampenv="source ~/tamp_work/venv/bin/activate"' >> ~/.bashrc
+echo 'alias tampenv="source ~/tamp_env.sh; source ~/tamp_work/venv/bin/activate"' >> ~/.bashrc
 
 # Get python code
 pip install numpy==1.18.5
@@ -32,10 +32,13 @@ pip install --upgrade numpy
 cd ~/tamp_work
 
 # Set env variables
-echo 'export GUROBI_HOME=/home/${USER}/tamp_work/gurobi901/linux64' >> ~/.bashrc
-echo 'export PATH="${PATH}:${GUROBI_HOME}:${GUROBI_HOME}/bin":/home/${USER}/.local/bin' >> ~/.bashrc
-echo 'export LD_LIBRARY_PATH="${GUROBI_HOME}/lib:/home/${USER}/.mujoco/mujoco200/bin"' >> ~/.bashrc
-echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/sco:/home/${USER}/tamp_work/tampy/src' >> ~/.bashrc
+touch tamp_env.sh
+truncate -s 0 tamp_env.sh
+echo 'export GUROBI_HOME=/home/${USER}/tamp_work/gurobi901/linux64' >> ~/tamp_env.sh
+echo 'export PATH="${PATH}:${GUROBI_HOME}:${GUROBI_HOME}/bin":/home/${USER}/.local/bin' >> ~/tamp_env.sh
+echo 'export LD_LIBRARY_PATH="${GUROBI_HOME}/lib:/home/${USER}/.mujoco/mujoco200/bin"' >> ~/tamp_env.sh
+echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/sco:/home/${USER}/tamp_work/tampy/src' >> ~/tamp_env.sh
+echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/michaelmcdonald/.mujoco/mujoco200/bin' >> ~/tamp_env.sh
 
 # Setup gurobi (need to get license separately)
 # https://www.gurobi.com/downloads/end-user-license-agreement-academic/
@@ -74,9 +77,10 @@ pip install tensorflow==1.10.0
 pip install -e BaxterGym
 cd BaxterGym/baxter_gym
 mkdir local
-echo 'export MUJOCO_KEY_PATH=/home/${USER}/.mujoco/mjkey.txt' >> ~/.bashrc
-echo 'export MUJOCO_GL=osmesa' >> ~/.bashrc
-echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/gps/python' >> ~/.bashrc
+echo 'export MUJOCO_KEY_PATH=/home/${USER}/.mujoco/mjkey.txt' >> ~/tamp_env.sh
+echo 'export MUJOCO_GL=egl' >> ~/tamp_env.sh
+echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/gps/python' >> ~/tamp_env.sh
+echo 'export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libGLEW.so' >> ~/tamp_env.sh
 
 cd ~/tamp_work
 git clone https://github.com/AboudyKreidieh/h-baselines.git
