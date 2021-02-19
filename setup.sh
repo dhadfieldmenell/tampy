@@ -39,6 +39,7 @@ echo 'export PATH="${PATH}:${GUROBI_HOME}:${GUROBI_HOME}/bin":/home/${USER}/.loc
 echo 'export LD_LIBRARY_PATH="${GUROBI_HOME}/lib:/home/${USER}/.mujoco/mujoco200/bin"' >> ~/tamp_env.sh
 echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/sco:/home/${USER}/tamp_work/tampy/src' >> ~/tamp_env.sh
 echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/michaelmcdonald/.mujoco/mujoco200/bin' >> ~/tamp_env.sh
+echo 'source ~/tamp_env.sh' >> ~/.bashrc
 
 # Setup gurobi (need to get license separately)
 # https://www.gurobi.com/downloads/end-user-license-agreement-academic/
