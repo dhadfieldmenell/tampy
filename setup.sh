@@ -32,8 +32,8 @@ pip install --upgrade numpy
 cd ~/tamp_work
 
 # Set env variables
-touch tamp_env.sh
-truncate -s 0 tamp_env.sh
+touch ~/tamp_env.sh
+truncate -s 0 ~/tamp_env.sh
 echo 'export GUROBI_HOME=/home/${USER}/tamp_work/gurobi901/linux64' >> ~/tamp_env.sh
 echo 'export PATH="${PATH}:${GUROBI_HOME}:${GUROBI_HOME}/bin":/home/${USER}/.local/bin' >> ~/tamp_env.sh
 echo 'export LD_LIBRARY_PATH="${GUROBI_HOME}/lib:/home/${USER}/.mujoco/mujoco200/bin"' >> ~/tamp_env.sh
