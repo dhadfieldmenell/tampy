@@ -8,5 +8,5 @@ Init: (geom cereal [0.05, 0.02, 0.065]), (geom cereal_end_target [0.05, 0.02, 0.
 
 Goal: (RobotAt sawyer robot_end_pose)
 
-Invariants: (StationaryBase sawyer), (RightGripperDownRot sawyer), 
+Invariants: (StationaryBase sawyer), 
 

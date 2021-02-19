@@ -8,5 +8,5 @@ Init: (geom milk [0.0225, 0.0225, 0.08]), (geom bread [0.02, 0.02, 0.02]), (geom
 
 Goal: (RobotAt sawyer robot_end_pose)
 
-Invariants: (StationaryBase sawyer), (RightGripperDownRot sawyer), 
+Invariants: (StationaryBase sawyer), 
 

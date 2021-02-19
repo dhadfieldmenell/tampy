@@ -1123,12 +1123,12 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         for ind, t in enumerate(ts):
             t = int(t)
             cur_t = t - cur_offset
-            if cur_t >= samples[cur_s].T:
-                cur_t -= samples[cur_s].T
-                cur_s += 1
-            if ind == len(ts)-1:
+            if ind == len(ts)-1 or (cur_s >= len(samples) - 1 and cur_t >= samples[cur_s].T):
                 cur_s = len(samples)-1
                 cur_t = samples[-1].T-1
+            elif cur_t >= samples[cur_s].T:
+                cur_t = 0
+                cur_s += 1
             sample = samples[cur_s]
             traj.append(sample.get(STATE_ENUM, t=cur_t))
             labels.append(cur_s)

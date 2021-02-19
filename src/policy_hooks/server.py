@@ -42,6 +42,8 @@ class Server(object):
         self.render = hyperparams.get('load_render', False)
         if self.id.find('test') < 0 and self.id.find('0') < 0:# and self.id.find('Rollout') < 0:
             self.render = False
+            hyperparams['load_render'] = False
+            hyperparams['agent']['master_config']['load_render'] = False
 
         n_gpu = hyperparams['n_gpu']
         if n_gpu == 0:
@@ -215,7 +217,7 @@ class Server(object):
 
 
 
-    def update(self, obs, mu, prc, wt, task, label, acts=[], ref_acts=[], terminal=[], aux=[]):
+    def update(self, obs, mu, prc, wt, task, label, acts=[], ref_acts=[], terminal=[], aux=[], primobs=[]):
         assert(len(mu) == len(obs))
 
         prc[np.where(prc > 1e10)] = 1e10
@@ -229,7 +231,7 @@ class Server(object):
         assert not np.any(np.isinf(obs))
         obs[np.where(np.abs(obs) > 1e10)] = 0
 
-        data = (obs, mu, prc, wt, aux, task, label)
+        data = (obs, mu, prc, wt, aux, primobs, task, label)
         if task == 'primitive':
             q = self.hl_queue
         else:

@@ -182,11 +182,12 @@ class PolicyServer(object):
                 'n_data': self.policy_opt.N,
                 'tf_iter': self.policy_opt.tf_iter,
                 'N': self.policy_opt.N,
-                'n_plans': self.policy_opt.buf_sizes['n_plans'].value,
-                'n_postcond': self.policy_opt.buf_sizes['n_postcond'].value,
-                'n_explore': self.policy_opt.buf_sizes['n_explore'].value,
-                'n_rollout': self.policy_opt.buf_sizes['n_rollout'].value,
                 }
+
+        for key in self.policy_opt.buf_sizes:
+            if key.find('n_') >= 0:
+                 info[key] = self.policy_opt.buf_sizes[key].value
+
         if len(self.val_losses['rollout']):
             info['rollout_val_loss'] = np.mean(self.val_losses['rollout'][-10:]),
             info['rollout_val_component_loss'] = np.mean(self.val_losses['rollout'][-10:], axis=0),

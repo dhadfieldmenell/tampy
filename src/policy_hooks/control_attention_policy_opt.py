@@ -44,6 +44,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
         self.tf_iter = 0
         self.batch_size = self._hyperparams['batch_size']
+        self.load_all = self._hyperparams.get('load_all', False)
 
         self.input_layer = inputs
         self.share_buffers = self._hyperparams.get('share_buffer', True)
@@ -312,7 +313,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         """ Helper method to initialize the tf networks used """
 
         input_tensor = None
-        if self.scope is None or 'primitive' == self.scope:
+        if self.load_all or self.scope is None or 'primitive' == self.scope:
             with tf.variable_scope('primitive'):
                 self.primitive_eta = tf.placeholder_with_default(1., shape=())
                 tf_map_generator = self._hyperparams['primitive_network_model']
@@ -405,7 +406,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         return self.task_map[task]['policy']
 
     def init_policies(self, dU):
-        if self.scope is None or self.scope == 'primitive':
+        if self.load_all or self.scope is None or self.scope == 'primitive':
             self.prim_policy = TfPolicy(dU,
                                         self.primitive_obs_tensor,
                                         self.primitive_act_op,

@@ -69,6 +69,7 @@ class ExprPredicate(Predicate):
         self.hl_include = False
         self.tf_vars = []
         self._rollout = False
+        self._nonrollout = False
 
     #@profile
     def lazy_spawn_or_body(self, param, name, geom):

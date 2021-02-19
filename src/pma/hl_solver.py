@@ -301,6 +301,7 @@ class FFSolver(HLSolver):
         plan.start = concr_prob.start_action
         plan.prob = concr_prob
         plan.domain = domain
+        plan.plan_str = plan_str
         return plan
 
 

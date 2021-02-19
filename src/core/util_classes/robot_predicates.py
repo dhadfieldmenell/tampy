@@ -1324,6 +1324,7 @@ class IsMP(RobotPredicate):
         e = LEqExpr(AffExpr(A, b), val)
         super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
         self.spacial_anchor = False
+        self._nonrollout = True
 
 class WithinJointLimit(RobotPredicate):
     """
@@ -1348,6 +1349,7 @@ class WithinJointLimit(RobotPredicate):
         e = LEqExpr(AffExpr(A, b), val)
         super(WithinJointLimit, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = False
+        self._nonrollout = True
 
 class Stationary(ExprPredicate):
     """

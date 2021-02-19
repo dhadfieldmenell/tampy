@@ -61,7 +61,7 @@ class Robot(object):
         self.intialized = True
 
     def get_joint_move_factor(self):
-        return 15
+        return 10
 
     def get_base_limit(self):
         return np.array([-10, -10, -5*np.pi]), np.array([10, 10, 5*np.pi])

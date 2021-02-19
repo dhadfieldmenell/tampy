@@ -45,7 +45,7 @@ from robosuite.controllers import load_controller_config
 import robosuite.utils.transform_utils as robo_T
 
 NEAR_TOL = 0.05
-LOCAL_NEAR_TOL = 0.05 # 0.3
+LOCAL_NEAR_TOL = 0.12 # 0.3
 MAX_SAMPLELISTS = 1000
 MAX_TASK_PATHS = 100
 GRIP_TOL = 0.
@@ -55,15 +55,15 @@ LIDAR_DIST = 2.
 DSAFE = 5e-1
 MAX_STEP = max(1.5*dmove, 1)
 Z_MAX = 0.4
+GRIPPER_Z = 1.0
 REF_QUAT = np.array([0, 0, -0.7071, -0.7071])
 
 def theta_error(cur_quat, next_quat):
     sign1 = np.sign(cur_quat[np.argmax(np.abs(cur_quat))])
     sign2 = np.sign(next_quat[np.argmax(np.abs(next_quat))])
-    sign = 1.
-    if sign1 != sign2:
-        sign = -1
-    angle = robo_T.get_orientation_error(sign*next_quat, cur_quat)
+    next_quat = np.array(next_quat)
+    cur_quat = np.array(cur_quat)
+    angle = -(sign1 * sign2) * robo_T.get_orientation_error(sign1 * next_quat, sign2 * cur_quat)
     return angle
 
 class optimal_pol:
@@ -114,13 +114,14 @@ class optimal_pol:
 
 
 class EnvWrapper():
-    def __init__(self, env, robot_geom):
+    def __init__(self, env, robot_geom, mode='ee_pos'):
         self.env = env
         self.geom = robot_geom
         self._type_cache = {}
         self.sim = env.sim
         self.model = env.mjpy_model
-        self.z_offsets = {'cereal': 0.} # 0.035}
+        self.z_offsets = {'cereal': 0.035}
+        self.mode = mode
 
     def get_attr(self, obj, attr, euler=False):
         if attr.find('ee_pos') >= 0:
@@ -247,7 +248,13 @@ class EnvWrapper():
         self.env.sim.forward()
 
     def reset(self):
-        return self.env.reset()
+        obs = self.env.reset()
+        for _ in range(5):
+            if self.mode == 'ee_pos':
+                self.env.step([0, 0, 0, 0, 0, 0, 0])
+            elif self.mode == 'jnt':
+                self.env.step([0, 0, 0, 0, 0, 0, 0, 0])
+        return obs
 
 
 class RobotAgent(TAMPAgent):
@@ -273,6 +280,7 @@ class RobotAgent(TAMPAgent):
                 object_type='cereal',
                 ignore_done=True,
                 render_gpu_device_id=0,
+                initialization_noise={'magnitude': 0.25, 'type': 'gaussian'}
             )
 
         sawyer_geom = list(self.plans.values())[0].params['sawyer'].geom
@@ -285,7 +293,7 @@ class RobotAgent(TAMPAgent):
         no = self._hyperparams['num_objs']
         self.targ_labels = {i: np.array(self.prob.END_TARGETS[i]) for i in range(len(self.prob.END_TARGETS))}
         self.targ_labels.update({i: self.targets[0]['aux_target_{0}'.format(i-no)] for i in range(no, no+self.prob.n_aux)})
-        self.cur_obs = self.base_env.reset()
+        self.cur_obs = self.mjc_env.reset()
         self.replace_cond(0)
 
     def get_annotated_image(self, s, t, cam_id=None):
@@ -390,20 +398,31 @@ class RobotAgent(TAMPAgent):
     def run_policy_step(self, u, x):
         self._col = []
         ctrl = {attr: u[inds] for (param_name, attr), inds in self.action_inds.items()}
-        n_steps = 100
-        gripper = 0.1 if ctrl['right_gripper'] > 0 else -0.1
+        n_steps = 50
+        cur_grip = x[self.state_inds['sawyer', 'right_gripper']]
+        cur_z = x[self.state_inds['sawyer', 'right_ee_pos']][2]
+        if cur_z > 10:#GRIPPER_Z:
+            gripper = 0.1 if cur_grip > 0.013 else -0.1
+        else:
+            gripper = 0.1 if ctrl['right_gripper'] > 0 else -0.1
+
         if 'right_ee_pos' in ctrl:
             targ_pos = self.mjc_env.get_attr('sawyer', 'right_ee_pos') + ctrl['right_ee_pos']
             rotoff = Rotation.from_rotvec(ctrl['right_ee_rot'])
             curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
             targrot = (rotoff * Rotation.from_quat(curquat)).as_quat()
+            pos_mult = 5e1
+            rot_mult = 1e1
             for n in range(n_steps+1):
                 curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
-                pos_ctrl = 5e1 * (targ_pos - self.mjc_env.get_attr('sawyer', 'right_ee_pos'))
+                pos_ctrl = pos_mult * (targ_pos - self.mjc_env.get_attr('sawyer', 'right_ee_pos'))
                 sign1 = np.sign(targrot[np.argmax(np.abs(targrot))])
                 sign2 = np.sign(curquat[np.argmax(np.abs(curquat))])
-                rot_ctrl = -sign1 * sign2 * 1e1 * robo_T.get_orientation_error(sign1*targrot, sign2*curquat)
+                rot_ctrl = -sign1 * sign2 * rot_mult * robo_T.get_orientation_error(sign1*targrot, sign2*curquat)
                 self.cur_obs = self.base_env.step(np.r_[pos_ctrl, rot_ctrl, [gripper]])
+                #if np.max(np.abs(pos_ctrl)) < pos_mult * 0.005 \
+                #   and np.max(np.abs(rot_ctrl)) < rot_mult * 0.01:
+                #       break
 
         elif 'right' in ctrl:
             targ_pos = self.mjc_env.get_attr('sawyer', 'right') + ctrl['right']
@@ -545,13 +564,17 @@ class RobotAgent(TAMPAgent):
             if aname == 'left_ee_pos':
                 sample.set(LEFT_EE_POS_ENUM, mp_state[inds], t)
                 ee_pose = mp_state[inds]
+                ee_rot = mp_state[self.state_inds[pname, 'left_ee_rot']]
             elif aname == 'right_ee_pos':
                 sample.set(RIGHT_EE_POS_ENUM, mp_state[inds], t)
                 ee_pose = mp_state[inds]
+                ee_rot = mp_state[self.state_inds[pname, 'right_ee_rot']]
             elif aname.find('ee_pos') >= 0:
                 sample.set(EE_ENUM, mp_state[inds], t)
                 ee_pose = mp_state[inds]
+                ee_rot = mp_state[self.state_inds[pname, 'ee_rot']]
 
+        ee_quat = T.euler_to_quaternion(ee_rot, 'xyzw')
         sample.set(STATE_ENUM, mp_state, t)
         if self.hist_len > 0:
             sample.set(TRAJ_HIST_ENUM, self._prev_U.flatten(), t)
@@ -603,6 +626,8 @@ class RobotAgent(TAMPAgent):
                         targ_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[inds]
                         break
                 targ_off_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds[obj_name, 'pose']]
+                obj_quat = T.euler_to_quaternion(mp_state[self.state_inds[obj_name, 'rotation']], 'xyzw')
+                targ_quat = T.euler_to_quaternion(targets[self.target_inds[targ_name, 'rotation']], 'xyzw')
             else:
                 obj_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
                 targ_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
@@ -614,13 +639,17 @@ class RobotAgent(TAMPAgent):
             sample.task_name = self.task_list[task[0]]
 
             if self.task_list[task[0]].find('grasp') >= 0:
+                rot_off = theta_error(ee_quat, obj_quat)
                 sample.set(END_POSE_ENUM, obj_pose, t)
-                #sample.set(END_POSE_ENUM, obj_pose.copy(), t)
+                sample.set(END_ROT_ENUM, rot_off, t)
             elif self.task_list[task[0]].find('putdown') >= 0:
+                rot_off = theta_error(ee_quat, targ_quat)
                 sample.set(END_POSE_ENUM, targ_pose, t)
-                #sample.set(END_POSE_ENUM, targ_pose.copy(), t)
+                sample.set(END_ROT_ENUM, rot_off, t)
             else:
+                rot_off = theta_error(ee_quat, obj_quat)
                 sample.set(END_POSE_ENUM, obj_pose, t)
+                sample.set(END_ROT_ENUM, rot_off, t)
 
         sample.condition = cond
         sample.set(TARGETS_ENUM, targets.copy(), t)
@@ -722,7 +751,7 @@ class RobotAgent(TAMPAgent):
         self._x_delta[:] = x.reshape((1,-1))
         self._prev_task = np.zeros((self.task_hist_len, self.dPrimOut))
         self.cur_state = x.copy()
-        self.base_env.reset()
+        self.mjc_env.reset()
         for (pname, aname), inds in self.state_inds.items():
             if pname == 'table': continue
             if aname.find('ee_pos') >= 0 or aname.find('ee_rot') >= 0: continue
@@ -738,14 +767,6 @@ class RobotAgent(TAMPAgent):
                 val = np.array([0,0,-3])
             else:
                 val = self.mjc_env.get_attr(pname, aname, euler=True)
-            if pname.find('cereal') >= 0 and aname == 'pose':
-                val[2] -= 0.035
-            #if pname.find('milk') >= 0 and aname == 'pose':
-            #    val[2] -= 0.035
-            #if pname.find('milk') >= 0 and aname == 'pose':
-            #    val[2] -= 0.035
-            #if pname.find('milk') >= 0 and aname == 'pose':
-            #    val[2] -= 0.035
             if aname in ['left', 'right']:
                 lb, ub = self.mjc_env.geom.get_joint_limits(aname)
                 val = np.maximum(np.minimum(val, ub), lb)
@@ -847,7 +868,7 @@ class RobotAgent(TAMPAgent):
 
 
     def get_random_initial_state_vec(self, config, plans, dX, state_inds, ncond):
-        self.cur_obs = self.base_env.reset()
+        self.cur_obs = self.mjc_env.reset()
         x = np.zeros(self.dX)
         for pname, aname in self.state_inds:
             inds = self.state_inds[pname, aname]
@@ -863,7 +884,7 @@ class RobotAgent(TAMPAgent):
     
     
     def replace_cond(self, cond, curric_step=-1):
-        self.cur_obs = self.base_env.reset()
+        self.cur_obs = self.mjc_env.reset()
         x, targets = self.get_random_initial_state_vec(self.config, self.plans, self.dX, self.state_inds, 1)
         x, targets = x[0], targets[0]
         self.init_vecs[cond] = x
@@ -1067,6 +1088,8 @@ class RobotAgent(TAMPAgent):
             inds = self.action_inds['sawyer', 'right']
             lb, ub = list(self.plans.values())[0].params['sawyer'].geom.get_joint_limits('right')
             vec[inds] = 1. / (np.array(ub)-np.array(lb))**2
+        elif ('sawyer', 'right_ee_pos') in self.action_inds and ('sawyer', 'right_ee_rot') in self.action_inds:
+            vecs = np.array([1e1, 1e1, 1e1, 1e-1, 1e-1, 1e-1, 1e0])
         return np.diag(vec)
 
 

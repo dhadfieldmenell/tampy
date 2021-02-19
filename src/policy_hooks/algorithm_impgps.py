@@ -233,6 +233,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         # Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dU))
         tgt_prc, tgt_wt = np.zeros((0, dU, dU)), np.zeros((0,))
+        prim_obs_data = np.zeros((0, self.dPrim))
 
         for sample in optimal_samples:
             prc = np.zeros((1, sample.T, dU, dU))
@@ -249,6 +250,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
 
             tgt_mu = np.concatenate((tgt_mu, sample.get_U()))
             obs_data = np.concatenate((obs_data, sample.get_obs()))
+            prim_obs_data = np.concatenate((prim_obs_data, sample.get_prim_obs()))
             tgt_wt = np.concatenate((tgt_wt, wt))
             tgt_prc = np.concatenate((tgt_prc, prc.reshape(-1, dU, dU)))
 
@@ -280,6 +282,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
                 tgt_prc = np.concatenate((tgt_prc, prc))
                 tgt_wt = np.concatenate((tgt_wt, wt))
                 obs_data = np.concatenate((obs_data, obs))
+                prim_obs_data = np.concatenate((prim_obs_data, sample.get_prim_obs()))
         obs_data = obs_data.reshape((-1, dO))
         tgt_mu = tgt_mu.reshape((-1, dU))
         tgt_wt = tgt_wt.reshape((-1, 1))

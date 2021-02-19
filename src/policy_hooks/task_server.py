@@ -19,6 +19,8 @@ from policy_hooks.server import Server
 from policy_hooks.search_node import *
 
 
+EXPAND_LIMIT = 10
+
 class TaskServer(Server):
     def __init__(self, hyperparams):
         os.nice(1)
@@ -35,14 +37,14 @@ class TaskServer(Server):
 
     def find_task_plan(self):
         node = self.pop_queue(self.task_queue)
-        if node is None:
+        if node is None or node.expansions > EXPAND_LIMIT:
             node = self.spawn_problem()
 
         try:
             plan_str = self.agent.hl_solver.run_planner(node.abs_prob, node.domain, node.prefix, label=self.id)
         except OSError as e:
             print('OSError in hl solve:', e)
-            plan_str = Plan.IMPOSIBBLE
+            plan_str = Plan.IMPOSSIBLE
 
         if plan_str == Plan.IMPOSSIBLE: return
         new_node = LLSearchNode(plan_str, 

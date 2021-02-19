@@ -56,6 +56,7 @@ env = robosuite.make(
     single_object_mode=2,
     object_type='cereal',
     ignore_done=True,
+    initialization_noise={'magnitude': 0.25, 'type': 'gaussian'},
 )
 obs = env.reset()
 env.sim.data.qacc[:] = 0
@@ -131,7 +132,7 @@ for t in range(plan.horizon):
     #angle = robosuite.utils.transform_utils.quat2axisangle(quat)
 
     rgrip = sawyer.right_gripper[0,t]
-    act = np.r_[pos, quat, [-rgrip]]
+    act = np.r_[pos, quat, [-1e1*rgrip]]
     #act = np.r_[pos, angle, [-rgrip]]
     #act = np.r_[sawyer.right[:,t], [-rgrip]]
     cmds.append(act)
@@ -149,7 +150,7 @@ import ipdb; ipdb.set_trace()
 nsteps = 50
 cur_ind = 0
 for act in plan.actions:
-    for t in range(act.active_timesteps[0], min(act.active_timesteps[1]+1, plan.horizon)):
+    for t in range(act.active_timesteps[0], act.active_timesteps[1]):
         base_act = cmds[cur_ind]
         cur_ind += 1
         targ = base_act[3:7]

@@ -1,5 +1,8 @@
 import pickle as pickle
 import os
+import sys
+import time
+
 import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
@@ -171,6 +174,116 @@ def get_policy_data(policy, keywords=[], exclude=[], include=[]):
                             pt['var'] = pt['var'][policy]
                     rollout_data[r] = r_data
                     data[k][full_exp][full_dir] = rollout_data
+
+    return data
+
+
+def get_motion_data(policy, keywords=[], exclude=[], include=[]):
+    exp_probs = os.listdir(LOG_DIR)
+    data = {}
+    for k in keywords:
+        data[k] = {}
+        for exp_name in exp_probs:
+            dir_prefix = LOG_DIR + exp_name + '/'
+            if not os.path.isdir(dir_prefix): continue
+            exp_dirs = os.listdir(dir_prefix)
+            for dir_name in exp_dirs:
+                d = dir_name
+                full_dir = dir_prefix + dir_name
+                if d.find('.') >= 0 or d.find('trained') >= 0: continue
+                skip = False
+                for ekey in exclude:
+                    if full_dir.find(ekey) >= 0:
+                        skip = True
+        
+                if len(include):
+                    skip = True
+                    for inc in include:
+                        if dir_name.find(inc) >= 0 or dir_prefix.find(inc) >= 0:
+                            skip = False
+                    if skip: continue
+
+
+                if len(exclude):
+                    skip = False
+                    for exc in exclude:
+                        if dir_name.find(exc) >= 0 or dir_prefix.find(exc) >= 0:
+                            skip = True
+                            print(('skipping', dir_name))
+                if skip: continue
+
+                if not os.path.isdir(full_dir) or full_dir.find(k) < 0: continue
+                full_exp = full_dir[:-1]
+                if full_exp not in data[k]:
+                    data[k][full_exp] = {}
+
+                file_names = os.listdir(full_dir)
+                file_names = [fname for fname in file_names if fname.find('MotionInfo') >= 0]
+                rollout_data = {'motion': []}
+                for r in file_names:
+                    with open(full_dir+'/'+r, 'r') as f:
+                        next_data = f.read()
+                    if len(next_data):
+                        next_data = str.split(next_data, '\n\n')
+                        r_data = [eval(d) for d in next_data if len(d)]
+                        print('Loading {0} pts for {1}'.format(len(r_data), full_dir+'/'+r))
+                        rollout_data['motion'].extend(r_data)
+                        data[k][full_exp][full_dir] = rollout_data
+
+    return data
+
+
+def get_rollout_data(policy, keywords=[], exclude=[], include=[]):
+    exp_probs = os.listdir(LOG_DIR)
+    data = {}
+    for k in keywords:
+        data[k] = {}
+        for exp_name in exp_probs:
+            dir_prefix = LOG_DIR + exp_name + '/'
+            if not os.path.isdir(dir_prefix): continue
+            exp_dirs = os.listdir(dir_prefix)
+            for dir_name in exp_dirs:
+                d = dir_name
+                full_dir = dir_prefix + dir_name
+                if d.find('.') >= 0 or d.find('trained') >= 0: continue
+                skip = False
+                for ekey in exclude:
+                    if full_dir.find(ekey) >= 0:
+                        skip = True
+        
+                if len(include):
+                    skip = True
+                    for inc in include:
+                        if dir_name.find(inc) >= 0 or dir_prefix.find(inc) >= 0:
+                            skip = False
+                    if skip: continue
+
+
+                if len(exclude):
+                    skip = False
+                    for exc in exclude:
+                        if dir_name.find(exc) >= 0 or dir_prefix.find(exc) >= 0:
+                            skip = True
+                            print(('skipping', dir_name))
+                if skip: continue
+
+                if not os.path.isdir(full_dir) or full_dir.find(k) < 0: continue
+                full_exp = full_dir[:-1]
+                if full_exp not in data[k]:
+                    data[k][full_exp] = {}
+
+                file_names = os.listdir(full_dir)
+                file_names = [fname for fname in file_names if fname.find('RolloutInfo') >= 0]
+                rollout_data = {'motion': []}
+                for r in file_names:
+                    with open(full_dir+'/'+r, 'r') as f:
+                        next_data = f.read()
+                    if len(next_data):
+                        next_data = str.split(next_data, '\n\n')
+                        r_data = [eval(d) for d in next_data if len(d)]
+                        print('Loading {0} pts for {1}'.format(len(r_data), full_dir+'/'+r))
+                        rollout_data['motion'].extend(r_data)
+                        data[k][full_exp][full_dir] = rollout_data
 
     return data
 
@@ -730,10 +843,15 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
     if not len(keywords): keywords.append(LOG_DIR)
     if lab == 'rollout':
         rd = get_rollout_data(keywords, exclude=exclude)
+    elif lab == 'motion':
+        rd = get_motion_data(keywords, exclude=exclude)
+    elif lab == 'rollout_info':
+        rd = get_rollout_data(keywords, exclude=exclude)
     elif lab == 'test':
         rd = get_test_data(keywords, include=include, exclude=exclude, split_runs=split_runs, pre=pre, label_vars=label_vars)
     else:
         rd = get_policy_data(lab, keywords, exclude=exclude,include=include)
+    prefix = lab
     data = {}
     print('Collected data...')
     xvars = [xvar] if type(xvar) is not list else xvar
@@ -799,20 +917,41 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
             flat_yvar_labs.extend([v+'{0}'.format('_'+str(i) if inds_to_var.get(v,0) > 1 else '') for i in range(inds_to_var.get(v,1))])
 
     # yvar_labs = np.concatenate([[v+'{0}'.format('_'+str(i) if inds_to_var.get(v, 0) > 1 else '') for i in range(inds_to_var.get(v, 1))] for v in yvars])
-    plot(data, ['description', 'key', 'exp id']+xvars+flat_yvar_labs, '{0}_vs_{1}'.format(xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind, inter=inter, rolling=rolling, window=window, xlim=xlim, ylim=ylim)
+    plot(data, ['description', 'key', 'exp id']+xvars+flat_yvar_labs, '{0}_{1}_vs_{1}'.format(prefix, xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind, inter=inter, rolling=rolling, window=window, xlim=xlim, ylim=ylim)
 
-include=['conttask_grip']
-exclude=[]
-keywords=['namo']
-#gen_data_plots(xvar='time', yvar=[['train_accuracy', 'test_accuracy']], keywords=keywords, lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='1objlossesspreadtargs', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
-#gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='lossdataloadtargs', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
-gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=100, ylim=[(0.,1.), (0.,1.), (0, 1.)])
-gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadsplitruns', exclude=exclude, split_runs=True, include=include, inter=60, window=100, ylim=[(0.,1.), (0.,1.), (0, 1.)])
-gen_data_plots(xvar='time', yvar=['success with postcond', 'success with adj_eta'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadpostpreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0,1), (0,1)])
-gen_data_plots(xvar='time', yvar=['number of plans'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadratetargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300)
-gen_data_plots(xvar='time', yvar=['collision'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='coldataloadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
-gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadnplansend', exclude=exclude, split_runs=False, include=include, inter=5, window=500, ylim=[(0.,1.), (0.,1.), (0, 1.)])
-gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadlosstrain', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
+if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        print('Loading command line:', sys.argv)
+        perpetual = eval(sys.argv[1])
+    else: 
+        perpetual = False
 
+    if len(sys.argv) > 2:
+        keywords = [sys.argv[2]]
+    else: 
+        keywords=['sawyer']
 
+    if len(sys.argv) > 3:
+        include = [sys.argv[3:]]
+    else: 
+        include=[]#['conttask_grip']
+
+    exclude=[]
+    terminate = False
+    while not terminate:
+        if not perpetual:
+            terminate = True
+        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='move_to_grasp_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
+        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='move_to_putdown_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
+        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='grasp_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
+        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='putdown_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
+        gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere', 'distance from goal'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadtargs', exclude=exclude, split_runs=False, include=include, inter=30, window=50, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)])
+        gen_data_plots(xvar='time', yvar=['success with postcond', 'success with adj_eta'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadpostpreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0,1), (0,1)])
+        gen_data_plots(xvar='time', yvar=['number of plans'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadratetargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300)
+        gen_data_plots(xvar='time', yvar=['collision'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='coldataloadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
+        gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadnplansend', exclude=exclude, split_runs=False, include=include, inter=5, window=500, ylim=[(0.,1.), (0.,1.), (0, 1.)])
+        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
+
+        if not terminate:
+            time.sleep(180)
 

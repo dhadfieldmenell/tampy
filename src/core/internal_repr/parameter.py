@@ -104,6 +104,11 @@ class Parameter(object):
     def store_free_attrs(self, free_attrs):
         self._free_attrs = free_attrs
 
+    def freeze_up_to(self, t):
+        if t<= 0: return
+        for attr in self._free_attrs:
+            self._free_attrs[attr][:,:t] = 0.
+
     def fix_attr(self, attr, active_ts):
         if self.is_symbol():
             active_ts = (0,0)

@@ -89,6 +89,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         for arm in robot.geom.arms:
             robot.openrave_body.set_dof({arm: getattr(robot, arm)[:,start_ts]})
         obj = act.params[1]
+        targ = act.params[2]
         st, et = act.active_timesteps
         for param in plan.params.values():
             if hasattr(param, 'openrave_body') and param.openrave_body is not None:
@@ -126,7 +127,9 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         ### Sample poses
         for i in range(resample_size):
             ### Cases for when behavior can be inferred from current action
-            if a_name.find('grasp') >= 0 or a_name.find('putdown') >= 0:
+            if a_name.find('grasp') >= 0:
+                pose = self.vertical_gripper(robot, arm, obj, gripper_open, (st, et), rand=(rand or (i>0)))
+            elif a_name.find('putdown') >= 0:
                 pose = self.vertical_gripper(robot, arm, obj, gripper_open, (st, et), rand=(rand or (i>0)))
 
             ### Cases for when behavior cannot be inferred from current action

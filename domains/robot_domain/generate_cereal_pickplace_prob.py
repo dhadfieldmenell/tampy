@@ -116,7 +116,7 @@ def main():
 
     s += "Invariants: "
     s += "(StationaryBase sawyer), "
-    s += "(RightGripperDownRot sawyer), "
+    #s += "(RightGripperDownRot sawyer), "
     #s += "(LeftEEValid sawyer), "
     s += "\n\n"
 

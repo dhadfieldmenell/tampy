@@ -23,12 +23,22 @@ from policy_hooks.server import Server
 from policy_hooks.search_node import *
 
 
+LOG_DIR = 'experiment_logs/'
+
 class MotionServer(Server):
     def __init__(self, hyperparams):
         super(MotionServer, self).__init__(hyperparams)
         self.in_queue = self.motion_queue
         self.out_queue = self.task_queue
         self.label_type = 'optimal'
+        self.motion_log = LOG_DIR + hyperparams['weight_dir'] + '/MotionInfo_{0}_log.txt'.format(self.id)
+        self.log_infos = []
+        self.infos = {'n_ff': 0, 'n_postcond': 0, 'n_precond': 0, 'n_midcond': 0, 'n_explore': 0}
+        self.init_costs = []
+        self.rolled_costs = []
+        self.final_costs = []
+        with open(self.motion_log, 'w+') as f:
+            f.write('')
 
 
     def refine_plan(self, node):
@@ -36,6 +46,7 @@ class MotionServer(Server):
         if node is None: return
 
         node.gen_plan(self.agent.hl_solver, self.agent.openrave_bodies)
+        self.log_node_info(node)
         plan = node.curr_plan
         if type(plan) is str: return
 
@@ -108,6 +119,7 @@ class MotionServer(Server):
 
             if not step % 10:
                 self.set_policies()
+                self.write_log()
             self.refine_plan(node)
 
             inv_cov = self.agent.get_inv_cov()
@@ -134,4 +146,40 @@ class MotionServer(Server):
                     self.expert_demos['use_mask'][-1].append(s.use_ts[t])
         if self.cur_step % 5:
             np.save(self.expert_data_file, self.expert_demos)
+
+    def log_node_info(self, node):
+        key = 'n_ff'
+        if node.label.find('post') >= 0:
+            key = 'n_postcond'
+        elif node.label.find('pre') >= 0:
+            key = 'n_precond'
+        elif node.label.find('mid') >= 0:
+            key = 'n_midcond'
+        elif node.label.find('rollout') >= 0:
+            key = 'n_explore'
+
+        self.infos[key] += 1
+        with self.policy_opt.buf_sizes[key].get_lock():
+            self.policy_opt.buf_sizes[key].value += 1
+
+    def get_log_info(self):
+        info = {
+                'time': time.time() - self.start_t,
+                }
+
+        for key in self.infos:
+            info[key] = self.infos[key]
+
+        if len(self.init_costs): info['mp initial costs'] = np.mean(self.init_costs[-10:])
+        if len(self.rolled_costs): info['mp rolled out costs'] = np.mean(self.rolled_costs[-10:])
+        if len(self.final_costs): info['mp optimized costs'] = np.mean(self.final_costs[-10:])
+        return info #self.log_infos
+
+
+    def write_log(self):
+        with open(self.motion_log, 'a+') as f:
+            info = self.get_log_info()
+            pp_info = pprint.pformat(info, depth=60)
+            f.write(str(pp_info))
+            f.write('\n\n')
 

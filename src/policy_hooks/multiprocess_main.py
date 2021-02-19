@@ -371,6 +371,10 @@ class MultiProcessMain(object):
         buf_sizes['n_ff'].value = 0
         buf_sizes['n_postcond'] = mp.Value('i')
         buf_sizes['n_postcond'].value = 0
+        buf_sizes['n_precond'] = mp.Value('i')
+        buf_sizes['n_precond'].value = 0
+        buf_sizes['n_midcond'] = mp.Value('i')
+        buf_sizes['n_midcond'].value = 0
         buf_sizes['n_explore'] = mp.Value('i')
         buf_sizes['n_explore'].value = 0
         buf_sizes['n_rollout'] = mp.Value('i')
@@ -437,7 +441,7 @@ class MultiProcessMain(object):
         hyperparams['run_hl_test'] = True
         hyperparams['id'] = 'test'
         hyperparams['view'] = hyperparams['view_policy']
-        hyperparams['load_render'] = hyperparams['view_policy']
+        hyperparams['load_render'] = hyperparams['load_render'] or hyperparams['view_policy']
         hyperparams['check_precond'] = False
         self.create_server(RolloutServer, copy.copy(hyperparams))
         hyperparams['id'] = 'moretest'

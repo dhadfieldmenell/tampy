@@ -98,6 +98,10 @@ class Plan(object):
         for p in self.params.values():
             p.store_free_attrs(attrs[p])
 
+    def freeze_up_to(self, t):
+        for p in self.params.values():
+            p.freeze_up_to(t)
+
     def freeze_actions(self, anum):
         for i in range(anum):
             st, et = self.actions[i].active_timesteps
