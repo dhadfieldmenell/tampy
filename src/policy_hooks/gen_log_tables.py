@@ -737,7 +737,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
         sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_true{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
 
 
-def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100, rolling=True, window=100, xlim=None, ylim=None):
+def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100, rolling=True, window=100, xlim=None, ylim=None, fname=''):
     sns.set()
     if not separate:
         d = []
@@ -754,11 +754,11 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                 if type(yv) not in (np.string_, str):
                     df = pd_frame.melt(id_vars=[xv, columns[0]], value_vars=yv, var_name='y_variable', value_name='value')
                     sns_plot = sns.relplot(x=xv, y='value', hue=columns[0], style="y_variable", kind='line', data=df, markers=True, dashes=False)
-                    sns_plot.savefig(SAVE_DIR+'/{0}_{1}_{2}_vs_{3}.png'.format(k, descr.replace(' ', ''), xv, str(yv)[1:-1].replace(' ,', '')))
+                    sns_plot.savefig(SAVE_DIR+'/{0}{1}_{2}_{3}_vs_{4}.png'.format(fname, k, descr.replace(' ', ''), xv, str(yv)[1:-1].replace(' ,', '')))
                     sns.set()
                 else:
                     sns_plot = sns.relplot(x=xv, y=yv, hue=columns[0], kind='line', data=pd_frame)
-                    sns_plot.savefig(SAVE_DIR+'/{0}_{1}_{2}_vs_{3}.png'.format(k, descr.replace(' ', ''), xv, yv))
+                    sns_plot.savefig(SAVE_DIR+'/{0}{1}_{2}_{3}_vs_{4}.png'.format(fname, k, descr.replace(' ', ''), xv, yv))
                     sns.set()
         print(('PLOTTED for', k, descr))
 
@@ -815,7 +815,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                     '''
             naxs = len(sns_plot.fig.get_axes())
             sns_plot.fig.get_axes()[0].legend(bbox_to_anchor=[-0.05, -0.15], loc='upper left', prop={'size': 12})
-            sns_plot.savefig(SAVE_DIR+'/{0}_{1}.png'.format(k, descr.replace(' ', '_')))
+            sns_plot.savefig(SAVE_DIR+'/{0}{1}_{2}.png'.format(fname, k, descr.replace(' ', '_')))
             print(('PLOTTED for', k, descr))
             sns.set()
 
@@ -841,7 +841,8 @@ def gen_label(exp_dir, label_vars=[], split_runs=False, run_ind=0):
 def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1., 
                    label_vars=[], ylabel='value', separate=True, keyind=3, 
                    exclude=[], include=[], split_runs=False,
-                   pre=False, rolling=True, window=100, xlim=None, ylim=None):
+                   pre=False, rolling=True, window=100, xlim=None, ylim=None,
+                   fname=''):
     if not len(keywords): keywords.append(LOG_DIR)
     if lab == 'rollout':
         rd = get_rollout_data(keywords, exclude=exclude)
@@ -919,7 +920,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
             flat_yvar_labs.extend([v+'{0}'.format('_'+str(i) if inds_to_var.get(v,0) > 1 else '') for i in range(inds_to_var.get(v,1))])
 
     # yvar_labs = np.concatenate([[v+'{0}'.format('_'+str(i) if inds_to_var.get(v, 0) > 1 else '') for i in range(inds_to_var.get(v, 1))] for v in yvars])
-    plot(data, ['description', 'key', 'exp id']+xvars+flat_yvar_labs, '{0}_{1}_vs_{1}'.format(prefix, xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind, inter=inter, rolling=rolling, window=window, xlim=xlim, ylim=ylim)
+    plot(data, ['description', 'key', 'exp id']+xvars+flat_yvar_labs, '{0}_{1}_vs_{1}'.format(prefix, xvar, ylabel), xvars, yvar_labs, separate=separate, keyind=keyind, inter=inter, rolling=rolling, window=window, xlim=xlim, ylim=ylim, fname=fname)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
@@ -943,21 +944,20 @@ if __name__ == '__main__':
     while not terminate:
         if not perpetual:
             terminate = True
-        gen_data_plots(xvar='time', yvar=['move_to_grasp_right_successes'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='move_policy_successes', exclude=exclude, split_runs=False, include=include, inter=5, window=50)
-        gen_data_plots(xvar='time', yvar=['move_to_putdown_right_successes'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='moveput_policy_successes', exclude=exclude, split_runs=False, include=include, inter=5, window=50)
-        gen_data_plots(xvar='time', yvar=['grasp_right_successes'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='grasp_policy_successes', exclude=exclude, split_runs=False, include=include, inter=5, window=50)
+        gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=30, window=50, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc')
+        gen_data_plots(xvar='time', yvar=['move_to_grasp_right_successes'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='move_policy_successes', exclude=exclude, split_runs=False, include=include, inter=5, window=50, fname='polsuc')
+        gen_data_plots(xvar='time', yvar=['move_to_putdown_right_successes'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='moveput_policy_successes', exclude=exclude, split_runs=False, include=include, inter=5, window=50, fname='pol2suc')
+        gen_data_plots(xvar='time', yvar=['grasp_right_successes'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='grasp_policy_successes', exclude=exclude, split_runs=False, include=include, inter=5, window=50, fname='pol3suc')
         gen_data_plots(xvar='time', yvar=['putdown_right_successes'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='put_policy_successes', exclude=exclude, split_runs=False, include=include, inter=5, window=50)
-        gen_data_plots(xvar='time', yvar=['dagger_success', 'rollout_midcondition_failure', 'rollout_precondition_failure', 'rollout_postcondition_failure'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='dagger_failure_percentages', exclude=exclude, split_runs=False, include=include, inter=30, window=50, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 1.)])
-        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='move_to_grasp_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
-        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='move_to_putdown_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
-        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='grasp_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
-        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='putdown_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
-        gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere', 'distance from goal'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadtargs', exclude=exclude, split_runs=False, include=include, inter=30, window=50, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)])
-        gen_data_plots(xvar='time', yvar=['success with postcond', 'success with adj_eta'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadpostpreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0,1), (0,1)])
+        gen_data_plots(xvar='time', yvar=['dagger_success', 'rollout_midcondition_failure', 'rollout_precondition_failure'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='dagger_failure_percentages', exclude=exclude, split_runs=False, include=include, inter=30, window=50, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 1.)], fname='daggerinfo')
+        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='move_to_grasp_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot4', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='movetograsppol')
+        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='move_to_putdown_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot3', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='movetoputpol')
+        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='grasp_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot2', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='grasppol')
+        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='putdown_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot1', exclude=exclude, split_runs=True, include=include, inter=60, window=20, 'putpol')
+        gen_data_plots(xvar='time', yvar=['success with postcond', 'success with adj_eta'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadpostpreadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0,1), (0,1)], 'postcondinfo')
         gen_data_plots(xvar='time', yvar=['number of plans'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadratetargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300)
-        gen_data_plots(xvar='time', yvar=['collision'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='coldataloadtargs', exclude=exclude, split_runs=False, include=include, inter=60, window=300, ylim=[(0.,1.), (0.,1.), (0, 1.)])
-        gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadnplansend', exclude=exclude, split_runs=False, include=include, inter=5, window=500, ylim=[(0.,1.), (0.,1.), (0, 1.)])
-        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
+        gen_data_plots(xvar='number of plans', yvar=['success at end', 'any target', 'subgoals closest distance'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='dataloadnplansend', exclude=exclude, split_runs=False, include=include, inter=5, window=500, ylim=[(0.,1.), (0.,1.), (0, 1.)], 'nplansuc')
+        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20, 'primpol')
 
         if not terminate:
             time.sleep(180)

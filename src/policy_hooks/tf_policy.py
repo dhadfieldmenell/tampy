@@ -20,7 +20,7 @@ class TfPolicy(Policy):
         sess: tf session.
         device_string: tf device string for running on either gpu or cpu.
     """
-    def __init__(self, dU, obs_tensor, act_op, feat_op, var, sess, device_string, copy_param_scope=None):
+    def __init__(self, dU, obs_tensor, act_op, feat_op, var, sess, device_string, copy_param_scope=None, normalize=True):
         Policy.__init__(self)
         self.dU = dU
         self.obs_tensor = obs_tensor
@@ -32,6 +32,7 @@ class TfPolicy(Policy):
         self.scale = None  # must be set from elsewhere based on observations
         self.bias = None
         self.x_idx = None
+        self.normalize = normalize
 
         if copy_param_scope:
             self.copy_params = tf.get_collection(tf.GraphKeys.VARIABLES, scope=copy_param_scope)
@@ -42,7 +43,7 @@ class TfPolicy(Policy):
                                                      self.copy_params_assign_placeholders[i])
                                              for i in range(len(self.copy_params))]
 
-    def act(self, x, obs, t, noise):
+    def act(self, x, obs, t, noise=None):
         """
         Return an action for a state.
         Args:
@@ -58,8 +59,10 @@ class TfPolicy(Policy):
         if len(obs.shape) == 1:
             obs = np.expand_dims(obs, axis=0)
 
-        obs = obs.copy()
-        obs[:, self.x_idx] = obs[:, self.x_idx].dot(self.scale) + self.bias
+        if self.normalize:
+            obs = obs.copy()
+            obs[:, self.x_idx] = obs[:, self.x_idx].dot(self.scale) + self.bias
+
         with tf.device(self.device_string):
             action_mean = self.sess.run(self.act_op, feed_dict={self.obs_tensor: obs})[0]
         #action_mean = self.sess.run(self.act_op, feed_dict={self.obs_tensor: obs})
@@ -73,6 +76,7 @@ class TfPolicy(Policy):
             if np.any(np.isnan(u)):
                 raise Exception('Nans from policy chol_pol_covar or noise')
 
+        if len(obs) > 1: return u
         return u[0]  # the DAG computations are batched by default, but we use batch size 1.
 
     def get_features(self, obs):

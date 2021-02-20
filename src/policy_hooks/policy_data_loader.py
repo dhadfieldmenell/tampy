@@ -112,6 +112,11 @@ class DataLoader(object):
         if self.normalize or self.aug_f is not None:
             obs = np.array(obs)
         mu = np.array(mu)
+        if self.feed_prob > 0 and self.feed_in_policy is not None:
+            nprim = int(self.feed_prob * len(mu))
+            hl_out = self.feed_in_policy.act(primobs[:nprim])
+            mu[:, self.feed_in_inds] = hl_out[:, self.feed_out_inds]
+
         prc = np.array(prc)
         wt = np.array(wt)
         if len(prc.shape) > 2:

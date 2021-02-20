@@ -18,6 +18,7 @@ do
                                                        -task 2 \
                                                        -rollout 8 \
                                                        -roll_hl \
+                                                       -load_render \
                                                        -descr adj_door_domain & 
         sleep 4h
         pkill -f run_train -9

@@ -284,10 +284,11 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
                 obs_data = np.concatenate((obs_data, obs))
                 prim_obs_data = np.concatenate((prim_obs_data, sample.get_prim_obs()))
         obs_data = obs_data.reshape((-1, dO))
+        prim_obs_data = obs_data.reshape((-1, dO))
         tgt_mu = tgt_mu.reshape((-1, dU))
         tgt_wt = tgt_wt.reshape((-1, 1))
         tgt_prc = tgt_prc.reshape((-1, dU, dU))
         if len(tgt_mu):
-            self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task, label)
+            self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task, label, primobs=prim_obs_data)
         else:
             print('Update no cost called with no data.')

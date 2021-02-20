@@ -41,6 +41,7 @@ def theta_error(cur_quat, next_quat):
 controller_config = load_controller_config(default_controller="OSC_POSE")
 #controller_config = load_controller_config(default_controller="JOINT_VELOCITY")
 #controller_config['control_delta'] = False
+#controller_config['kp'] = 500
 env = robosuite.make(
     "PickPlace",
     robots=["Sawyer"],             # load a Sawyer robot and a Panda robot
@@ -49,7 +50,7 @@ env = robosuite.make(
     has_renderer=True,                      # on-screen rendering
     render_camera="frontview",              # visualize the "frontview" camera
     has_offscreen_renderer=False,           # no off-screen rendering
-    control_freq=100,                        # 20 hz control for applied actions
+    control_freq=80,                        # 20 hz control for applied actions
     horizon=200,                            # each episode terminates after 200 steps
     use_object_obs=True,                   # no observations needed
     use_camera_obs=False,                   # no observations needed
@@ -92,7 +93,7 @@ pos = env.sim.data.qpos[cereal_ind:cereal_ind+3]
 quat = env.sim.data.qpos[cereal_ind+3:cereal_ind+7]
 quat = [quat[1], quat[2], quat[3], quat[0]]
 euler = T.quaternion_to_euler(quat, 'xyzw')
-params['cereal'].pose[:,0] = pos + np.array([0, 0, 0.035])
+params['cereal'].pose[:,0] = pos - np.array([0, 0, 0.035])
 params['cereal'].rotation[:,0] = euler
 
 params['bread'].pose[:,0] = [10,10,0]
@@ -150,7 +151,7 @@ env.sim.data.qvel[:] = 0
 env.sim.forward()
 env.render()
 import ipdb; ipdb.set_trace()
-nsteps = 25
+nsteps = 20
 cur_ind = 0
 for act in plan.actions:
     for t in range(act.active_timesteps[0], act.active_timesteps[1]):
@@ -184,7 +185,7 @@ for act in plan.actions:
             #angle = robosuite.utils.transform_utils.get_orientation_error(sign*targ, cur)
             #rot = Rotation.from_rotvec(angle)
             #currot = Rotation.from_quat(cur)
-            angle = -sign*cur_sign*1e2*robosuite.utils.transform_utils.get_orientation_error(sign*targrot, cur_sign*cur)
+            angle = -sign*cur_sign*5e2*robosuite.utils.transform_utils.get_orientation_error(sign*targrot, cur_sign*cur)
             #a = np.linalg.norm(angle)
             #if a > 2*np.pi:
             #    angle = (a - 2*np.pi)  * angle / a

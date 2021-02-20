@@ -47,7 +47,16 @@ class PolicyServer(object):
         self.in_queue = hyperparams['hl_queue'] if self.task == 'primitive' else hyperparams['ll_queue']
         self.batch_size = hyperparams['batch_size']
         normalize = self.task != 'primitive'
-        self.data_gen = DataLoader(hyperparams, self.task, self.in_queue, self.batch_size, normalize, min_buffer=self.min_buffer)
+        feed_prob = hyperparams['end_to_end_prob']
+        in_inds, out_inds = None, None
+        if len(self.continuous_opts):
+            for enum in self.continuous_opts:
+                in_inds.append(self.agent._obs_idx[opt])
+                out_inds.append(self.agent._prim_out_idx[opt])
+            in_inds = np.concatenate(in_inds, axis=0)
+            out_inds = np.concatenate(out_inds, axis=0)
+
+        self.data_gen = DataLoader(hyperparams, self.task, self.in_queue, self.batch_size, normalize, min_buffer=self.min_buffer, feed_prob=feed_prob, feed_inds=(in_inds, out_inds))
         aug_f = None
         no_im = IM_ENUM not in hyperparams['prim_obs_include']
         if self.task == 'primitive' and hyperparams['permute_hl'] > 0 and no_im:
@@ -147,9 +156,14 @@ class PolicyServer(object):
 
             if not self.iters % 10:
                 self.policy_opt.write_shared_weights([self.task])
+                if len(self.continuous_opts) and self.task != 'primitive':
+                    self.policy_opt.read_shared_weights(['primitive'])
+                    self.data_gen.feed_in_policy = self.policy_opt.prim_policy
+
                 n_train = self.data_gen.get_size()
                 n_val = self.data_gen.get_size(val=True)
                 print('Ran', self.iters, 'updates on', self.task, 'with', n_train, 'train and', n_val, 'val')
+
             if not self.iters % 10 and len(self.val_losses['all']):
                 with open(self.policy_opt_log, 'a+') as f:
                     info = self.get_log_info()

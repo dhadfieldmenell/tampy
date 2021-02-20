@@ -262,7 +262,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                         utils.END_POSE_ENUM,
                         utils.END_ROT_ENUM,
                         #utils.RIGHT_ENUM,
-                        utils.RIGHT_GRIPPER_ENUM,
+                        #utils.RIGHT_GRIPPER_ENUM,
                         # utils.DONE_ENUM,
                         ],
         'prim_obs_include': [

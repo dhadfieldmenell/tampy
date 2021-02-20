@@ -31,6 +31,7 @@ class MotionServer(Server):
         self.in_queue = self.motion_queue
         self.out_queue = self.task_queue
         self.label_type = 'optimal'
+        self.opt_wt = hyperparams['opt_wt']
         self.motion_log = LOG_DIR + hyperparams['weight_dir'] + '/MotionInfo_{0}_log.txt'.format(self.id)
         self.log_infos = []
         self.infos = {'n_ff': 0, 'n_postcond': 0, 'n_precond': 0, 'n_midcond': 0, 'n_explore': 0}

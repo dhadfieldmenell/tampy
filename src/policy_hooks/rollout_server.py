@@ -210,7 +210,7 @@ class RolloutServer(Server):
             bad_pt = switch_pts[-1]
             if self.check_midcond:
                 plan = self.agent.plans[cur_tasks[-1]]
-                traj, steps = self.agent.reverse_retime(path[bad_pt[0]:], (0, plan.horizon-1), label=True)
+                traj, steps, _ = self.agent.reverse_retime(path[bad_pt[0]:], (0, plan.horizon-1), label=True)
                 for t in range(len(traj)-1):
                     set_params_attrs(plan.params, self.agent.state_inds, traj[t], t)
                 self.agent.set_symbols(plan, cur_tasks[-1], targets=targets)
@@ -514,6 +514,7 @@ class RolloutServer(Server):
             for task in self.alg_map:
                 data = self.agent.get_opt_samples(task, clear=True)
                 if len(data) and self.ll_rollout_opt:
+                    inv_cov = self.agent.get_inv_cov()
                     self.alg_map[task]._update_policy_no_cost(data, label='rollout')
 
             if self.hl_rollout_opt:

@@ -120,7 +120,7 @@ class EnvWrapper():
         self._type_cache = {}
         self.sim = env.sim
         self.model = env.mjpy_model
-        self.z_offsets = {'cereal': 0.035}
+        self.z_offsets = {'cereal': 0.045}
         self.mode = mode
 
     def get_attr(self, obj, attr, euler=False):
@@ -226,6 +226,7 @@ class EnvWrapper():
             if pos is not None: self.env.sim.data.body_xpos[ind] = pos
             if quat is not None:
                 self.env.sim.data.body_xquat[ind] = quat
+
         if forward:
             self.env.sim.forward()
 
@@ -285,7 +286,7 @@ class RobotAgent(TAMPAgent):
                 has_renderer=False,                      # on-screen rendering
                 render_camera="frontview",              # visualize the "frontview" camera
                 has_offscreen_renderer=self.load_render,           # no off-screen rendering
-                control_freq=200,                        # 20 hz control for applied actions
+                control_freq=40,                        # 20 hz control for applied actions
                 horizon=300,                            # each episode terminates after 200 steps
                 use_object_obs=True,                   # no observations needed
                 use_camera_obs=False,                   # no observations needed
@@ -312,11 +313,13 @@ class RobotAgent(TAMPAgent):
     def get_annotated_image(self, s, t, cam_id=None):
         x = s.get_X(t=t)
         self.reset_to_state(x)
-        return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
+        #return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
+        return self.base_env.sim.render(height=128, width=128, camera_name="frontview")
 
     def get_image(self, x, depth=False, cam_id=None):
         self.reset_to_state(x)
-        return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
+        #return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
+        return self.base_env.sim.render(height=128, width=128, camera_name="frontview")
 
     def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None):
         assert not np.any(np.isnan(state))
@@ -411,7 +414,7 @@ class RobotAgent(TAMPAgent):
     def run_policy_step(self, u, x):
         self._col = []
         ctrl = {attr: u[inds] for (param_name, attr), inds in self.action_inds.items()}
-        n_steps = 50
+        n_steps = 30
         cur_grip = x[self.state_inds['sawyer', 'right_gripper']]
         cur_z = x[self.state_inds['sawyer', 'right_ee_pos']][2]
         if cur_z > 10:#GRIPPER_Z:
@@ -425,8 +428,9 @@ class RobotAgent(TAMPAgent):
             rotoff = Rotation.from_rotvec(ctrl['right_ee_rot'])
             curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
             targrot = (rotoff * Rotation.from_quat(curquat)).as_quat()
-            pos_mult = 5e1
-            rot_mult = 2e1
+            pos_mult = 1e1#1e2#5e2
+            rot_mult = 1e1#1e2#5e2
+            scale = 1.#0.975
             for n in range(n_steps+1):
                 curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
                 pos_ctrl = pos_mult * (targ_pos - self.mjc_env.get_attr('sawyer', 'right_ee_pos'))
@@ -434,8 +438,10 @@ class RobotAgent(TAMPAgent):
                 sign2 = np.sign(curquat[np.argmax(np.abs(curquat))])
                 rot_ctrl = -sign1 * sign2 * rot_mult * robo_T.get_orientation_error(sign1*targrot, sign2*curquat)
                 self.cur_obs = self.base_env.step(np.r_[pos_ctrl, rot_ctrl, [gripper]])
+                pos_mult *= scale
+                rot_mult *= scale
                 #if np.max(np.abs(pos_ctrl)) < pos_mult * 0.005 \
-                #   and np.max(np.abs(rot_ctrl)) < rot_mult * 0.01:
+                #   and np.max(np.abs(rot_ctrl)) < rot_mult * 0.005:
                 #       break
 
         elif 'right' in ctrl:
@@ -528,9 +534,9 @@ class RobotAgent(TAMPAgent):
                 if np.any(np.isnan(getattr(param, attr)[:,0])):
                     getattr(param, attr)[:,0] = 0
 
-        old_out_coeff = self.solver.strong_transfer_coeff
-        if out_coeff is not None:
-            self.solver.strong_transfer_coeff = out_coeff
+        #old_out_coeff = self.solver.strong_transfer_coeff
+        #if out_coeff is not None:
+        #    self.solver.strong_transfer_coeff = out_coeff
         try:
             if smoothing:
                 success = self.solver.quick_solve(plan, n_resamples=n_resamples, traj_mean=traj_mean, attr_dict=attr_dict)
@@ -543,7 +549,7 @@ class RobotAgent(TAMPAgent):
             # traceback.print_exception(*sys.exc_info())
             success = False
 
-        self.solver.strong_transfer_coeff = old_out_coeff
+        #self.solver.strong_transfer_coeff = old_out_coeff
 
         try:
             if not len(failed_preds):
@@ -1028,16 +1034,19 @@ class RobotAgent(TAMPAgent):
             fpts = []
             grippts= []
             d = 0
+            rotinds = self.state_inds['sawyer', 'right_ee_rot']
+            rotpts =[]
             if inds is None:
-                if ('sawyer', 'right_ee_pos') in self.state_inds:
+                if ('sawyer', 'right_ee_pos') in self.action_inds:
                     inds = self.state_inds['sawyer', 'right_ee_pos']
-                elif ('sawyer', 'right') in self.state_inds:
+                elif ('sawyer', 'right') in self.action_inds:
                     inds = self.state_inds['sawyer', 'right']
 
             for t in range(len(step)):
                 xpts.append(d)
                 fpts.append(step[t])
                 grippts.append(step[t][self.state_inds['sawyer', 'right_gripper']])
+                rotpts.append(step[t][self.state_inds['sawyer', 'right_ee_rot']])
                 if t < len(step) - 1:
                     disp = np.linalg.norm(step[t+1][inds] - step[t][inds])
                     d += disp
@@ -1045,6 +1054,7 @@ class RobotAgent(TAMPAgent):
             assert not np.any(np.isnan(fpts))
             interp = scipy.interpolate.interp1d(xpts, fpts, axis=0, fill_value='extrapolate')
             grip_interp = scipy.interpolate.interp1d(np.array(xpts), grippts, kind='next', bounds_error=False, axis=0)
+            rot_interp = scipy.interpolate.interp1d(np.array(xpts), rotpts, kind='next', bounds_error=False, axis=0)
 
             fix_pts = []
             if type(vel) is float:
@@ -1075,7 +1085,9 @@ class RobotAgent(TAMPAgent):
                 raise NotImplementedError('Velocity undefined')
             out = interp(x)
             grip_out = grip_interp(x)
+            rot_out = rot_interp(x)
             out[:, self.state_inds['sawyer', 'right_gripper']] = grip_out
+            out[:, self.state_inds['sawyer', 'right_ee_rot']] = rot_out
             out[0] = step[0]
             out[-1] = step[-1]
             for pt, val in fix_pts:

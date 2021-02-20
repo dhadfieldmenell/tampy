@@ -414,7 +414,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                         np.zeros(dU),
                                         self.sess,
                                         self.device_string,
-                                        copy_param_scope=None)
+                                        copy_param_scope=None,
+                                        normalize=False)
         for scope in self.valid_scopes:
             if self.scope is None or scope == self.scope:
                 self.task_map[scope]['policy'] = TfPolicy(dU,

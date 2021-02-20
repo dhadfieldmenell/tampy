@@ -138,6 +138,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.prim_dims = self._hyperparams['prim_dims']
         self.prim_dims_keys = list(self.prim_dims.keys())
         self.permute_hl = self.master_config.get('permute_hl', False)
+        self.opt_wt = self.master_config['opt_wt']
 
         # TAMP solver info
         bt_ll.COL_COEFF = self.master_config['col_coeff']
@@ -333,11 +334,11 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         raise NotImplementedError
 
     def sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, skip_opt=False, hor=None):
-        if not skip_opt and policy is not None and self.policy_initialized(policy): # Policy is uninitialized
-            s, failed, success = self.solve_sample_opt_traj(state, task, condition)
-            s.opt_strength = 1.
-            s.opt_suc = success
-            return s
+        #if not skip_opt and policy is not None and self.policy_initialized(policy): # Policy is uninitialized
+        #    s, failed, success = self.solve_sample_opt_traj(state, task, condition)
+        #    s.opt_strength = 1.
+        #    s.opt_suc = success
+        #    return s
         s = self._sample_task(policy, condition, state, task, save_global=save_global, noisy=noisy, task_f=task_f, hor=hor)
         s.opt_strength = 0.
         s.opt_suc = False
@@ -623,10 +624,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return info
 
 
-    def postcond_cost(self, sample, task=None, t=None):
+    def postcond_cost(self, sample, task=None, t=None, debug=False):
         if t is None: t = sample.T-1
         if task is None: task = tuple(sample.get(FACTOREDTASK_ENUM, t=t))
-        return self.cost_f(sample.get_X(t), task, sample.condition, active_ts=(-1, -1), targets=sample.targets)
+        return self.cost_f(sample.get_X(t), task, sample.condition, active_ts=(-1, -1), targets=sample.targets, debug=debug)
 
 
     def precond_cost(self, sample, task=None, t=0):
@@ -782,7 +783,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             policy = self.policies[self.task_list[task[0]]]
             if not len(traj) and rollout and self.policy_initialized(policy):
                 hor = 100 if self.retime else self.plans[task].horizon
-                sample = self.sample_task(policy, 0, x0.copy(), task, hor=hor)
+                sample = self.sample_task(policy, 0, x0.copy(), task, hor=hor, skip_opt=True)
                 cost = self.postcond_cost(sample, task, sample.T-1)
                 if self.retime:
                     traj = self.reverse_retime([sample], (st, et))
@@ -816,7 +817,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return success
 
 
-    def run_plan(self, plan, targets, tasks=None, reset=True, permute=False, save=True, amin=0, amax=None, record=True, wt=1., start_ts=0):
+    def run_plan(self, plan, targets, tasks=None, reset=True, permute=False, save=True, amin=0, amax=None, record=True, wt=1., start_ts=0, verbose=False):
         if record: self.n_plans_run += 1
         path = []
         start_ts = int(start_ts)
@@ -905,8 +906,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             print('Failed rollout of plan')
 
         if len(path):
-            for s in path:
-                cost = self.postcond_cost(s, s.task, s.T-1)
+            for ind, s in enumerate(path):
+                end_s = [next_s for next_s in path[ind:] if next_s.task_end]
+                end_s = end_s[0] if len(end_s) else path[-1]
+                cost = self.postcond_cost(end_s, end_s.task, end_s.T-1, debug=False)
                 if cost < 1e-3:
                     self.optimal_samples[self.task_list[s.task[0]]].append(s)
                 elif path[-1].success > 0.99:
@@ -1077,7 +1080,9 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
         if len(failed_preds) and cost == 0:
             cost += 1
-
+       
+        if debug:
+            print(active_ts, cost, failed_preds, task)
         return cost
 
 
@@ -1116,7 +1121,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
     
     def reverse_retime(self, samples, ts, label=False):
-        T = sum([s.T for s in samples])
+        T = 1+sum([s.T-1 for s in samples])
         if T <= ts[1]-ts[0]:
             return np.concatenate([s.get(STATE_ENUM) for s in samples])
 
@@ -1125,6 +1130,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         cur_offset = 0
         traj = []
         labels = []
+        rev_labels = [0]
+        prev_t = 0
         for ind, t in enumerate(ts):
             t = int(t)
             cur_t = t - cur_offset
@@ -1137,7 +1144,14 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             sample = samples[cur_s]
             traj.append(sample.get(STATE_ENUM, t=cur_t))
             labels.append(cur_s)
-        if label: return np.array(traj), labels
+            for _ in range(t-prev_t):
+                rev_labels.append(t)
+
+            prev_t = t
+
+        rev_labels = rev_labels[:-1]
+        rev_labels[-1] = len(traj)-1
+        if label: return np.array(traj), labels, rev_labels
         return np.array(traj)
 
 
