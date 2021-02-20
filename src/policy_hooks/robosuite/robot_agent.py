@@ -425,8 +425,8 @@ class RobotAgent(TAMPAgent):
             rotoff = Rotation.from_rotvec(ctrl['right_ee_rot'])
             curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
             targrot = (rotoff * Rotation.from_quat(curquat)).as_quat()
-            pos_mult = 5e2 if self.retime else 5e1
-            rot_mult = 1e2 if self.retime else 2e1
+            pos_mult = 5e1
+            rot_mult = 2e1
             for n in range(n_steps+1):
                 curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
                 pos_ctrl = pos_mult * (targ_pos - self.mjc_env.get_attr('sawyer', 'right_ee_pos'))
