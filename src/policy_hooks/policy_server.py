@@ -37,6 +37,7 @@ class PolicyServer(object):
         hyperparams['policy_opt']['split_hl_loss'] = hyperparams['split_hl_loss']
         hyperparams['policy_opt']['gpu_id'] = 0
         hyperparams['policy_opt']['use_gpu'] = 1
+        hyperparams['policy_opt']['load_all'] = self.task != 'primitive'
         hyperparams['agent']['master_config'] = hyperparams
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
         self.map_cont_discr_tasks()
@@ -50,9 +51,10 @@ class PolicyServer(object):
         feed_prob = hyperparams['end_to_end_prob']
         in_inds, out_inds = None, None
         if len(self.continuous_opts):
-            for enum in self.continuous_opts:
-                in_inds.append(self.agent._obs_idx[opt])
-                out_inds.append(self.agent._prim_out_idx[opt])
+            in_inds, out_inds = [], []
+            for opt in self.continuous_opts:
+                in_inds.append(self.agent._obs_data_idx[opt])
+                out_inds.append(self.agent._prim_out_data_idx[opt])
             in_inds = np.concatenate(in_inds, axis=0)
             out_inds = np.concatenate(out_inds, axis=0)
 

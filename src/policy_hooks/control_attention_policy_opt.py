@@ -315,6 +315,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         input_tensor = None
         if self.load_all or self.scope is None or 'primitive' == self.scope:
             with tf.variable_scope('primitive'):
+                inputs = self.input_layer if 'primitive' == self.scope else None
                 self.primitive_eta = tf.placeholder_with_default(1., shape=())
                 tf_map_generator = self._hyperparams['primitive_network_model']
                 self.primitive_class_tensor = None
@@ -324,7 +325,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                                                        dim_output=self._dPrim, \
                                                                        batch_size=self.batch_size, \
                                                                        network_config=self._hyperparams['primitive_network_params'], \
-                                                                       input_layer=self.input_layer, \
+                                                                       input_layer=inputs, \
                                                                        eta=self.primitive_eta, \
                                                                        class_tensor=self.primitive_class_tensor)
                 else:
@@ -332,7 +333,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                                                        dim_output=self._dPrim, \
                                                                        batch_size=self.batch_size, \
                                                                        network_config=self._hyperparams['primitive_network_params'], \
-                                                                       input_layer=self.input_layer, \
+                                                                       input_layer=inputs, \
                                                                        eta=self.primitive_eta)
                 self.primitive_obs_tensor = tf_map.get_input_tensor()
                 self.primitive_precision_tensor = tf_map.get_precision_tensor()
