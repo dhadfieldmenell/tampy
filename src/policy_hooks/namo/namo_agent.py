@@ -1744,7 +1744,7 @@ class NAMOSortingAgent(TAMPAgent):
     def compare_tasks(self, t1, t2):
         return t1[0] == t2[0] and t1[1] == t2[1]
 
-    def backtrack_solve(self, plan, anum=0, n_resamples=5, rollout=False):
+    def backtrack_solve(self, plan, anum=0, n_resamples=5, rollout=False, traj=[]):
         if self.hl_pol:
             prim_opts = self.prob.get_prim_choices(self.task_list)
             start = anum
@@ -1815,6 +1815,6 @@ class NAMOSortingAgent(TAMPAgent):
             
             print('SUCCESS WITH LL POL + PR GRAPH')
             return True
-        return super(NAMOSortingAgent, self).backtrack_solve(plan, anum, n_resamples, rollout)
+        return super(NAMOSortingAgent, self).backtrack_solve(plan, anum, n_resamples, rollout, traj=[])
 
 

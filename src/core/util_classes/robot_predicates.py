@@ -1612,13 +1612,17 @@ class InContacts(ExprPredicate):
         A = np.eye(2).reshape((2,2))
         b = np.zeros((2,1))
 
-        val = np.array([[self.GRIPPER_CLOSE, self.GRIPPER_CLOSE]]).T
-        aff_expr = AffExpr(A, b)
-        e = EqExpr(aff_expr, val)
+        avg = np.mean([self.GRIPPER_CLOSE, self.GRIPPER_OPEN])
+        sign = -1 if self.GRIPPER_CLOSE > self.GRIPPER_OPEN else 1
+        #val = np.array([[self.GRIPPER_CLOSE, self.GRIPPER_CLOSE]]).T
+        val = np.array([[avg, avg]]).T - sign * 0.01
+        aff_expr = AffExpr(sign*A, b)
+        e = LEqExpr(aff_expr, sign*val)
 
-        aff_expr = AffExpr(A, b)
-        val = np.array([[self.GRIPPER_OPEN, self.GRIPPER_OPEN]]).T
-        self.neg_expr = EqExpr(aff_expr, val)
+        aff_expr = AffExpr(-sign*A, b)
+        #val = np.array([[self.GRIPPER_OPEN, self.GRIPPER_OPEN]]).T
+        val = np.array([[avg, avg]]).T + sign * 0.01
+        self.neg_expr = LEqExpr(aff_expr, -sign*val)
 
         super(InContacts, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
@@ -1731,14 +1735,14 @@ class NearGripper(InGripper):
 
 class NearGripperLeft(InGripperLeft):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.coeff = 1e-2
+        self.coeff = 2e-2
         self.rot_coeff = 1e-2
         super(NearGripperLeft, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
 class NearGripperRight(InGripperRight):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.coeff = 1e-2
+        self.coeff = 2e-2
         self.rot_coeff = 1e-2
         super(NearGripperRight, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
@@ -2081,7 +2085,7 @@ class ApproachLeft(EEReachableLeft):
 class NearApproachLeft(ApproachLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         # self.f_tol = 0.04
-        self.coeff = 1e-2
+        self.coeff = 5e-3
         super(NearApproachLeft, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
@@ -2121,7 +2125,7 @@ class ApproachRight(EEReachableRight):
 class NearApproachRight(ApproachRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         #self.f_tol = 0.04
-        self.coeff = 1e-2
+        self.coeff = 5e-3
         super(NearApproachRight, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 

@@ -762,7 +762,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return self.backtrack_solve(plan, anum=anum, n_resamples=n_resamples)
 
 
-    def backtrack_solve(self, plan, anum=0, n_resamples=5, x0=None, rollout=False):
+    def backtrack_solve(self, plan, anum=0, n_resamples=5, x0=None, rollout=False, traj=[]):
         # Handle to make PR Graph integration easier
         start = anum
         plan.state_inds = self.state_inds
@@ -778,10 +778,9 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 fill_vector(plan.params, self.state_inds, x0, st)
             task = tuple(self.encode_action(plan.actions[a]))
 
-            traj = []
             cost = 1.
             policy = self.policies[self.task_list[task[0]]]
-            if rollout and self.policy_initialized(policy):
+            if not len(traj) and rollout and self.policy_initialized(policy):
                 hor = 100 if self.retime else self.plans[task].horizon
                 sample = self.sample_task(policy, 0, x0.copy(), task, hor=hor)
                 cost = self.postcond_cost(sample, task, sample.T-1)
@@ -817,14 +816,15 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return success
 
 
-    def run_plan(self, plan, targets, tasks=None, reset=True, permute=False, save=True, amin=0, amax=None, record=True, wt=1.):
+    def run_plan(self, plan, targets, tasks=None, reset=True, permute=False, save=True, amin=0, amax=None, record=True, wt=1., start_ts=0):
         if record: self.n_plans_run += 1
         path = []
+        start_ts = int(start_ts)
         nzero = self.master_config.get('add_noop', 0)
         if tasks is None:
             tasks = self.encode_plan(plan)
         x0 = np.zeros_like(self.x0[0])
-        fill_vector(plan.params, self.state_inds, x0, 0)
+        fill_vector(plan.params, self.state_inds, x0, start_ts)
         perm = {}
         old_x0 = x0.copy()
         old_targets = targets
@@ -839,6 +839,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             amax = len(plan.actions)-1
         for a in range(amin, amax+1):
             st, et = plan.actions[a].active_timesteps
+            st = max(st, start_ts)
             task = tasks[a]
             opt_traj = np.zeros((et-st+1, self.symbolic_bound))
             for pname, attr in self.state_inds:
@@ -900,12 +901,16 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             if save: self.add_task_paths([path])
             if record: self.n_plans_suc_run += 1
         else:
+            self.goal_f(0, x0, sample.targets, verbose=True)
             print('Failed rollout of plan')
 
         if len(path):
             for s in path:
                 cost = self.postcond_cost(s, s.task, s.T-1)
-                if path[-1].success > 0.99 or cost < 1e-3:
+                if cost < 1e-3:
+                    self.optimal_samples[self.task_list[s.task[0]]].append(s)
+                elif path[-1].success > 0.99:
+                    print('Adding path w/postcond failure?', self.task_list[s.task[0]])
                     self.optimal_samples[self.task_list[s.task[0]]].append(s)
                 elif path[-1].success > 0.99:
                     preds = self._failed_preds(s.get_X(s.T-1),task, 0, active_ts=(-1,-1))

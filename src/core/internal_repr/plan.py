@@ -98,8 +98,14 @@ class Plan(object):
         for p in self.params.values():
             p.store_free_attrs(attrs[p])
 
-    def freeze_up_to(self, t):
+    def freeze_up_to(self, t, exclude_types=[]):
         for p in self.params.values():
+            skip = False
+            for excl in exclude_types:
+                if excl in p.get_type(True):
+                    skip = True
+                    continue
+            if skip: continue
             p.freeze_up_to(t)
 
     def freeze_actions(self, anum):

@@ -66,7 +66,7 @@ class HLSearchNode(SearchNode):
         return plan_obj
 
 class LLSearchNode(SearchNode):
-    def __init__(self, plan_str, domain, prob, initial, priority=1, keep_failed=False, ref_plan=None, x0=None, targets=None, expansions=0, label='', refnode=None, freeze_ts=-1):
+    def __init__(self, plan_str, domain, prob, initial, priority=1, keep_failed=False, ref_plan=None, x0=None, targets=None, expansions=0, label='', refnode=None, freeze_ts=-1, hl=True, ref_traj=[]):
         self.curr_plan = 'no plan'
         self.plan_str = plan_str
         self.domain = domain
@@ -78,8 +78,10 @@ class LLSearchNode(SearchNode):
         self.targets = targets
         self.ref_plan = ref_plan
         self.x0 = x0
+        self.hl = hl
         self.freeze_ts = freeze_ts
         self.label = label
+        self.ref_traj = ref_traj
         #self.refnode = refnode
         self._trace = [label] 
         if refnode is not None:
@@ -186,7 +188,13 @@ class LLSearchNode(SearchNode):
             fill_a = self.ref_plan.start - 1 if self.freeze_ts <= 0 else self.ref_plan.start
             if fill_a >= 0:
                 self.curr_plan.fill(self.ref_plan, amax=fill_a)
-            self.curr_plan.freeze_up_to(self.freeze_ts)
+            if self.freeze_ts > 0:
+                preds = self.curr_plan.get_failed_preds((0, self.freeze_ts-1), priority=-2)
+                if len(preds):
+                    print('Violation in linear constraints', self._trace, preds)
+                else:
+                    self.curr_plan.freeze_up_to(self.freeze_ts)
+
         return self.curr_plan
 
     def plan(self, solver, n_resamples=5):

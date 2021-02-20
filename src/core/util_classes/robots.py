@@ -121,7 +121,8 @@ class Robot(object):
             arm = self.arms[0]
 
         gripper = self.ee_link_names[arm]
-        ub = np.max(self.jnt_limits[gripper][1])
+        #ub = np.max(self.jnt_limits[gripper][1])
+        ub = self.jnt_limits[gripper][1][0]
         return ub
 
     def get_gripper_closed_val(self, arm=None):
@@ -129,7 +130,8 @@ class Robot(object):
             arm = self.arms[0]
 
         gripper = self.ee_link_names[arm]
-        lb = np.min(self.jnt_limits[gripper][0])
+        #lb = np.min(self.jnt_limits[gripper][0])
+        lb = self.jnt_limits[gripper][0][0]
         return lb
 
     def _init_pybullet(self):

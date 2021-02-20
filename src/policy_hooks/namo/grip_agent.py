@@ -872,7 +872,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         return goal
 
 
-    def backtrack_solve(self, plan, anum=0, n_resamples=5, rollout=False):
+    def backtrack_solve(self, plan, anum=0, n_resamples=5, rollout=False, traj=[]):
         if self.hl_pol:
             prim_opts = self.prob.get_prim_choices(self.task_list)
             start = anum
@@ -945,7 +945,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             
             print('SUCCESS WITH LL POL + PR GRAPH')
             return True
-        return super(NAMOSortingAgent, self).backtrack_solve(plan, anum, n_resamples, rollout)
+        return super(NAMOSortingAgent, self).backtrack_solve(plan, anum, n_resamples, rollout, traj=traj)
 
 
     def get_annotated_image(self, s, t, cam_id=None):

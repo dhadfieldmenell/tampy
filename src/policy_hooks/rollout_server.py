@@ -216,9 +216,9 @@ class RolloutServer(Server):
                 self.agent.set_symbols(plan, cur_tasks[-1], targets=targets)
                 failed_preds = plan.get_failed_preds(tol=1e-3)
                 failed_preds = [p for p in failed_preds if (p[1]._rollout or (not p[1]._nonrollout and type(p[1].expr) is not EqExpr))]
-                fail_t = min([p[2]+p[1].active_range[0] for p in failed_preds]) - 2
+                fail_t = min([p[2]+p[1].active_range[0] for p in failed_preds]) - 1
                 fail_t = max(0, fail_t)
-                fail_t = min(fail_t, plan.horizon-5)
+                fail_t = min(fail_t, plan.horizon-4)
                 if len(failed_preds):
                     fail_type = 'rollout_midcondition_failure'
                     fail_s = bad_pt[0] + steps[fail_t]
@@ -237,7 +237,9 @@ class RolloutServer(Server):
                                             expansions=1,
                                             label='rollout_midcondition_failure',
                                             refnode=None,
-                                            freeze_ts=fail_t)
+                                            freeze_ts=fail_t,
+                                            hl=False,
+                                            ref_traj=traj)
                     self.push_queue(new_node, self.motion_queue)
 
         if np.random.uniform() < 1:#0.25:
@@ -489,10 +491,11 @@ class RolloutServer(Server):
                 self.agent.replace_cond(0)
                 self.agent.reset(0)
                 n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans'].value
-                save_video = self.id.find('moretest') >= 0 and n_plans > 100
+                save_video = self.id.find('moretest') >= 0 and n_plans > 10
                 self.test_hl(save_video=save_video)
 
-            if self.run_hl_test or self._n_plans < ff_iters: continue
+            if self.run_hl_test: continue
+            if self._n_plans < ff_iters: continue
 
             self.set_policies()
             node = self.pop_queue(self.rollout_queue)

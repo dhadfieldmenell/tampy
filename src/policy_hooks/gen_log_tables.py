@@ -178,7 +178,7 @@ def get_policy_data(policy, keywords=[], exclude=[], include=[]):
     return data
 
 
-def get_motion_data(policy, keywords=[], exclude=[], include=[]):
+def get_motion_data(keywords=[], exclude=[], include=[]):
     exp_probs = os.listdir(LOG_DIR)
     data = {}
     for k in keywords:
@@ -226,14 +226,14 @@ def get_motion_data(policy, keywords=[], exclude=[], include=[]):
                     if len(next_data):
                         next_data = str.split(next_data, '\n\n')
                         r_data = [eval(d) for d in next_data if len(d)]
-                        print('Loading {0} pts for {1}'.format(len(r_data), full_dir+'/'+r))
+                        print('MOTION: Loading {0} pts for {1}'.format(len(r_data), full_dir+'/'+r))
                         rollout_data['motion'].extend(r_data)
                         data[k][full_exp][full_dir] = rollout_data
 
     return data
 
 
-def get_rollout_data(policy, keywords=[], exclude=[], include=[]):
+def get_rollout_info_data(keywords=[], exclude=[], include=[]):
     exp_probs = os.listdir(LOG_DIR)
     data = {}
     for k in keywords:
@@ -274,15 +274,17 @@ def get_rollout_data(policy, keywords=[], exclude=[], include=[]):
 
                 file_names = os.listdir(full_dir)
                 file_names = [fname for fname in file_names if fname.find('RolloutInfo') >= 0]
-                rollout_data = {'motion': []}
+                rollout_data = {'rollout': []}
                 for r in file_names:
                     with open(full_dir+'/'+r, 'r') as f:
                         next_data = f.read()
                     if len(next_data):
                         next_data = str.split(next_data, '\n\n')
                         r_data = [eval(d) for d in next_data if len(d)]
-                        print('Loading {0} pts for {1}'.format(len(r_data), full_dir+'/'+r))
-                        rollout_data['motion'].extend(r_data)
+                        for pt in r_data:
+                            pt['exp id'] = 0
+                        print('ROLLOUT: Loading {0} pts for {1}'.format(len(r_data), full_dir+'/'+r))
+                        rollout_data['rollout'].extend(r_data)
                         data[k][full_exp][full_dir] = rollout_data
 
     return data
@@ -846,7 +848,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
     elif lab == 'motion':
         rd = get_motion_data(keywords, exclude=exclude)
     elif lab == 'rollout_info':
-        rd = get_rollout_data(keywords, exclude=exclude)
+        rd = get_rollout_info_data(keywords, exclude=exclude)
     elif lab == 'test':
         rd = get_test_data(keywords, include=include, exclude=exclude, split_runs=split_runs, pre=pre, label_vars=label_vars)
     else:
@@ -941,6 +943,11 @@ if __name__ == '__main__':
     while not terminate:
         if not perpetual:
             terminate = True
+        gen_data_plots(xvar='time', yvar=['move_to_grasp_right_successes'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='move_policy_successes', exclude=exclude, split_runs=False, include=include, inter=5, window=50)
+        gen_data_plots(xvar='time', yvar=['move_to_putdown_right_successes'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='moveput_policy_successes', exclude=exclude, split_runs=False, include=include, inter=5, window=50)
+        gen_data_plots(xvar='time', yvar=['grasp_right_successes'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='grasp_policy_successes', exclude=exclude, split_runs=False, include=include, inter=5, window=50)
+        gen_data_plots(xvar='time', yvar=['putdown_right_successes'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='put_policy_successes', exclude=exclude, split_runs=False, include=include, inter=5, window=50)
+        gen_data_plots(xvar='time', yvar=['dagger_success', 'rollout_midcondition_failure', 'rollout_precondition_failure', 'rollout_postcondition_failure'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='dagger_failure_percentages', exclude=exclude, split_runs=False, include=include, inter=30, window=50, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 1.)])
         gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='move_to_grasp_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
         gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='move_to_putdown_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20)
         gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='grasp_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20)

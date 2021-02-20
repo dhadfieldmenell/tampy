@@ -137,11 +137,17 @@ class EnvWrapper():
             jnts = self.geom.jnt_names[attr]
             if attr in self.geom.arms:
                 jnts = ['robot0_'+jnt for jnt in jnts]
-                return self.get_joints(jnts)
+                vals = self.get_joints(jnts)
+                lb, ub = self.geom.get_joint_limits(attr)
+                vals = np.maximum(np.minimum(ub, vals), lb)
+                return vals
             else:
                 jnts = ['gripper0_'+jnt for jnt in jnts]
                 vals = self.get_joints(jnts)
-                return vals[:1]
+                val = np.mean([vals[0], -vals[1]])
+                cv, ov = self.geom.get_gripper_closed_val(), self.geom.get_gripper_open_val()
+                val = cv if np.abs(val - cv) < np.abs(val - ov) else ov
+                return [val]
 
         if obj == 'sawyer':
             obj = 'robot0_base'
@@ -249,11 +255,18 @@ class EnvWrapper():
 
     def reset(self):
         obs = self.env.reset()
-        for _ in range(5):
+        cur_pos = self.get_attr('sawyer', 'right_ee_pos')
+        for _ in range(10):
             if self.mode == 'ee_pos':
-                self.env.step([0, 0, 0, 0, 0, 0, 0])
+                ctrl = cur_pos - self.get_attr('sawyer', 'right_ee_pos')
+                ctrl *= 10
+                self.env.step(np.r_[ctrl, [0, 0, 0, 0]])
             elif self.mode == 'jnt':
                 self.env.step([0, 0, 0, 0, 0, 0, 0, 0])
+        #cereal_pos = self.get_item_pose('cereal')[0]
+        #cereal_pos[2] = 0.865
+        #self.set_item_pose('cereal', cereal_pos)
+        #self.forward()
         return obs
 
 
@@ -280,7 +293,7 @@ class RobotAgent(TAMPAgent):
                 object_type='cereal',
                 ignore_done=True,
                 render_gpu_device_id=0,
-                initialization_noise={'magnitude': 0.25, 'type': 'gaussian'}
+                initialization_noise={'magnitude': 0.1, 'type': 'gaussian'}
             )
 
         sawyer_geom = list(self.plans.values())[0].params['sawyer'].geom
@@ -407,12 +420,13 @@ class RobotAgent(TAMPAgent):
             gripper = 0.1 if ctrl['right_gripper'] > 0 else -0.1
 
         if 'right_ee_pos' in ctrl:
+            ctrl['right_ee_pos'] = np.clip(ctrl['right_ee_pos'], -0.08, 0.08)
             targ_pos = self.mjc_env.get_attr('sawyer', 'right_ee_pos') + ctrl['right_ee_pos']
             rotoff = Rotation.from_rotvec(ctrl['right_ee_rot'])
             curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
             targrot = (rotoff * Rotation.from_quat(curquat)).as_quat()
-            pos_mult = 5e1
-            rot_mult = 1e1
+            pos_mult = 5e2 if self.retime else 5e1
+            rot_mult = 1e2 if self.retime else 2e1
             for n in range(n_steps+1):
                 curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
                 pos_ctrl = pos_mult * (targ_pos - self.mjc_env.get_attr('sawyer', 'right_ee_pos'))
@@ -673,7 +687,7 @@ class RobotAgent(TAMPAgent):
                 sample.set(IM_ENUM, im.flatten(), t)
 
 
-    def goal_f(self, condition, state, targets=None, cont=False, anywhere=False, tol=LOCAL_NEAR_TOL):
+    def goal_f(self, condition, state, targets=None, cont=False, anywhere=False, tol=LOCAL_NEAR_TOL, verbose=False):
         if targets is None:
             targets = self.target_vecs[condition]
         cost = self.prob.NUM_OBJS
@@ -704,7 +718,8 @@ class RobotAgent(TAMPAgent):
             T = self.plans[task].horizon - 1
             preds = self._failed_preds(state[-1], task, 0, active_ts=(T,T), tol=1e-3)
             cost = len(preds)
-            #if len(preds): print('FAILED:', preds, preds[0][1].expr.expr.eval(preds[0][1].get_param_vector(T)), self.process_id)
+            if verbose and len(preds):
+                print('FAILED:', preds, preds[0][1].expr.expr.eval(preds[0][1].get_param_vector(T)), self.process_id)
             if cont: return cost
             return 1. if len(preds) else 0.
 
@@ -1077,10 +1092,7 @@ class RobotAgent(TAMPAgent):
     def compare_tasks(self, t1, t2):
         return t1[0] == t2[0] and t1[1] == t2[1]
 
-    def backtrack_solve(self, plan, anum=0, n_resamples=5, rollout=False):
-        return super(RobotAgent, self).backtrack_solve(plan, anum, n_resamples, rollout)
-
-
+   
     def get_inv_cov(self):
         vec = np.ones(self.dU)
         robot = 'sawyer'
@@ -1089,7 +1101,7 @@ class RobotAgent(TAMPAgent):
             lb, ub = list(self.plans.values())[0].params['sawyer'].geom.get_joint_limits('right')
             vec[inds] = 1. / (np.array(ub)-np.array(lb))**2
         elif ('sawyer', 'right_ee_pos') in self.action_inds and ('sawyer', 'right_ee_rot') in self.action_inds:
-            vecs = np.array([1e1, 1e1, 1e1, 1e-1, 1e-1, 1e-1, 1e0])
+            vecs = np.array([1e1, 1e1, 1e1, 1e-2, 1e-2, 1e-2, 1e0])
         return np.diag(vec)
 
 

@@ -34,6 +34,8 @@ class MotionServer(Server):
         self.motion_log = LOG_DIR + hyperparams['weight_dir'] + '/MotionInfo_{0}_log.txt'.format(self.id)
         self.log_infos = []
         self.infos = {'n_ff': 0, 'n_postcond': 0, 'n_precond': 0, 'n_midcond': 0, 'n_explore': 0}
+        self.fail_infos = {'n_fail_ff': 0, 'n_fail_postcond': 0, 'n_fail_precond': 0, 'n_fail_midcond': 0, 'n_fail_explore': 0}
+        self.fail_rollout_infos = {'n_fail_rollout_ff': 0, 'n_fail_rollout_postcond': 0, 'n_fail_rollout_precond': 0, 'n_fail_rollout_midcond': 0, 'n_fail_rollout_explore': 0}
         self.init_costs = []
         self.rolled_costs = []
         self.final_costs = []
@@ -46,7 +48,6 @@ class MotionServer(Server):
         if node is None: return
 
         node.gen_plan(self.agent.hl_solver, self.agent.openrave_bodies)
-        self.log_node_info(node)
         plan = node.curr_plan
         if type(plan) is str: return
 
@@ -61,44 +62,55 @@ class MotionServer(Server):
             failed_prefix = ['ERROR IN FAIL CHECK', e]
 
         if len(failed_prefix):
-            print('BAD PREFIX! -->', plan.actions[:plan.start], 'FAILED', failed_prefix)
+            print('BAD PREFIX! -->', plan.actions[:plan.start], 'FAILED', failed_prefix, node._trace)
             plan.start = 0
 
         ts = (0, plan.actions[plan.start].active_timesteps[0])
         set_params_attrs(plan.params, self.agent.state_inds, node.x0, ts[1])
         plan.freeze_actions(plan.start)
-        init_t = time.time()
-        self.n_plans += 1
-        success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=True)
-        self.n_failed += 0. if success else 1.
-        #print('Time to plan:', time.time() - init_t)
-        if success:
-            wt = self.explore_wt if node.label.lower().find('rollout') >= 0 else 1.
-            path = self.agent.run_plan(plan, node.targets, permute=self.permute_hl, wt=wt)
-            if self.render: # and np.random.uniform() < 0.01 or not path[-1].success and np.random.uniform() < 0.01:
-                self.save_video(path, path[-1].success)
-            self.log_path(path, 10)
-            for step in path: step.source_label = 'optimal'
-            print(self.id, 'Successful refine from', node.label, 'rollout succes was:', path[-1].success, 'first ts:', plan.start)
-        
-        if not success and node.gen_child():
-            fail_step, fail_pred, fail_negated = node.get_failed_pred()
-            print('Refine failed:', plan.get_failed_preds((0, fail_step)), fail_pred, fail_step, plan.actions, node.label, node._trace)
-            n_problem = node.get_problem(fail_step, fail_pred, fail_negated)
-            abs_prob = self.agent.hl_solver.translate_problem(n_problem, goal=node.concr_prob.goal)
-            prefix = node.curr_plan.prefix(fail_step)
-            hlnode = HLSearchNode(abs_prob,
-                                 node.domain,
-                                 n_problem,
-                                 priority=node.priority+1,
-                                 prefix=prefix,
-                                 llnode=node,
-                                 x0=node.x0,
-                                 targets=node.targets,
-                                 expansions=node.expansions+1,
-                                 label=self.id)
-            self.push_queue(hlnode, self.task_queue)
-            print(self.id, 'Failed to refine, pushing to task node.')
+        cur_t = node.freeze_ts if node.freeze_ts >= 0 else 0
+        cur_step = 1
+        while cur_t >= 0:
+            node.gen_plan(self.agent.hl_solver, self.agent.openrave_bodies)
+            init_t = time.time()
+            self.n_plans += 1
+            success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=True, traj=node.ref_traj)
+            self.n_failed += 0. if success else 1.
+            path = []
+            #print('Time to plan:', time.time() - init_t)
+            if success:
+                wt = self.explore_wt if node.label.lower().find('rollout') >= 0 else 1.
+                path = self.agent.run_plan(plan, node.targets, permute=self.permute_hl, wt=wt, start_ts=cur_t, record=node.hl)
+                if self.render: # and np.random.uniform() < 0.01 or not path[-1].success and np.random.uniform() < 0.01:
+                    self.save_video(path, path[-1].success)
+                self.log_path(path, 10)
+                for step in path: step.source_label = 'optimal'
+                print(self.id, 'Successful refine from', node.label, 'rollout succes was:', path[-1].success, 'first ts:', plan.start, cur_t)
+           
+            self.log_node_info(node, success, path)
+            cur_t -= cur_step
+            cur_step *= 3
+            node.freeze_ts = cur_t
+
+            if not success and node.gen_child():
+                fail_step, fail_pred, fail_negated = node.get_failed_pred()
+                print('Refine failed:', plan.get_failed_preds((0, fail_step)), fail_pred, fail_step, plan.actions, node.label, node._trace, node.freeze_ts)
+                if not node.hl: continue
+                n_problem = node.get_problem(fail_step, fail_pred, fail_negated)
+                abs_prob = self.agent.hl_solver.translate_problem(n_problem, goal=node.concr_prob.goal)
+                prefix = node.curr_plan.prefix(fail_step)
+                hlnode = HLSearchNode(abs_prob,
+                                     node.domain,
+                                     n_problem,
+                                     priority=node.priority+1,
+                                     prefix=prefix,
+                                     llnode=node,
+                                     x0=node.x0,
+                                     targets=node.targets,
+                                     expansions=node.expansions+1,
+                                     label=self.id)
+                self.push_queue(hlnode, self.task_queue)
+                print(self.id, 'Failed to refine, pushing to task node.')
 
 
     def run(self):
@@ -147,7 +159,7 @@ class MotionServer(Server):
         if self.cur_step % 5:
             np.save(self.expert_data_file, self.expert_demos)
 
-    def log_node_info(self, node):
+    def log_node_info(self, node, success, path):
         key = 'n_ff'
         if node.label.find('post') >= 0:
             key = 'n_postcond'
@@ -159,6 +171,9 @@ class MotionServer(Server):
             key = 'n_explore'
 
         self.infos[key] += 1
+        if not success:
+            failkey = key.replace('n_', 'n_fail_')
+            self.fail_infos[failkey] += 1
         with self.policy_opt.buf_sizes[key].get_lock():
             self.policy_opt.buf_sizes[key].value += 1
 
