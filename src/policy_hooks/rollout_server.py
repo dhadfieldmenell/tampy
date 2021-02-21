@@ -237,7 +237,7 @@ class RolloutServer(Server):
                     fail_type = 'rollout_midcondition_failure'
                     fail_s = bad_pt[0] + steps[fail_t]
                     x0 = path[bad_pt[0]].get(STATE_ENUM, 0)
-                    print('MID COND:', fail_s, fail_t, bad_pt, failed_preds)
+                    #print('MID COND:', fail_s, fail_t, bad_pt, failed_preds)
                     initial, goal = self.agent.get_hl_info(x0, targets)
                     plan.start = 0
                     new_node = LLSearchNode(plan.plan_str, 
