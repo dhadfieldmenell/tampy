@@ -781,12 +781,13 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
             cost = 1.
             policy = self.policies[self.task_list[task[0]]]
+            labels = None
             if not len(traj) and rollout and self.policy_initialized(policy):
                 hor = 100 if self.retime else self.plans[task].horizon
                 sample = self.sample_task(policy, 0, x0.copy(), task, hor=hor, skip_opt=True)
                 cost = self.postcond_cost(sample, task, sample.T-1)
                 if self.retime:
-                    traj = self.reverse_retime([sample], (st, et))
+                    traj, _, labels = self.reverse_retime([sample], (st, et), label=True)
                 
                 if cost < 1e-3:
                     self.optimal_samples[self.task_list[task[0]]].append(sample)
@@ -1120,18 +1121,18 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return np.all(np.array(t1) == np.array(t2))
 
     
-    def reverse_retime(self, samples, ts, label=False):
+    def reverse_retime(self, samples, ts, label=False, start_t=0):
         T = 1+sum([s.T-1 for s in samples])
-        if T <= ts[1]-ts[0]:
+        if T - start_t <= ts[1] - ts[0]:
             return np.concatenate([s.get(STATE_ENUM) for s in samples])
 
-        ts = np.linspace(0, T, ts[1]-ts[0]+1)
-        cur_s, cur_t = 0, 0
+        ts = np.linspace(start_t, T, ts[1]-ts[0]+1)
+        cur_s, cur_t = 0, start_t
         cur_offset = 0
         traj = []
         labels = []
         rev_labels = [0]
-        prev_t = 0
+        prev_t = cur_t
         for ind, t in enumerate(ts):
             t = int(t)
             cur_t = t - cur_offset

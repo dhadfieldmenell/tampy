@@ -23,7 +23,7 @@ from policy_hooks.server import *
 from policy_hooks.search_node import *
 
 
-ROLL_PRIORITY = 5
+ROLL_PRIORITY = 10
 
 class RolloutServer(Server):
     def __init__(self, hyperparams):
@@ -59,6 +59,7 @@ class RolloutServer(Server):
         self.hl_data = []
         self.fail_data = []
         self.postcond_info = []
+        self.postcond_costs = {task: [] for task in self.task_list}
         self.fail_types = {}
         self.n_fails = 0
         self.dagger_log = LOG_DIR + hyperparams['weight_dir'] + '/RolloutInfo_{0}_log.txt'.format(self.id)
@@ -136,6 +137,8 @@ class RolloutServer(Server):
                     postcost = self.agent.postcond_cost(sample, curtask, t)
                     if postcost > 1e-3:
                         task = curtask
+                    else:
+                        self.postcond_costs[self.task_list[curtask[0]]].append(postcost)
                 
                 if self.check_precond:
                     precost = self.agent.precond_cost(sample, task, t)
@@ -159,7 +162,7 @@ class RolloutServer(Server):
         ntask = len(self.agent.task_list)
         rlen = ntask * self.agent.num_objs # if not self.agent.retime else (3*ntask) * self.agent.num_objs
         t_per_task = 120 if self.agent.retime else 40
-        s_per_task = 1 
+        s_per_task = 1 if self.agent.retime else 2
         self.adj_eta = True
         l = self.get_task(x, targets, None, self.soft)
         l = tuple([val for val in l if np.isscalar(val)])
@@ -174,7 +177,12 @@ class RolloutServer(Server):
 
             task_name = self.task_list[cur_tasks[-1][0]]
             pol = self.agent.policies[task_name]
-            sample = self.agent.sample_task(pol, 0, state, cur_tasks[-1], skip_opt=True, hor=t_per_task-1, task_f=task_f)
+            if self.agent.retime:
+                hor = t_per_task
+            else:
+                hor = self.agent.plans[cur_tasks[-1]].horizon + 1
+
+            sample = self.agent.sample_task(pol, 0, state, cur_tasks[-1], skip_opt=True, hor=hor, task_f=task_f)
             path.append(sample)
             state = sample.get(STATE_ENUM, t=sample.T-1)
             s += 1
@@ -190,6 +198,7 @@ class RolloutServer(Server):
         self.postcond_info.append(val)
         for step in path: step.source_label = 'rollout'
         postcost = self.agent.postcond_cost(path[-1], cur_tasks[-1], path[-1].T-1)
+        self.postcond_costs[self.task_list[cur_tasks[-1][0]]].append(postcost)
         if postcost > 1e-3:
             self.task_successes[self.task_list[cur_tasks[-1][0]]].append(0)
         else:
@@ -210,13 +219,18 @@ class RolloutServer(Server):
             bad_pt = switch_pts[-1]
             if self.check_midcond:
                 plan = self.agent.plans[cur_tasks[-1]]
-                traj, steps, _ = self.agent.reverse_retime(path[bad_pt[0]:], (0, plan.horizon-1), label=True)
+                st = bad_pt[1]
+                traj, steps, _ = self.agent.reverse_retime(path[bad_pt[0]:], (0, plan.horizon-1), label=True, start_t=st)
                 for t in range(len(traj)-1):
                     set_params_attrs(plan.params, self.agent.state_inds, traj[t], t)
                 self.agent.set_symbols(plan, cur_tasks[-1], targets=targets)
                 failed_preds = plan.get_failed_preds(tol=1e-3)
                 failed_preds = [p for p in failed_preds if (p[1]._rollout or (not p[1]._nonrollout and type(p[1].expr) is not EqExpr))]
-                fail_t = min([p[2]+p[1].active_range[0] for p in failed_preds]) - 1
+                if len(failed_preds):
+                    fail_t = min([p[2]+p[1].active_range[0] for p in failed_preds]) - 1
+                else:
+                    fail_t = plan.horizon - 1
+
                 fail_t = max(0, fail_t)
                 fail_t = min(fail_t, plan.horizon-4)
                 if len(failed_preds):
@@ -393,7 +407,7 @@ class RolloutServer(Server):
             targets[self.agent.target_inds['{0}_end_target'.format(obj_name), 'value']] = x0[self.agent.state_inds[obj_name, 'pose']]
         if rlen is None:
             if self.agent.retime:
-                rlen = 6 * n * len(self.agent.task_list)
+                rlen = 2 + 2 * n * len(self.agent.task_list)
             else:
                 rlen = 2 + n * len(self.agent.task_list)
         self.agent.T = 30 # self.config['task_durations'][self.task_list[0]]
@@ -495,7 +509,7 @@ class RolloutServer(Server):
                 self.test_hl(save_video=save_video)
 
             if self.run_hl_test: continue
-            if self._n_plans < ff_iters: continue
+            #if self._n_plans < ff_iters: continue
 
             self.set_policies()
             node = self.pop_queue(self.rollout_queue)
@@ -587,13 +601,18 @@ class RolloutServer(Server):
                 'time': time.time() - self.start_t,
                 }
 
-        info['dagger_success'] = np.mean(self.postcond_info[-10:]) if len(self.postcond_info) else 0.
+        wind = 5
+        info['dagger_success'] = np.mean(self.postcond_info[-wind:]) if len(self.postcond_info) else 0.
         for key in self.fail_types:
             info[key] = self.fail_types[key] / self.n_fails
 
+        for key in self.postcond_costs:
+            if len(self.postcond_costs[key]):
+                info[key+'_costs'] = np.mean(self.postcond_costs[key][-wind:])
+
         for key in self.task_successes:
             if len(self.task_successes[key]):
-                info['{0}_successes'.format(key)] = np.mean(self.task_successes[key][-10:])
+                info['{0}_successes'.format(key)] = np.mean(self.task_successes[key][-wind:])
                 #info['{0}_success_rate'.format(key)] =  info['{0}_calls'.format(key)] / info['{0}_successes'.format(key)]
             else:
                 #info['{0}_calls'.format(key)] = 0. 

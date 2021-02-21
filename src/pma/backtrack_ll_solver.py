@@ -17,7 +17,7 @@ MAX_PRIORITY=3
 BASE_MOVE_COEFF = 1.
 TRAJOPT_COEFF=5e1
 TRANSFER_COEFF = 1e-1
-FIXED_COEFF = 1e3
+FIXED_COEFF = 2e2 # 1e3
 INIT_TRAJ_COEFF = 1e-1
 RS_COEFF = 1e2 # 1e2
 COL_COEFF = 0
@@ -986,4 +986,19 @@ class BacktrackLLSolver(LLSolver):
 
     def _cleanup_plan(self, plan, active_ts):
         return None
+
+    def find_closest_feasible(self, plan, active_ts, priority=MAX_PRIORITY):
+        plan.save_free_attrs()
+        model = grb.Model()
+        model.params.OutputFlag = 0
+        self._bexpr_to_pred = {}
+        self._prob = Prob(model)
+        self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
+        model.update()
+        self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True,
+                                           active_ts=active_ts)
+        succ = self._prob.find_closest_feasible_point()
+        if succ:
+            self._update_ll_params()
+        return succ
 

@@ -1113,7 +1113,7 @@ class RobotAgent(TAMPAgent):
             lb, ub = list(self.plans.values())[0].params['sawyer'].geom.get_joint_limits('right')
             vec[inds] = 1. / (np.array(ub)-np.array(lb))**2
         elif ('sawyer', 'right_ee_pos') in self.action_inds and ('sawyer', 'right_ee_rot') in self.action_inds:
-            vecs = np.array([1e1, 1e1, 1e1, 1e-2, 1e-2, 1e-2, 1e0])
+            vecs = np.array([1e1, 1e1, 1e1, 1e-2, 1e-2, 1e-2, 1e2])
         return np.diag(vec)
 
 

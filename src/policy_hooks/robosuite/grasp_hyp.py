@@ -17,7 +17,7 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.traj_opt_pi2 import TrajOptPI2
 from core.util_classes.namo_grip_predicates import ATTRMAP
 #import policy_hooks.robosuite.sort_prob as prob
-import policy_hooks.robosuite.moveto_prob as prob
+import policy_hooks.robosuite.grasp_prob as prob
 prob.NUM_OBJS = NUM_OBJS
 prob.NUM_TARGS = NUM_TARGS
 from policy_hooks.policy_mp_prior_gmm import PolicyMPPriorGMM

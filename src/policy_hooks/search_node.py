@@ -5,6 +5,9 @@ import copy
 import functools
 import random
 
+
+DEBUG = False
+
 @functools.total_ordering
 class SearchNode(object):
     """
@@ -62,7 +65,7 @@ class HLSearchNode(SearchNode):
             plan_obj.fill(self.ref_plan, amin=0, amax=len(self.prefix)-1)
             plan_obj.start = len(self.prefix)
             ts = (0, plan_obj.actions[plan_obj.start].active_timesteps[0])
-            print('PREFIX SUCCESS:', plan_obj.get_failed_preds(active_ts=ts, tol=1e-3))
+            if DEBUG: print('PREFIX SUCCESS:', plan_obj.get_failed_preds(active_ts=ts, tol=1e-3))
         return plan_obj
 
 class LLSearchNode(SearchNode):
@@ -180,19 +183,37 @@ class LLSearchNode(SearchNode):
     def is_ll_node(self):
         return True
 
-    def gen_plan(self, hl_solver, bodies):
+    def gen_plan(self, hl_solver, bodies, ll_solver):
         self.curr_plan = hl_solver.get_plan(self.plan_str, self.domain, self.concr_prob, self.initial)
         if type(self.curr_plan) is str: return
+        if not len(self.curr_plan.actions):
+            print('Search node found bad plan for', self.initial, self.plan_str)
+
         if self.ref_plan is not None:
             self.curr_plan.start = self.ref_plan.start
             fill_a = self.ref_plan.start - 1 if self.freeze_ts <= 0 else self.ref_plan.start
             if fill_a >= 0:
                 self.curr_plan.fill(self.ref_plan, amax=fill_a)
+
             if self.freeze_ts > 0:
-                preds = self.curr_plan.get_failed_preds((0, self.freeze_ts-1), priority=-2)
+                self.curr_plan.freeze_ts = self.freeze_ts
+                preds = self.curr_plan.get_failed_preds((0, self.freeze_ts))
                 if len(preds):
-                    print('Violation in linear constraints', self._trace, preds)
+                    if DEBUG: print('LLNODE: Violation in constraints, projecting onto', self._trace, preds)
+                    try:
+                        proj_succ = ll_solver.find_closest_feasible(self.curr_plan, (0, self.freeze_ts))
+                    except Exception as e:
+                        if DEBUG:
+                            print('LLNODE FAIL:', e)
+                            print('LLNODE: Failed to project onto constraints', preds)
+                        proj_succ = False
+                    if proj_succ:
+                        preds = self.curr_plan.get_failed_preds((0, self.freeze_ts))
+
+                if len(preds):
+                    if DEBUG: print('LLNODE: Proceeding without projection', self._trace, preds)
                 else:
+                    if DEBUG: print('LLNODE: Proceeding with frozen', self._trace)
                     self.curr_plan.freeze_up_to(self.freeze_ts)
 
         return self.curr_plan

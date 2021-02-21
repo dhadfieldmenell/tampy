@@ -38,7 +38,8 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         iks = []
         attempt = 0
-        robot_body.set_dof({arm: np.zeros(len(robot.geom.jnt_names[arm]))})
+        #robot_body.set_dof({arm: np.zeros(len(robot.geom.jnt_names[arm]))})
+        robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
         while not len(iks) and attempt < 20:
             if rand:
                 target_loc += np.clip(np.random.normal(0, 0.015, 3), -0.03, 0.03)
@@ -79,15 +80,18 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         robot = act.params[0]
         robot_body = robot.openrave_body
-        start_ts = act.active_timesteps[0]
+        st, et = act.active_timesteps
+        if hasattr(plan, 'freeze_ts'):
+            st = max(st, plan.freeze_ts)
+
         for arm in robot.geom.arms:
             attr = '{}_ee_pos'.format(arm)
             if hasattr(robot, attr):
                 info = robot_body.fwd_kinematics(arm)
-                getattr(robot, attr)[:, start_ts] = info['pos']
+                getattr(robot, attr)[:, st] = info['pos']
 
         for arm in robot.geom.arms:
-            robot.openrave_body.set_dof({arm: getattr(robot, arm)[:,start_ts]})
+            robot.openrave_body.set_dof({arm: getattr(robot, arm)[:,st]})
         obj = act.params[1]
         targ = act.params[2]
         st, et = act.active_timesteps
