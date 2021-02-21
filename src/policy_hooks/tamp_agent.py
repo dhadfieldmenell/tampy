@@ -903,7 +903,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             if save: self.add_task_paths([path])
             if record: self.n_plans_suc_run += 1
         else:
-            self.goal_f(0, x0, sample.targets, verbose=True)
+            self.goal_f(0, x0, sample.targets)
             print('Failed rollout of plan')
 
         if len(path):
@@ -1156,8 +1156,14 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return np.array(traj)
 
 
+    def center_cont(self, abs_val, x):
+        return abs_val
+
+
     def get_inv_cov(self):
         return None
 
+
     def get_random_initial_state_vec(self, config, plans, dX, state_inds, n=1):
         return self.prob.get_random_initial_state_vec(config, plans, dX, state_inds, n)
+

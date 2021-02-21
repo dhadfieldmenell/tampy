@@ -6,7 +6,7 @@ import time
 MAX_BUFFER = 200000
 
 class DataLoader(object):
-    def __init__(self, config, task, in_queue, batch_size, normalize=False, policy=None, x_idx=None, aug_f=None, min_buffer=10**3, feed_in_policy=None, feed_prob=0., feed_inds=(None, None)):
+    def __init__(self, config, task, in_queue, batch_size, normalize=False, policy=None, x_idx=None, aug_f=None, min_buffer=10**3, feed_in_policy=None, feed_prob=0., feed_inds=(None, None), feed_map=None):
         self.config = config
         self.in_queue = in_queue
         self.task = task
@@ -20,8 +20,9 @@ class DataLoader(object):
         self.load_freq = 10
         self.feed_in_policy = feed_in_policy
         self.feed_prob = feed_prob
-        self.feed_out_inds = feed_inds[0]
-        self.feed_in_inds = feed_inds[1]
+        self.feed_out_inds = feed_inds[1]
+        self.feed_in_inds = feed_inds[0]
+        self.feed_map = feed_map
 
         self.scale, self.bias = None, None
         self.items = {}
@@ -52,13 +53,14 @@ class DataLoader(object):
             dct = self.items if not val else self.val_items
             label = data[-1]
             if label not in dct: dct[label] = []
-            obs, mu, prc, wt, aux, primobs, task, label = data
+            obs, mu, prc, wt, aux, primobs, x, task, label = data
             for i in range(len(obs)):
                 primpt = primobs[i] if len(primobs) else []
+                xpt = x[i] if len(x) else []
                 if len(aux):
-                    dct[label].append((obs[i], mu[i], prc[i], wt[i], aux[i], primpt, task, label))
+                    dct[label].append((obs[i], mu[i], prc[i], wt[i], aux[i], primpt, xpt, task, label))
                 else:
-                    dct[label].append((obs[i], mu[i], prc[i], wt[i], [], primpt, task, label))
+                    dct[label].append((obs[i], mu[i], prc[i], wt[i], [], primpt, xpt, task, label))
 
             max_size = MAX_BUFFER if not val else (0.1 * MAX_BUFFER)
             max_size = int(max_size)
@@ -86,6 +88,7 @@ class DataLoader(object):
         n_per = size // len(labels) + 1
         obs, mu, prc, wt = [], [], [], []
         primobs = []
+        x = []
         aux = []
         used = []
         n = 0
@@ -108,15 +111,23 @@ class DataLoader(object):
             wt.append(dct[lab][ind][3])
             aux.append(dct[lab][ind][4])
             primobs.append(dct[lab][ind][5])
+            x.append(dct[lab][ind][6])
         #if self.task == 'primitive': print('Time to collect tensor:', time.time() - start_t)
         if self.normalize or self.aug_f is not None:
             obs = np.array(obs)
 
         mu = np.array(mu)
+        x = np.array(x)
         if self.feed_prob > 0 and self.feed_in_policy is not None:
+            if type(obs) is list:
+                obs = np.array(obs)
+            #print('REPLACING LABELS FOR LL W/HL OUTPUTS', self.feed_prob)
             nprim = int(self.feed_prob * len(mu))
-            hl_out = self.feed_in_policy.act(primobs[:nprim])
-            mu[:, self.feed_in_inds] = hl_out[:, self.feed_out_inds]
+            hl_out = self.feed_in_policy.act(None, primobs[:nprim], None)
+            hl_val = hl_out[:nprim, self.feed_out_inds]
+            if self.feed_map is not None:
+                hl_val = self.feed_map(hl_val, x[:nprim])
+            obs[:nprim, self.feed_in_inds] = hl_val #hl_out[:nprim, self.feed_out_inds]
 
         prc = np.array(prc)
         wt = np.array(wt)

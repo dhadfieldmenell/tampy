@@ -56,7 +56,7 @@ class TfPolicy(Policy):
         # Normalize obs.
         if np.any(np.isnan(obs)):
             raise Exception('Nans passed to action in observation')
-        if len(obs.shape) == 1:
+        if len(np.shape(obs)) == 1:
             obs = np.expand_dims(obs, axis=0)
 
         if self.normalize:

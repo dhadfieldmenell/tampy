@@ -218,7 +218,7 @@ class Server(object):
 
 
 
-    def update(self, obs, mu, prc, wt, task, label, acts=[], ref_acts=[], terminal=[], aux=[], primobs=[]):
+    def update(self, obs, mu, prc, wt, task, label, acts=[], ref_acts=[], terminal=[], aux=[], primobs=[], x=[]):
         assert(len(mu) == len(obs))
 
         prc[np.where(prc > 1e10)] = 1e10
@@ -232,7 +232,7 @@ class Server(object):
         assert not np.any(np.isinf(obs))
         obs[np.where(np.abs(obs) > 1e10)] = 0
 
-        data = (obs, mu, prc, wt, aux, primobs, task, label)
+        data = (obs, mu, prc, wt, aux, primobs, x, task, label)
         if task == 'primitive':
             q = self.hl_queue
         else:

@@ -233,6 +233,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         # Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dU))
         tgt_prc, tgt_wt = np.zeros((0, dU, dU)), np.zeros((0,))
+        x_data = np.zeros((0, self.dX))
         prim_obs_data = np.zeros((0, self.dPrim))
 
         for sample in optimal_samples:
@@ -251,6 +252,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
             tgt_mu = np.concatenate((tgt_mu, sample.get_U()))
             obs_data = np.concatenate((obs_data, sample.get_obs()))
             prim_obs_data = np.concatenate((prim_obs_data, sample.get_prim_obs()))
+            x_data = np.concatenate((x_data, sample.get_X()))
             tgt_wt = np.concatenate((tgt_wt, wt))
             tgt_prc = np.concatenate((tgt_prc, prc.reshape(-1, dU, dU)))
 
@@ -274,21 +276,25 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
                         prc[:, i, :, :] = np.tile(inv_cov, [1, 1, 1])
                     wt[:,t] = 1. * sample.use_ts[ts[t]]
 
-                for i in range(data_len):
-                    t = ts[i]
-                    mu[0, i, :] = sample.get_U(t=t)
-                    obs[0, i, :] = sample.get_obs(t=t)
+                #for i in range(data_len):
+                #    t = ts[i]
+                #    mu[0, i, :] = sample.get_U(t=t)
+                #    obs[0, i, :] = sample.get_obs(t=t)
+                mu[0] = sample.get_U()
+                obs[0] = sample.get_obs()
                 tgt_mu = np.concatenate((tgt_mu, mu))
                 tgt_prc = np.concatenate((tgt_prc, prc))
                 tgt_wt = np.concatenate((tgt_wt, wt))
                 obs_data = np.concatenate((obs_data, obs))
                 prim_obs_data = np.concatenate((prim_obs_data, sample.get_prim_obs()))
+                x_data = np.concatenate((x_data, sample.get_X()))
         obs_data = obs_data.reshape((-1, dO))
-        prim_obs_data = obs_data.reshape((-1, dO))
+        prim_obs_data = prim_obs_data.reshape((-1, self.dPrim))
+        x_data = x_data.reshape((-1, self.dX))
         tgt_mu = tgt_mu.reshape((-1, dU))
         tgt_wt = tgt_wt.reshape((-1, 1))
         tgt_prc = tgt_prc.reshape((-1, dU, dU))
         if len(tgt_mu):
-            self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task, label, primobs=prim_obs_data)
+            self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task, label, primobs=prim_obs_data, x=x_data)
         else:
             print('Update no cost called with no data.')

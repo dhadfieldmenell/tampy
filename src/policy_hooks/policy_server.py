@@ -52,18 +52,24 @@ class PolicyServer(object):
         in_inds, out_inds = None, None
         if len(self.continuous_opts):
             in_inds, out_inds = [], []
+            opt1 = None
+            if END_POSE_ENUM in self.agent._obs_data_idx:
+                opt1 = END_POSE_ENUM
+
             for opt in self.continuous_opts:
-                in_inds.append(self.agent._obs_data_idx[opt])
+                inopt = opt1 if opt1 is not None else opt
+                in_inds.append(self.agent._obs_data_idx[inopt])
                 out_inds.append(self.agent._prim_out_data_idx[opt])
+                
             in_inds = np.concatenate(in_inds, axis=0)
             out_inds = np.concatenate(out_inds, axis=0)
 
-        self.data_gen = DataLoader(hyperparams, self.task, self.in_queue, self.batch_size, normalize, min_buffer=self.min_buffer, feed_prob=feed_prob, feed_inds=(in_inds, out_inds))
+        self.data_gen = DataLoader(hyperparams, self.task, self.in_queue, self.batch_size, normalize, min_buffer=self.min_buffer, feed_prob=feed_prob, feed_inds=(in_inds, out_inds), feed_map=self.agent.center_cont)
         aug_f = None
         no_im = IM_ENUM not in hyperparams['prim_obs_include']
         if self.task == 'primitive' and hyperparams['permute_hl'] > 0 and no_im:
             aug_f = self.agent.permute_hl_data
-        self.data_gen = DataLoader(hyperparams, self.task, self.in_queue, self.batch_size, normalize, min_buffer=self.min_buffer, aug_f=aug_f)
+        self.data_gen = DataLoader(hyperparams, self.task, self.in_queue, self.batch_size, normalize, min_buffer=self.min_buffer, aug_f=aug_f, feed_prob=feed_prob, feed_inds=(in_inds, out_inds), feed_map=self.agent.center_cont)
       
         hyperparams['dPrim'] = len(hyperparams['prim_bounds'])
         dO = hyperparams['dPrimObs'] if self.task == 'primitive' else hyperparams['dO']

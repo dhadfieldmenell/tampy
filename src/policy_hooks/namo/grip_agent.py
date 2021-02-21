@@ -963,4 +963,16 @@ class NAMOGripAgent(NAMOSortingAgent):
         im = self.mjc_env.render(camera_id=cam_id, height=self.image_height, width=self.image_width, view=False, overlays=(textover1, textover2))
         return im
 
+    def center_cont(self, abs_val, x):
+        theta = x[:, self.state_inds['pr2', 'theta']]
+        ee_pos = x[:, self.state_inds['pr2', 'pose']]
+        new_val = []
+        for t in range(len(abs_val)):
+            if LOCAL_FRAME:
+                rot = theta[t,0]
+                rot = np.array([[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]])
+                new_val.append(rot.dot(abs_val[t] - ee_pos[t]))
+            else:
+                new_val.append(abs_val[t] - ee_pos[t])
+        return np.array(new_val)
 
