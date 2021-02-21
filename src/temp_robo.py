@@ -47,7 +47,7 @@ env = robosuite.make(
     robots=["Sawyer"],             # load a Sawyer robot and a Panda robot
     gripper_types="default",                # use default grippers per robot arm
     controller_configs=controller_config,   # each arm is controlled using OSC
-    has_renderer=True,                      # on-screen rendering
+    has_renderer=False,                      # on-screen rendering
     render_camera="frontview",              # visualize the "frontview" camera
     has_offscreen_renderer=False,           # no off-screen rendering
     control_freq=80,                        # 20 hz control for applied actions
@@ -78,7 +78,7 @@ visual = len(os.environ.get('DISPLAY', '')) > 0
 visual = False
 problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, None, use_tf=True, sess=None, visual=visual)
 params = problem.init_state.params
-
+import ipdb; ipdb.set_trace()
 #ll_plan_str = ["0: MOVE_TO_GRASP_LEFT BAXTER CLOTH0 ROBOT_INIT_POSE ROBOT_END_POSE"]
 #plan = hls.get_plan(ll_plan_str, domain, problem)
 #plan.d_c = d_c
@@ -118,7 +118,12 @@ for jnt in jnts:
     jnt_ind = env.mjpy_model.jnt_qposadr[jnt_adr]
     sawyer_inds.append(jnt_ind)
     jnt_vals.append(env.sim.data.qpos[jnt_ind])
-params['sawyer'].right[:,0] = jnt_vals
+params['sawyer'].right[:,0] = [-0.3962099, -0.97739413, 0.04612799, 1.742205 , -0.03562013, 0.8089644, 0.45207395]#jnt_vals
+params['sawyer'].openrave_body.set_pose(params['sawyer'].pose[:,0])
+params['sawyer'].openrave_body.set_dof({'right': params['sawyer'].right[:,0]})
+info = params['sawyer'].openrave_body.fwd_kinematics('right')
+params['sawyer'].right_ee_pos[:,0] = info['pos']
+params['sawyer'].right_ee_pos[:,0] = T.quaternion_to_euler(info['quat'], 'xyzw')
 
 goal = '(At cereal cereal_end_target)'
 solver = RobotSolver()

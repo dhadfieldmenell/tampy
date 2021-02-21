@@ -10,11 +10,13 @@ filename = "probs/pickplace_prob.prob"
 GOAL = "(RobotAt sawyer robot_end_pose)"
 
 
-SAWYER_INIT_POSE = [0, 0, 0]
+SAWYER_INIT_POSE = [-0.5, -0.1, 0.912]
 SAWYER_END_POSE = [0, 0, 0]
 R_ARM_INIT = [-0.3962099, -0.97739413, 0.04612799, 1.742205 , -0.03562013, 0.8089644, 0.45207395]
 OPEN_GRIPPER = [0.02]
 CLOSE_GRIPPER = [0.01]
+EE_POS = [0.11338, -0.16325, 1.03655]
+EE_ROT = [3.139, 0.00, -2.182]
 
 TABLE_GEOM = [1.23/2, 2.45/2, 0.97/2]
 TABLE_POS = [1.23/2-0.1, 0, -3.]
@@ -23,8 +25,8 @@ TABLE_ROT = [0,0,0]
 def get_sawyer_pose_str(name, RArm = R_ARM_INIT, G = OPEN_GRIPPER, Pos = SAWYER_INIT_POSE):
     s = ""
     s += "(right {} {}), ".format(name, RArm)
-    s += "(right_ee_pos {} {}), ".format(name, [0,0,0])
-    s += "(right_ee_rot {} {}), ".format(name, [0,0,0])
+    s += "(right_ee_pos {} {}), ".format(name, EE_POS)
+    s += "(right_ee_rot {} {}), ".format(name, EE_ROT)
     s += "(right_gripper {} {}), ".format(name, G)
     s += "(value {} {}), ".format(name, Pos)
     return s
@@ -33,8 +35,8 @@ def get_sawyer_str(name, RArm = R_ARM_INIT, G = OPEN_GRIPPER, Pos = SAWYER_INIT_
     s = ""
     s += "(geom {})".format(name)
     s += "(right {} {}), ".format(name, RArm)
-    s += "(right_ee_pos {} {}), ".format(name, [0,0,0])
-    s += "(right_ee_rot {} {}), ".format(name, [0,0,0])
+    s += "(right_ee_pos {} {}), ".format(name, EE_POS)
+    s += "(right_ee_rot {} {}), ".format(name, EE_ROT)
     s += "(right_gripper {} {}), ".format(name, G)
     s += "(pose {} {}), ".format(name, Pos)
     return s
@@ -125,8 +127,9 @@ def main():
 
     s += "Invariants: "
     s += "(StationaryBase sawyer), "
+    #s += "(EEIsMP sawyer), "
     #s += "(RightGripperDownRot sawyer), "
-    #s += "(LeftEEValid sawyer), "
+    #s += "(RightEEValid sawyer), "
     s += "\n\n"
 
     with open(filename, "w") as f:

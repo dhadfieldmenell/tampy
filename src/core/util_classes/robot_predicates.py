@@ -226,6 +226,9 @@ class RobotPredicate(ExprPredicate):
         elif hasattr(self, 'targ'):
             pos_inds, rot_inds = self.attr_map[self.targ, 'value'], self.attr_map[self.targ, 'rotation']
             ee_pos, ee_rot = x[pos_inds], x[rot_inds]
+        elif hasattr(self, 'ee_ref') and self.ee_ref:
+            pos_inds, rot_inds = self.attr_map[self.robot, '{}_ee_pos'.format(self.arm)], self.attr_map[self.robot, '{}_ee_rot'.format(self.arm)]
+            ee_pos, ee_rot = x[pos_inds], x[rot_inds]
         else:
             ee_pos, ee_rot = np.zeros((3,1)), np.zeros((3,1))
         ee_rot = ee_rot.flatten()
@@ -236,14 +239,19 @@ class RobotPredicate(ExprPredicate):
         return obj_trans, robot_trans, axises, arm_inds
 
  
-    def setup_mov_limit_check(self, delta=False):
+    def setup_mov_limit_check(self, delta=False, ee_only=False):
         # Get upper joint limit and lower joint limit
         robot_body = self._param_to_body[self.robot]
         geom = robot_body._geom
         dof_map = geom.dof_map
-        dof_inds = np.concatenate([dof_map[arm] for arm in geom.arms])
-        lb = np.zeros(3+sum([len(dof_map[arm]) for arm in geom.arms])+len(geom.grippers))
-        ub = np.zeros(3+sum([len(dof_map[arm]) for arm in geom.arms])+len(geom.grippers))
+        if ee_only:
+            dof_inds = np.concatenate([dof_map[arm] for arm in geom.arms])
+            lb = np.zeros(3) 
+            ub = np.zeros(3) 
+        else:
+            dof_inds = np.concatenate([dof_map[arm] for arm in geom.arms])
+            lb = np.zeros(3+sum([len(dof_map[arm]) for arm in geom.arms])+len(geom.grippers))
+            ub = np.zeros(3+sum([len(dof_map[arm]) for arm in geom.arms])+len(geom.grippers))
 
         if delta:
             base_move = geom.get_base_move_limit()
@@ -269,6 +277,9 @@ class RobotPredicate(ExprPredicate):
                     gripper_ub = geom.get_gripper_open_val()
                 lb[cur_ind:cur_ind+ninds] = gripper_lb
                 ub[cur_ind:cur_ind+ninds] = gripper_ub
+            elif ee_only:
+                lb[cur_ind:cur_ind+ninds] = self.lb * geom.get_joint_move_factor()
+                ub[cur_ind:cur_ind+ninds] = self.ub * geom.get_joint_move_factor()
             cur_ind += ninds
         '''
         inds = geom.dof_inds['pose']
@@ -315,6 +326,16 @@ class RobotPredicate(ExprPredicate):
             jacobian[:, inds] = arm_jacs[arm]
         inds = self.attr_map[self.robot, 'pose']
         jacobian[:, inds] = base_jac
+
+        #ee_attr = '{}_ee_pos'.format(self.arm)
+        #ee_rot_attr = '{}_ee_rot'.format(self.arm)
+        #if (self.robot, ee_attr) in self.attr_map:
+        #    inds = self.attr_map[self.robot, ee_attr]
+        #    jacobian[:,inds] = -obj_jac[:,:3]
+        #if (self.robot, ee_rot_attr) in self.attr_map:
+        #    inds = self.attr_map[self.robot, ee_rot_attr]
+        #    jacobian[:,inds] = -obj_jac[:,3:]
+
         if hasattr(self, 'obj'):
             inds = self.attr_map[self.obj, 'pose']
             jacobian[:, inds] = obj_jac[:,:3]
@@ -324,6 +345,11 @@ class RobotPredicate(ExprPredicate):
             inds = self.attr_map[self.targ, 'value']
             jacobian[:, inds] = obj_jac[:,:3]
             inds = self.attr_map[self.targ, 'rotation']
+            jacobian[:, inds] = obj_jac[:,3:]
+        elif hasattr(self, 'ee_ref') and self.ee_ref:
+            inds = self.attr_map[self.robot, '{}_ee_pos'.format(self.arm)]
+            jacobian[:, inds] = obj_jac[:,:3]
+            inds = self.attr_map[self.robot, '{}_ee_rot'.format(self.arm)]
             jacobian[:, inds] = obj_jac[:,3:]
         return jacobian
 
@@ -1326,6 +1352,37 @@ class IsMP(RobotPredicate):
         self.spacial_anchor = False
         self._nonrollout = True
 
+class EEIsMP(RobotPredicate):
+    """
+        Format: IsMP Robot (Just the Robot Base)
+
+        Robot related
+
+        Requires:
+            attr_inds[OrderedDict]: robot attribute indices
+            setup_mov_limit_check[Function]: function that sets constraint matrix
+    """
+    #@profile
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self._env = env
+        self.robot, = params
+        attrs = []
+        self.lb = -0.5
+        self.ub = 0.5
+        for arm in self.robot.geom.arms:
+            attrs.append('{}_ee_pos'.format(arm))
+        attr_inds, attr_dim = init_robot_pred(self, self.robot, [], attrs={self.robot: attrs})
+        ## constraints  |x_t - x_{t+1}| < dmove
+        ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
+        attr_inds = self.attr_inds
+        self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
+
+        A, b, val = self.setup_mov_limit_check(delta=True, ee_only=True)
+        e = LEqExpr(AffExpr(A, b), val)
+        super(EEIsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
+        self.spacial_anchor = False
+        self._nonrollout = True
+
 class WithinJointLimit(RobotPredicate):
     """
         Format: WithinJointLimit Robot
@@ -1691,22 +1748,18 @@ class InGripper(PosePredicate):
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
         self.rel_pt = np.array(params[1].geom.grasp_point) if hasattr(params[1], 'geom') and hasattr(params[1].geom, 'grasp_point') else np.zeros(3)
-        if hasattr(self, 'dist'):
-            self.eval_dim = 6
-            e = LEqExpr(Expr(self.tile_f, self.tile_grad), self.coeff*self.dist*np.ones((self.eval_dim, 1)))
-        else:
-            self.eval_dim = 3 # 4
-            e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
-        super(InGripper, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = 2)
+        self.eval_dim = 3 # 4
+        e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
+        super(InGripper, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority=2)
         self.spacial_anchor = True
 
     def stacked_f(self, x):
         return self.coeff * self.pos_check_f(x, self.rel_pt)
-        # return np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.rot_check_f(x)])
+        #return np.vstack([self.coeff * self.pos_check_f(x, self.rel_pt), self.rot_coeff * self.ee_rot_check_f(x, robot_off=self.inv_mats[self.arm])])
 
     def stacked_grad(self, x):
         return self.coeff * self.pos_check_jac(x, self.rel_pt)
-        # return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.rot_check_jac(x)])
+        #return np.vstack([self.coeff * self.pos_check_jac(x, self.rel_pt), self.rot_coeff * self.ee_rot_check_jac(x, robot_off=self.inv_mats[self.arm])])
 
     def tile_f(self, x):
         val = self.eval_f(x)
@@ -1848,6 +1901,70 @@ class EEGraspValid(PosePredicate):
         super(EEGraspValid, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = 0)
         self.spacial_anchor = True
 
+class EEValid(PosePredicate):
+    """
+        Format: InGripper, Robot, Item
+
+        Robot related
+
+        Requires:
+            attr_inds[OrderedDict]: robot attribute indices
+            set_robot_poses[Function]:Function that sets robot's poses
+            get_robot_info[Function]:Function that returns robot's transformations and arm indices
+            eval_f[Function]:Function returns predicate value
+            eval_grad[Function]:Function returns predicate gradient
+            coeff[Float]:In Gripper coeffitions, used during optimazation
+            opt_coeff[Float]:In Gripper coeffitions, used during optimazation
+    """
+    #@profile
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self._env = env
+        self.robot, = params
+        attr_inds, attr_dim = init_robot_pred(self, self.robot, [])
+        self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
+
+        self.arm = self.robot.geom.arms[0]
+        if not hasattr(self, 'coeff'): self.coeff = 1e-1
+        if not hasattr(self, 'rot_coeff'): self.rot_coeff = 1e-2
+        self.eval_f = self.stacked_f
+        self.eval_grad = self.stacked_grad
+        self.rel_pt = np.zeros(3)
+        self.ee_ref = True
+        if hasattr(self, 'dist'):
+            self.eval_dim = 12
+            e = LEqExpr(Expr(self.tile_f, self.tile_grad), self.coeff*self.dist*np.ones((self.eval_dim, 1)))
+        else:
+            self.eval_dim = 6 # 4
+            e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
+        super(EEValid, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=0, priority=0)
+        self.spacial_anchor = True
+
+    def stacked_f(self, x):
+        #return self.coeff * self.pos_check_f(x, self.rel_pt)
+        val = np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.ee_rot_check_f(x)])
+        return val
+
+    def stacked_grad(self, x):
+        #return self.coeff * self.pos_check_jac(x, self.rel_pt)
+        return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.ee_rot_check_jac(x)])
+
+    def tile_f(self, x):
+        val = self.eval_f(x)
+        return np.r_[val, -1.*val]
+
+    def tile_grad(self, x):
+        grad = self.eval_grad(x)
+        return np.r_[grad, -1.*grad]
+
+class LeftEEValid(EEValid):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        super(LeftEEValid, self).__init__(name, params, expected_param_types, env, debug)
+        self.arm = "left" if "left" in self.robot.geom.arms else self.robot.geom.arms[0]
+
+class RightEEValid(EEValid):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        super(RightEEValid, self).__init__(name, params, expected_param_types, env, debug)
+        self.arm = "right" if "right" in self.robot.geom.arms else self.robot.geom.arms[0]
 
 ### EEREACHABLE CONSTRAINTS - defined linear approach paths
 
@@ -2100,7 +2217,7 @@ class ApproachLeftRot(EEReachableLeftRot):
 class NearApproachLeftRot(ApproachLeftRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         # self.f_tol = 0.04
-        self.coeff = 1e-2
+        self.coeff = 5e-3
         super(NearApproachLeftRot, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
@@ -2573,37 +2690,37 @@ class ObjectWithinRotLimit(ExprPredicate):
         super(ObjectWithinRotLimit, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = False
 
-class EEValid(PosePredicate):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.robot = params[0]
-        self.coeff = 0.1
-        self.eval_dim = 3
-        if not hasattr(self, 'arm'): self.arm = self.robot.geom.arms[0]
-        attr_inds, attr_dim = init_robot_pred(self, params[0], [])
-        self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
-        pos_expr, val = Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim,1))
-        e = EqExpr(pos_expr, val)
-        super(EEValid, self).__init__(name, e, attr_inds, params, expected_param_types, priority=1)
-
-    def eval_f(self, x):
-        x = x.flatten()
-        body = self.robot.openrave_body
-        self.set_robot_poses(x, body)
-        ee_pos = np.array(body.fwd_kinematics(self.arm)['pos'])
-        inds = self.attr_map[self.robot, '{}_ee_pos'.format(self.arm)]
-        return self.coeff*(np.array(ee_pos) - x[inds]).reshape((-1,1))
-
-    def eval_grad(self, x):
-        jac = np.zeros((3, self.attr_dim))
-        inds = self.attr_map[self.robot, '{}_ee_pos'.format(self.arm)]
-        jac[:, inds] = -np.eye(3)
-        return self.coeff*jac
-
-class LeftEEValid(EEValid):
-    arm = 'left'
-
-class RightEEValid(EEValid):
-    arm = 'right'
+#class EEValid(PosePredicate):
+#    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+#        self.robot = params[0]
+#        self.coeff = 0.1
+#        self.eval_dim = 3
+#        if not hasattr(self, 'arm'): self.arm = self.robot.geom.arms[0]
+#        attr_inds, attr_dim = init_robot_pred(self, params[0], [])
+#        self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
+#        pos_expr, val = Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim,1))
+#        e = EqExpr(pos_expr, val)
+#        super(EEValid, self).__init__(name, e, attr_inds, params, expected_param_types, priority=1)
+#
+#    def eval_f(self, x):
+#        x = x.flatten()
+#        body = self.robot.openrave_body
+#        self.set_robot_poses(x, body)
+#        ee_pos = np.array(body.fwd_kinematics(self.arm)['pos'])
+#        inds = self.attr_map[self.robot, '{}_ee_pos'.format(self.arm)]
+#        return self.coeff*(np.array(ee_pos) - x[inds]).reshape((-1,1))
+#
+#    def eval_grad(self, x):
+#        jac = np.zeros((3, self.attr_dim))
+#        inds = self.attr_map[self.robot, '{}_ee_pos'.format(self.arm)]
+#        jac[:, inds] = -np.eye(3)
+#        return self.coeff*jac
+#
+#class LeftEEValid(EEValid):
+#    arm = 'left'
+#
+#class RightEEValid(EEValid):
+#    arm = 'right'
 
 class GrippersLevel(PosePredicate):
     '''

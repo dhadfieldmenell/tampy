@@ -110,6 +110,7 @@ class ParseProblemConfig(object):
                                                                           expected_param_types=domain.pred_schemas[p_name].expected_params,
                                                                           env=env))
                 except TypeError as e:
+                    print(e)
                     print(("type error for {}".format(pred)))
 
         elif deriv_preds:
@@ -129,6 +130,7 @@ class ParseProblemConfig(object):
                                                                           expected_param_types=domain.pred_schemas[p_name].expected_params,
                                                                           env=env))
                 except TypeError as e:
+                    print(e)
                     print(("type error for {}".format(pred)))
                 #except Exception as e:
                 #    print(e)
@@ -154,6 +156,7 @@ class ParseProblemConfig(object):
                                                                               expected_param_types=domain.pred_schemas[p_name].expected_params,
                                                                               env=env))
                 except TypeError as e:
+                    print(e)
                     print(("type error for {}".format(pred)))
 
         # use params and initial preds to create an initial State object

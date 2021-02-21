@@ -177,10 +177,9 @@ class RolloutServer(Server):
 
             task_name = self.task_list[cur_tasks[-1][0]]
             pol = self.agent.policies[task_name]
+            hor = int(2 * self.agent.plans[cur_tasks[-1]].horizon)
             if self.agent.retime:
-                hor = t_per_task
-            else:
-                hor = self.agent.plans[cur_tasks[-1]].horizon + 1
+                hor *= 3
 
             sample = self.agent.sample_task(pol, 0, state, cur_tasks[-1], skip_opt=True, hor=hor, task_f=task_f)
             path.append(sample)
@@ -205,7 +204,7 @@ class RolloutServer(Server):
             self.task_successes[self.task_list[cur_tasks[-1][0]]].append(1)
 
         if val >= 0.999:
-            print('Success in rollout. Pre: {} Post: {}'.format(self.check_precond, self.check_postcond))
+            print('Success in rollout. Pre: {} Post: {} Mid: {}'.format(self.check_precond, self.check_postcond, self.check_midcond))
             self.agent.add_task_paths([path])
 
         self.log_path(path, -20)
@@ -237,14 +236,14 @@ class RolloutServer(Server):
                     fail_type = 'rollout_midcondition_failure'
                     fail_s = bad_pt[0] + steps[fail_t]
                     x0 = path[bad_pt[0]].get(STATE_ENUM, 0)
-                    #print('MID COND:', fail_s, fail_t, bad_pt, failed_preds)
+                    print('MID COND:', fail_s, fail_t, bad_pt, failed_preds)
                     initial, goal = self.agent.get_hl_info(x0, targets)
                     plan.start = 0
                     new_node = LLSearchNode(plan.plan_str, 
                                             prob=plan.prob, 
                                             domain=plan.domain,
                                             initial=plan.prob.initial,
-                                            priority=ROLL_PRIORITY,
+                                            priority=ROLL_PRIORITY+2,
                                             ref_plan=plan,
                                             targets=targets,
                                             x0=traj[0],
@@ -509,7 +508,7 @@ class RolloutServer(Server):
                 self.test_hl(save_video=save_video)
 
             if self.run_hl_test: continue
-            #if self._n_plans < ff_iters: continue
+            if self._n_plans < ff_iters: continue
 
             self.set_policies()
             node = self.pop_queue(self.rollout_queue)
@@ -601,7 +600,7 @@ class RolloutServer(Server):
                 'time': time.time() - self.start_t,
                 }
 
-        wind = 5
+        wind = 10
         info['dagger_success'] = np.mean(self.postcond_info[-wind:]) if len(self.postcond_info) else 0.
         for key in self.fail_types:
             info[key] = self.fail_types[key] / self.n_fails

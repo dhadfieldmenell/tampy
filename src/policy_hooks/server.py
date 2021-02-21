@@ -41,7 +41,7 @@ class Server(object):
 
         self.render = hyperparams.get('load_render', False)
         if self.config['weight_dir'].find('sawyer') >= 0:
-            if self.id.find('test') < 0 and self.id.find('r0') < 0:# and self.id.find('Rollout') < 0:
+            if self.id.find('moretest') < 0 and self.id.find('r0') < 0:# and self.id.find('Rollout') < 0:
                 self.render = False
                 hyperparams['load_render'] = False
                 hyperparams['agent']['master_config']['load_render'] = False

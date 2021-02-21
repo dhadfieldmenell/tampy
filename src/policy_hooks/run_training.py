@@ -338,6 +338,7 @@ def argsparser():
     parser.add_argument('-ff_only', '--ff_only', action='store_true', default=False)
     parser.add_argument('-hl_post', '--hl_post', action='store_true', default=False)
     parser.add_argument('-opt_wt', '--opt_wt', action='store_true', default=False)
+    parser.add_argument('-l1_loss', '--l1_loss', action='store_true', default=False)
     parser.add_argument('-roll_post', '--rollout_post', action='store_true', default=False)
     parser.add_argument('-roll_ll', '--ll_rollout_opt', action='store_true', default=False)
     parser.add_argument('-roll_hl', '--hl_rollout_opt', action='store_true', default=False)

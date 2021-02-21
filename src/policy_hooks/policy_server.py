@@ -103,6 +103,7 @@ class PolicyServer(object):
             (self.input, self.act, self.prc),
         )
         self.policy_opt.lr_policy = hyperparams['lr_policy']
+        self.lr_policy = hyperparams['lr_policy']
         self.data_gen.x_idx = self.policy_opt.x_idx if self.task != 'primitive' else self.policy_opt.prim_x_idx
         self.data_gen.policy = self.policy_opt.get_policy(self.task)
 
@@ -157,6 +158,14 @@ class PolicyServer(object):
                 losses = self.policy_opt.check_validation(mu, obs, prc, task=self.task)
                 self.val_losses['all'].append(losses[0])
                 self.val_losses['aux'].append(losses)
+
+            if self.lr_policy == 'adaptive':
+                if len(self.train_losses['all']) and len(self.val_losses['all']):
+                    ratio = np.mean(self.val_losses['all'][-10:]) / np.mean(self.train_losses['all'][-10:])
+                    if ratio < 1.1:
+                        self.policy_opt.cur_dec *= 0.95
+                    elif ratio > 1.5:
+                        self.policy_opt.cur_dec *= 1.1
 
             for lab in ['optimal', 'rollout']:
                 mu, obs, prc = self.data_gen.get_batch(label=lab, val=True)

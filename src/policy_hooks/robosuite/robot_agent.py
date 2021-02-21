@@ -44,6 +44,7 @@ import robosuite
 from robosuite.controllers import load_controller_config
 import robosuite.utils.transform_utils as robo_T
 
+STEP = 0.1
 NEAR_TOL = 0.05
 LOCAL_NEAR_TOL = 0.12 # 0.3
 MAX_SAMPLELISTS = 1000
@@ -423,7 +424,7 @@ class RobotAgent(TAMPAgent):
             gripper = 0.1 if ctrl['right_gripper'] > 0 else -0.1
 
         if 'right_ee_pos' in ctrl:
-            ctrl['right_ee_pos'] = np.clip(ctrl['right_ee_pos'], -0.08, 0.08)
+            #ctrl['right_ee_pos'] = np.clip(ctrl['right_ee_pos'], -STEP, STEP)
             targ_pos = self.mjc_env.get_attr('sawyer', 'right_ee_pos') + ctrl['right_ee_pos']
             rotoff = Rotation.from_rotvec(ctrl['right_ee_rot'])
             curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
@@ -595,6 +596,7 @@ class RobotAgent(TAMPAgent):
                 ee_rot = mp_state[self.state_inds[pname, 'ee_rot']]
 
         ee_quat = T.euler_to_quaternion(ee_rot, 'xyzw')
+        ee_mat = T.quat2mat(ee_quat)
         sample.set(STATE_ENUM, mp_state, t)
         if self.hist_len > 0:
             sample.set(TRAJ_HIST_ENUM, self._prev_U.flatten(), t)
@@ -658,15 +660,22 @@ class RobotAgent(TAMPAgent):
             sample.targ = task[2]
             sample.task_name = self.task_list[task[0]]
 
+            grasp_pt = list(self.plans.values())[0].params[obj_name].geom.grasp_point
             if self.task_list[task[0]].find('grasp') >= 0:
-                rot_off = theta_error(ee_quat, obj_quat)
-                sample.set(END_POSE_ENUM, obj_pose, t)
+                obj_mat = T.quat2mat(obj_quat)
+                goal_quat = T.mat2quat(obj_mat.dot(ee_mat))
+                rot_off = theta_error(ee_quat, goal_quat)
+                sample.set(END_POSE_ENUM, obj_pose+grasp_pt, t)
                 sample.set(END_ROT_ENUM, rot_off, t)
             elif self.task_list[task[0]].find('putdown') >= 0:
+                targ_mat = T.quat2mat(targ_quat)
+                goal_quat = T.mat2quat(targ_mat.dot(ee_mat))
                 rot_off = theta_error(ee_quat, targ_quat)
-                sample.set(END_POSE_ENUM, targ_pose, t)
+                sample.set(END_POSE_ENUM, targ_pose_grasp_pt, t)
                 sample.set(END_ROT_ENUM, rot_off, t)
             else:
+                obj_mat = T.quat2mat(obj_quat)
+                goal_quat = T.mat2quat(obj_mat.dot(ee_mat))
                 rot_off = theta_error(ee_quat, obj_quat)
                 sample.set(END_POSE_ENUM, obj_pose, t)
                 sample.set(END_ROT_ENUM, rot_off, t)

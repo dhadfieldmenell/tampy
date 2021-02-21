@@ -373,16 +373,19 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
     def init_solver(self):
         """ Helper method to initialize the solver. """
+        self.dec_tensor = tf.placeholder('float', name='weight_dec')#tf.Variable(initial_value=self._hyperparams['prim_weight_decay'], name='weightdec')
         if self.scope is None or 'primitive' == self.scope:
             self.cur_hllr = self._hyperparams['hllr']
             self.hllr_tensor = tf.Variable(initial_value=self._hyperparams['hllr'], name='hllr')
+            self.cur_dec = self._hyperparams['prim_weight_decay']
             vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='primitive')
             self.primitive_solver = TfSolver(loss_scalar=self.primitive_loss_scalar,
                                                solver_name=self._hyperparams['solver_type'],
                                                base_lr=self.hllr_tensor,
                                                lr_policy=self._hyperparams['lr_policy'],
                                                momentum=self._hyperparams['momentum'],
-                                               weight_decay=self._hyperparams['prim_weight_decay'],
+                                               weight_decay=self.dec_tensor,#self._hyperparams['prim_weight_decay'],
+                                               #weight_decay=self._hyperparams['prim_weight_decay'],
                                                fc_vars=self.primitive_fc_vars,
                                                last_conv_vars=self.primitive_last_conv_vars,
                                                vars_to_opt=vars_to_opt,
@@ -390,6 +393,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.lr_tensor = tf.Variable(initial_value=self._hyperparams['lr'], name='lr')
         self.cur_lr = self._hyperparams['lr']
         for scope in self.valid_scopes:
+            self.cur_dec = self._hyperparams['weight_decay']
             if self.scope is None or scope == self.scope:
                 vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
                 self.task_map[scope]['solver'] = TfSolver(loss_scalar=self.task_map[scope]['loss_scalar'],
@@ -397,6 +401,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                                        base_lr=self.lr_tensor,
                                                        lr_policy=self._hyperparams['lr_policy'],
                                                        momentum=self._hyperparams['momentum'],
+                                                       #weight_decay=self.dec_tensor,#self._hyperparams['weight_decay'],
                                                        weight_decay=self._hyperparams['weight_decay'],
                                                        fc_vars=self.task_map[scope]['fc_vars'],
                                                        last_conv_vars=self.task_map[scope]['last_conv_vars'],
@@ -461,7 +466,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         if len(obs.shape) < 2:
             obs = obs.reshape(1, -1)
 
-        distr = self.sess.run(self.primitive_act_op, feed_dict={self.primitive_obs_tensor:obs, self.primitive_eta: eta})[0].flatten()
+        distr = self.sess.run(self.primitive_act_op, feed_dict={self.primitive_obs_tensor:obs, self.primitive_eta: eta, self.dec_tensor: self.cur_dec})[0].flatten()
         res = []
         for bound in self._primBounds:
             res.append(distr[bound[0]:bound[1]])
@@ -487,12 +492,14 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         if task == 'primitive':
             feed_dict = {self.primitive_obs_tensor: obs,
                          self.primitive_action_tensor: tgt_mu,
-                         self.primitive_precision_tensor: tgt_prc}
+                         self.primitive_precision_tensor: tgt_prc,
+                         self.dec_tensor: self.cur_dec}
             val_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, train=False)
         else:
             feed_dict = {self.task_map[task]['obs_tensor']: obs,
                          self.task_map[task]['action_tensor']: tgt_mu,
-                         self.task_map[task]['precision_tensor']: tgt_prc}
+                         self.task_map[task]['precision_tensor']: tgt_prc,
+                         self.dec_tensor: self.cur_dec}
             val_loss = self.task_map[task]['solver'](feed_dict, self.sess, device_string=self.device_string, train=False)
         #self.average_val_losses.append(val_loss)
         return val_loss
@@ -503,6 +510,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         average_loss = 0
         for i in range(self._hyperparams['iterations']):
             feed_dict = {self.hllr_tensor: self.cur_hllr} if task == 'primitive' else {self.lr_tensor: self.cur_lr}
+            feed_dict[self.dec_tensor] = self.cur_dec
             solver = self.primitive_solver if task == 'primitive' else self.task_map[task]['solver']
             train_loss = solver(feed_dict, self.sess, device_string=self.device_string, train=True)[0]
             average_loss += train_loss

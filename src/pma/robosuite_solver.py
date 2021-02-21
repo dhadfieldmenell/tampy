@@ -1,6 +1,9 @@
 import numpy as np
 import pybullet as p
 
+from sco.expr import BoundExpr, QuadExpr, AffExpr
+from core.internal_repr.parameter import Object
+from core.util_classes.matrix import Vector
 import core.util_classes.common_constants as const
 from core.util_classes.openrave_body import OpenRAVEBody
 import core.util_classes.robot_sampling as robot_sampling
@@ -11,6 +14,10 @@ from pma import backtrack_ll_solver
 class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
         return a.params[0]
+
+
+    def freeze_rs_param(self, act):
+        return True
 
 
     def vertical_gripper(self, robot, arm, obj, gripper_open=True, ts=(0,0), rand=False):
@@ -61,6 +68,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             aux_gripper = robot.geom.get_gripper(aux_arm)
             if aux_gripper is not None:
                 pose[aux_gripper] = getattr(robot, aux_gripper)[:, start_ts].reshape((-1,1))
+        robot_body.set_pose(robot.pose[:,ts[0]])
         for arm in robot.geom.arms:
             robot_body.set_dof({arm: pose[arm].flatten().tolist()})
             info = robot_body.fwd_kinematics(arm)
@@ -84,14 +92,18 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         if hasattr(plan, 'freeze_ts'):
             st = max(st, plan.freeze_ts)
 
+        robot_body.set_pose(robot.pose[:,st])
         for arm in robot.geom.arms:
-            attr = '{}_ee_pos'.format(arm)
-            if hasattr(robot, attr):
-                info = robot_body.fwd_kinematics(arm)
-                getattr(robot, attr)[:, st] = info['pos']
+            robot_body.set_dof({arm: getattr(robot, arm)[:,st].flatten().tolist()})
 
-        for arm in robot.geom.arms:
-            robot.openrave_body.set_dof({arm: getattr(robot, arm)[:,st]})
+        #for arm in robot.geom.arms:
+        #    attr = '{}_ee_pos'.format(arm)
+        #    rot_attr = '{}_ee_rot'.format(arm)
+        #    if hasattr(robot, attr):
+        #        info = robot_body.fwd_kinematics(arm)
+        #        getattr(robot, attr)[:, st] = info['pos']
+        #        getattr(robot, rot_attr)[:, st] = T.quaternion_to_euler(info['quat'], 'xyzw')
+
         obj = act.params[1]
         targ = act.params[2]
         st, et = act.active_timesteps
@@ -161,7 +173,48 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                     param.openrave_body.set_dof({arm: getattr(param, arm)[:,t]})
                     info = param.openrave_body.fwd_kinematics(arm)
                     getattr(param, attr)[:,t] = info['pos']
-                    euler = T.quaternion_to_euler(info['quat'], 'xyzw')
-                    getattr(param, rot_attr)[:,t] = euler
 
+
+
+    #def _get_trajopt_obj(self, plan, active_ts=None):
+    #    if active_ts == None:
+    #        active_ts = (0, plan.horizon-1)
+    #    start, end = active_ts
+    #    traj_objs = []
+    #    for param in list(plan.params.values()):
+    #        if param not in self._param_to_ll:
+    #            continue
+    #        if isinstance(param, Object):
+    #            for attr_name in param.__dict__.keys():
+    #                attr_type = param.get_attr_type(attr_name)
+    #                if issubclass(attr_type, Vector):
+    #                    T = end - start + 1
+    #                    K = attr_type.dim
+    #                    attr_val = getattr(param, attr_name)
+    #                    KT = K*T
+    #                    v = -1 * np.ones((KT - K, 1))
+    #                    d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
+    #                    # [:,0] allows numpy to see v and d as one-dimensional so
+    #                    # that numpy will create a diagonal matrix with v and d as a diagonal
+    #                    P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
+    #                    Q = np.dot(np.transpose(P), P)
+    #                    Q *= self.trajopt_coeff/float(plan.horizon)
+
+    #                    quad_expr = None
+    #                    coeff = 1.
+    #                    if attr_name.find('ee_pos') >= 0 or attr_name.find('ee_rot') >= 0:
+    #                        coeff = 1e0
+    #                    elif attr_name.find('right') >= 0 or attr_name.find('left') >= 0:
+    #                        coeff = 1e-1
+
+    #                    quad_expr = QuadExpr(coeff*Q, np.zeros((1,KT)), np.zeros((1,1)))
+    #                    param_ll = self._param_to_ll[param]
+    #                    ll_attr_val = getattr(param_ll, attr_name)
+    #                    param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
+    #                    attr_val = getattr(param, attr_name)
+    #                    init_val = attr_val[:, start:end+1].reshape((KT, 1), order='F')
+    #                    sco_var = self.create_variable(param_ll_grb_vars, init_val)
+    #                    bexpr = BoundExpr(quad_expr, sco_var)
+    #                    traj_objs.append(bexpr)
+    #    return traj_objs
 
