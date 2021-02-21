@@ -122,6 +122,7 @@ class PolicyServer(object):
         self.val_losses = {'all': [], 'optimal':[], 'rollout':[], 'aux': []}
         self.policy_component_loss = []
         self.log_infos = []
+        self.cur_ratio = 1.
         with open(self.policy_opt_log, 'w+') as f:
             f.write('')
 
@@ -161,11 +162,14 @@ class PolicyServer(object):
 
             if self.lr_policy == 'adaptive':
                 if len(self.train_losses['all']) and len(self.val_losses['all']):
-                    ratio = np.mean(self.val_losses['all'][-10:]) / np.mean(self.train_losses['all'][-10:])
+                    ratio = np.mean(self.val_losses['all'][-5:]) / np.mean(self.train_losses['all'][-5:])
+                    self.cur_ratio = ratio
                     if ratio < 1.1:
                         self.policy_opt.cur_dec *= 0.95
                     elif ratio > 1.5:
                         self.policy_opt.cur_dec *= 1.1
+                    self.policy_opt.cur_dec = max(Self.policy_opt.cur_dec, 1e-5)
+                    self.policy_opt.cur_dec = min(Self.policy_opt.cur_dec, 1e1)
 
             for lab in ['optimal', 'rollout']:
                 mu, obs, prc = self.data_gen.get_batch(label=lab, val=True)
@@ -213,6 +217,8 @@ class PolicyServer(object):
                 'n_data': self.policy_opt.N,
                 'tf_iter': self.policy_opt.tf_iter,
                 'N': self.policy_opt.N,
+                'reg_val': self.policy_opt.cur_dec,
+                'loss_ratio': self.cur_ratio,
                 }
 
         for key in self.policy_opt.buf_sizes:
