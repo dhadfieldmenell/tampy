@@ -20,7 +20,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         return True
 
 
-    def vertical_gripper(self, robot, arm, obj, gripper_open=True, ts=(0,0), rand=False):
+    def vertical_gripper(self, robot, arm, obj, gripper_open=True, ts=(0,20), rand=False):
         start_ts, end_ts = ts
         robot_body = robot.openrave_body
         robot_body.set_from_param(robot, start_ts)
@@ -45,8 +45,11 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         iks = []
         attempt = 0
-        #robot_body.set_dof({arm: np.zeros(len(robot.geom.jnt_names[arm]))})
-        robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
+        if ts[1]-ts[0] > 5:
+            robot_body.set_dof({arm: np.zeros(len(robot.geom.jnt_names[arm]))})
+        else:
+            robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
+
         while not len(iks) and attempt < 20:
             if rand:
                 target_loc += np.clip(np.random.normal(0, 0.015, 3), -0.03, 0.03)
@@ -96,13 +99,13 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         for arm in robot.geom.arms:
             robot_body.set_dof({arm: getattr(robot, arm)[:,st].flatten().tolist()})
 
-        #for arm in robot.geom.arms:
-        #    attr = '{}_ee_pos'.format(arm)
-        #    rot_attr = '{}_ee_rot'.format(arm)
-        #    if hasattr(robot, attr):
-        #        info = robot_body.fwd_kinematics(arm)
-        #        getattr(robot, attr)[:, st] = info['pos']
-        #        getattr(robot, rot_attr)[:, st] = T.quaternion_to_euler(info['quat'], 'xyzw')
+        for arm in robot.geom.arms:
+            attr = '{}_ee_pos'.format(arm)
+            #rot_attr = '{}_ee_rot'.format(arm)
+            if hasattr(robot, attr):
+                info = robot_body.fwd_kinematics(arm)
+                getattr(robot, attr)[:, st] = info['pos']
+                #getattr(robot, rot_attr)[:, st] = T.quaternion_to_euler(info['quat'], 'xyzw')
 
         obj = act.params[1]
         targ = act.params[2]

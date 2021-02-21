@@ -429,8 +429,8 @@ class RobotAgent(TAMPAgent):
             rotoff = Rotation.from_rotvec(ctrl['right_ee_rot'])
             curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
             targrot = (rotoff * Rotation.from_quat(curquat)).as_quat()
-            pos_mult = 1e1#1e2#5e2
-            rot_mult = 1e1#1e2#5e2
+            pos_mult = 2e1#1e2#5e2
+            rot_mult = 2e1#1e2#5e2
             scale = 1.#0.975
             for n in range(n_steps+1):
                 curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
@@ -671,7 +671,7 @@ class RobotAgent(TAMPAgent):
                 targ_mat = T.quat2mat(targ_quat)
                 goal_quat = T.mat2quat(targ_mat.dot(ee_mat))
                 rot_off = theta_error(ee_quat, targ_quat)
-                sample.set(END_POSE_ENUM, targ_pose_grasp_pt, t)
+                sample.set(END_POSE_ENUM, targ_pose+grasp_pt, t)
                 sample.set(END_ROT_ENUM, rot_off, t)
             else:
                 obj_mat = T.quat2mat(obj_quat)

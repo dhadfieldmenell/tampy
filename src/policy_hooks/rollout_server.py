@@ -551,6 +551,7 @@ class RolloutServer(Server):
 
             state = x0
             if len(path):
+                t = min(path[s].T-1, t)
                 state = path[s].get(STATE_ENUM, t)
             initial, goal = self.agent.get_hl_info(state, targets)
             concr_prob = node.concr_prob

@@ -383,7 +383,7 @@ class MoveToPutdownRight(MoveHoldingRight):
 class Grasp(Action):
     def __init__(self):
         self.name = 'grasp'
-        self.timesteps = 5 + 2 * const.EEREACHABLE_STEPS # 2 * const.EEREACHABLE_STEPS + 11
+        self.timesteps = 7 + 2 * const.EEREACHABLE_STEPS # 2 * const.EEREACHABLE_STEPS + 11
         end = self.timesteps - 1
         self.end = end
         self.args = '(?robot - Robot ?item - Item ?target - Target ?sp - RobotPose ?ep - RobotPose)'
@@ -517,7 +517,7 @@ class GraspRight(Grasp):
 class Putdown(Action):
     def __init__(self):
         self.name = 'putdown'
-        self.timesteps = 5 + 2 * const.EEREACHABLE_STEPS # 2 * const.EEREACHABLE_STEPS + 11
+        self.timesteps = 7 + 2 * const.EEREACHABLE_STEPS # 2 * const.EEREACHABLE_STEPS + 11
         end = self.timesteps - 1
         self.end = end
         self.args = '(?robot - Robot ?target - Target ?item - Item ?sp - RobotPose ?ep - RobotPose)'
