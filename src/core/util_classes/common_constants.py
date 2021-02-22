@@ -28,7 +28,7 @@ EE_STEP = 0.1
 # EEReachable Constants
 APPROACH_DIST = 0.04
 RETREAT_DIST = 0.04
-EEREACHABLE_STEPS = 4
+EEREACHABLE_STEPS = 3
 
 # Collision Constants
 DIST_SAFE = 1e-3

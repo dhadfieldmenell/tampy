@@ -847,7 +847,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             for pname, attr in self.state_inds:
                 if plan.params[pname].is_symbol(): continue
                 opt_traj[:,self.state_inds[perm.get(pname, pname), attr]] = getattr(plan.params[pname], attr)[:,st:et+1].T
-
             cur_len = len(path)
             if self.retime:
                 vel = self.master_config.get('velocity', 0.3)

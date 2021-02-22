@@ -261,17 +261,10 @@ class EnvWrapper():
         cur_pos = self.get_attr('sawyer', 'right_ee_pos')
         cur_jnts = self.get_attr('sawyer', 'right')
         cereal_pos = self.get_item_pose('cereal')[0]
+        dim = 8 if self.mode.find('joint') >= 0 else 7
         for _ in range(50):
-            if self.mode == 'ee_pos':
-                ctrl = cur_pos - self.get_attr('sawyer', 'right_ee_pos')
-                ctrl *= 10
-                self.env.step(np.zeros(7))
-            elif self.mode == 'jnt':
-                self.env.step([0, 0, 0, 0, 0, 0, 0, 0])
+            self.env.step(np.zeros(dim))
             self.set_attr('sawyer', 'right', cur_jnts)
-        new_cereal_pos = self.get_item_pose('cereal')[0]
-        cereal_pos[2] = new_cereal_pos[2]
-        self.set_item_pose('cereal', cereal_pos)
         self.forward()
         return obs
 
@@ -282,7 +275,12 @@ class RobotAgent(TAMPAgent):
 
         self.optimal_pol_cls =  optimal_pol
         self.load_render = hyperparams['master_config'].get('load_render', False)
-        controller_config = load_controller_config(default_controller="OSC_POSE")
+        self.ctrl_mode = 'joint' if ('sawyer', 'right') in self.action_inds else 'ee_pos'
+        if self.ctrl_mode.find('joint') >= 0:
+            controller_config = load_controller_config(default_controller="JOINT_POSITION")
+            controller_config['kp'] = [7500, 6500, 6500, 6500, 6500, 6500, 12000]
+        else:
+            controller_config = load_controller_config(default_controller="OSC_POSE")
         self.base_env = robosuite.make(
                 "PickPlace",
                 robots=["Sawyer"],             # load a Sawyer robot and a Panda robot
@@ -303,7 +301,7 @@ class RobotAgent(TAMPAgent):
             )
 
         sawyer_geom = list(self.plans.values())[0].params['sawyer'].geom
-        self.mjc_env = EnvWrapper(self.base_env, sawyer_geom)
+        self.mjc_env = EnvWrapper(self.base_env, sawyer_geom, self.ctrl_mode)
 
         self.check_col = hyperparams['master_config'].get('check_col', True)
         self.camera_id = 1
@@ -419,7 +417,6 @@ class RobotAgent(TAMPAgent):
     def run_policy_step(self, u, x):
         self._col = []
         ctrl = {attr: u[inds] for (param_name, attr), inds in self.action_inds.items()}
-        n_steps = 20
         cur_grip = x[self.state_inds['sawyer', 'right_gripper']]
         cur_z = x[self.state_inds['sawyer', 'right_ee_pos']][2]
         if cur_z > 10:#GRIPPER_Z:
@@ -428,6 +425,7 @@ class RobotAgent(TAMPAgent):
             gripper = 0.1 if ctrl['right_gripper'] > 0 else -0.1
 
         if 'right_ee_pos' in ctrl:
+            n_steps = 50
             #ctrl['right_ee_pos'] = np.clip(ctrl['right_ee_pos'], -STEP, STEP)
             targ_pos = self.mjc_env.get_attr('sawyer', 'right_ee_pos') + ctrl['right_ee_pos']
             rotoff = Rotation.from_rotvec(ctrl['right_ee_rot'])
@@ -450,9 +448,10 @@ class RobotAgent(TAMPAgent):
                 #       break
 
         elif 'right' in ctrl:
+            n_steps = 50
             targ_pos = self.mjc_env.get_attr('sawyer', 'right') + ctrl['right']
             for n in range(n_steps+1):
-                ctrl = 5 * np.r_[targ_pos - self.mjc_env.get_attr('sawyer', 'right'), gripper]
+                ctrl = np.r_[targ_pos - self.mjc_env.get_attr('sawyer', 'right'), gripper]
                 self.cur_obs = self.base_env.step(ctrl)
 
         col = 0 # 1 if len(self._col) > 0 else 0

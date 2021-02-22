@@ -206,6 +206,12 @@ class RobotPredicate(ExprPredicate):
             pos = x[self.attr_map[self.obj, 'pose']]
             rot = x[self.attr_map[self.obj, 'rotation']]
             self.obj.openrave_body.set_pose(pos, rot)
+        elif hasattr(self, 'targ') and hasattr(self.targ, 'openrave_body'):
+            if self.targ.openrave_body is not None:
+                pos = x[self.attr_map[self.targ, 'value']]
+                rot = x[self.attr_map[self.targ, 'rotation']]
+                self.targ.openrave_body.set_pose(pos, rot)
+
         if hasattr(self, 'obstacle'):
             pos = x[self.attr_map[self.obstacle, 'pose']]
             rot = x[self.attr_map[self.obstacle, 'rotation']]
@@ -233,6 +239,7 @@ class RobotPredicate(ExprPredicate):
             ee_pos, ee_rot = np.zeros((3,1)), np.zeros((3,1))
         ee_rot = ee_rot.flatten()
         obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, [ee_rot[2], ee_rot[1], ee_rot[0]])
+        #obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, [ee_rot[0], ee_rot[1], ee_rot[2]])
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, [ee_rot[2], ee_rot[1], ee_rot[0]])
         axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
         # Obtain the pos and rot val and jac from 2 function calls
@@ -1251,6 +1258,35 @@ class AtPose(ExprPredicate):
 
         super(AtPose, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
+
+class Above(ExprPredicate):
+    """
+        Format: # At, Can, Target
+
+        Non-robot related
+    """
+    #@profile
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        self.obj, self.target = params
+        attr_inds = OrderedDict([(self.obj, [("pose", np.array([1,2], dtype=np.int)),
+                                             ("rotation", np.array([0,1,2], dtype=np.int))]),
+                                 (self.target, [("value", np.array([0,1,2], dtype=np.int)),
+                                                ("rotation", np.array([1,2], dtype=np.int))])])
+
+        A = np.c_[np.eye(5), -np.eye(5)]
+        b, val = np.zeros((5, 1)), np.zeros((5, 1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+
+        #A = np.c_[np.r_[np.eye(6), -np.eye(6)], np.r_[-np.eye(6), np.eye(6)]]
+        #b, val = np.zeros((12, 1)), np.ones((12, 1))*1e-2
+        #aff_e = AffExpr(A, b)
+        #e = LEqExpr(aff_e, val)
+
+        super(Above, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
+        self.spacial_anchor = True
+
 
 class Near(ExprPredicate):
     """

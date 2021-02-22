@@ -393,8 +393,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.lr_tensor = tf.Variable(initial_value=self._hyperparams['lr'], name='lr')
         self.cur_lr = self._hyperparams['lr']
         for scope in self.valid_scopes:
-            self.cur_dec = self._hyperparams['weight_decay']
             if self.scope is None or scope == self.scope:
+                self.cur_dec = self._hyperparams['weight_decay']
                 vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
                 self.task_map[scope]['solver'] = TfSolver(loss_scalar=self.task_map[scope]['loss_scalar'],
                                                        solver_name=self._hyperparams['solver_type'],

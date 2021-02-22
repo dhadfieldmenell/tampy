@@ -122,7 +122,10 @@ class MotionServer(Server):
                 self.log_path(path, 10)
                 for step in path: step.source_label = 'optimal'
                 print(self.id, 'Successful refine from', node.label, 'rollout succes was:', path[-1].success, 'first ts:', plan.start, cur_t)
-           
+                #if not path[-1].success:
+                #    with open('{}.pkl'.format(self.id), 'wb+') as f:
+                #        pickle.dump(plan, f)           
+
             self.log_node_info(node, success, path)
             cur_t -= cur_step
             cur_step *= 3

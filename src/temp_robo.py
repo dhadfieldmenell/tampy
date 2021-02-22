@@ -31,10 +31,17 @@ def theta_error(cur_quat, next_quat):
     angle = -(sign1 * sign2) * robo_T.get_orientation_error(sign1 * next_quat, sign2 * cur_quat)
     return angle
 
-controller_config = load_controller_config(default_controller="OSC_POSE")
+#controller_config = load_controller_config(default_controller="OSC_POSE")
 #controller_config = load_controller_config(default_controller="JOINT_VELOCITY")
 #controller_config['control_delta'] = False
 #controller_config['kp'] = 500
+#controller_config['kp'] = [750, 750, 500, 5000, 5000, 5000]
+
+ctrl_mode = "JOINT_POSITION"
+controller_config = load_controller_config(default_controller=ctrl_mode)
+if ctrl_mode.find('JOINT') >= 0:
+    controller_config['kp'] = [7500, 6500, 6500, 6500, 6500, 6500, 12000]
+
 env = robosuite.make(
     "PickPlace",
     robots=["Sawyer"],             # load a Sawyer robot and a Panda robot
@@ -118,24 +125,51 @@ params['sawyer'].right_ee_pos[:,0] = info['pos']
 params['sawyer'].right_ee_pos[:,0] = T.quaternion_to_euler(info['quat'], 'xyzw')
 
 goal = '(NearGripperRight sawyer cereal)' #'(At cereal cereal_end_target)'
+#goal = '(At cereal cereal_end_target)'
 solver = RobotSolver()
+load_traj = True
+replan = True
+if load_traj:
+    oldplan = np.load('MotionServer5.pkl', allow_pickle=True)
+    if replan:
+        for pname in oldplan.params:
+            if pname.find('cereal') <0 and pname.find('sawyer') < 0: continue
+            for attr in oldplan.params[pname]._free_attrs:
+                if type(getattr(params[pname], attr)) is str: continue
+                print('SETTING', pname, attr)
+                getattr(params[pname], attr)[:,0] = getattr(oldplan.params[pname], attr)[:,0]
 
-plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=5)
+if not replan:
+    plan = oldplan
+
+if replan:
+    plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=5)
 if len(sys.argv) > 1 and sys.argv[1] == 'end':
     sys.exit(0)
 
+#if load_traj:
+#    inds, traj = np.load('MotionServer0_17.npy', allow_pickle=True)
+#    import ipdb; ipdb.set_trace()
+#    for anum, act in enumerate(plan.actions):
+#        for pname, aname in inds:
+#            for t in range(act.active_timesteps[0], act.active_timesteps[1]+1):
+#                getattr(plan.params[pname], aname)[:,t] = traj[t-anum][inds[pname, aname]]
 
 sawyer = plan.params['sawyer']
 cmds = []
 for t in range(plan.horizon):
-    pos, euler = sawyer.right_ee_pos[:,t], sawyer.right_ee_rot[:,t]
-    quat = np.array(T.euler_to_quaternion(euler, 'xyzw'))
-    #angle = robosuite.utils.transform_utils.quat2axisangle(quat)
-
     rgrip = sawyer.right_gripper[0,t]
-    act = np.r_[pos, quat, [-1e1*rgrip]]
-    #act = np.r_[pos, angle, [-rgrip]]
-    #act = np.r_[sawyer.right[:,t], [-rgrip]]
+    if ctrl_mode.find('JOINT') >= 0:
+        act = np.r_[sawyer.right[:,t], [-rgrip]]
+    else:
+        pos, euler = sawyer.right_ee_pos[:,t], sawyer.right_ee_rot[:,t]
+        quat = np.array(T.euler_to_quaternion(euler, 'xyzw'))
+        #angle = robosuite.utils.transform_utils.quat2axisangle(quat)
+
+        rgrip = sawyer.right_gripper[0,t]
+        act = np.r_[pos, quat, [-1e1*rgrip]]
+        #act = np.r_[pos, angle, [-rgrip]]
+        #act = np.r_[sawyer.right[:,t], [-rgrip]]
     cmds.append(act)
 
 grip_ind = env.mjpy_model.site_name2id('gripper0_grip_site')
@@ -149,11 +183,10 @@ env.sim.data.qvel[:] = 0
 env.sim.forward()
 rot_ref = T.euler_to_quaternion(params['sawyer'].right_ee_rot[:,0], 'xyzw') 
 for _ in range(40):
-    ctrl = params['sawyer'].right_ee_pos[:,0] - env.sim.data.site_xpos[grip_ind]
-    rot_ctrl = theta_error(env.sim.data.body_xquat[hand_ind], rot_ref)
-    ctrl *= 5e0
-    rot_ctrl *= 5e0
-    env.step(0*np.r_[ctrl, rot_ctrl, [0]])
+    if ctrl_mode.find('JOINT') >= 0:
+        env.step(np.zeros(8))
+    else:
+        env.step(np.zeros(7))
     env.sim.data.qacc[:] = 0
     env.sim.data.qvel[:] = 0
     env.sim.data.qpos[:7] = params['sawyer'].right[:,0]
@@ -162,51 +195,62 @@ for _ in range(40):
 env.render()
 import ipdb; ipdb.set_trace()
 
-nsteps = 20
+nsteps = 50
 cur_ind = 0
 for act in plan.actions:
+    import ipdb; ipdb.set_trace()
     for t in range(act.active_timesteps[0], act.active_timesteps[1]):
         base_act = cmds[cur_ind]
         cur_ind += 1
-        targ = base_act[3:7]
-        cur = env.sim.data.body_xquat[hand_ind]
-        cur = np.array([cur[1], cur[2], cur[3], cur[0]])
-        truerot = Rotation.from_quat(targ)
-        currot = Rotation.from_quat(cur)
-        base_angle = (truerot * currot.inv()).as_rotvec()
-        #base_angle = robosuite.utils.transform_utils.get_orientation_error(sign*targ, cur)
-        rot = Rotation.from_rotvec(base_angle)
-        targrot = (rot * currot).as_quat()
-        print('TARGETS:', targ, targrot)
-        for n in range(nsteps):
-            act = base_act.copy()
-            act[:3] -= env.sim.data.site_xpos[grip_ind]
-            act[:3] *= 1e2
+        if ctrl_mode.find('JOINT') >= 0:
+            targ_jnts = base_act[:7] #+ env.sim.data.qpos[:7]
+            for n in range(nsteps):
+                act = base_act.copy()
+                act[:7] = (targ_jnts - env.sim.data.qpos[:7])
+                obs = env.step(act)
+            print('END ERROR:', act[:7])
+
+        else:
+            targ = base_act[3:7]
             cur = env.sim.data.body_xquat[hand_ind]
             cur = np.array([cur[1], cur[2], cur[3], cur[0]])
-            #targ = act[3:7]
-            sign = np.sign(targ[np.argmax(np.abs(targrot))])
-            cur_sign = np.sign(targ[np.argmax(np.abs(cur))])
-            targ = targrot
-            #if sign != cur_sign:
-            #    sign = -1.
-            #else:
-            #    sign = 1.
-            ##angle = 5e2*theta_error(cur, targ) #robosuite.utils.transform_utils.get_orientation_error(sign*targ, cur)
-            #angle = robosuite.utils.transform_utils.get_orientation_error(sign*targ, cur)
-            #rot = Rotation.from_rotvec(angle)
-            #currot = Rotation.from_quat(cur)
-            angle = -sign*cur_sign*1e2*robosuite.utils.transform_utils.get_orientation_error(sign*targrot, cur_sign*cur)
-            #a = np.linalg.norm(angle)
-            #if a > 2*np.pi:
-            #    angle = (a - 2*np.pi)  * angle / a
-            act = np.r_[act[:3], angle, act[-1:]]
-            #act[3:6] -= robosuite.utils.transform_utils.quat2axisangle(cur)
-            #act[:7] = (act[:7] - np.array([env.sim.data.qpos[ind] for ind in sawyer_inds]))
-            obs = env.step(act)
-        print('ANGLE:', t, angle, targ, cur)
-        print(base_act[:3], env.sim.data.body_xpos[hand_ind], env.sim.data.site_xpos[grip_ind])
-        print('CEREAL:', t, plan.params['cereal'].pose[:,t], env.sim.data.qpos[cereal_ind:cereal_ind+3])
+            truerot = Rotation.from_quat(targ)
+            currot = Rotation.from_quat(cur)
+            base_angle = (truerot * currot.inv()).as_rotvec()
+            #base_angle = robosuite.utils.transform_utils.get_orientation_error(sign*targ, cur)
+            rot = Rotation.from_rotvec(base_angle)
+            targrot = (rot * currot).as_quat()
+            #print('TARGETS:', targ, targrot)
+            for n in range(nsteps):
+                act = base_act.copy()
+                act[:3] -= env.sim.data.site_xpos[grip_ind]
+                #act[:3] *= 1e2
+                cur = env.sim.data.body_xquat[hand_ind]
+                cur = np.array([cur[1], cur[2], cur[3], cur[0]])
+                #targ = act[3:7]
+                sign = np.sign(targ[np.argmax(np.abs(targrot))])
+                cur_sign = np.sign(targ[np.argmax(np.abs(cur))])
+                targ = targrot
+                #if sign != cur_sign:
+                #    sign = -1.
+                #else:
+                #    sign = 1.
+                rotmult = 1e0 # 1e1
+                ##angle = 5e2*theta_error(cur, targ) #robosuite.utils.transform_utils.get_orientation_error(sign*targ, cur)
+                #angle = robosuite.utils.transform_utils.get_orientation_error(sign*targ, cur)
+                #rot = Rotation.from_rotvec(angle)
+                #currot = Rotation.from_quat(cur)
+                angle = -rotmult*sign*cur_sign*robosuite.utils.transform_utils.get_orientation_error(sign*targrot, cur_sign*cur)
+                #a = np.linalg.norm(angle)
+                #if a > 2*np.pi:
+                #    angle = (a - 2*np.pi)  * angle / a
+                act = np.r_[act[:3], angle, act[-1:]]
+                #act[3:6] -= robosuite.utils.transform_utils.quat2axisangle(cur)
+                #act[:7] = (act[:7] - np.array([env.sim.data.qpos[ind] for ind in sawyer_inds]))
+                obs = env.step(act)
+        #print('ANGLE:', t, angle, targ, cur)
+        #print(base_act[:3], env.sim.data.body_xpos[hand_ind], env.sim.data.site_xpos[grip_ind])
+        #print('CEREAL:', t, plan.params['cereal'].pose[:,t], env.sim.data.qpos[cereal_ind:cereal_ind+3])
         env.render()
     import ipdb; ipdb.set_trace()
 import ipdb; ipdb.set_trace()
