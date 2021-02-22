@@ -379,6 +379,10 @@ class MultiProcessMain(object):
         buf_sizes['n_explore'].value = 0
         buf_sizes['n_rollout'] = mp.Value('i')
         buf_sizes['n_rollout'].value = 0
+        buf_sizes['n_total'] = mp.Value('i')
+        buf_sizes['n_total'].value = 0
+        buf_sizes['n_negative'] = mp.Value('i')
+        buf_sizes['n_negative'].value = 0
         config['share_buffer'] = True
         config['buffers'] = buffers
         config['buffer_sizes'] = buf_sizes

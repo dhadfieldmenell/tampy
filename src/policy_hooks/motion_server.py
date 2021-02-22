@@ -42,6 +42,7 @@ class MotionServer(Server):
         self.init_costs = []
         self.rolled_costs = []
         self.final_costs = []
+        self.opt_rollout_info = {'{}_opt_rollout_success'.format(taskname): [] for taskname in self.task_list}
         with open(self.motion_log, 'w+') as f:
             f.write('')
 
@@ -108,6 +109,7 @@ class MotionServer(Server):
         cur_t = node.freeze_ts if node.freeze_ts >= 0 else 0
         cur_step = 1
         self.n_plans += 1
+
         while cur_t >= 0:
             init_t = time.time()
             success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=False, traj=node.ref_traj)
@@ -115,13 +117,25 @@ class MotionServer(Server):
             path = []
             #print('Time to plan:', time.time() - init_t)
             if success:
+                n_plans = hyperparams['policy_opt']['buffer_sizes']['n_plans']
+                with n_plans.get_lock():
+                    n_plans.value += 1
+
                 wt = self.explore_wt if node.label.lower().find('rollout') >= 0 else 1.
-                path = self.agent.run_plan(plan, node.targets, permute=self.permute_hl, wt=wt, start_ts=cur_t, record=node.hl)
+                path, log_info = self.agent.run_plan(plan, node.targets, permute=self.permute_hl, wt=wt, start_ts=cur_t, record=node.hl)
+                for key in log_info:
+                    self.opt_rollout_info[key].extend(log_info[key])
                 if self.render and (self.id.find('r0') >= 0 or np.random.uniform() < 0.001 or not path[-1].success and np.random.uniform() < 0.01):
                     self.save_video(path, path[-1].success)
                 self.log_path(path, 10)
                 for step in path: step.source_label = 'optimal'
                 print(self.id, 'Successful refine from', node.label, 'rollout succes was:', path[-1].success, 'first ts:', plan.start, cur_t)
+
+                if path[-1].success:
+                    n_plans = hyperparams['policy_opt']['buffer_sizes']['n_total']
+                    with n_plans.get_lock():
+                        n_plans.value += 1
+
                 #if not path[-1].success:
                 #    with open('{}.pkl'.format(self.id), 'wb+') as f:
                 #        pickle.dump(plan, f)           
@@ -252,6 +266,10 @@ class MotionServer(Server):
         for key in self.fail_avgs:
             if len(self.fail_avgs[key]):
                 info[key+'_avg'] = np.mean(self.fail_avgs[key][-wind:])
+
+        for key in self.opt_rollout_info:
+            if len(self.opt_rollout_info[key]):
+                info[key] = np.mean(self.opt_rollout_info[key][-wind:])
 
         if len(self.init_costs): info['mp initial costs'] = np.mean(self.init_costs[-10:])
         if len(self.rolled_costs): info['mp rolled out costs'] = np.mean(self.rolled_costs[-10:])

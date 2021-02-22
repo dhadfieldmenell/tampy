@@ -275,7 +275,7 @@ class RobotAgent(TAMPAgent):
 
         self.optimal_pol_cls =  optimal_pol
         self.load_render = hyperparams['master_config'].get('load_render', False)
-        self.ctrl_mode = 'joint' if ('sawyer', 'right') in self.action_inds else 'ee_pos'
+        self.ctrl_mode = 'joint' #if ('sawyer', 'right') in self.action_inds else 'ee_pos'
         if self.ctrl_mode.find('joint') >= 0:
             controller_config = load_controller_config(default_controller="JOINT_POSITION")
             controller_config['kp'] = [7500, 6500, 6500, 6500, 6500, 6500, 12000]
@@ -289,7 +289,7 @@ class RobotAgent(TAMPAgent):
                 has_renderer=False,                      # on-screen rendering
                 render_camera="frontview",              # visualize the "frontview" camera
                 has_offscreen_renderer=self.load_render,           # no off-screen rendering
-                control_freq=80,                        # 20 hz control for applied actions
+                control_freq=40,                        # 20 hz control for applied actions
                 horizon=300,                            # each episode terminates after 200 steps
                 use_object_obs=True,                   # no observations needed
                 use_camera_obs=False,                   # no observations needed
@@ -300,8 +300,8 @@ class RobotAgent(TAMPAgent):
                 initialization_noise={'magnitude': 0.1, 'type': 'gaussian'}
             )
 
-        sawyer_geom = list(self.plans.values())[0].params['sawyer'].geom
-        self.mjc_env = EnvWrapper(self.base_env, sawyer_geom, self.ctrl_mode)
+        self.sawyer = list(self.plans.values())[0].params['sawyer']
+        self.mjc_env = EnvWrapper(self.base_env, self.sawyer.geom, self.ctrl_mode)
 
         self.check_col = hyperparams['master_config'].get('check_col', True)
         self.camera_id = 1
@@ -424,31 +424,44 @@ class RobotAgent(TAMPAgent):
         else:
             gripper = 0.1 if ctrl['right_gripper'] > 0 else -0.1
 
+        sawyer = list(self.plans.values())[0].params['sawyer']
+        n_steps = 30
         if 'right_ee_pos' in ctrl:
-            n_steps = 50
-            #ctrl['right_ee_pos'] = np.clip(ctrl['right_ee_pos'], -STEP, STEP)
-            targ_pos = self.mjc_env.get_attr('sawyer', 'right_ee_pos') + ctrl['right_ee_pos']
-            rotoff = Rotation.from_rotvec(ctrl['right_ee_rot'])
-            curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
-            targrot = (rotoff * Rotation.from_quat(curquat)).as_quat()
-            pos_mult = 1e2#1e2#5e2
-            rot_mult = 1e2#5e2
-            scale = 1. # 0.975
-            for n in range(n_steps+1):
-                curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
-                pos_ctrl = pos_mult * (targ_pos - self.mjc_env.get_attr('sawyer', 'right_ee_pos'))
-                sign1 = np.sign(targrot[np.argmax(np.abs(targrot))])
-                sign2 = np.sign(curquat[np.argmax(np.abs(curquat))])
-                rot_ctrl = -sign1 * sign2 * rot_mult * robo_T.get_orientation_error(sign1*targrot, sign2*curquat)
-                self.cur_obs = self.base_env.step(np.r_[pos_ctrl, rot_ctrl, [gripper]])
-                pos_mult *= scale
-                rot_mult *= scale
-                #if np.max(np.abs(pos_ctrl)) < pos_mult * 0.005 \
-                #   and np.max(np.abs(rot_ctrl)) < rot_mult * 0.005:
-                #       break
+            cur_jnts = self.mjc_env.get_attr('sawyer', 'right')
+            sawyer.openrave_body.set_dof({'right': cur_jnts})
+            #sawyer.openrave_body.set_dof({'right': np.zeros(7)})
+            cur_pos = self.mjc_env.get_attr('sawyer', 'right_ee_pos')
+            targ_pos = cur_pos + ctrl['right_ee_pos']
+            ctrl_rot = Rotation.from_rotvec(ctrl['right_ee_rot'])
+            cur_quat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
+            targrot = (ctrl_rot * Rotation.from_quat(cur_quat)).as_quat()
+            targ_jnts = sawyer.openrave_body.get_ik_from_pose(targ_pos, cur_quat, 'right')
+            ctrl['right'] = targ_jnts - cur_jnts
+            n_steps = 75
 
-        elif 'right' in ctrl:
-            n_steps = 50
+            #n_steps = 50
+            ##ctrl['right_ee_pos'] = np.clip(ctrl['right_ee_pos'], -STEP, STEP)
+            #targ_pos = self.mjc_env.get_attr('sawyer', 'right_ee_pos') + ctrl['right_ee_pos']
+            #rotoff = Rotation.from_rotvec(ctrl['right_ee_rot'])
+            #curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
+            #targrot = (rotoff * Rotation.from_quat(curquat)).as_quat()
+            #pos_mult = 1e2#1e2#5e2
+            #rot_mult = 1e2#5e2
+            #scale = 1. # 0.975
+            #for n in range(n_steps+1):
+            #    curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
+            #    pos_ctrl = pos_mult * (targ_pos - self.mjc_env.get_attr('sawyer', 'right_ee_pos'))
+            #    sign1 = np.sign(targrot[np.argmax(np.abs(targrot))])
+            #    sign2 = np.sign(curquat[np.argmax(np.abs(curquat))])
+            #    rot_ctrl = -sign1 * sign2 * rot_mult * robo_T.get_orientation_error(sign1*targrot, sign2*curquat)
+            #    self.cur_obs = self.base_env.step(np.r_[pos_ctrl, rot_ctrl, [gripper]])
+            #    pos_mult *= scale
+            #    rot_mult *= scale
+            #    #if np.max(np.abs(pos_ctrl)) < pos_mult * 0.005 \
+            #    #   and np.max(np.abs(rot_ctrl)) < rot_mult * 0.005:
+            #    #       break
+
+        if 'right' in ctrl:
             targ_pos = self.mjc_env.get_attr('sawyer', 'right') + ctrl['right']
             for n in range(n_steps+1):
                 ctrl = np.r_[targ_pos - self.mjc_env.get_attr('sawyer', 'right'), gripper]

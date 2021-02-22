@@ -99,6 +99,7 @@ class Server(object):
         self._last_weight_read = time.time()
 
         self.permute_hl = hyperparams['permute_hl'] > 0
+        self.use_neg = hyperparams['negative']
         self.task_list = self.agent.task_list
         self.pol_list = tuple(hyperparams['policy_list'])
         self.stopped = False
@@ -370,13 +371,13 @@ class Server(object):
         tgt_aux = np.zeros((0))
         opts = self.agent.prob.get_prim_choices(self.agent.task_list)
 
-        if len(samples):
-            lab = samples[0].source_label
-            lab = 'n_plans' if lab == 'optimal' else 'n_rollout'
-            if lab in self.policy_opt.buf_sizes:
-                with self.policy_opt.buf_sizes[lab].get_lock():
-                    self.policy_opt.buf_sizes[lab].value += 1
-                samples[0].source_label = ''
+        #if len(samples):
+        #    lab = samples[0].source_label
+        #    lab = 'n_plans' if lab == 'optimal' else 'n_rollout'
+        #    if lab in self.policy_opt.buf_sizes:
+        #        with self.policy_opt.buf_sizes[lab].get_lock():
+        #            self.policy_opt.buf_sizes[lab].value += 1
+        #        samples[0].source_label = ''
 
         for ind, sample in enumerate(samples):
             mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
@@ -403,6 +404,52 @@ class Server(object):
         if len(tgt_mu):
             # print('Sending update to primitive net')
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', self.label_type, aux=tgt_aux)
+
+
+    def update_negative_primitive(self, samples):
+        if not self.use_neg or not len(samples): continue
+        dP, dO = self.agent.dPrimOut, self.agent.dPrim
+        dOpts = len(list(self.agent.prob.get_prim_choices(self.agent.task_list).keys()))
+        ### Compute target mean, cov, and weight for each sample.
+        obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
+        tgt_prc, tgt_wt = np.zeros((0, dOpts)), np.zeros((0))
+        tgt_aux = np.zeros((0))
+        opts = self.agent.prob.get_prim_choices(self.agent.task_list)
+        for sample, ts, task in samples:
+            wt = sample.prim_use_ts[ts:ts+1]
+            if sample.opt_strength < 1-1e-3: wt[0] *= self.explore_wt
+            wt[:] *= sample.wt
+            if wt[0] == 0: continue
+            obs = sample.get_prim_obs(ts)
+            aux = int(sample.opt_strength) * np.ones(sample.T)
+            tgt_aux = np.concatenate((tgt_aux, aux))
+            tgt_wt = np.concatenate((tgt_wt, wt))
+            obs_data = np.concatenate((obs_data, obs))
+            prc = np.concatenate([self.agent.get_mask(sample, enum) for enum in opts], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
+            prc = prc[t:t+1]
+            if not self.config['hl_mask']:
+                prc[:] = 1.
+            tgt_prc = np.concatenate((tgt_prc, prc))
+           
+            mu = []
+            for ind, enum in enumerate(opts.keys()):
+                if np.isscalar(opts[enum]):
+                    mu.append(task[ind])
+                else:
+                    vec = np.zeros(len(opts[enum]))
+                    vec[task[ind]] = 1.
+                    mu.append(vec)
+                mu = np.r_[mu]
+            mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
+            tgt_mu = np.concatenate((tgt_mu, mu))
+
+        wt *= -1
+        assert np.all(wt < 0)
+        if len(tgt_mu):
+            self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', self.label_type, aux=tgt_aux)
+
+        with self.policy_opt.buf_sizes['n_negative'].get_lock():
+            self.policy_opt.buf_sizes['n_negative'].value += len(tgt_mu)
 
 
     def get_path_data(self, path, n_fixed=0, verbose=False):

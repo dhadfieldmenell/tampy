@@ -2850,8 +2850,8 @@ class IsPushing(PosePredicate):
 
 class GrippersDownRot(GrippersLevel):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.coeff = 1e-1
-        self.opt_coeff = 1e-1
+        self.coeff = 2e-2
+        self.opt_coeff = 2e-2
         attr_inds, attr_dim = init_robot_pred(self, params[0], [])
         self.local_dir = np.array([0,0,1])
 

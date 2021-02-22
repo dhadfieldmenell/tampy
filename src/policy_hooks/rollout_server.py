@@ -84,11 +84,13 @@ class RolloutServer(Server):
         return log_l
 
 
-    def get_task(self, state, targets, prev_task, soft=False):
+    def get_task(self, state, targets, prev_task, soft=False, eta=None):
+        if eta is None:
+            eta = self.eta
         sample = Sample(self.agent)
         sample.set_X(state.copy(), t=0)
         self.agent.fill_sample(0, sample, sample.get(STATE_ENUM, 0), 0, prev_task, fill_obs=True, targets=targets)
-        distrs = self.primitive_call(sample.get_prim_obs(t=0), soft, eta=self.eta, t=0, task=prev_task)
+        distrs = self.primitive_call(sample.get_prim_obs(t=0), soft, eta=eta, t=0, task=prev_task)
         #labels = list(self.agent.plans.keys())
         for d in distrs:
             for i in range(len(d)):
@@ -125,6 +127,7 @@ class RolloutServer(Server):
         precond_viols = []
         self.agent.target_vecs[0] = targets
         self.agent.reset_to_state(x)
+        neg_samples = []
         def task_f(sample, t, curtask):
             task = self.get_task(sample.get_X(t=t), sample.targets, curtask, self.soft)
             task = tuple([val for val in task if np.isscalar(val)])
@@ -132,10 +135,23 @@ class RolloutServer(Server):
             #onehot_task = tuple([val for val in task if np.isscalar(val)])
             #cur_onehot_task = tuple([val for val in curtask if np.isscalar(val)])
             val = 0
+            postcost = None
+            if self.check_postcond:
+                n_tries = 0
+                postcost = self.agent.postcond_cost(sample, curtask, t)
+                cur_eta = self.eta
+                eta_scale = 1.2
+                while n_tries < 10 and task == curtask and postcost < 1e-3:
+                    task = self.get_task(sample.get_X(t=t), sample.targets, curtask, True, eta=cur_eta)
+                    cur_eta *= eta_scale
+                    n_tries += 1
+                    neg_samples.append((sample, t, curtask))
+
             if task != curtask: # not self.compare_tasks(task, curtask):
                 if self.check_postcond:
-                    postcost = self.agent.postcond_cost(sample, curtask, t)
+                    if postcost is None: postcost = self.agent.postcond_cost(sample, curtask, t)
                     if postcost > 1e-3:
+                        neg_samples.append((sample, t, task))
                         task = curtask
                     else:
                         self.postcond_costs[self.task_list[curtask[0]]].append(postcost)
@@ -143,6 +159,7 @@ class RolloutServer(Server):
                 if self.check_precond:
                     precost = self.agent.precond_cost(sample, task, t)
                     if precost > 1e-3:
+                        neg_samples.append((sample, t, task))
                         precond_viols.append((cur_ids[0], t))
                         task = curtask
 
@@ -206,6 +223,13 @@ class RolloutServer(Server):
         if val >= 0.999:
             print('Success in rollout. Pre: {} Post: {} Mid: {}'.format(self.check_precond, self.check_postcond, self.check_midcond))
             self.agent.add_task_paths([path])
+            n_plans = hyperparams['policy_opt']['buffer_sizes']['n_rollout']
+            with n_plans.get_lock():
+                n_plans.value += 1
+            n_plans = hyperparams['policy_opt']['buffer_sizes']['n_total']
+            with n_plans.get_lock():
+                n_plans.value += 1
+
 
         self.log_path(path, -20)
         #return val, path, max(0, s-last_switch), 0
@@ -258,7 +282,7 @@ class RolloutServer(Server):
         if np.random.uniform() < 1:#0.25:
             lab = '' if val > 0.999 else fail_type
             self.save_video(path, val, lab=fail_type)
-        return val, path, bad_pt[0], bad_pt[1], fail_type
+        return val, path, bad_pt[0], bad_pt[1], fail_type, neg_samples
  
         
     def plan_from_fail(self, augment=False, mode='start'):
@@ -540,7 +564,7 @@ class RolloutServer(Server):
     def send_rollout(self, node):
         x0 = node.x0
         targets = node.targets
-        val, path, s, t, fail_type = self.rollout(x0, targets)
+        val, path, s, t, fail_type, neg_samples = self.rollout(x0, targets)
         print('Rolled out success from server {0}: {1}'.format(self.id, val))
         if val < 1:
             self.n_fails += 1
@@ -568,6 +592,9 @@ class RolloutServer(Server):
                                   x0=state,
                                   targets=targets)
             self.push_queue(hlnode, self.task_queue)
+
+        if len(neg_samples) and self.use_neg:
+            self.update_negative_primitive(neg_samples)
        
 
     def test_run(self, state, targets, max_t=20, hl=False, soft=False, check_cost=True, eta=None, lab=0):

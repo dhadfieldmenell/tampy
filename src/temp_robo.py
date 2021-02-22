@@ -9,6 +9,7 @@ from scipy.spatial.transform import Rotation
 import robosuite
 from robosuite.controllers import load_controller_config
 import robosuite.utils.transform_utils as robo_T
+from sco.expr import *
 
 import main
 from core.parsing import parse_domain_config, parse_problem_config
@@ -50,7 +51,7 @@ env = robosuite.make(
     has_renderer=True,                      # on-screen rendering
     render_camera="frontview",              # visualize the "frontview" camera
     has_offscreen_renderer=False,           # no off-screen rendering
-    control_freq=80,                        # 20 hz control for applied actions
+    control_freq=40,                        # 20 hz control for applied actions
     horizon=200,                            # each episode terminates after 200 steps
     use_object_obs=True,                   # no observations needed
     use_camera_obs=False,                   # no observations needed
@@ -127,7 +128,7 @@ params['sawyer'].right_ee_pos[:,0] = T.quaternion_to_euler(info['quat'], 'xyzw')
 goal = '(NearGripperRight sawyer cereal)' #'(At cereal cereal_end_target)'
 #goal = '(At cereal cereal_end_target)'
 solver = RobotSolver()
-load_traj = True
+load_traj = False
 replan = True
 if load_traj:
     oldplan = np.load('MotionServer5.pkl', allow_pickle=True)
@@ -193,11 +194,18 @@ for _ in range(40):
     env.sim.forward()
     env.render()
 env.render()
-import ipdb; ipdb.set_trace()
 
-nsteps = 50
+nsteps = 30
 cur_ind = 0
+tol=1e-3
 for act in plan.actions:
+    t = act.active_timesteps[0]
+    plan.params['sawyer'].right[:,t] = env.sim.data.qpos[:7]
+    plan.params['cereal'].pose[:,t] = env.sim.data.qpos[cereal_ind:cereal_ind+3]
+    plan.params['cereal'].rotation[:,t] = T.quaternion_to_euler(env.sim.data.qpos[cereal_ind+3:cereal_ind+7], 'wxyz')
+    failed_preds = plan.get_failed_preds(active_ts=(t,t), priority=3, tol=tol)
+    #failed_preds = [p for p in failed_preds if (p[1]._rollout or not type(p[1].expr) is EqExpr)]
+    print('FAILED:', t, failed_preds)
     import ipdb; ipdb.set_trace()
     for t in range(act.active_timesteps[0], act.active_timesteps[1]):
         base_act = cmds[cur_ind]
@@ -253,5 +261,11 @@ for act in plan.actions:
         #print('CEREAL:', t, plan.params['cereal'].pose[:,t], env.sim.data.qpos[cereal_ind:cereal_ind+3])
         env.render()
     import ipdb; ipdb.set_trace()
+plan.params['sawyer'].right[:,t] = env.sim.data.qpos[:7]
+plan.params['cereal'].pose[:,t] = env.sim.data.qpos[cereal_ind:cereal_ind+3]
+plan.params['cereal'].rotation[:,t] = T.quaternion_to_euler(env.sim.data.qpos[cereal_ind+3:cereal_ind+7], 'wxyz')
+failed_preds = plan.get_failed_preds(active_ts=(t,t), priority=3, tol=tol)
+#failed_preds = [p for p in failed_preds if (p[1]._rollout or not type(p[1].expr) is EqExpr)]
+print('FAILED:', t, failed_preds)
 import ipdb; ipdb.set_trace()
 

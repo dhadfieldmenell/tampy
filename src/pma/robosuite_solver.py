@@ -48,6 +48,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         robot_body.set_dof({arm: np.zeros(len(robot.geom.jnt_names[arm]))})
         #if not null_zero: #ts[1]-ts[0] > 5:
         #    robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
+        robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
 
         while not len(iks) and attempt < 20:
             if rand:

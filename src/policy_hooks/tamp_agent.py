@@ -85,6 +85,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.rank = hyperparams['master_config'].get('rank', 0)
         self.process_id = self.master_config['id']
         self.goal_type = self.master_config.get('goal_type', 'default')
+        self._tol = 1e-3
         self.retime = hyperparams['master_config'].get('retime', False)
         for condition in range(len(self.x0)):
             target_vec = np.zeros((self.target_dim,))
@@ -624,15 +625,15 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return info
 
 
-    def postcond_cost(self, sample, task=None, t=None, debug=False):
+    def postcond_cost(self, sample, task=None, t=None, debug=False, tol=1e-3):
         if t is None: t = sample.T-1
         if task is None: task = tuple(sample.get(FACTOREDTASK_ENUM, t=t))
-        return self.cost_f(sample.get_X(t), task, sample.condition, active_ts=(-1, -1), targets=sample.targets, debug=debug)
+        return self.cost_f(sample.get_X(t), task, sample.condition, active_ts=(-1, -1), targets=sample.targets, debug=debug, tol=tol)
 
 
-    def precond_cost(self, sample, task=None, t=0):
+    def precond_cost(self, sample, task=None, t=0, tol=1e-3):
         if task is None: task = tuple(sample.get(FACTOREDTASK_ENUM, t=t))
-        return self.cost_f(sample.get_X(t), task, sample.condition, active_ts=(0, 0), targets=sample.targets)
+        return self.cost_f(sample.get_X(t), task, sample.condition, active_ts=(0, 0), targets=sample.targets, tol=tol)
 
 
     def relabel_path(self, path):
@@ -821,6 +822,9 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
     def run_plan(self, plan, targets, tasks=None, reset=True, permute=False, save=True, amin=0, amax=None, record=True, wt=1., start_ts=0, verbose=False):
         if record: self.n_plans_run += 1
         path = []
+        log_info = {}
+        for taskname in self.task_list:
+            log_info['{}_opt_rollout_success'.format(taskname)] = []
         start_ts = int(start_ts)
         nzero = self.master_config.get('add_noop', 0)
         if tasks is None:
@@ -912,14 +916,16 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 cost = self.postcond_cost(end_s, end_s.task, end_s.T-1, debug=False)
                 if cost < 1e-3:
                     self.optimal_samples[self.task_list[s.task[0]]].append(s)
+                    log_info['{}_opt_rollout_success'.format(self.task_list[s.task[0]])].append(1)
                 elif path[-1].success > 0.99:
                     print('Adding path w/postcond failure?', self.task_list[s.task[0]])
+                    log_info['{}_opt_rollout_success'.format(self.task_list[s.task[0]])].append(0)
                     self.optimal_samples[self.task_list[s.task[0]]].append(s)
                 elif path[-1].success > 0.99:
                     preds = self._failed_preds(s.get_X(s.T-1),task, 0, active_ts=(-1,-1))
                     print('Failed to add sample from successful path. Post cost:', cost, 'Task:', s.task, preds)
         print(('Plans run vs. success:', self.n_plans_run, self.n_plans_suc_run, self.process_id))
-        return path
+        return path, log_info
 
 
     def run_pr_graph(self, state, targets=None, cond=None, reset=True):
@@ -1047,7 +1053,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return failed_preds
 
 
-    def cost_f(self, Xs, task, condition, active_ts=None, debug=False, targets=[]):
+    def cost_f(self, Xs, task, condition, active_ts=None, debug=False, targets=[], tol=1e-3):
         true_task = task
         task = [val for val in true_task if np.isscalar(val)]
 
@@ -1057,7 +1063,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             active_ts = (1, plan.horizon-1)
         elif active_ts[0] == -1:
             active_ts = (plan.horizon-1, plan.horizon-1)
-        failed_preds = self._failed_preds(Xs, task, condition, active_ts=active_ts, debug=debug, targets=targets)
+        failed_preds = self._failed_preds(Xs, task, condition, active_ts=active_ts, debug=debug, targets=targets, tol=tol)
         cost = 0
         for failed in failed_preds:
             for t in range(active_ts[0], active_ts[1]+1):
