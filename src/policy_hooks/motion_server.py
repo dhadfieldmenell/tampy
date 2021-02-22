@@ -117,7 +117,7 @@ class MotionServer(Server):
             if success:
                 wt = self.explore_wt if node.label.lower().find('rollout') >= 0 else 1.
                 path = self.agent.run_plan(plan, node.targets, permute=self.permute_hl, wt=wt, start_ts=cur_t, record=node.hl)
-                if self.render: # and np.random.uniform() < 0.01 or not path[-1].success and np.random.uniform() < 0.01:
+                if self.render and (self.id.find('r0') >= 0 or np.random.uniform() < 0.001 or not path[-1].success and np.random.uniform() < 0.01):
                     self.save_video(path, path[-1].success)
                 self.log_path(path, 10)
                 for step in path: step.source_label = 'optimal'

@@ -1367,8 +1367,8 @@ class EEIsMP(RobotPredicate):
         self._env = env
         self.robot, = params
         attrs = []
-        self.lb = -0.5
-        self.ub = 0.5
+        self.lb = -const.EE_STEP
+        self.ub = const.EE_STEP
         for arm in self.robot.geom.arms:
             attrs.append('{}_ee_pos'.format(arm))
         attr_inds, attr_dim = init_robot_pred(self, self.robot, [], attrs={self.robot: attrs})
@@ -1754,12 +1754,16 @@ class InGripper(PosePredicate):
         self.spacial_anchor = True
 
     def stacked_f(self, x):
-        return self.coeff * self.pos_check_f(x, self.rel_pt)
-        #return np.vstack([self.coeff * self.pos_check_f(x, self.rel_pt), self.rot_coeff * self.ee_rot_check_f(x, robot_off=self.inv_mats[self.arm])])
+        if self.eval_dim == 3:
+            return self.coeff * self.pos_check_f(x, self.rel_pt)
+        else:
+            return np.vstack([self.coeff * self.pos_check_f(x, self.rel_pt), self.rot_coeff * self.ee_rot_check_f(x, robot_off=self.inv_mats[self.arm])])
 
     def stacked_grad(self, x):
-        return self.coeff * self.pos_check_jac(x, self.rel_pt)
-        #return np.vstack([self.coeff * self.pos_check_jac(x, self.rel_pt), self.rot_coeff * self.ee_rot_check_jac(x, robot_off=self.inv_mats[self.arm])])
+        if self.eval_dim == 3:
+            return self.coeff * self.pos_check_jac(x, self.rel_pt)
+        else:
+            return np.vstack([self.coeff * self.pos_check_jac(x, self.rel_pt), self.rot_coeff * self.ee_rot_check_jac(x, robot_off=self.inv_mats[self.arm])])
 
     def tile_f(self, x):
         val = self.eval_f(x)
@@ -1924,8 +1928,8 @@ class EEValid(PosePredicate):
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
 
         self.arm = self.robot.geom.arms[0]
-        if not hasattr(self, 'coeff'): self.coeff = 1e-1
-        if not hasattr(self, 'rot_coeff'): self.rot_coeff = 1e-2
+        if not hasattr(self, 'coeff'): self.coeff = 1e-3
+        if not hasattr(self, 'rot_coeff'): self.rot_coeff = 1e-3
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
         self.rel_pt = np.zeros(3)
@@ -2738,7 +2742,7 @@ class GrippersLevel(PosePredicate):
         pos_expr, val = Expr(self.f, self.grad), np.zeros((self.eval_dim,1))
         e = EqExpr(pos_expr, val)
 
-        super(GrippersLevel, self).__init__(name, e, attr_inds, params, expected_param_types, priority = 3)
+        super(GrippersLevel, self).__init__(name, e, attr_inds, params, expected_param_types, priority=3)
         self.spacial_anchor = False
 
 class EERetiming(PosePredicate):
@@ -2810,8 +2814,8 @@ class IsPushing(PosePredicate):
 
 class GrippersDownRot(GrippersLevel):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.coeff = 0.01
-        self.opt_coeff = 0.01
+        self.coeff = 1e-1
+        self.opt_coeff = 1e-1
         attr_inds, attr_dim = init_robot_pred(self, params[0], [])
         self.local_dir = np.array([0,0,1])
 

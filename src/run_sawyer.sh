@@ -21,7 +21,7 @@ do
                                                        --load_render \
                                                        -warm 100 \
                                                        -descr sun_sawyer_grasp & 
-        sleep 3h
+        sleep 5h
         pkill -f run_train -9
         pkill -f ros -9
         sleep 5s

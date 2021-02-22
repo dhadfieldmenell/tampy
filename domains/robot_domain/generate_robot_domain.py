@@ -347,8 +347,8 @@ class MoveHoldingRight(MoveHolding):
             ('(InGripperRight ?robot ?item)', '{0}:{1}'.format(0, -1)),
             ('(NearGripperRight ?robot ?item)', '{0}:{1}'.format(0, 0)),
             #('(RightEEValid ?robot)', '{}:{}'.format(1, self.end-1)),
-            ('(InGripperRight ?robot ?item)', '{0}:{1}'.format(self.end-1, self.end)),
-            ('(NearGripperRight ?robot ?item)', '{0}:{1}'.format(1, self.end-1))])
+            ('(InGripperRight ?robot ?item)', '{0}:{1}'.format(1, self.end-1)),
+            ('(NearGripperRight ?robot ?item)', '{0}:{1}'.format(1, self.end))])
 
 
 class MoveToPutdownLeft(MoveHoldingLeft):

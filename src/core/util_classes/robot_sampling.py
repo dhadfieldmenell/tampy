@@ -437,6 +437,7 @@ def resample_gripper_down_rot(pred, negated, t, plan, arms=[]):
     axis = pred.axis
     pose = robot.openrave_body.param_fwd_kinematics(robot, arms, t)
     iks = {}
+    robot.openrave_body.set_dof({pred.arm: np.zeros(len(robot.geom.jnt_names[pred.arm]))})
     for arm in arms:
         ee_name = geom.ee_link_names[arm]
         ee_link = geom.get_ee_link(arm)
@@ -471,6 +472,7 @@ def resample_in_gripper(pred, negated, t, plan, fix_obj=False):
             pos = obj.pose[:, ts]
             body.set_from_param(robot, ts)
             quat = body.fwd_kinematics(arm)['quat']
+            robot.openrave_body.set_dof({pred.arm: np.zeros(len(robot.geom.jnt_names[pred.arm]))})
             ik = body.get_ik_from_pose(pos, quat, arm)
             add_to_attr_inds_and_res(ts, attr_inds, res, robot, [(arm, ik)])
 
@@ -1391,7 +1393,8 @@ def resample_eereachable(pred, negated, t, plan, inv=False):
     robot_mat = T.quat2mat(quat)
     obj_mat = T.quat2mat(targ_quat)
     quat = T.mat2quat(obj_mat.dot(robot_mat))
-    robot_body.set_dof({arm: getattr(robot, arm)[:,t]})
+    #robot_body.set_dof({arm: getattr(robot, arm)[:,t]})
+    robot_body.set_dof({pred.arm: np.zeros(len(robot.geom.jnt_names[pred.arm]))})
     #info = robot_body.fwd_kinematics(arm)
     #pos, quat = info['pos'], info['quat']
     st, et = pred.active_range

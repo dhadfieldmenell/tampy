@@ -20,7 +20,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         return True
 
 
-    def vertical_gripper(self, robot, arm, obj, gripper_open=True, ts=(0,20), rand=False):
+    def vertical_gripper(self, robot, arm, obj, gripper_open=True, ts=(0,20), rand=False, null_zero=True):
         start_ts, end_ts = ts
         robot_body = robot.openrave_body
         robot_body.set_from_param(robot, start_ts)
@@ -45,10 +45,9 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         iks = []
         attempt = 0
-        if ts[1]-ts[0] > 5:
-            robot_body.set_dof({arm: np.zeros(len(robot.geom.jnt_names[arm]))})
-        else:
-            robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
+        robot_body.set_dof({arm: np.zeros(len(robot.geom.jnt_names[arm]))})
+        #if not null_zero: #ts[1]-ts[0] > 5:
+        #    robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
 
         while not len(iks) and attempt < 20:
             if rand:
@@ -92,8 +91,10 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         robot = act.params[0]
         robot_body = robot.openrave_body
         st, et = act.active_timesteps
-        if hasattr(plan, 'freeze_ts'):
+        zero_null = True
+        if hasattr(plan, 'freeze_ts') and plan.freeze_ts > 0:
             st = max(st, plan.freeze_ts)
+            zero_null = False
 
         robot_body.set_pose(robot.pose[:,st])
         for arm in robot.geom.arms:
@@ -147,9 +148,9 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         for i in range(resample_size):
             ### Cases for when behavior can be inferred from current action
             if a_name.find('grasp') >= 0:
-                pose = self.vertical_gripper(robot, arm, obj, gripper_open, (st, et), rand=(rand or (i>0)))
+                pose = self.vertical_gripper(robot, arm, obj, gripper_open, (st, et), rand=(rand or (i>0)), null_zero=zero_null)
             elif a_name.find('putdown') >= 0:
-                pose = self.vertical_gripper(robot, arm, obj, gripper_open, (st, et), rand=(rand or (i>0)))
+                pose = self.vertical_gripper(robot, arm, obj, gripper_open, (st, et), rand=(rand or (i>0)), null_zero=zero_null)
 
             ### Cases for when behavior cannot be inferred from current action
             elif next_act is None:
@@ -179,45 +180,47 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
 
 
 
-    #def _get_trajopt_obj(self, plan, active_ts=None):
-    #    if active_ts == None:
-    #        active_ts = (0, plan.horizon-1)
-    #    start, end = active_ts
-    #    traj_objs = []
-    #    for param in list(plan.params.values()):
-    #        if param not in self._param_to_ll:
-    #            continue
-    #        if isinstance(param, Object):
-    #            for attr_name in param.__dict__.keys():
-    #                attr_type = param.get_attr_type(attr_name)
-    #                if issubclass(attr_type, Vector):
-    #                    T = end - start + 1
-    #                    K = attr_type.dim
-    #                    attr_val = getattr(param, attr_name)
-    #                    KT = K*T
-    #                    v = -1 * np.ones((KT - K, 1))
-    #                    d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
-    #                    # [:,0] allows numpy to see v and d as one-dimensional so
-    #                    # that numpy will create a diagonal matrix with v and d as a diagonal
-    #                    P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
-    #                    Q = np.dot(np.transpose(P), P)
-    #                    Q *= self.trajopt_coeff/float(plan.horizon)
+    def _get_trajopt_obj(self, plan, active_ts=None):
+        if active_ts == None:
+            active_ts = (0, plan.horizon-1)
+        start, end = active_ts
+        traj_objs = []
+        for param in list(plan.params.values()):
+            if param not in self._param_to_ll:
+                continue
+            if isinstance(param, Object):
+                for attr_name in param.__dict__.keys():
+                    attr_type = param.get_attr_type(attr_name)
+                    if issubclass(attr_type, Vector):
+                        T = end - start + 1
+                        K = attr_type.dim
+                        attr_val = getattr(param, attr_name)
+                        KT = K*T
+                        v = -1 * np.ones((KT - K, 1))
+                        d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
+                        # [:,0] allows numpy to see v and d as one-dimensional so
+                        # that numpy will create a diagonal matrix with v and d as a diagonal
+                        P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
+                        Q = np.dot(np.transpose(P), P)
+                        Q *= self.trajopt_coeff/float(plan.horizon)
 
-    #                    quad_expr = None
-    #                    coeff = 1.
-    #                    if attr_name.find('ee_pos') >= 0 or attr_name.find('ee_rot') >= 0:
-    #                        coeff = 1e0
-    #                    elif attr_name.find('right') >= 0 or attr_name.find('left') >= 0:
-    #                        coeff = 1e-1
+                        quad_expr = None
+                        coeff = 1.
+                        if attr_name.find('ee_pos') >= 0:
+                            coeff = 3e0
+                        elif attr_name.find('ee_rot') >= 0:
+                            coeff = 1e-1
+                        elif attr_name.find('right') >= 0 or attr_name.find('left') >= 0:
+                            coeff = 1e-1
 
-    #                    quad_expr = QuadExpr(coeff*Q, np.zeros((1,KT)), np.zeros((1,1)))
-    #                    param_ll = self._param_to_ll[param]
-    #                    ll_attr_val = getattr(param_ll, attr_name)
-    #                    param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
-    #                    attr_val = getattr(param, attr_name)
-    #                    init_val = attr_val[:, start:end+1].reshape((KT, 1), order='F')
-    #                    sco_var = self.create_variable(param_ll_grb_vars, init_val)
-    #                    bexpr = BoundExpr(quad_expr, sco_var)
-    #                    traj_objs.append(bexpr)
-    #    return traj_objs
+                        quad_expr = QuadExpr(coeff*Q, np.zeros((1,KT)), np.zeros((1,1)))
+                        param_ll = self._param_to_ll[param]
+                        ll_attr_val = getattr(param_ll, attr_name)
+                        param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
+                        attr_val = getattr(param, attr_name)
+                        init_val = attr_val[:, start:end+1].reshape((KT, 1), order='F')
+                        sco_var = self.create_variable(param_ll_grb_vars, init_val)
+                        bexpr = BoundExpr(quad_expr, sco_var)
+                        traj_objs.append(bexpr)
+        return traj_objs
 

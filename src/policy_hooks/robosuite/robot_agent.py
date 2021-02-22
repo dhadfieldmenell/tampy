@@ -229,7 +229,7 @@ class EnvWrapper():
                 self.env.sim.data.body_xquat[ind] = quat
 
         if forward:
-            self.env.sim.forward()
+            self.forward()
 
     def get_joints(self, jnt_names):
         vals = []
@@ -247,8 +247,9 @@ class EnvWrapper():
             ind = self.env.mjpy_model.joint_name2id(jnt)
             adr = self.env.mjpy_model.jnt_qposadr[ind]
             self.env.sim.data.qpos[adr] = val
+
         if forward:
-            self.env.sim.forward()
+            self.forward()
 
     def forward(self):
         self.env.sim.data.qvel[:] = 0
@@ -258,17 +259,20 @@ class EnvWrapper():
     def reset(self):
         obs = self.env.reset()
         cur_pos = self.get_attr('sawyer', 'right_ee_pos')
-        for _ in range(10):
+        cur_jnts = self.get_attr('sawyer', 'right')
+        cereal_pos = self.get_item_pose('cereal')[0]
+        for _ in range(50):
             if self.mode == 'ee_pos':
                 ctrl = cur_pos - self.get_attr('sawyer', 'right_ee_pos')
                 ctrl *= 10
-                self.env.step(np.r_[ctrl, [0, 0, 0, 0]])
+                self.env.step(np.zeros(7))
             elif self.mode == 'jnt':
                 self.env.step([0, 0, 0, 0, 0, 0, 0, 0])
-        #cereal_pos = self.get_item_pose('cereal')[0]
-        #cereal_pos[2] = 0.865
-        #self.set_item_pose('cereal', cereal_pos)
-        #self.forward()
+            self.set_attr('sawyer', 'right', cur_jnts)
+        new_cereal_pos = self.get_item_pose('cereal')[0]
+        cereal_pos[2] = new_cereal_pos[2]
+        self.set_item_pose('cereal', cereal_pos)
+        self.forward()
         return obs
 
 
@@ -287,7 +291,7 @@ class RobotAgent(TAMPAgent):
                 has_renderer=False,                      # on-screen rendering
                 render_camera="frontview",              # visualize the "frontview" camera
                 has_offscreen_renderer=self.load_render,           # no off-screen rendering
-                control_freq=40,                        # 20 hz control for applied actions
+                control_freq=80,                        # 20 hz control for applied actions
                 horizon=300,                            # each episode terminates after 200 steps
                 use_object_obs=True,                   # no observations needed
                 use_camera_obs=False,                   # no observations needed
@@ -415,7 +419,7 @@ class RobotAgent(TAMPAgent):
     def run_policy_step(self, u, x):
         self._col = []
         ctrl = {attr: u[inds] for (param_name, attr), inds in self.action_inds.items()}
-        n_steps = 30
+        n_steps = 20
         cur_grip = x[self.state_inds['sawyer', 'right_gripper']]
         cur_z = x[self.state_inds['sawyer', 'right_ee_pos']][2]
         if cur_z > 10:#GRIPPER_Z:
@@ -429,9 +433,9 @@ class RobotAgent(TAMPAgent):
             rotoff = Rotation.from_rotvec(ctrl['right_ee_rot'])
             curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
             targrot = (rotoff * Rotation.from_quat(curquat)).as_quat()
-            pos_mult = 2e1#1e2#5e2
-            rot_mult = 2e1#1e2#5e2
-            scale = 1.#0.975
+            pos_mult = 1e2#1e2#5e2
+            rot_mult = 1e2#5e2
+            scale = 1. # 0.975
             for n in range(n_steps+1):
                 curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
                 pos_ctrl = pos_mult * (targ_pos - self.mjc_env.get_attr('sawyer', 'right_ee_pos'))

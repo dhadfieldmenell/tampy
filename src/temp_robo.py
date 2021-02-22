@@ -23,19 +23,12 @@ from pma.robosuite_solver import RobotSolver
 import core.util_classes.transform_utils as T
 
 REF_QUAT = np.array([0, 0, -0.7071, -0.7071])
-def theta_ctrl(theta, cur_quat, ref_quat=REF_QUAT):
-    cur_quat *= np.sign(cur_quat[np.argmax(np.abs(cur_quat))])
-    ref_quat *= np.sign(ref_quat[np.argmax(np.abs(ref_quat))])
-    delta = np.array([theta, 0, 0])
-    delta_mat = T.quat2mat(robo_T.axisangle2quat(delta))
-    ref_quat = T.mat2quat(delta_mat.dot(T.quat2mat(ref_quat)))
-    error = robo_T.get_orientation_error(ref_quat, cur_quat)
-    return error
-
 def theta_error(cur_quat, next_quat):
-    #cur_quat *= np.sign(cur_quat[np.argmax(np.abs(cur_quat))])
-    next_quat *= np.sign(next_quat[np.argmax(np.abs(next_quat))])
-    angle = robo_T.get_orientation_error(next_quat, cur_quat)
+    sign1 = np.sign(cur_quat[np.argmax(np.abs(cur_quat))])
+    sign2 = np.sign(next_quat[np.argmax(np.abs(next_quat))])
+    next_quat = np.array(next_quat)
+    cur_quat = np.array(cur_quat)
+    angle = -(sign1 * sign2) * robo_T.get_orientation_error(sign1 * next_quat, sign2 * cur_quat)
     return angle
 
 controller_config = load_controller_config(default_controller="OSC_POSE")
@@ -47,7 +40,7 @@ env = robosuite.make(
     robots=["Sawyer"],             # load a Sawyer robot and a Panda robot
     gripper_types="default",                # use default grippers per robot arm
     controller_configs=controller_config,   # each arm is controlled using OSC
-    has_renderer=False,                      # on-screen rendering
+    has_renderer=True,                      # on-screen rendering
     render_camera="frontview",              # visualize the "frontview" camera
     has_offscreen_renderer=False,           # no off-screen rendering
     control_freq=80,                        # 20 hz control for applied actions
@@ -78,7 +71,6 @@ visual = len(os.environ.get('DISPLAY', '')) > 0
 visual = False
 problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, None, use_tf=True, sess=None, visual=visual)
 params = problem.init_state.params
-import ipdb; ipdb.set_trace()
 #ll_plan_str = ["0: MOVE_TO_GRASP_LEFT BAXTER CLOTH0 ROBOT_INIT_POSE ROBOT_END_POSE"]
 #plan = hls.get_plan(ll_plan_str, domain, problem)
 #plan.d_c = d_c
@@ -118,14 +110,14 @@ for jnt in jnts:
     jnt_ind = env.mjpy_model.jnt_qposadr[jnt_adr]
     sawyer_inds.append(jnt_ind)
     jnt_vals.append(env.sim.data.qpos[jnt_ind])
-params['sawyer'].right[:,0] = [-0.3962099, -0.97739413, 0.04612799, 1.742205 , -0.03562013, 0.8089644, 0.45207395]#jnt_vals
+params['sawyer'].right[:,0] = jnt_vals
 params['sawyer'].openrave_body.set_pose(params['sawyer'].pose[:,0])
 params['sawyer'].openrave_body.set_dof({'right': params['sawyer'].right[:,0]})
 info = params['sawyer'].openrave_body.fwd_kinematics('right')
 params['sawyer'].right_ee_pos[:,0] = info['pos']
 params['sawyer'].right_ee_pos[:,0] = T.quaternion_to_euler(info['quat'], 'xyzw')
 
-goal = '(At cereal cereal_end_target)'
+goal = '(NearGripperRight sawyer cereal)' #'(At cereal cereal_end_target)'
 solver = RobotSolver()
 
 plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=5)
@@ -151,11 +143,25 @@ hand_ind = env.mjpy_model.body_name2id('robot0_right_hand')
 env.reset()
 env.sim.data.qpos[cereal_ind:cereal_ind+3] = plan.params['cereal'].pose[:,0]
 env.sim.data.qpos[cereal_ind+3:cereal_ind+7] = T.euler_to_quaternion(plan.params['cereal'].rotation[:,0], 'wxyz')
+env.sim.data.qpos[:7] = params['sawyer'].right[:,0]
 env.sim.data.qacc[:] = 0
 env.sim.data.qvel[:] = 0
 env.sim.forward()
+rot_ref = T.euler_to_quaternion(params['sawyer'].right_ee_rot[:,0], 'xyzw') 
+for _ in range(40):
+    ctrl = params['sawyer'].right_ee_pos[:,0] - env.sim.data.site_xpos[grip_ind]
+    rot_ctrl = theta_error(env.sim.data.body_xquat[hand_ind], rot_ref)
+    ctrl *= 5e0
+    rot_ctrl *= 5e0
+    env.step(0*np.r_[ctrl, rot_ctrl, [0]])
+    env.sim.data.qacc[:] = 0
+    env.sim.data.qvel[:] = 0
+    env.sim.data.qpos[:7] = params['sawyer'].right[:,0]
+    env.sim.forward()
+    env.render()
 env.render()
 import ipdb; ipdb.set_trace()
+
 nsteps = 20
 cur_ind = 0
 for act in plan.actions:
@@ -175,7 +181,7 @@ for act in plan.actions:
         for n in range(nsteps):
             act = base_act.copy()
             act[:3] -= env.sim.data.site_xpos[grip_ind]
-            act[:3] *= 5e2
+            act[:3] *= 1e2
             cur = env.sim.data.body_xquat[hand_ind]
             cur = np.array([cur[1], cur[2], cur[3], cur[0]])
             #targ = act[3:7]
@@ -190,7 +196,7 @@ for act in plan.actions:
             #angle = robosuite.utils.transform_utils.get_orientation_error(sign*targ, cur)
             #rot = Rotation.from_rotvec(angle)
             #currot = Rotation.from_quat(cur)
-            angle = -sign*cur_sign*5e2*robosuite.utils.transform_utils.get_orientation_error(sign*targrot, cur_sign*cur)
+            angle = -sign*cur_sign*1e2*robosuite.utils.transform_utils.get_orientation_error(sign*targrot, cur_sign*cur)
             #a = np.linalg.norm(angle)
             #if a > 2*np.pi:
             #    angle = (a - 2*np.pi)  * angle / a
