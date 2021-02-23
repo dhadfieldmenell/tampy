@@ -357,6 +357,7 @@ def argsparser():
     parser.add_argument('-pre', '--check_precond', action='store_true', default=False)
     parser.add_argument('-post', '--check_postcond', action='store_true', default=False)
     parser.add_argument('-mid', '--check_midcond', action='store_true', default=False)
+    parser.add_argument('-random', '--check_random_switch', action='store_true', default=False)
     parser.add_argument('-mask', '--hl_mask', action='store_false', default=True)
     parser.add_argument('-rs', '--rollout_seed', action='store_true', default=False)
     parser.add_argument('-switch', '--use_switch', action='store_true', default=False)

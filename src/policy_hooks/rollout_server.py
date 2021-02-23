@@ -33,6 +33,7 @@ class RolloutServer(Server):
         self.check_precond = hyperparams['check_precond']
         self.check_postcond = hyperparams['check_postcond']
         self.check_midcond = hyperparams['check_midcond']
+        self.check_random_switch = hyperparams['check_random_switch']
         self.fail_plan = hyperparams['train_on_fail']
         self.fail_mode = hyperparams['fail_mode']
         self.current_id = 0
@@ -239,7 +240,10 @@ class RolloutServer(Server):
             self.task_successes[self.task_list[cur_tasks[-1][0]]].append(1)
 
         if val >= 0.999:
-            print('Success in rollout. Pre: {} Post: {} Mid: {}'.format(self.check_precond, self.check_postcond, self.check_midcond))
+            print('Success in rollout. Pre: {} Post: {} Mid: {} Random: {}'.format(self.check_precond, \
+                                                                        self.check_postcond, \
+                                                                        self.check_midcond, \
+                                                                        self.check_random_switch))
             self.agent.add_task_paths([path])
             n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_rollout']
             with n_plans.get_lock():
@@ -262,6 +266,10 @@ class RolloutServer(Server):
             fail_type = 'rollout_postcondition_failure'
             bad_pt = switch_pts[-1]
             train_pts.append(tuple(bad_pt) + (fail_type,))
+
+        if self.check_random_switch:
+            ind = np.random.choice(range(len(switch_pts)))
+            train_pts.append(tuple(switch_pts[ind]) + ('rollout_random_switch',))
 
         if self.check_midcond:
             curtask = tuple([val for val in cur_tasks[-1] if np.isscalar(val)])
