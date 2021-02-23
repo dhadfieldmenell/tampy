@@ -32,6 +32,8 @@ from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
 import core.util_classes.transform_utils as T
 
+from pma.robosuite_solver import REF_JNTS
+
 from policy_hooks.agent import Agent
 from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
@@ -428,8 +430,7 @@ class RobotAgent(TAMPAgent):
         n_steps = 30
         if 'right_ee_pos' in ctrl:
             cur_jnts = self.mjc_env.get_attr('sawyer', 'right')
-            sawyer.openrave_body.set_dof({'right': cur_jnts})
-            #sawyer.openrave_body.set_dof({'right': np.zeros(7)})
+            sawyer.openrave_body.set_dof({'right': REF_JNTS})
             cur_pos = self.mjc_env.get_attr('sawyer', 'right_ee_pos')
             targ_pos = cur_pos + ctrl['right_ee_pos']
             ctrl_rot = Rotation.from_rotvec(ctrl['right_ee_rot'])
@@ -437,7 +438,6 @@ class RobotAgent(TAMPAgent):
             targrot = (ctrl_rot * Rotation.from_quat(cur_quat)).as_quat()
             targ_jnts = sawyer.openrave_body.get_ik_from_pose(targ_pos, cur_quat, 'right')
             ctrl['right'] = targ_jnts - cur_jnts
-            n_steps = 75
 
             #n_steps = 50
             ##ctrl['right_ee_pos'] = np.clip(ctrl['right_ee_pos'], -STEP, STEP)

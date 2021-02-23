@@ -107,7 +107,7 @@ class MotionServer(Server):
         #set_params_attrs(plan.params, self.agent.state_inds, node.x0, ts[1])
         #plan.freeze_actions(plan.start)
         cur_t = node.freeze_ts if node.freeze_ts >= 0 else 0
-        cur_step = 1
+        cur_step = 3
         self.n_plans += 1
 
         while cur_t >= 0:

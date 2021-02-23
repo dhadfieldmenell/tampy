@@ -146,13 +146,13 @@ class RolloutServer(Server):
             if self.check_postcond:
                 n_tries = 0
                 postcost = self.agent.postcond_cost(sample, curtask, t)
-                cur_eta = self.eta
-                eta_scale = 0.9
-                while n_tries < 10 and task == curtask and postcost < 1e-3:
-                    task = self.get_task(sample.get_X(t=t), sample.targets, curtask, True, eta=cur_eta)
-                    cur_eta *= eta_scale
-                    n_tries += 1
-                    neg_samples.append((sample, t, curtask))
+                #cur_eta = self.eta
+                #eta_scale = 0.9
+                #while n_tries < 10 and task == curtask and postcost < 1e-3:
+                #    task = self.get_task(sample.get_X(t=t), sample.targets, curtask, True, eta=cur_eta)
+                #    cur_eta *= eta_scale
+                #    n_tries += 1
+                #    neg_samples.append((sample, t, curtask))
 
             if task != curtask: # not self.compare_tasks(task, curtask):
                 if self.check_postcond:
@@ -171,6 +171,7 @@ class RolloutServer(Server):
                     
                     n_tries = 0
                     cur_eta = self.eta
+                    eta_scale = 0.9
                     while n_tries < 10 and task == curtask and precost < 1e-3:
                         neg_samples.append((sample, t, task))
                         precost = self.agent.precond_cost(sample, task, t)
@@ -239,10 +240,10 @@ class RolloutServer(Server):
         if val >= 0.999:
             print('Success in rollout. Pre: {} Post: {} Mid: {}'.format(self.check_precond, self.check_postcond, self.check_midcond))
             self.agent.add_task_paths([path])
-            n_plans = hyperparams['policy_opt']['buffer_sizes']['n_rollout']
+            n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_rollout']
             with n_plans.get_lock():
                 n_plans.value += 1
-            n_plans = hyperparams['policy_opt']['buffer_sizes']['n_total']
+            n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_total']
             with n_plans.get_lock():
                 n_plans.value += 1
 

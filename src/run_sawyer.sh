@@ -20,8 +20,8 @@ do
                                                        -rollout 16 \
                                                        -roll_hl \
                                                        --load_render \
-                                                       -warm 0 \
-                                                       -descr dummy_mon_lowerreg_jnt_sawyer_grasp & 
+                                                       -warm 10 \
+                                                       -descr mon_lowerreg_jnt_sawyer_grasp & 
         sleep 5h
         pkill -f run_train -9
         pkill -f ros -9

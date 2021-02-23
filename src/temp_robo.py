@@ -196,12 +196,13 @@ for _ in range(40):
     env.render()
 env.render()
 
-nsteps = 50
+nsteps = 30
 cur_ind = 0
 tol=1e-3
 true_lb, true_ub = plan.params['sawyer'].geom.get_joint_limits('right')
 factor = (np.array(true_ub) - np.array(true_lb)) / 5
 ref_jnts = env.sim.data.qpos[:7]
+ref_jnts = np.array([0, -np.pi/4, 0, np.pi/4, 0, np.pi/2, 0])
 for act in plan.actions:
     t = act.active_timesteps[0]
     plan.params['sawyer'].right[:,t] = env.sim.data.qpos[:7]
@@ -227,6 +228,7 @@ for act in plan.actions:
             lb = env.sim.data.qpos[:7] - factor
             ub = env.sim.data.qpos[:7] + factor
             sawyer.openrave_body.set_dof({'right': np.zeros(7)})
+            sawyer.openrave_body.set_dof({'right': ref_jnts})
 
             targ_jnts = sawyer.openrave_body.get_ik_from_pose(targ_pos, targ_rot, 'right', bnds=(lb, ub))
             base_act = np.r_[targ_jnts, base_act[-1]]
