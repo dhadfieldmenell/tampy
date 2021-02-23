@@ -1132,6 +1132,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
     def reverse_retime(self, samples, ts, label=False, start_t=0):
         T = 1+sum([s.T-1 for s in samples])
         if T - start_t <= ts[1] - ts[0]:
+            if label: return np.concatenate([s.get(STATE_ENUM) for s in samples]), [], []
             return np.concatenate([s.get(STATE_ENUM) for s in samples])
 
         ts = np.linspace(start_t, T, ts[1]-ts[0]+1)

@@ -207,10 +207,11 @@ class RolloutServer(Server):
         last_switch = 0
         while val < 1 and s < rlen:
             #if self.check_precond and len(precond_viols): break
-
+            
+            curtask = tuple([val for val in cur_tasks[-1] if np.isscalar(val)])
             task_name = self.task_list[cur_tasks[-1][0]]
             pol = self.agent.policies[task_name]
-            hor = int(2 * self.agent.plans[cur_tasks[-1]].horizon)
+            hor = int(2 * self.agent.plans[curtask].horizon)
             if self.agent.retime:
                 hor *= 3
 
@@ -263,10 +264,12 @@ class RolloutServer(Server):
             train_pts.append(tuple(bad_pt) + (fail_type,))
 
         if self.check_midcond:
-            plan = self.agent.plans[cur_tasks[-1]]
+            curtask = tuple([val for val in cur_tasks[-1] if np.isscalar(val)])
+            plan = self.agent.plans[curtask]
             st = bad_pt[1]
             traj, steps, _ = self.agent.reverse_retime(path[bad_pt[0]:], (0, plan.horizon-1), label=True, start_t=st)
             for t in range(len(traj)-1):
+                t = min(t, plan.horizon-1)
                 set_params_attrs(plan.params, self.agent.state_inds, traj[t], t)
             self.agent.set_symbols(plan, cur_tasks[-1], targets=targets)
             failed_preds = plan.get_failed_preds(tol=1e-3)
@@ -280,7 +283,10 @@ class RolloutServer(Server):
             fail_t = min(fail_t, plan.horizon-3)
             if len(failed_preds):
                 fail_type = 'rollout_midcondition_failure'
-                fail_s = bad_pt[0] + steps[fail_t]
+                if fail_t < len(steps):
+                    fail_s = bad_pt[0] + steps[fail_t]
+                else:
+                    fail_s = bad_pt[0]
                 x0 = path[bad_pt[0]].get(STATE_ENUM, 0)
                 print('MID COND:', fail_s, fail_t, bad_pt, failed_preds)
                 initial, goal = self.agent.get_hl_info(x0, targets)
