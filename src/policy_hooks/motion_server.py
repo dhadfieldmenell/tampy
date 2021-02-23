@@ -184,7 +184,7 @@ class MotionServer(Server):
                 time.sleep(0.01)
                 continue
 
-            if not step % 10:
+            if not step % 2:
                 self.set_policies()
                 self.write_log()
             self.refine_plan(node)

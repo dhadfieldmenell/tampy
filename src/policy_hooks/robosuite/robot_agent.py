@@ -291,7 +291,7 @@ class RobotAgent(TAMPAgent):
                 has_renderer=False,                      # on-screen rendering
                 render_camera="frontview",              # visualize the "frontview" camera
                 has_offscreen_renderer=self.load_render,           # no off-screen rendering
-                control_freq=40,                        # 20 hz control for applied actions
+                control_freq=50,                        # 20 hz control for applied actions
                 horizon=300,                            # each episode terminates after 200 steps
                 use_object_obs=True,                   # no observations needed
                 use_camera_obs=False,                   # no observations needed
@@ -427,16 +427,20 @@ class RobotAgent(TAMPAgent):
             gripper = 0.1 if ctrl['right_gripper'] > 0 else -0.1
 
         sawyer = list(self.plans.values())[0].params['sawyer']
-        n_steps = 30
+        true_lb, true_ub = sawyer.geom.get_joint_limits('right')
+        factor = (np.array(true_ub) - np.array(true_lb)) / 5
+        n_steps = 40
         if 'right_ee_pos' in ctrl:
             cur_jnts = self.mjc_env.get_attr('sawyer', 'right')
-            sawyer.openrave_body.set_dof({'right': REF_JNTS})
             cur_pos = self.mjc_env.get_attr('sawyer', 'right_ee_pos')
             targ_pos = cur_pos + ctrl['right_ee_pos']
             ctrl_rot = Rotation.from_rotvec(ctrl['right_ee_rot'])
             cur_quat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
             targrot = (ctrl_rot * Rotation.from_quat(cur_quat)).as_quat()
-            targ_jnts = sawyer.openrave_body.get_ik_from_pose(targ_pos, cur_quat, 'right')
+            sawyer.openrave_body.set_dof({'right': REF_JNTS})
+            lb = cur_jnts - factor
+            ub = cur_jnts + factor
+            targ_jnts = sawyer.openrave_body.get_ik_from_pose(targ_pos, targrot, 'right', bnds=(lb, ub))
             ctrl['right'] = targ_jnts - cur_jnts
 
             #n_steps = 50
@@ -1141,7 +1145,7 @@ class RobotAgent(TAMPAgent):
             vec[gripinds] = np.sum(vec[inds]) / 2.
             vec /= np.linalg.norm(vec)
         elif ('sawyer', 'right_ee_pos') in self.action_inds and ('sawyer', 'right_ee_rot') in self.action_inds:
-            vecs = np.array([1e1, 1e1, 1e1, 1e-2, 1e-2, 1e-2, 1e2])
+            vecs = np.array([1e1, 1e1, 1e1, 1e-2, 1e-2, 1e-2, 1e0])
         return np.diag(vec)
 
 

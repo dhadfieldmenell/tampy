@@ -12,6 +12,8 @@ from pma import backtrack_ll_solver
 
 
 REF_JNTS = np.array([0, -np.pi/4, 0, np.pi/4, 0, np.pi/2, 0])
+REF_JNTS = np.array([0, -np.pi/3, 0, np.pi/3, 0, np.pi/2, 0])
+REF_JNTS = np.array([0, -np.pi/3, 0, np.pi/6, 0, 2*np.pi/3, 0])
 
 class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
@@ -50,7 +52,8 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         robot_body.set_dof({arm: np.zeros(len(robot.geom.jnt_names[arm]))})
         #if not null_zero: #ts[1]-ts[0] > 5:
         #    robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
-        robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
+        #robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
+        robot_body.set_dof({arm: REF_JNTS})
 
         while not len(iks) and attempt < 20:
             if rand:
@@ -215,6 +218,8 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                             coeff = 2e-3
                         elif attr_name.find('right') >= 0 or attr_name.find('left') >= 0:
                             coeff = 1e-1
+                        else:
+                            coeff = 1e-2
 
                         quad_expr = QuadExpr(coeff*Q, np.zeros((1,KT)), np.zeros((1,1)))
                         param_ll = self._param_to_ll[param]
@@ -226,13 +231,16 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                         bexpr = BoundExpr(quad_expr, sco_var)
                         traj_objs.append(bexpr)
 
-            #traj_objs.extend(self._get_null_obj(plan, active_ts))
+            traj_objs.extend(self._get_null_obj(plan, active_ts))
         return traj_objs
 
 
     def _get_null_obj(self, plan, active_ts=None):
         if active_ts == None:
             active_ts = (0, plan.horizon-1)
+
+        act = [a for a in plan.actions if a.active_timesteps[0] >= active_ts[0] and a.active_timesteps[1] <= active_ts[1]][0]
+        if act.name.find('move') < 0: return []
         start, end = active_ts
         traj_objs = []
         param = plan.params['sawyer']
@@ -241,8 +249,10 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         attr_type = param.get_attr_type('right')
         K = attr_type.dim
         KT = K*T
-        coeff = 3e-4
-        quad_expr = QuadExpr(coeff*np.eye(KT), np.zeros((1,KT)), np.zeros((1,1)))
+        coeff = 1e-3
+        ref_jnts = np.tile(REF_JNTS, (T,))
+        c = np.sum(ref_jnts**2)
+        quad_expr = QuadExpr(coeff*np.eye(KT), -2*coeff*ref_jnts.reshape((1, KT)), c*coeff*np.ones((1,1)))
         param_ll = self._param_to_ll[param]
         ll_attr_val = getattr(param_ll, attr_name)
         param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
