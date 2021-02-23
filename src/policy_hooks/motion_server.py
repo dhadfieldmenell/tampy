@@ -117,7 +117,7 @@ class MotionServer(Server):
             path = []
             #print('Time to plan:', time.time() - init_t)
             if success:
-                n_plans = hyperparams['policy_opt']['buffer_sizes']['n_plans']
+                n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
                 with n_plans.get_lock():
                     n_plans.value += 1
 
@@ -129,10 +129,10 @@ class MotionServer(Server):
                     self.save_video(path, path[-1].success)
                 self.log_path(path, 10)
                 for step in path: step.source_label = 'optimal'
-                print(self.id, 'Successful refine from', node.label, 'rollout succes was:', path[-1].success, 'first ts:', plan.start, cur_t)
+                print(self.id, 'Successful refine from', node.label, 'rollout succes was:', path[-1]._postsuc, path[-1].success, 'first ts:', plan.start, cur_t)
 
                 if path[-1].success:
-                    n_plans = hyperparams['policy_opt']['buffer_sizes']['n_total']
+                    n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_total']
                     with n_plans.get_lock():
                         n_plans.value += 1
 

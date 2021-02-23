@@ -125,22 +125,29 @@ class RolloutServer(Server):
         cur_ids = [0]
         cur_tasks = []
         precond_viols = []
+        expl_precond_viols = []
         self.agent.target_vecs[0] = targets
         self.agent.reset_to_state(x)
         neg_samples = []
+        init_t = time.time()
         def task_f(sample, t, curtask):
             task = self.get_task(sample.get_X(t=t), sample.targets, curtask, self.soft)
             task = tuple([val for val in task if np.isscalar(val)])
             curtask = tuple([val for val in curtask if np.isscalar(val)])
             #onehot_task = tuple([val for val in task if np.isscalar(val)])
             #cur_onehot_task = tuple([val for val in curtask if np.isscalar(val)])
-            val = 0
+            val = 1 - self.agent.goal_f(0, sample.get_X(t), targets)
+            if val > 0.99:
+                cur_tasks.append(curtask)
+                counts.append(counts[-1]+1)
+                return curtask
+
             postcost = None
             if self.check_postcond:
                 n_tries = 0
                 postcost = self.agent.postcond_cost(sample, curtask, t)
                 cur_eta = self.eta
-                eta_scale = 1.2
+                eta_scale = 0.9
                 while n_tries < 10 and task == curtask and postcost < 1e-3:
                     task = self.get_task(sample.get_X(t=t), sample.targets, curtask, True, eta=cur_eta)
                     cur_eta *= eta_scale
@@ -159,13 +166,21 @@ class RolloutServer(Server):
                 if self.check_precond:
                     precost = self.agent.precond_cost(sample, task, t)
                     if precost > 1e-3:
-                        neg_samples.append((sample, t, task))
                         precond_viols.append((cur_ids[0], t))
-                        task = curtask
+                        neg_samples.append((sample, t, task))
+                    
+                    n_tries = 0
+                    cur_eta = self.eta
+                    while n_tries < 10 and task == curtask and precost < 1e-3:
+                        neg_samples.append((sample, t, task))
+                        precost = self.agent.precond_cost(sample, task, t)
+                        task = self.get_task(sample.get_X(t=t), sample.targets, curtask, True, eta=cur_eta)
+                        cur_eta *= eta_scale
+                        n_tries += 1
 
-                val = 1 - self.agent.goal_f(0, sample.get_X(t), targets)
-                if val > 0.99:
-                    task = curtask
+                    if precost > 1e-3:
+                        expl_precond_viols.append((cur_ids[0], t))
+                        task = curtask
 
             if task == curtask:
                 counts.append(counts[-1]+1)
@@ -205,6 +220,7 @@ class RolloutServer(Server):
             cur_ids.append(s)
             val = 1 - self.agent.goal_f(0, sample.get_X(sample.T-1), targets)
             if counts[-1] >= s_per_task * t_per_task: break
+            if len(expl_precond_viols): break
 
         if len(path):
             val = 1 - self.agent.goal_f(0, path[-1].get_X(path[-1].T-1), targets)
@@ -233,56 +249,61 @@ class RolloutServer(Server):
 
         self.log_path(path, -20)
         #return val, path, max(0, s-last_switch), 0
+        train_pts = []
         fail_type = 'successful_rollout'
         if len(precond_viols):
             fail_type = 'rollout_precondition_failure'
             bad_pt = precond_viols[0]
-        else:
+            train_pts.extend([tuple(pt) + (fail_type,) for pt in precond_viols])
+
+        if self.check_postcond:
             fail_type = 'rollout_postcondition_failure'
             bad_pt = switch_pts[-1]
-            if self.check_midcond:
-                plan = self.agent.plans[cur_tasks[-1]]
-                st = bad_pt[1]
-                traj, steps, _ = self.agent.reverse_retime(path[bad_pt[0]:], (0, plan.horizon-1), label=True, start_t=st)
-                for t in range(len(traj)-1):
-                    set_params_attrs(plan.params, self.agent.state_inds, traj[t], t)
-                self.agent.set_symbols(plan, cur_tasks[-1], targets=targets)
-                failed_preds = plan.get_failed_preds(tol=1e-3)
-                failed_preds = [p for p in failed_preds if (p[1]._rollout or (not p[1]._nonrollout and type(p[1].expr) is not EqExpr))]
-                if len(failed_preds):
-                    fail_t = min([p[2]+p[1].active_range[0] for p in failed_preds]) - 1
-                else:
-                    fail_t = plan.horizon - 1
+            train_pts.append(tuple(bad_pt) + (fail_type,))
 
-                fail_t = max(0, fail_t)
-                fail_t = min(fail_t, plan.horizon-4)
-                if len(failed_preds):
-                    fail_type = 'rollout_midcondition_failure'
-                    fail_s = bad_pt[0] + steps[fail_t]
-                    x0 = path[bad_pt[0]].get(STATE_ENUM, 0)
-                    print('MID COND:', fail_s, fail_t, bad_pt, failed_preds)
-                    initial, goal = self.agent.get_hl_info(x0, targets)
-                    plan.start = 0
-                    new_node = LLSearchNode(plan.plan_str, 
-                                            prob=plan.prob, 
-                                            domain=plan.domain,
-                                            initial=plan.prob.initial,
-                                            priority=ROLL_PRIORITY+2,
-                                            ref_plan=plan,
-                                            targets=targets,
-                                            x0=traj[0],
-                                            expansions=1,
-                                            label='rollout_midcondition_failure',
-                                            refnode=None,
-                                            freeze_ts=fail_t,
-                                            hl=False,
-                                            ref_traj=traj)
-                    self.push_queue(new_node, self.motion_queue)
+        if self.check_midcond:
+            plan = self.agent.plans[cur_tasks[-1]]
+            st = bad_pt[1]
+            traj, steps, _ = self.agent.reverse_retime(path[bad_pt[0]:], (0, plan.horizon-1), label=True, start_t=st)
+            for t in range(len(traj)-1):
+                set_params_attrs(plan.params, self.agent.state_inds, traj[t], t)
+            self.agent.set_symbols(plan, cur_tasks[-1], targets=targets)
+            failed_preds = plan.get_failed_preds(tol=1e-3)
+            failed_preds = [p for p in failed_preds if (p[1]._rollout or (not p[1]._nonrollout and type(p[1].expr) is not EqExpr))]
+            if len(failed_preds):
+                fail_t = min([p[2]+p[1].active_range[0] for p in failed_preds]) - 1
+            else:
+                fail_t = plan.horizon - 1
+
+            fail_t = max(0, fail_t)
+            fail_t = min(fail_t, plan.horizon-3)
+            if len(failed_preds):
+                fail_type = 'rollout_midcondition_failure'
+                fail_s = bad_pt[0] + steps[fail_t]
+                x0 = path[bad_pt[0]].get(STATE_ENUM, 0)
+                print('MID COND:', fail_s, fail_t, bad_pt, failed_preds)
+                initial, goal = self.agent.get_hl_info(x0, targets)
+                plan.start = 0
+                new_node = LLSearchNode(plan.plan_str, 
+                                        prob=plan.prob, 
+                                        domain=plan.domain,
+                                        initial=plan.prob.initial,
+                                        priority=ROLL_PRIORITY+2,
+                                        ref_plan=plan,
+                                        targets=targets,
+                                        x0=traj[0],
+                                        expansions=1,
+                                        label='rollout_midcondition_failure',
+                                        refnode=None,
+                                        freeze_ts=fail_t,
+                                        hl=False,
+                                        ref_traj=traj)
+                self.push_queue(new_node, self.motion_queue)
 
         if np.random.uniform() < 1:#0.25:
             lab = '' if val > 0.999 else fail_type
             self.save_video(path, val, lab=fail_type)
-        return val, path, bad_pt[0], bad_pt[1], fail_type, neg_samples
+        return val, path, train_pts, neg_samples #bad_pt[0], bad_pt[1], fail_type, neg_samples
  
         
     def plan_from_fail(self, augment=False, mode='start'):
@@ -564,37 +585,40 @@ class RolloutServer(Server):
     def send_rollout(self, node):
         x0 = node.x0
         targets = node.targets
-        val, path, s, t, fail_type, neg_samples = self.rollout(x0, targets)
+        #val, path, s, t, fail_type, neg_samples = self.rollout(x0, targets)
+        val, path, train_pts, neg_samples = self.rollout(x0, targets)
         print('Rolled out success from server {0}: {1}'.format(self.id, val))
-        if val < 1:
-            self.n_fails += 1
-            if fail_type not in self.fail_types:
-                self.fail_types[fail_type] = 1.
-            else:
-                self.fail_types[fail_type] += 1.
+        for s, t, fail_type in train_pts:
+            if val < 1:
+                self.n_fails += 1
+                if fail_type not in self.fail_types:
+                    self.fail_types[fail_type] = 1.
+                else:
+                    self.fail_types[fail_type] += 1.
 
-            state = x0
-            if len(path):
-                t = min(path[s].T-1, t)
-                state = path[s].get(STATE_ENUM, t)
-            initial, goal = self.agent.get_hl_info(state, targets)
-            concr_prob = node.concr_prob
-            abs_prob = self.agent.hl_solver.translate_problem(concr_prob, initial=initial, goal=goal)
-            set_params_attrs(concr_prob.init_state.params, self.agent.state_inds, state, 0)
-            hlnode = HLSearchNode(abs_prob,
-                                  node.domain,
-                                  concr_prob,
-                                  priority=ROLL_PRIORITY,
-                                  prefix=None,
-                                  llnode=None,
-                                  expansions=node.expansions,
-                                  label=fail_type,
-                                  x0=state,
-                                  targets=targets)
-            self.push_queue(hlnode, self.task_queue)
+                state = x0
+                if len(path):
+                    t = min(path[s].T-1, t)
+                    state = path[s].get(STATE_ENUM, t)
 
-        if len(neg_samples) and self.use_neg:
-            self.update_negative_primitive(neg_samples)
+                initial, goal = self.agent.get_hl_info(state, targets)
+                concr_prob = node.concr_prob
+                abs_prob = self.agent.hl_solver.translate_problem(concr_prob, initial=initial, goal=goal)
+                set_params_attrs(concr_prob.init_state.params, self.agent.state_inds, state, 0)
+                hlnode = HLSearchNode(abs_prob,
+                                      node.domain,
+                                      concr_prob,
+                                      priority=ROLL_PRIORITY,
+                                      prefix=None,
+                                      llnode=None,
+                                      expansions=node.expansions,
+                                      label=fail_type,
+                                      x0=state,
+                                      targets=targets)
+                self.push_queue(hlnode, self.task_queue)
+
+        #if len(neg_samples) and self.use_neg:
+        #    self.update_negative_primitive(neg_samples)
        
 
     def test_run(self, state, targets, max_t=20, hl=False, soft=False, check_cost=True, eta=None, lab=0):

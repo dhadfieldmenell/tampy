@@ -39,6 +39,7 @@ def theta_error(cur_quat, next_quat):
 #controller_config['kp'] = [750, 750, 500, 5000, 5000, 5000]
 
 ctrl_mode = "JOINT_POSITION"
+true_mode = 'IK'
 controller_config = load_controller_config(default_controller=ctrl_mode)
 if ctrl_mode.find('JOINT') >= 0:
     controller_config['kp'] = [7500, 6500, 6500, 6500, 6500, 6500, 12000]
@@ -160,7 +161,7 @@ sawyer = plan.params['sawyer']
 cmds = []
 for t in range(plan.horizon):
     rgrip = sawyer.right_gripper[0,t]
-    if ctrl_mode.find('JOINT') >= 0:
+    if true_mode.find('JOINT') >= 0:
         act = np.r_[sawyer.right[:,t], [-rgrip]]
     else:
         pos, euler = sawyer.right_ee_pos[:,t], sawyer.right_ee_rot[:,t]
@@ -195,9 +196,12 @@ for _ in range(40):
     env.render()
 env.render()
 
-nsteps = 30
+nsteps = 50
 cur_ind = 0
 tol=1e-3
+true_lb, true_ub = plan.params['sawyer'].geom.get_joint_limits('right')
+factor = (np.array(true_ub) - np.array(true_lb)) / 5
+ref_jnts = env.sim.data.qpos[:7]
 for act in plan.actions:
     t = act.active_timesteps[0]
     plan.params['sawyer'].right[:,t] = env.sim.data.qpos[:7]
@@ -207,16 +211,39 @@ for act in plan.actions:
     #failed_preds = [p for p in failed_preds if (p[1]._rollout or not type(p[1].expr) is EqExpr)]
     print('FAILED:', t, failed_preds)
     import ipdb; ipdb.set_trace()
+
+    sawyer = plan.params['sawyer']
     for t in range(act.active_timesteps[0], act.active_timesteps[1]):
         base_act = cmds[cur_ind]
         cur_ind += 1
+        print('TIME:', t)
+        init_jnts = env.sim.data.qpos[:7]
+        if ctrl_mode.find('JOINT') >= 0 and true_mode.find('JOINT') <= 0:
+            cur_jnts = env.sim.data.qpos[:7]
+            if t < plan.horizon:
+                targ_pos, targ_rot = sawyer.right_ee_pos[:,t+1], sawyer.right_ee_rot[:,t+1]
+            else:
+                targ_pos, targ_rot = sawyer.right_ee_pos[:,t], sawyer.right_ee_rot[:,t]
+            lb = env.sim.data.qpos[:7] - factor
+            ub = env.sim.data.qpos[:7] + factor
+            sawyer.openrave_body.set_dof({'right': np.zeros(7)})
+
+            targ_jnts = sawyer.openrave_body.get_ik_from_pose(targ_pos, targ_rot, 'right', bnds=(lb, ub))
+            base_act = np.r_[targ_jnts, base_act[-1]]
+
+        true_act = base_act.copy()
         if ctrl_mode.find('JOINT') >= 0:
             targ_jnts = base_act[:7] #+ env.sim.data.qpos[:7]
             for n in range(nsteps):
                 act = base_act.copy()
                 act[:7] = (targ_jnts - env.sim.data.qpos[:7])
                 obs = env.step(act)
-            print('END ERROR:', act[:7])
+            print('END ERROR:', act[:7], true_act[:7]-env.sim.data.qpos[:7])
+            end_jnts = env.sim.data.qpos[:7]
+            print('JNT_DELTA:', true_act[:7] - init_jnts)
+            print('PLAN VS SIM:', end_jnts, sawyer.right[:,t])
+            print('EE PLAN VS SIM:', env.sim.data.site_xpos[grip_ind], sawyer.right_ee_pos[:,t], t)
+            print('\n\n\n')
 
         else:
             targ = base_act[3:7]
@@ -264,6 +291,7 @@ for act in plan.actions:
 plan.params['sawyer'].right[:,t] = env.sim.data.qpos[:7]
 plan.params['cereal'].pose[:,t] = env.sim.data.qpos[cereal_ind:cereal_ind+3]
 plan.params['cereal'].rotation[:,t] = T.quaternion_to_euler(env.sim.data.qpos[cereal_ind+3:cereal_ind+7], 'wxyz')
+print('CEREAL END:', plan.params['cereal'].pose[:,t])
 failed_preds = plan.get_failed_preds(active_ts=(t,t), priority=3, tol=tol)
 #failed_preds = [p for p in failed_preds if (p[1]._rollout or not type(p[1].expr) is EqExpr)]
 print('FAILED:', t, failed_preds)

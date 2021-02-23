@@ -911,10 +911,13 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
         if len(path):
             for ind, s in enumerate(path):
+                s._postsuc = False
                 end_s = [next_s for next_s in path[ind:] if next_s.task_end]
                 end_s = end_s[0] if len(end_s) else path[-1]
                 cost = self.postcond_cost(end_s, end_s.task, end_s.T-1, debug=False)
+
                 if cost < 1e-3:
+                    s._postsuc = True
                     self.optimal_samples[self.task_list[s.task[0]]].append(s)
                     log_info['{}_opt_rollout_success'.format(self.task_list[s.task[0]])].append(1)
                 elif path[-1].success > 0.99:

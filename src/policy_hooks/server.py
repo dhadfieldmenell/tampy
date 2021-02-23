@@ -407,7 +407,7 @@ class Server(object):
 
 
     def update_negative_primitive(self, samples):
-        if not self.use_neg or not len(samples): continue
+        if not self.use_neg or not len(samples): return
         dP, dO = self.agent.dPrimOut, self.agent.dPrim
         dOpts = len(list(self.agent.prob.get_prim_choices(self.agent.task_list).keys()))
         ### Compute target mean, cov, and weight for each sample.

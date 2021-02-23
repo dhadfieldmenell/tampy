@@ -4,7 +4,7 @@ from core.util_classes.learning import PostLearner
 import copy
 import functools
 import random
-
+import numpy as np
 
 DEBUG = False
 
@@ -201,7 +201,11 @@ class LLSearchNode(SearchNode):
                 if len(preds):
                     if DEBUG: print('LLNODE: Violation in constraints, projecting onto', self._trace, preds)
                     try:
+                        init_vals = self.curr_plan.params['sawyer'].right[:,:self.freeze_ts].copy()
                         proj_succ = ll_solver.find_closest_feasible(self.curr_plan, (0, self.freeze_ts))
+                        final_vals = self.curr_plan.params['sawyer'].right[:,:self.freeze_ts]
+                        if DEBUG:
+                            print('AVG DEVIATION:', np.sum(final_vals-init_vals, axis=0))
                     except Exception as e:
                         if DEBUG:
                             print('LLNODE FAIL:', e)

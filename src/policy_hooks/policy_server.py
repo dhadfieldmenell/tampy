@@ -168,7 +168,7 @@ class PolicyServer(object):
                         self.policy_opt.cur_dec *= 0.95
                     elif ratio > 1.5:
                         self.policy_opt.cur_dec *= 1.1
-                    self.policy_opt.cur_dec = max(self.policy_opt.cur_dec, 1e-5)
+                    self.policy_opt.cur_dec = max(self.policy_opt.cur_dec, 1e-8)
                     self.policy_opt.cur_dec = min(self.policy_opt.cur_dec, 1e1)
 
             for lab in ['optimal', 'rollout']:

@@ -708,11 +708,24 @@ class OpenRAVEBody(object):
         else:
             self.set_pose(pos, param.rotation[:,t])
 
-    def get_ik_from_pose(self, pos, rot, manip_name, use6d=True, multiple=0, maxIter=1024):
+    def get_ik_from_pose(self, pos, rot, manip_name, use6d=True, multiple=0, maxIter=1024, bnds=None):
         quat = rot if (rot is None or len(rot) == 4) else T.euler_to_quaternion(rot, order='xyzw')
         pos = np.array(pos).tolist()
         quat = np.array(quat).tolist()
-        lb, ub = self._geom.get_arm_bnds()
+        if bnds is None:
+            lb, ub = self._geom.get_arm_bnds()
+        else:
+            true_lb, true_ub = self._geom.get_arm_bnds()
+            lb, ub = bnds
+            if len(lb) < len(true_lb):
+                lb = np.r_[lb, -10*np.ones(len(true_lb) - len(lb))]
+
+            if len(ub) < len(true_ub):
+                ub = np.r_[ub, 10*np.ones(len(true_ub) - len(ub))]
+
+            lb = np.maximum(lb, true_lb).tolist()
+            ub = np.minimum(ub, true_ub).tolist()
+
         ranges = (np.array(ub) - np.array(lb)).tolist()
         jnt_ids = sorted(self._geom.get_free_inds())
         jnts = P.getJointStates(self.body_id, jnt_ids)

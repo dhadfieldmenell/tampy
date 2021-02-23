@@ -1964,8 +1964,8 @@ class EEValid(PosePredicate):
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
 
         self.arm = self.robot.geom.arms[0]
-        if not hasattr(self, 'coeff'): self.coeff = 1e-3
-        if not hasattr(self, 'rot_coeff'): self.rot_coeff = 1e-3
+        if not hasattr(self, 'coeff'): self.coeff = 1e-2
+        if not hasattr(self, 'rot_coeff'): self.rot_coeff = 1e-2
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
         self.rel_pt = np.zeros(3)
@@ -1976,7 +1976,7 @@ class EEValid(PosePredicate):
         else:
             self.eval_dim = 6 # 4
             e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
-        super(EEValid, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=0, priority=0)
+        super(EEValid, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=0, priority=2)
         self.spacial_anchor = True
 
     def stacked_f(self, x):
@@ -2778,7 +2778,7 @@ class GrippersLevel(PosePredicate):
         pos_expr, val = Expr(self.f, self.grad), np.zeros((self.eval_dim,1))
         e = EqExpr(pos_expr, val)
 
-        super(GrippersLevel, self).__init__(name, e, attr_inds, params, expected_param_types, priority=3)
+        super(GrippersLevel, self).__init__(name, e, attr_inds, params, expected_param_types, priority=0)
         self.spacial_anchor = False
 
 class EERetiming(PosePredicate):

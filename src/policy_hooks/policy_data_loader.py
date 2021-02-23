@@ -10,7 +10,7 @@ class DataLoader(object):
         self.config = config
         self.in_queue = in_queue
         self.task = task
-        self.min_buffer = min_buffer
+        self.min_buffer = max(batch_size, min_buffer)
         self.label_ratio = None
         self.normalize = normalize
         self.x_idx = x_idx
@@ -27,6 +27,10 @@ class DataLoader(object):
         self.scale, self.bias = None, None
         self.items = {}
         self.val_items = {}
+
+    
+    def write_data(self):
+        np.save('{}_data.npy'.format(self.task), self.items)
 
 
     def pop_queue(self):
