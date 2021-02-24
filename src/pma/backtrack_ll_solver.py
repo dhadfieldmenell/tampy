@@ -162,15 +162,20 @@ class BacktrackLLSolver(LLSolver):
             return recursive_solve()
 
         ## so that this won't be optimized over
-        rs_free = rs_param._free_attrs
-        if self.freeze_rs_param(plan.actions[anum]):
-            rs_param._free_attrs = {}
-            for attr in list(rs_free.keys()):
-                if rs_param.is_symbol():
-                    rs_param._free_attrs[attr] = np.zeros(rs_free[attr].shape)
-                else:
-                    rs_param._free_attrs[attr] = rs_free[attr].copy()
-                    rs_param._free_attrs[attr][:, active_ts[1]] = np.zeros(rs_free[attr].shape[0])
+        rs_params = rs_param if type(rs_param) is list else [rs_param]
+        free_attrs = {}
+        for param in rs_params:
+            free = param._free_attrs
+            if self.freeze_rs_param(plan.actions[anum]):
+                param._free_attrs = {}
+                for attr in list(free.keys()):
+                    if param.is_symbol():
+                        param._free_attrs[attr] = np.zeros(free[attr].shape)
+                    else:
+                        param._free_attrs[attr] = free[attr].copy()
+                        param._free_attrs[attr][:, active_ts[1]] = np.zeros(free[attr].shape[0])
+            free_attrs[param] = free
+
         """
         sampler_begin
         """
@@ -186,15 +191,20 @@ class BacktrackLLSolver(LLSolver):
             callback_a = None
 
         for rp in robot_poses:
-            for attr, val in list(rp.items()):
-                if rs_param.is_symbol():
-                    setattr(rs_param, attr, val)
-                else:
-                    getattr(rs_param, attr)[:, active_ts[1]] = val.flatten()
+            if type(rs_param) is not list:
+                rp = {rs_param: rp}
+
+            self.child_solver = self.__class__()
+            for param in rp:
+                assert param in rs_params
+                for attr, val in rp[param].items():
+                    if param.is_symbol():
+                        setattr(param, attr, val)
+                    else:
+                        getattr(param, attr)[:, active_ts[1]] = val.flatten()
+                self.child_solver.fixed_objs.append((param, rp[param]))
 
             success = False
-            self.child_solver = self.__class__()
-            self.child_solver.fixed_objs.append((rs_param, rp))
             success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                               active_ts = active_ts, verbose=verbose,
                                               force_init=True, init_traj=init_traj)
@@ -204,7 +214,8 @@ class BacktrackLLSolver(LLSolver):
                 else:
                     success = False
 
-        rs_param._free_attrs = rs_free
+        for param in free_attrs:
+            param._free_attrs = free_attrs[param]
         return success
 
     def validate_wp(self, plan, callback=None, amin=0, amax=None, nsamples=1):
