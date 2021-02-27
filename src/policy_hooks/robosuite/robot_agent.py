@@ -42,6 +42,7 @@ from policy_hooks.utils.tamp_eval_funcs import *
 # from policy_hooks.namo.sorting_prob_4 import *
 from policy_hooks.tamp_agent import TAMPAgent
 
+from mujoco_py.generated import const as mj_const
 import robosuite
 from robosuite.controllers import load_controller_config
 import robosuite.utils.transform_utils as robo_T
@@ -117,9 +118,10 @@ class optimal_pol:
 
 
 class EnvWrapper():
-    def __init__(self, env, robot_geom, mode='ee_pos'):
+    def __init__(self, env, robot, mode='ee_pos'):
         self.env = env
-        self.geom = robot_geom
+        self.robot = robot
+        self.geom = robot.geom
         self._type_cache = {}
         self.sim = env.sim
         self.model = env.mjpy_model
@@ -260,13 +262,27 @@ class EnvWrapper():
 
     def reset(self):
         obs = self.env.reset()
+        if P.getConnectionInfo()['isConnected'] and np.random.uniform() < 0.5:
+            cur_pos = self.get_attr('sawyer', 'pose')
+            cur_quat =  self.get_attr('sawyer', 'right_ee_rot', euler=False)
+            cur_jnts = self.get_attr('sawyer', 'right')
+            self.robot.openrave_body.set_dof({'right': cur_jnts})
+            x = np.random.uniform(-0.1, 0.4)
+            y = np.random.uniform(-0.7, 0)
+            z = np.random.uniform(1.0, 1.3)
+            self.robot.openrave_body.set_pose(cur_pos)
+            ik = self.robot.openrave_body.get_ik_from_pose([x,y,z], cur_quat, 'right')
+            self.set_attr('sawyer', 'right', ik, forward=True)
+
         cur_pos = self.get_attr('sawyer', 'right_ee_pos')
         cur_jnts = self.get_attr('sawyer', 'right')
         cereal_pos = self.get_item_pose('cereal')[0]
         dim = 8 if self.mode.find('joint') >= 0 else 7
-        for _ in range(50):
+        for _ in range(40):
             self.env.step(np.zeros(dim))
             self.set_attr('sawyer', 'right', cur_jnts)
+            self.forward()
+
         self.forward()
         return obs
 
@@ -303,7 +319,7 @@ class RobotAgent(TAMPAgent):
             )
 
         self.sawyer = list(self.plans.values())[0].params['sawyer']
-        self.mjc_env = EnvWrapper(self.base_env, self.sawyer.geom, self.ctrl_mode)
+        self.mjc_env = EnvWrapper(self.base_env, self.sawyer, self.ctrl_mode)
 
         self.check_col = hyperparams['master_config'].get('check_col', True)
         self.camera_id = 1
@@ -318,8 +334,22 @@ class RobotAgent(TAMPAgent):
     def get_annotated_image(self, s, t, cam_id=None):
         x = s.get_X(t=t)
         self.reset_to_state(x)
+        task = [int(val) for val in s.get(FACTOREDTASK_ENUM, t=t)]
+        pos = s.get(END_POSE_ENUM, t=t)
+        precost = round(self.precond_cost(s, tuple(task), t), 4)
+        postcost = round(self.postcond_cost(s, tuple(task), t), 4)
+        precost = str(precost)[1:]
+        postcost = str(postcost)[1:]
+        for ctxt in self.base_env.sim.render_contexts:
+            ctxt._overlay[mj_const.GRID_TOPLEFT] = ['{}'.format(task), '']
+            ctxt._overlay[mj_const.GRID_BOTTOMLEFT] = ['{0: <6} {0: <6}'.format(precost, postcost), '']
         #return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
-        return self.base_env.sim.render(height=128, width=128, camera_name="frontview")
+        im = self.base_env.sim.render(height=192, width=192, camera_name="frontview")
+        im = np.flip(im, axis=0)
+        for ctxt in self.base_env.sim.render_contexts:
+            for key in list(ctxt._overlay.keys()):
+                del ctxt._overlay[key]
+        return im
 
     def get_image(self, x, depth=False, cam_id=None):
         self.reset_to_state(x)
@@ -329,15 +359,12 @@ class RobotAgent(TAMPAgent):
     def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None):
         assert not np.any(np.isnan(state))
         start_t = time.time()
-        x0 = state[self._x_data_idx[STATE_ENUM]].copy()
+        x0 = self.get_state() # state[self._x_data_idx[STATE_ENUM]].copy()
         task = tuple(task)
         if self.discrete_prim:
             plan = self.plans[task]
         else:
             plan = self.plans[task[0]]
-        for (param, attr) in self.state_inds:
-            if plan.params[param].is_symbol(): continue
-            getattr(plan.params[param], attr)[:,0] = x0[self.state_inds[param, attr]]
 
         base_t = 0
         self.T = plan.horizon if hor is None else hor
@@ -411,7 +438,11 @@ class RobotAgent(TAMPAgent):
             self.n_policy_calls[policy] += 1
         sample.end_state = new_state # end_state if end_state is not None else sample.get_X(t=self.T-1)
         sample.task_cost = self.goal_f(condition, sample.end_state)
+        sample.use_ts[-1] = 0
         sample.prim_use_ts[:] = sample.use_ts[:]
+        for t in range(sample.T-1):
+            if np.mean(np.abs(sample.get_X(t=t) - sample.get_X(t=t+1))) < 1e-3:
+                sample.prim_use_ts[t] = 0.
         sample.col_ts = col_ts
         return sample
 
@@ -437,6 +468,8 @@ class RobotAgent(TAMPAgent):
             ctrl_rot = Rotation.from_rotvec(ctrl['right_ee_rot'])
             cur_quat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
             targrot = (ctrl_rot * Rotation.from_quat(cur_quat)).as_quat()
+            cur_base_pos = self.mjc_env.get_attr('sawyer', 'pose')
+            sawyer.openrave_body.set_dof(cur_base_pos)
             sawyer.openrave_body.set_dof({'right': REF_JNTS})
             lb = cur_jnts - factor
             ub = cur_jnts + factor
@@ -502,9 +535,9 @@ class RobotAgent(TAMPAgent):
 
         for pname in plan.params:
             if '{0}_init_target'.format(pname) in plan.params:
-                plan.params['{0}_init_target'.format(pname)].value[:,0] = plan.params[pname].pose[:,0]
+                plan.params['{0}_init_target'.format(pname)].value[:,0] = plan.params[pname].pose[:,st]
                 if hasattr(plan.params[pname], 'rotation'):
-                    plan.params['{0}_init_target'.format(pname)].rotation[:,0] = plan.params[pname].rotation[:,0]
+                    plan.params['{0}_init_target'.format(pname)].rotation[:,0] = plan.params[pname].rotation[:,st]
 
 
     def solve_sample_opt_traj(self, state, task, condition, traj_mean=[], inf_f=None, mp_var=0, targets=[], x_only=False, t_limit=60, n_resamples=10, out_coeff=None, smoothing=False, attr_dict=None):
