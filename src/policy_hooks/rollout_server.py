@@ -23,7 +23,7 @@ from policy_hooks.server import *
 from policy_hooks.search_node import *
 
 
-ROLL_PRIORITY = 10
+ROLL_PRIORITY = 5
 
 class RolloutServer(Server):
     def __init__(self, hyperparams):
@@ -195,8 +195,8 @@ class RolloutServer(Server):
 
         ntask = len(self.agent.task_list)
         rlen = ntask * self.agent.num_objs # if not self.agent.retime else (3*ntask) * self.agent.num_objs
-        t_per_task = 120 if self.agent.retime else 40
-        s_per_task = 1 if self.agent.retime else 2
+        t_per_task = 120 if self.agent.retime else 60
+        s_per_task = 1 #if self.agent.retime else 2
         self.adj_eta = True
         l = self.get_task(x, targets, None, self.soft)
         l = tuple([val for val in l if np.isscalar(val)])
@@ -212,9 +212,9 @@ class RolloutServer(Server):
             curtask = tuple([val for val in cur_tasks[-1] if np.isscalar(val)])
             task_name = self.task_list[cur_tasks[-1][0]]
             pol = self.agent.policies[task_name]
-            hor = int(2 * self.agent.plans[curtask].horizon)
+            hor = int(3 * self.agent.plans[curtask].horizon)
             if self.agent.retime:
-                hor *= 3
+                hor *= 2
 
             sample = self.agent.sample_task(pol, 0, state, cur_tasks[-1], skip_opt=True, hor=hor, task_f=task_f)
             path.append(sample)
@@ -280,7 +280,7 @@ class RolloutServer(Server):
                 t = min(t, plan.horizon-1)
                 set_params_attrs(plan.params, self.agent.state_inds, traj[t], t)
             self.agent.set_symbols(plan, cur_tasks[-1], targets=targets)
-            failed_preds = plan.get_failed_preds(tol=1e-3)
+            failed_preds = plan.get_failed_preds(tol=3e-3)
             failed_preds = [p for p in failed_preds if (p[1]._rollout or (not p[1]._nonrollout and type(p[1].expr) is not EqExpr))]
             if len(failed_preds):
                 fail_t = min([p[2]+p[1].active_range[0] for p in failed_preds]) - 1
@@ -288,7 +288,7 @@ class RolloutServer(Server):
                 fail_t = plan.horizon - 1
 
             fail_t = max(0, fail_t)
-            fail_t = min(fail_t, plan.horizon-3)
+            fail_t = min(fail_t, plan.horizon-5)
             if len(failed_preds):
                 fail_type = 'rollout_midcondition_failure'
                 if fail_t < len(steps):
@@ -303,7 +303,7 @@ class RolloutServer(Server):
                                         prob=plan.prob, 
                                         domain=plan.domain,
                                         initial=plan.prob.initial,
-                                        priority=ROLL_PRIORITY+2,
+                                        priority=ROLL_PRIORITY,
                                         ref_plan=plan,
                                         targets=targets,
                                         x0=traj[0],
@@ -465,11 +465,10 @@ class RolloutServer(Server):
             obj_name = prim_opts[OBJ_ENUM][t]
             targets[self.agent.target_inds['{0}_end_target'.format(obj_name), 'value']] = x0[self.agent.state_inds[obj_name, 'pose']]
         if rlen is None:
+            rlen = 2 + n * len(self.agent.task_list)
             if self.agent.retime:
-                rlen = 2 + 2 * n * len(self.agent.task_list)
-            else:
-                rlen = 2 + n * len(self.agent.task_list)
-        self.agent.T = 30 # self.config['task_durations'][self.task_list[0]]
+                rlen *= 2
+        self.agent.T = 40 # self.config['task_durations'][self.task_list[0]]
         val, path = self.test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], eta=eta, lab=-5)
         if not self.adj_eta:
             self.adj_eta = True

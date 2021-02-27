@@ -165,11 +165,11 @@ class PolicyServer(object):
                     ratio = np.mean(self.val_losses['all'][-5:]) / np.mean(self.train_losses['all'][-5:])
                     self.cur_ratio = ratio
                     if ratio < 1.1:
-                        self.policy_opt.cur_dec *= 0.95
+                        self.policy_opt.cur_dec *= 0.975
                     elif ratio > 1.5:
-                        self.policy_opt.cur_dec *= 1.1
-                    self.policy_opt.cur_dec = max(self.policy_opt.cur_dec, 1e-8)
-                    self.policy_opt.cur_dec = min(self.policy_opt.cur_dec, 1e0)
+                        self.policy_opt.cur_dec *= 1.05
+                    self.policy_opt.cur_dec = max(self.policy_opt.cur_dec, 1e-12)
+                    self.policy_opt.cur_dec = min(self.policy_opt.cur_dec, 1e1)
 
             for lab in ['optimal', 'rollout']:
                 mu, obs, prc = self.data_gen.get_batch(label=lab, val=True)

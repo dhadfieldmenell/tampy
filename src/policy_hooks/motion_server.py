@@ -64,7 +64,7 @@ class MotionServer(Server):
         except Exception as e:
             failed_prefix = ['ERROR IN FAIL CHECK', e]
 
-        if len(failed_prefix):
+        if len(failed_prefix) and node.hl:
             print('BAD PREFIX! -->', plan.actions[:plan.start], 'FAILED', failed_prefix, node._trace)
             plan.start = 0
 
@@ -141,6 +141,7 @@ class MotionServer(Server):
                 #        pickle.dump(plan, f)           
 
             self.log_node_info(node, success, path)
+            if success: break
             cur_t -= cur_step
             cur_step *= 3
             node.freeze_ts = cur_t

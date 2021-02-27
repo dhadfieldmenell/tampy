@@ -57,7 +57,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         Agent.__init__(self, hyperparams)
         self.config = hyperparams
         self.prob = hyperparams['prob']
-        self.plans = self._hyperparams['plans']
+        plans, openrave_bodies, env = self.prob.get_plans()
+        self.plans = plans # self._hyperparams['plans']
+        self.openrave_bodies = openrave_bodies
+        self.env = env
         self.plans_list = list(self.plans.values())
         self.sensor_dims = self._hyperparams['sensor_dims']
         self.task_list = self._hyperparams['task_list']
@@ -104,8 +107,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.policies = {task: None for task in self.task_list}
         self._get_hl_plan = self._hyperparams['get_hl_plan']
         self.attr_map = self._hyperparams['attr_map']
-        self.env = self._hyperparams['env']
-        self.openrave_bodies = self._hyperparams['openrave_bodies']
+        #self.env = self._hyperparams['env']
+        #self.openrave_bodies = self._hyperparams['openrave_bodies']
 
         self._done = 0.
         self._task_done = 0.
@@ -804,7 +807,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                     if not suc:
                         plan.restore_params()
             except Exception as e:
-                traceback.print_exception(*sys.exc_info())
+                #traceback.print_exception(*sys.exc_info())
                 print(('Exception in full solve for', x0, task, plan.actions[a]))
                 success = False
             self.n_opt[task] = self.n_opt.get(task, 0) + 1
@@ -841,6 +844,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                     x0[self.state_inds[perm[pname], aname]] = getattr(plan.params[pname], aname)[:,0]
         if reset:
             self.reset_to_state(x0)
+
         if amax is None:
             amax = len(plan.actions)-1
         for a in range(amin, amax+1):
@@ -890,12 +894,14 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             if nzero > 0:
                 zero_traj = np.tile(opt_traj[-1], [nzero, 1])
                 zero_sample = self.sample_optimal_trajectory(path[-1].end_state, task, 0, zero_traj, targets=targets)
+                x0 = zero_sample.end_state # sample.get_X(sample.T-1)
                 zero_sample.use_ts[:] = 0.
                 zero_sample.use_ts[:nzero] = 1.
                 zero_sample.prim_use_ts[:] = np.zeros(len(zero_sample.prim_use_ts))
                 zero_sample.step = path[-1].step + 1
                 zero_sample.draw = False
-                zero_sample.success = path[-1].success
+                #zero_sample.success = path[-1].success
+                zero_sample.success = 1. - self.goal_f(0, x0, targets)
                 zero_sample.set(TASK_DONE_ENUM, np.tile([0,1], (zero_sample.T, 1)))
                 zero_sample.task = task
                 path.append(zero_sample)
@@ -921,7 +927,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                     self.optimal_samples[self.task_list[s.task[0]]].append(s)
                     log_info['{}_opt_rollout_success'.format(self.task_list[s.task[0]])].append(1)
                 elif path[-1].success > 0.99:
-                    print('Adding path w/postcond failure?', self.task_list[s.task[0]])
+                    print('Adding path w/postcond failure?', self.task_list[s.task[0]], self.process_id)
                     log_info['{}_opt_rollout_success'.format(self.task_list[s.task[0]])].append(0)
                     self.optimal_samples[self.task_list[s.task[0]]].append(s)
                 elif path[-1].success > 0.99:
@@ -1053,6 +1059,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
         failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
         failed_preds = [p for p in failed_preds if (p[1]._rollout or not type(p[1].expr) is EqExpr)]
+        if debug:
+            print('FAILED:', failed_preds, self.process_id)
         return failed_preds
 
 

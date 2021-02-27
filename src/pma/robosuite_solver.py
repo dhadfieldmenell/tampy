@@ -49,6 +49,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         iks = []
         attempt = 0
+        robot_body.set_pose(robot.pose[:,ts[0]])
         robot_body.set_dof({arm: np.zeros(len(robot.geom.jnt_names[arm]))})
         #if not null_zero: #ts[1]-ts[0] > 5:
         #    robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
@@ -231,7 +232,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                         bexpr = BoundExpr(quad_expr, sco_var)
                         traj_objs.append(bexpr)
 
-            traj_objs.extend(self._get_null_obj(plan, active_ts))
+            #traj_objs.extend(self._get_null_obj(plan, active_ts))
         return traj_objs
 
 

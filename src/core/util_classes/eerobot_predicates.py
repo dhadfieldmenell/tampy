@@ -2042,7 +2042,7 @@ class EEValid(PosePredicate):
         attr_inds, attr_dim = init_robot_pred(self, self.robot, [])
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
 
-        self.arm = self.robot.geom.arms[0]
+        self.arms = self.robot.geom.arms
         if not hasattr(self, 'coeff'): self.coeff = 1e-2
         if not hasattr(self, 'rot_coeff'): self.rot_coeff = 1e-2
         self.eval_f = self.stacked_f
@@ -2056,12 +2056,20 @@ class EEValid(PosePredicate):
 
     def stacked_f(self, x):
         #return self.coeff * self.pos_check_f(x, self.rel_pt)
-        val = np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.ee_rot_check_f(x)])
-        return val
+        vals = []
+        for arm in self.arms:
+            self.arm = arm
+            vals.append(np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.ee_rot_check_f(x)]))
+
+        return np.r_[vals]
 
     def stacked_grad(self, x):
         #return self.coeff * self.pos_check_jac(x, self.rel_pt)
-        return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.ee_rot_check_jac(x)])
+        grads = []
+        for arm in self.arms:
+            self.arm = arm
+            grads.append(np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.ee_rot_check_jac(x)]))
+        return np.r_[grads]
 
     def tile_f(self, x):
         val = self.eval_f(x)
@@ -2075,11 +2083,13 @@ class LeftEEValid(EEValid):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         super(LeftEEValid, self).__init__(name, params, expected_param_types, env, debug)
         self.arm = "left" if "left" in self.robot.geom.arms else self.robot.geom.arms[0]
+        self.arms = [self.arm]
 
 class RightEEValid(EEValid):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         super(RightEEValid, self).__init__(name, params, expected_param_types, env, debug)
         self.arm = "right" if "right" in self.robot.geom.arms else self.robot.geom.arms[0]
+        self.arms = [self.arm]
 
 ### EEREACHABLE CONSTRAINTS - defined linear approach paths
 
