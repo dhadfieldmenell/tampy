@@ -131,6 +131,7 @@ class RolloutServer(Server):
         self.agent.reset_to_state(x)
         neg_samples = []
         init_t = time.time()
+
         def task_f(sample, t, curtask):
             task = self.get_task(sample.get_X(t=t), sample.targets, curtask, self.soft)
             task = tuple([val for val in task if np.isscalar(val)])
@@ -138,55 +139,56 @@ class RolloutServer(Server):
             #onehot_task = tuple([val for val in task if np.isscalar(val)])
             #cur_onehot_task = tuple([val for val in curtask if np.isscalar(val)])
             val = 1 - self.agent.goal_f(0, sample.get_X(t), targets)
-            if val > 0.99:
+            if val > 0.999:
                 cur_tasks.append(curtask)
                 counts.append(counts[-1]+1)
                 return curtask
 
             postcost = None
-            if self.check_postcond:
-                n_tries = 0
-                postcost = self.agent.postcond_cost(sample, curtask, t)
-                #cur_eta = self.eta
-                #eta_scale = 0.9
-                #while n_tries < 10 and task == curtask and postcost < 1e-3:
-                #    task = self.get_task(sample.get_X(t=t), sample.targets, curtask, True, eta=cur_eta)
-                #    cur_eta *= eta_scale
-                #    n_tries += 1
-                #    neg_samples.append((sample, t, curtask))
+            #if self.check_postcond:
+            #    n_tries = 0
+            #    postcost = self.agent.postcond_cost(sample, curtask, t)
+            #    #cur_eta = self.eta
+            #    #eta_scale = 0.9
+            #    #while n_tries < 10 and task == curtask and postcost < 1e-3:
+            #    #    task = self.get_task(sample.get_X(t=t), sample.targets, curtask, True, eta=cur_eta)
+            #    #    cur_eta *= eta_scale
+            #    #    n_tries += 1
+            #    #    neg_samples.append((sample, t, curtask))
 
             if task != curtask: # not self.compare_tasks(task, curtask):
                 if self.check_postcond:
                     if postcost is None: postcost = self.agent.postcond_cost(sample, curtask, t)
-                    if postcost > 1e-3:
+                    if postcost > 1e-4:
                         neg_samples.append((sample, t, task))
                         task = curtask
                     else:
                         self.postcond_costs[self.task_list[curtask[0]]].append(postcost)
                 
-                if self.check_precond:
+                if task != curtask and self.check_precond:
                     precost = self.agent.precond_cost(sample, task, t)
-                    if precost > 1e-3:
+                    if precost > 1e-4:
                         precond_viols.append((cur_ids[0], t))
                         neg_samples.append((sample, t, task))
                     
                     n_tries = 0
                     cur_eta = self.eta
                     eta_scale = 0.9
-                    while n_tries < 10 and task == curtask and precost < 1e-3:
+                    while n_tries < 10 and task == curtask and precost < 1e-4:
                         neg_samples.append((sample, t, task))
                         precost = self.agent.precond_cost(sample, task, t)
                         task = self.get_task(sample.get_X(t=t), sample.targets, curtask, True, eta=cur_eta)
                         cur_eta *= eta_scale
                         n_tries += 1
 
-                    if precost > 1e-3:
+                    if precost > 1e-4:
                         expl_precond_viols.append((cur_ids[0], t))
                         task = curtask
 
             if task == curtask:
                 counts.append(counts[-1]+1)
             else:
+                print('ALLOWED SWITCH:', precost, postcost)
                 counts.append(0)
                 switch_pts.append((cur_ids[0], t))
                 self.task_successes[self.task_list[curtask[0]]].append(1)
@@ -195,8 +197,8 @@ class RolloutServer(Server):
 
         ntask = len(self.agent.task_list)
         rlen = ntask * self.agent.num_objs # if not self.agent.retime else (3*ntask) * self.agent.num_objs
-        t_per_task = 120 if self.agent.retime else 60
-        s_per_task = 1 #if self.agent.retime else 2
+        t_per_task = 40 if self.agent.retime else 20
+        s_per_task = 3 #if self.agent.retime else 2
         self.adj_eta = True
         l = self.get_task(x, targets, None, self.soft)
         l = tuple([val for val in l if np.isscalar(val)])
@@ -234,7 +236,7 @@ class RolloutServer(Server):
         for step in path: step.source_label = 'rollout'
         postcost = self.agent.postcond_cost(path[-1], cur_tasks[-1], path[-1].T-1)
         self.postcond_costs[self.task_list[cur_tasks[-1][0]]].append(postcost)
-        if postcost > 1e-3:
+        if postcost > 1e-4:
             self.task_successes[self.task_list[cur_tasks[-1][0]]].append(0)
         else:
             self.task_successes[self.task_list[cur_tasks[-1][0]]].append(1)
@@ -288,7 +290,7 @@ class RolloutServer(Server):
                 fail_t = plan.horizon - 1
 
             fail_t = max(0, fail_t)
-            fail_t = min(fail_t, plan.horizon-5)
+            fail_t = min(fail_t, plan.horizon-2)
             if len(failed_preds):
                 fail_type = 'rollout_midcondition_failure'
                 if fail_t < len(steps):

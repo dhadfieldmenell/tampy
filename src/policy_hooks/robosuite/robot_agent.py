@@ -336,13 +336,15 @@ class RobotAgent(TAMPAgent):
         self.reset_to_state(x)
         task = [int(val) for val in s.get(FACTOREDTASK_ENUM, t=t)]
         pos = s.get(END_POSE_ENUM, t=t)
-        precost = round(self.precond_cost(s, tuple(task), t), 4)
-        postcost = round(self.postcond_cost(s, tuple(task), t), 4)
+        precost = round(self.precond_cost(s, tuple(task), t), 5)
+        postcost = round(self.postcond_cost(s, tuple(task), t), 5)
+
         precost = str(precost)[1:]
         postcost = str(postcost)[1:]
+
         for ctxt in self.base_env.sim.render_contexts:
             ctxt._overlay[mj_const.GRID_TOPLEFT] = ['{}'.format(task), '']
-            ctxt._overlay[mj_const.GRID_BOTTOMLEFT] = ['{0: <6} {0: <6}'.format(precost, postcost), '']
+            ctxt._overlay[mj_const.GRID_BOTTOMLEFT] = ['{0: <7} {1: <7}'.format(precost, postcost), '']
         #return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
         im = self.base_env.sim.render(height=192, width=192, camera_name="frontview")
         im = np.flip(im, axis=0)
@@ -1171,6 +1173,7 @@ class RobotAgent(TAMPAgent):
         vec = np.ones(self.dU)
         robot = 'sawyer'
         if ('sawyer', 'right') in self.action_inds:
+            return np.eye(self.dU)
             inds = self.action_inds['sawyer', 'right']
             lb, ub = list(self.plans.values())[0].params['sawyer'].geom.get_joint_limits('right')
             vec[inds] = 1. / (np.array(ub)-np.array(lb))**2

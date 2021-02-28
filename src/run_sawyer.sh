@@ -14,13 +14,13 @@ do
                                                        -add_noop 0 --permute_hl 0 \
                                                        -post -pre -mid \
                                                        -expl_wt 5 -expl_eta 4 \
-                                                       -motion 20 \
+                                                       -motion 30 \
                                                        -task 2 \
-                                                       -rollout 12 \
+                                                       -rollout 30 \
                                                        -roll_hl \
                                                        --load_render \
-                                                       -warm 100 \
-                                                       -descr fri_noadapt_jnt_sawyer_grasp & 
+                                                       -warm 200 \
+                                                       -descr sat_2_noprec_jnt_sawyer_grasp & 
         sleep 4h
         pkill -f run_train -9
         pkill -f ros -9
