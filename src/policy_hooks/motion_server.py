@@ -112,7 +112,7 @@ class MotionServer(Server):
 
         while cur_t >= 0:
             init_t = time.time()
-            success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=False, traj=node.ref_traj)
+            success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=True, traj=node.ref_traj)
             self.n_failed += 0. if success else 1.
             path = []
             #print('Time to plan:', time.time() - init_t)
@@ -125,8 +125,8 @@ class MotionServer(Server):
                 path, log_info = self.agent.run_plan(plan, node.targets, permute=self.permute_hl, wt=wt, start_ts=cur_t, record=node.hl)
                 for key in log_info:
                     self.opt_rollout_info[key].extend(log_info[key])
-                if self.render and (self.id.find('r0') >= 0 or not path[-1].success and np.random.uniform() < 0.01):
-                    self.save_video(path, path[-1].success)
+                #if self.render and (self.id.find('r0') >= 0 or not path[-1].success and np.random.uniform() < 0.01):
+                #    self.save_video(path, path[-1].success)
                 self.log_path(path, 10)
                 for step in path: step.source_label = 'optimal'
                 print(self.id, 'Successful refine from', node.label, 'rollout succes was:', path[-1]._postsuc, path[-1].success, 'first ts:', plan.start, cur_t)

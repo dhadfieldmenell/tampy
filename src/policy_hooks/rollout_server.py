@@ -67,6 +67,7 @@ class RolloutServer(Server):
         self.last_hl_test = time.time()
         self.task_calls = {task: [] for task in self.task_list}
         self.task_successes = {task: [] for task in self.task_list}
+        self.failed_trajs = [] # Each entry should be (traj, list of ts, list of prob under policy)
 
 
     def hl_log_prob(self, path):
@@ -145,6 +146,7 @@ class RolloutServer(Server):
                 return curtask
 
             postcost = None
+            precost = None
             #if self.check_postcond:
             #    n_tries = 0
             #    postcost = self.agent.postcond_cost(sample, curtask, t)
@@ -158,7 +160,7 @@ class RolloutServer(Server):
 
             if task != curtask: # not self.compare_tasks(task, curtask):
                 if self.check_postcond:
-                    if postcost is None: postcost = self.agent.postcond_cost(sample, curtask, t)
+                    postcost = self.agent.postcond_cost(sample, curtask, t)
                     if postcost > 1e-4:
                         neg_samples.append((sample, t, task))
                         task = curtask
@@ -188,8 +190,8 @@ class RolloutServer(Server):
             if task == curtask:
                 counts.append(counts[-1]+1)
             else:
-                print('ALLOWED SWITCH:', precost, postcost)
                 counts.append(0)
+                print('ALLOWED SWITCH:', precost, postcost, counts[-1])
                 switch_pts.append((cur_ids[0], t))
                 self.task_successes[self.task_list[curtask[0]]].append(1)
             cur_tasks.append(task)
@@ -197,8 +199,14 @@ class RolloutServer(Server):
 
         ntask = len(self.agent.task_list)
         rlen = ntask * self.agent.num_objs # if not self.agent.retime else (3*ntask) * self.agent.num_objs
-        t_per_task = 40 if self.agent.retime else 20
-        s_per_task = 3 #if self.agent.retime else 2
+        if self.agent.retime:
+            rlen *= 4
+
+        t_per_task = 20 # self.agent.plans[curtask].horizon 
+        s_per_task = 3
+        if self.agent.retime:
+            s_per_task *= 3
+
         self.adj_eta = True
         l = self.get_task(x, targets, None, self.soft)
         l = tuple([val for val in l if np.isscalar(val)])
@@ -214,23 +222,30 @@ class RolloutServer(Server):
             curtask = tuple([val for val in cur_tasks[-1] if np.isscalar(val)])
             task_name = self.task_list[cur_tasks[-1][0]]
             pol = self.agent.policies[task_name]
-            hor = int(3 * self.agent.plans[curtask].horizon)
-            if self.agent.retime:
-                hor *= 2
+            #hor = int(3 * self.agent.plans[curtask].horizon)
+            #if self.agent.retime:
+            #    hor *= 2
+            hor = t_per_task
 
-            sample = self.agent.sample_task(pol, 0, state, cur_tasks[-1], skip_opt=True, hor=hor, task_f=task_f)
+            sample = self.agent.sample_task(pol, 0, state, cur_tasks[-1], skip_opt=True, hor=hor, task_f=task_f, policies=self.agent.policies)
             path.append(sample)
             state = sample.get(STATE_ENUM, t=sample.T-1)
             s += 1
             cur_ids.append(s)
             val = 1 - self.agent.goal_f(0, sample.get_X(sample.T-1), targets)
-            if counts[-1] >= s_per_task * t_per_task: break
-            if len(expl_precond_viols): break
+            if counts[-1] >= s_per_task * t_per_task:
+                print('TIMEOUT TERMINATING', counts[-1], curtask)
+                break
+            
+            if len(expl_precond_viols):
+                print('PRECOND TERMINATING', counts[-1], curtask)
+                break
 
         if len(path):
             val = 1 - self.agent.goal_f(0, path[-1].get_X(path[-1].T-1), targets)
         else:
             val = 0
+
         self.adj_eta = False
         self.postcond_info.append(val)
         for step in path: step.source_label = 'rollout'
@@ -268,6 +283,7 @@ class RolloutServer(Server):
             fail_type = 'rollout_postcondition_failure'
             bad_pt = switch_pts[-1]
             train_pts.append(tuple(bad_pt) + (fail_type,))
+            self.failed_trajs.append((path[bad_pt[0]:], [], []))
 
         if self.check_random_switch:
             ind = np.random.choice(range(len(switch_pts)))
@@ -288,6 +304,8 @@ class RolloutServer(Server):
                 fail_t = min([p[2]+p[1].active_range[0] for p in failed_preds]) - 1
             else:
                 fail_t = plan.horizon - 1
+
+            self.failed_trajs.append((path[bad_pt[0]:], [], []))
 
             fail_t = max(0, fail_t)
             fail_t = min(fail_t, plan.horizon-2)
@@ -662,6 +680,21 @@ class RolloutServer(Server):
         self.eta = old_eta
         self.log_path(path, lab)
         return val, path
+
+    def check_failed_likelihoods(self):
+        cur_t = time.time()
+        for traj, ts, lls in self.failed_trajs:
+            cur_lls = []
+            for sample in traj:
+                for t in range(sample.T):
+                    task = tuple(sample.get(FACTOREDTASK_ENUM, t=t))
+                    task_name = self.task_list[task[0]]
+                    pol = self.agent.policies[task_name]
+                    mu = pol.act(sample.get_obs(t=t))
+                    act = sample.get(ACTION_ENUM, t=t)
+                    cur_lls.append(np.sum((mu-act)**2))
+            ts.append(cur_t)
+            lls.append(np.mean(cur_lls))
 
     def get_log_info(self):
         info = {

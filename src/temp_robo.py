@@ -39,19 +39,21 @@ def theta_error(cur_quat, next_quat):
 #controller_config['kp'] = [750, 750, 500, 5000, 5000, 5000]
 
 ctrl_mode = "JOINT_POSITION"
-true_mode = 'IK'
+true_mode = 'JOINT'
 controller_config = load_controller_config(default_controller=ctrl_mode)
 if ctrl_mode.find('JOINT') >= 0:
     controller_config['kp'] = [7500, 6500, 6500, 6500, 6500, 6500, 12000]
 
+has_render = False # True
 env = robosuite.make(
     "PickPlace",
     robots=["Sawyer"],             # load a Sawyer robot and a Panda robot
     gripper_types="default",                # use default grippers per robot arm
     controller_configs=controller_config,   # each arm is controlled using OSC
-    has_renderer=False,                      # on-screen rendering
+    #has_renderer=True,                      # on-screen rendering
+    has_renderer=has_render,                      # on-screen rendering
     render_camera="frontview",              # visualize the "frontview" camera
-    has_offscreen_renderer=False,           # no off-screen rendering
+    has_offscreen_renderer=(not has_render),           # no off-screen rendering
     control_freq=40,                        # 20 hz control for applied actions
     horizon=200,                            # each episode terminates after 200 steps
     use_object_obs=True,                   # no observations needed
@@ -59,7 +61,7 @@ env = robosuite.make(
     single_object_mode=2,
     object_type='cereal',
     ignore_done=True,
-    initialization_noise={'magnitude': 0.1, 'type': 'gaussian'},
+    initialization_noise={'magnitude': 0., 'type': 'gaussian'},
     camera_widths=128,
     camera_heights=128,
 )
@@ -67,6 +69,7 @@ obs = env.reset()
 env.sim.data.qvel[:] = 0
 env.sim.data.qacc[:] = 0
 env.sim.forward()
+import ipdb; ipdb.set_trace()
 
 bt_ll.DEBUG = True
 openrave_bodies = None
@@ -193,8 +196,7 @@ for _ in range(40):
     env.sim.data.qvel[:] = 0
     env.sim.data.qpos[:7] = params['sawyer'].right[:,0]
     env.sim.forward()
-    env.render()
-env.render()
+    if has_render: env.render()
 
 nsteps = 30
 cur_ind = 0
@@ -288,7 +290,7 @@ for act in plan.actions:
         #print('ANGLE:', t, angle, targ, cur)
         #print(base_act[:3], env.sim.data.body_xpos[hand_ind], env.sim.data.site_xpos[grip_ind])
         #print('CEREAL:', t, plan.params['cereal'].pose[:,t], env.sim.data.qpos[cereal_ind:cereal_ind+3])
-        env.render()
+        if has_render: env.render()
     import ipdb; ipdb.set_trace()
 plan.params['sawyer'].right[:,t] = env.sim.data.qpos[:7]
 plan.params['cereal'].pose[:,t] = env.sim.data.qpos[cereal_ind:cereal_ind+3]

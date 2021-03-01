@@ -799,7 +799,7 @@ class OpenDoorApproach(At):
 
         A = np.eye(3)
         dist = gripdist + dsafe
-        b = np.array([[-0.5], [-((3-HANDLE_OFFSET)-dist-1.2)], [0.]])
+        b = np.array([[-0.5-dist-1.2], [-((3-HANDLE_OFFSET))], [-np.pi/2.]])
         val = np.zeros((3, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
@@ -837,7 +837,7 @@ class CloseDoorApproach(At):
 
         A = np.c_[np.eye(3)]
         dist = gripdist + dsafe
-        b = np.array([[3.+dist], [-1.5], [np.pi/2]])
+        b = np.array([[1+HANDLE_OFFSET], [-1.5+dist+1.2], [0]])
         val = np.zeros((3, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
@@ -856,7 +856,7 @@ class CloseDoorReady(At):
 
         A = np.c_[np.eye(3)]
         dist = gripdist + dsafe
-        b = np.array([[(1+HANDLE_OFFSET)], [-1.5-dist], [0]])
+        b = np.array([[(1+HANDLE_OFFSET)], [-1.5+dist], [0]])
         val = np.zeros((3, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)

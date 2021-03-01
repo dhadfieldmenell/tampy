@@ -37,7 +37,6 @@ plan.params['pr2'].gripper[:,0] = -1.
 plan.params['end_target_0'].value[:,0] = prob.END_TARGETS[0]
 plan.params['end_target_1'].value[:,0] = prob.END_TARGETS[1]
 plan.params['end_target_2'].value[:,0] = prob.END_TARGETS[2]
-plan.params['end_target_3'].value[:,0] = prob.END_TARGETS[3]
 plan.params['can0'].pose[:,0] = can0_pose
 plan.params['can0_init_target'].value[:,0] = can0_pose
 plan.params['can1'].pose[:,0] = can1_pose
@@ -62,7 +61,6 @@ abs_domain = hl_solver.abs_domain
 state.params['end_target_0'].value[:,0] = prob.END_TARGETS[0]
 state.params['end_target_1'].value[:,0] = prob.END_TARGETS[1]
 state.params['end_target_2'].value[:,0] = prob.END_TARGETS[2]
-state.params['end_target_3'].value[:,0] = prob.END_TARGETS[3]
 state.params['can0'].pose[:,0] = can0_pose
 state.params['can0_init_target'].value[:,0] = can0_pose
 

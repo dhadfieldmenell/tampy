@@ -645,8 +645,9 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             policy = self.task_map[task]['policy']
         else:
             policy = getattr(self, '{0}_policy'.format(task))
+
         if policy.scale is not None:
-            # TODO: Should prob be called before update?
+            obs = obs.copy()
             for n in range(N):
                 obs[n, :, self.x_idx] = (obs[n, :, self.x_idx].T.dot(policy.scale)
                                          + policy.bias).T

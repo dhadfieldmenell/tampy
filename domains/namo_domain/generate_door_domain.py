@@ -175,7 +175,7 @@ class OpenDoor(Action):
                 ('(DoorClosed ?door)', '1:{0}'.format(grasp_time)),
                 ('(OpenDoorReady ?robot)', '{0}:{0}'.format(grasp_time-1, grasp_time)),
                 ('(OpenDoorApproach ?robot)', '{0}:{0}'.format(grasp_time-2, grasp_time-2)),
-                #('(CloseDoorReady ?robot)', '{0}:{0}'.format(release_time, release_time)),
+                ('(CloseDoorReady ?robot)', '{0}:{0}'.format(release_time, release_time)),
                 ('(forall (?gr - Grasp) (forall (?obj - Can) (not (NearGraspAngle ?robot ?obj))))', '0:0'),
                 ('(not (GripperClosed ?robot))', '1:{0}'.format(grasp_time-1)),
                 ('(GripperClosed ?robot)', '{0}:{1}'.format(grasp_time, release_time)),

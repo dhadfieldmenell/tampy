@@ -358,7 +358,7 @@ class RobotAgent(TAMPAgent):
         #return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
         return self.base_env.sim.render(height=128, width=128, camera_name="frontview")
 
-    def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None):
+    def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None, policies=None):
         assert not np.any(np.isnan(state))
         start_t = time.time()
         x0 = self.get_state() # state[self._x_data_idx[STATE_ENUM]].copy()
@@ -397,6 +397,8 @@ class RobotAgent(TAMPAgent):
                 if task not in self.plans:
                     task = self.task_to_onehot[task[0]]
                 self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
+                taskname = self.task_list[task[0]]
+                if policies is not None: policy = policies[taskname]
 
             X = cur_state.copy()
             cur_noise = noise[t]

@@ -129,7 +129,8 @@ class NAMOGripAgent(NAMOSortingAgent):
             if name =='pr2': continue
             cur_color = colors.pop(0)
             # items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.4), 'rgba': tuple(cur_color), 'mass': 10.})
-            items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 10.})
+            #items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 10.})
+            items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 40.})
             items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (NEAR_TOL, NEAR_TOL, 0.05), 'rgba': tuple(cur_color), 'mass': 1.})
         for i in range(len(wall_dims)):
             dim, next_trans = wall_dims[i]
@@ -147,7 +148,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         self.targ_labels.update({i: self.targets[0]['aux_target_{0}'.format(i-no)] for i in range(no, no+self.prob.n_aux)})
 
 
-    def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None):
+    def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None, policies=None):
         assert not np.any(np.isnan(state))
         start_t = time.time()
         # self.reset_to_state(state)
@@ -951,14 +952,17 @@ class NAMOGripAgent(NAMOSortingAgent):
     def get_annotated_image(self, s, t, cam_id=None):
         if cam_id is None: cam_id = self.camera_id
         x = s.get_X(t=t)
-        task = s.get(FACTOREDTASK_ENUM, t=t)
+        task = s.get(FACTOREDTASK_ENUM, t=t).astype(int)
         pos = s.get(TRUE_POSE_ENUM, t=t)
         #pos = str(pos.round(2))[1:-1]
         predpos = s.get(ABS_POSE_ENUM, t=t)
         #predpos = str(predpos.round(2))[1:-1]
+        precost = round(self.precond_cost(s, tuple(task), t), 5)
+        postcost = round(self.postcond_cost(s, tuple(task), t), 5)
         offset = str((pos - predpos).round(2))[1:-1]
-        textover1 = self.mjc_env.get_text_overlay(body='Task: {0}'.format(task))
-        textover2 = self.mjc_env.get_text_overlay(body='Error: {0}'.format(offset), position='bottom left')
+        act = str(s.get(ACTION_ENUM, t=t).round(3))[1:-1]
+        textover1 = self.mjc_env.get_text_overlay(body='Task: {0} Act: {1}'.format(task, act))
+        textover2 = self.mjc_env.get_text_overlay(body='{0: <6} {1: <6} Error: {2}'.format(precost, postcost, offset), position='bottom left')
         self.reset_to_state(x)
         im = self.mjc_env.render(camera_id=cam_id, height=self.image_height, width=self.image_width, view=False, overlays=(textover1, textover2))
         return im

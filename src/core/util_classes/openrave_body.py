@@ -328,12 +328,13 @@ class OpenRAVEBody(object):
 
     @staticmethod
     def create_door(env, door_len):
+        from core.util_classes.namo_grip_predicates import HANDLE_OFFSET
         door_color = [0.5, 0.2, 0.1]
         box_infos = []
         cols = [P.createCollisionShape(shapeType=P.GEOM_CYLINDER, radius=0.05, height=0.1),
                 P.createCollisionShape(shapeType=P.GEOM_BOX, halfExtents=[door_len/2.-0.1, 0.1, 0.4]),
                 P.createCollisionShape(shapeType=P.GEOM_CYLINDER, radius=0.3, height=0.4),]
-        link_pos = [(0, 0, 0), (door_len/2., 0., 0.), (door_len/2., -0.5, 0.)]
+        link_pos = [(0, 0, 0), (door_len/2., 0., 0.), (door_len/2., -HANDLE_OFFSET, 0.)]
         door = P.createMultiBody(basePosition=[0,0,0],
                                 linkMasses=[1 for _ in cols],
                                 linkCollisionShapeIndices=[ind for ind in cols],

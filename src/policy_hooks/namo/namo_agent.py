@@ -162,7 +162,7 @@ class NAMOSortingAgent(TAMPAgent):
         self.target_vecs[condition]= target_vec
 
 
-    def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None):
+    def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None, policies=None):
         assert not np.any(np.isnan(state))
         start_t = time.time()
         x0 = state[self._x_data_idx[STATE_ENUM]].copy()
