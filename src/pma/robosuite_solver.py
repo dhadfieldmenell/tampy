@@ -17,6 +17,9 @@ REF_JNTS = np.array([0, -np.pi/3, 0, np.pi/6, 0, 2*np.pi/3, 0])
 
 class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
+        if a.name.find('move') >= 0 and a.name.find('put') >= 0:
+            return [a.params[0], a.params[2]]
+
         return a.params[0]
 
 
@@ -85,6 +88,11 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             pose['{}_ee_rot'.format(arm)] = np.array(T.quaternion_to_euler(info['quat'], 'xyzw')).reshape((-1,1))
         return pose
 
+    def obj_in_gripper(self, ee_pos, ee_rot, obj):
+        pose = {}
+        pose['pose'] = ee_pos - obj.geom.grasp_point
+        pose['rot'] = ee_rot
+        return pose
 
     def obj_pose_suggester(self, plan, anum, resample_size=20):
         robot_pose = []
@@ -158,6 +166,10 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                 pose = self.vertical_gripper(robot, arm, obj, gripper_open, (st, et), rand=(rand or (i>0)), null_zero=zero_null)
             elif a_name.find('putdown') >= 0:
                 pose = self.vertical_gripper(robot, arm, obj, gripper_open, (st, et), rand=(rand or (i>0)), null_zero=zero_null)
+
+            if a_name.find('put') >= 0 and a_name.find('move') >= 0:
+                obj = act.params[2]
+                pose = {robot: pose, obj: self.obj_in_gripper(pose['{}_ee_pos'.format(arm)], pose['{}_ee_rot'.format(arm)], obj)}
 
             ### Cases for when behavior cannot be inferred from current action
             elif next_act is None:

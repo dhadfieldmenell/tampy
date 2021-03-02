@@ -158,34 +158,33 @@ class RolloutServer(Server):
             #    #    n_tries += 1
             #    #    neg_samples.append((sample, t, curtask))
 
-            if task != curtask: # not self.compare_tasks(task, curtask):
-                if self.check_postcond:
-                    postcost = self.agent.postcond_cost(sample, curtask, t)
-                    if postcost > 1e-4:
-                        neg_samples.append((sample, t, task))
-                        task = curtask
-                    else:
-                        self.postcond_costs[self.task_list[curtask[0]]].append(postcost)
+            if task != curtask and self.check_postcond:
+                postcost = self.agent.postcond_cost(sample, curtask, t)
+                if postcost > 1e-4:
+                    neg_samples.append((sample, t, task))
+                    task = curtask
+                else:
+                    self.postcond_costs[self.task_list[curtask[0]]].append(postcost)
+            
+            if task != curtask and self.check_precond:
+                precost = self.agent.precond_cost(sample, task, t)
+                if precost > 1e-4:
+                    precond_viols.append((cur_ids[0], t))
+                    neg_samples.append((sample, t, task))
                 
-                if task != curtask and self.check_precond:
+                n_tries = 0
+                cur_eta = self.eta
+                eta_scale = 0.9
+                while n_tries < 20 and task != curtask and precost > 1e-3:
+                    neg_samples.append((sample, t, task))
+                    task = self.get_task(sample.get_X(t=t), sample.targets, curtask, True, eta=cur_eta)
                     precost = self.agent.precond_cost(sample, task, t)
-                    if precost > 1e-4:
-                        precond_viols.append((cur_ids[0], t))
-                        neg_samples.append((sample, t, task))
-                    
-                    n_tries = 0
-                    cur_eta = self.eta
-                    eta_scale = 0.9
-                    while n_tries < 10 and task == curtask and precost < 1e-4:
-                        neg_samples.append((sample, t, task))
-                        precost = self.agent.precond_cost(sample, task, t)
-                        task = self.get_task(sample.get_X(t=t), sample.targets, curtask, True, eta=cur_eta)
-                        cur_eta *= eta_scale
-                        n_tries += 1
+                    cur_eta *= eta_scale
+                    n_tries += 1
 
-                    if precost > 1e-4:
-                        expl_precond_viols.append((cur_ids[0], t))
-                        task = curtask
+                if precost > 1e-3 and task != curtask:
+                    expl_precond_viols.append((cur_ids[0], t))
+                    task = curtask
 
             if task == curtask:
                 counts.append(counts[-1]+1)
@@ -238,7 +237,7 @@ class RolloutServer(Server):
                 break
             
             if len(expl_precond_viols):
-                print('PRECOND TERMINATING', counts[-1], curtask)
+                print('PRECOND TERMINATING', counts[-1], curtask, switch_pts[-1])
                 break
 
         if len(path):
@@ -583,7 +582,7 @@ class RolloutServer(Server):
                 self.agent.replace_cond(0)
                 self.agent.reset(0)
                 n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans'].value
-                save_video = self.id.find('moretest') >= 0 and n_plans > 10
+                save_video = self.id.find('test') >= 0 and n_plans > 10
                 self.test_hl(save_video=save_video)
 
             if self.run_hl_test: continue
