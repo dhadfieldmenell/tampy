@@ -149,6 +149,11 @@ class MotionServer(Server):
 
             if not success:
                 fail_step, fail_pred, fail_negated = node.get_failed_pred()
+                failed_preds = plan.get_failed_preds((0, fail_step), priority=-2)
+                if len(failed_preds):
+                    print('Refine failed with linear constr. viol.', node._trace)
+                    continue
+
                 print('Refine failed:', plan.get_failed_preds((0, fail_step)), fail_pred, fail_step, plan.actions, node.label, node._trace, node.freeze_ts)
                 if not node.hl: continue
                 if not node.gen_child(): continue
