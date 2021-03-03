@@ -787,7 +787,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             policy = self.policies[self.task_list[task[0]]]
             labels = None
             if not len(traj) and rollout and self.policy_initialized(policy):
-                hor = 100 if self.retime else self.plans[task].horizon
+                hor = et - st 
+                if self.retime: hor *= 4
                 sample = self.sample_task(policy, 0, x0.copy(), task, hor=hor, skip_opt=True)
                 cost = self.postcond_cost(sample, task, sample.T-1)
                 if self.retime:
@@ -817,6 +818,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 if not len(failed):
                     continue
                 print(('Graph failed solve on', x0, task, plan.actions[a], 'up to {0}'.format(et), failed, self.process_id))
+                print([((pname, aname), x0[inds]) for ((pname, aname), inds) in self.state_inds.items()])
                 self.n_fail_opt[task] = self.n_fail_opt.get(task, 0) + 1
                 return False
         return success
