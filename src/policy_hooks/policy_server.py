@@ -166,7 +166,7 @@ class PolicyServer(object):
                     self.cur_ratio = ratio
                     if ratio < 1.1:
                         self.policy_opt.cur_dec *= 0.975
-                    elif ratio > 1.5:
+                    elif ratio > 1.4:
                         self.policy_opt.cur_dec *= 1.025
                     self.policy_opt.cur_dec = max(self.policy_opt.cur_dec, 1e-12)
                     self.policy_opt.cur_dec = min(self.policy_opt.cur_dec, 1e1)

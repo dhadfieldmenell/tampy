@@ -22,7 +22,7 @@ def save_video(fname, dname='', arr=None, savepath=None):
     vname = savepath+fname.split('/')[-1].split('.')[0]+'.gif'
     if os.path.isfile(vname): return
     if arr is None: arr = np.load(fname)
-    print('Saved video', vname)
+    #print('Saved video', vname)
     imageio.mimsave(vname, arr, duration=0.01)
     '''
     fig, ax = plt.subplots()

@@ -116,6 +116,7 @@ class Server(object):
         self.explore_wt = hyperparams['explore_wt']
         self.check_prim_t = hyperparams.get('check_prim_t', 1)
         self.agent.plans, self.agent.openrave_bodies, self.agent.env = self.agent.prob.get_plans(use_tf=True)
+        self.dagger_window = hyperparams['dagger_window']
         task_plans = list(self.agent.plans.items())
         for task, plan in task_plans:
             #self.agent.plans[task[0]] = plan
@@ -311,7 +312,6 @@ class Server(object):
                 node = None
 
             if node is not None and \
-               hasattr(node, 'heuristic') and \
                node.heuristic() < prob.heuristic():
                 prob = node
 
@@ -345,7 +345,7 @@ class Server(object):
         self.agent.policies = rollout_policies
 
 
-    def run_hl_update(self):
+    def run_hl_update(self, label=None):
         ### Look for saved successful HL rollout paths and send them to update the HL options policy
         ref_paths = []
         path_samples = []
@@ -353,6 +353,9 @@ class Server(object):
             path_samples.extend(path)
             ref_paths.append(path)
         self.agent.clear_task_paths()
+        if label is not None:
+            for s in path_samples:
+                s.source_label = label
         
         self.update_primitive(path_samples)
         if self._hyperparams.get('save_expert', False): self.update_expert_demos(ref_paths)
@@ -403,7 +406,7 @@ class Server(object):
 
         if len(tgt_mu):
             # print('Sending update to primitive net')
-            self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', self.label_type, aux=tgt_aux)
+            self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', samples[0].source_label, aux=tgt_aux)
 
 
     def update_negative_primitive(self, samples):
@@ -513,7 +516,7 @@ class Server(object):
         im.save(fname)
 
 
-    def save_video(self, rollout, success=None, ts=None, lab='', annotate=True):
+    def save_video(self, rollout, success=None, ts=None, lab='', annotate=True, st=0):
         if not self.render: return
         init_t = time.time()
         old_h = self.agent.image_height
@@ -531,9 +534,10 @@ class Server(object):
             self.agent.target_vecs[0] = step.targets
             if not step.draw: continue
             if ts is None: 
-                ts_range = range(step.T)
+                ts_range = range(st, step.T)
             else:
                 ts_range = range(ts[0], ts[1])
+            st = 0
 
             for t in ts_range:
                 ims = []
@@ -561,7 +565,7 @@ class DummyPolicy:
         self.chol_pol_covar = chol_pol_covar
         self.scale = scale
 
-    def act(self, x, obs, t, noise):
+    def act(self, x, obs, t, noise=None):
         U = self.policy_call(x, obs, t, noise, self.task, None)
         if np.any(np.isnan(x)):
             #raise Exception('Nans in policy call state.')

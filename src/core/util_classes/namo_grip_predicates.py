@@ -1540,7 +1540,7 @@ class Obstructs(CollisionPredicate):
 class WideObstructs(Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.1
+        self.dsafe = 0.35
         self.check_aabb = False # True
 
 
@@ -1902,7 +1902,7 @@ class ObstructsHolding(CollisionPredicate):
 class WideObstructsHolding(ObstructsHolding):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(WideObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.15
+        self.dsafe = 0.35
         self.check_aabb = False # True
 
 
@@ -2132,7 +2132,7 @@ class ApproachGraspAngle(InGraspAngle):
 class NearGraspAngle(InGraspAngle):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.r, self.can = params
-        self.tol = 5e-2
+        self.tol = 4e-3
         if self.r.is_symbol():
             k = 'value'
         else:
@@ -2206,6 +2206,12 @@ class NearGraspAngle(InGraspAngle):
 
             add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
         return res, attr_inds
+
+class AroundGraspAngle(NearGraspAngle):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
+        super(InGraspAngle, self).__init__(name, params, expected_param_types, env, sess, debug)
+        self.tol = 2e-2
+        self._rollout = True
 
 class DoorNearGrasp(DoorInGrasp):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
@@ -2576,6 +2582,7 @@ class IsMP(ExprPredicate):
         drot = np.pi / 3.
         e = LEqExpr(AffExpr(A, b), np.array([dmove, dmove, drot, dmove, dmove, drot]).reshape((6,1)))
         super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+        self._nonrollout = True
 
 
 class DoorIsMP(ExprPredicate):

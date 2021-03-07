@@ -6,7 +6,7 @@ import functools
 import random
 import numpy as np
 
-DEBUG = False
+DEBUG = True # False
 
 @functools.total_ordering
 class SearchNode(object):
@@ -38,7 +38,7 @@ class SearchNode(object):
         raise NotImplementedError("Override this.")
 
 class HLSearchNode(SearchNode):
-    def __init__(self, abs_prob, domain, concr_prob, priority=0, prefix=None, label='', llnode=None, x0=None, targets=None, expansions=0):
+    def __init__(self, abs_prob, domain, concr_prob, priority=0, prefix=None, label='', llnode=None, x0=None, targets=None, expansions=0, nodetype='optimal'):
         self.abs_prob = abs_prob
         self.domain = domain
         self.concr_prob = concr_prob
@@ -50,6 +50,7 @@ class HLSearchNode(SearchNode):
         self.x0 = x0
         self.expansions = expansions
         self.llnode = llnode
+        self.nodetype = nodetype
         self._trace = [label] 
         if llnode is not None:
             self._trace.extend(llnode._trace)
@@ -69,7 +70,7 @@ class HLSearchNode(SearchNode):
         return plan_obj
 
 class LLSearchNode(SearchNode):
-    def __init__(self, plan_str, domain, prob, initial, priority=1, keep_failed=False, ref_plan=None, x0=None, targets=None, expansions=0, label='', refnode=None, freeze_ts=-1, hl=True, ref_traj=[]):
+    def __init__(self, plan_str, domain, prob, initial, priority=1, keep_failed=False, ref_plan=None, x0=None, targets=None, expansions=0, label='', refnode=None, freeze_ts=-1, hl=True, ref_traj=[], nodetype='optimal'):
         self.curr_plan = 'no plan'
         self.plan_str = plan_str
         self.domain = domain
@@ -85,6 +86,7 @@ class LLSearchNode(SearchNode):
         self.freeze_ts = freeze_ts
         self.label = label
         self.ref_traj = ref_traj
+        self.nodetype = nodetype
         #self.refnode = refnode
         self._trace = [label] 
         if refnode is not None:
@@ -195,27 +197,32 @@ class LLSearchNode(SearchNode):
             if fill_a >= 0:
                 self.curr_plan.fill(self.ref_plan, amax=fill_a)
 
+            for param in self.curr_plan.params.values():
+                if not param.is_symbol(): continue
+                for attr in param._free_attrs:
+                    ref_sym = getattr(self.ref_plan.params[param.name], attr)
+                    if np.any(ref_sym[:] != getattr(param, attr)[:]):
+                        print('BAD COPY!', param.name, attr)
+                    getattr(param, attr)[:] = ref_sym[:]
+
             if self.freeze_ts > 0:
                 self.curr_plan.freeze_ts = self.freeze_ts
-                preds = self.curr_plan.get_failed_preds((0, self.freeze_ts))
-                if len(preds):
-                    if DEBUG: print('LLNODE: Violation in constraints, projecting onto', self._trace, preds)
+                preds = self.curr_plan.get_failed_preds()
+                ref_preds = self.ref_plan.get_failed_preds()
+                if len(preds) and any([p[2] <= self.freeze_ts for p in preds]):
+                    if DEBUG: print('LLNODE: Violation in constraints, projecting onto', self._trace, preds, ref_preds, self.freeze_ts, self._trace, self.curr_plan.actions)
                     try:
-                        init_vals = self.curr_plan.params['sawyer'].right[:,:self.freeze_ts].copy()
                         proj_succ = ll_solver.find_closest_feasible(self.curr_plan, (0, self.freeze_ts))
-                        final_vals = self.curr_plan.params['sawyer'].right[:,:self.freeze_ts]
-                        if DEBUG:
-                            print('AVG DEVIATION:', np.sum(final_vals-init_vals, axis=0))
                     except Exception as e:
                         if DEBUG:
                             print('LLNODE FAIL:', e)
                             print('LLNODE: Failed to project onto constraints', preds)
                         proj_succ = False
-                    if proj_succ:
-                        preds = self.curr_plan.get_failed_preds((0, self.freeze_ts))
 
+                preds = self.curr_plan.get_failed_preds()
+                preds = [p for p in preds if p[2]+p[1].active_range[1] <= self.freeze_ts]
                 if len(preds):
-                    if DEBUG: print('LLNODE: Proceeding without projection', self._trace, preds)
+                    if DEBUG: print('LLNODE: Proceeding without projection', self._trace, preds, self.freeze_ts)
                 else:
                     if DEBUG: print('LLNODE: Proceeding with frozen', self._trace)
                     self.curr_plan.freeze_up_to(self.freeze_ts)

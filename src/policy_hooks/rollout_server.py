@@ -67,6 +67,7 @@ class RolloutServer(Server):
         self.last_hl_test = time.time()
         self.task_calls = {task: [] for task in self.task_list}
         self.task_successes = {task: [] for task in self.task_list}
+        self.suc_trajs = [] # Each entry should be (traj, list of ts, list of prob under policy)
         self.failed_trajs = [] # Each entry should be (traj, list of ts, list of prob under policy)
 
 
@@ -190,8 +191,8 @@ class RolloutServer(Server):
                 counts.append(counts[-1]+1)
             else:
                 counts.append(0)
-                print('ALLOWED SWITCH:', precost, postcost, counts[-1])
-                switch_pts.append((cur_ids[0], t))
+                #print('ALLOWED SWITCH:', precost, postcost, counts[-1])
+                switch_pts.append((cur_ids[-1], t))
                 self.task_successes[self.task_list[curtask[0]]].append(1)
             cur_tasks.append(task)
             return task
@@ -255,6 +256,79 @@ class RolloutServer(Server):
         else:
             self.task_successes[self.task_list[cur_tasks[-1][0]]].append(1)
 
+        self.log_path(path, -20)
+        #return val, path, max(0, s-last_switch), 0
+        train_pts = []
+        fail_type = 'successful_rollout'
+        if len(precond_viols):
+            fail_type = 'rollout_precondition_failure'
+            bad_pt = precond_viols[0]
+            train_pts.extend([tuple(pt) + (fail_type,) for pt in precond_viols])
+
+        if self.check_postcond or val < 1-1e-4:
+            fail_type = 'rollout_postcondition_failure'
+            bad_pt = switch_pts[-1]
+            train_pts.append(tuple(bad_pt) + (fail_type,))
+            self.failed_trajs.append((path[bad_pt[0]:], [], []))
+
+        if self.check_random_switch:
+            ind = np.random.choice(range(len(switch_pts)))
+            train_pts.append(tuple(switch_pts[ind]) + ('rollout_random_switch',))
+
+        if not len(expl_precond_viols) and self.check_midcond:
+            bad_pt = switch_pts[-1]
+            curtask = tuple([val for val in cur_tasks[-1] if np.isscalar(val)])
+            self.save_video(path[bad_pt[0]:], 0, lab='odd_midfail', st=bad_pt[1])
+            precost = self.agent.precond_cost(path[bad_pt[0]], curtask, bad_pt[1])
+            plan = self.agent.plans[curtask]
+            st = bad_pt[1]
+            traj, steps, _ = self.agent.reverse_retime(path[bad_pt[0]:], (0, plan.horizon-1), label=True, start_t=st)
+            for t in range(len(traj)-1):
+                t = min(t, plan.horizon-1)
+                set_params_attrs(plan.params, self.agent.state_inds, traj[t], t)
+            set_params_attrs(plan.params, self.agent.state_inds, path[bad_pt[0]].get_X(t=st), 0)
+            self.agent.set_symbols(plan, cur_tasks[-1], targets=targets)
+            failed_preds = plan.get_failed_preds(tol=1e-3, active_ts=(0, plan.horizon-1))
+            failed_preds = [p for p in failed_preds if (p[1]._rollout or (not p[1]._nonrollout and type(p[1].expr) is not EqExpr))]
+            if len(failed_preds):
+                fail_t = min([p[2]+p[1].active_range[0] for p in failed_preds]) - 1
+            else:
+                fail_t = plan.horizon - 1
+
+            if not len(failed_preds):
+                self.suc_trajs.append((path[bad_pt[0]:], [], []))
+
+            fail_t = max(0, fail_t)
+            fail_t = min(fail_t, plan.horizon-2)
+            if len(failed_preds):
+                fail_type = 'rollout_midcondition_failure'
+                if fail_t < len(steps):
+                    fail_s = bad_pt[0] + steps[fail_t]
+                else:
+                    fail_s = bad_pt[0]
+                self.failed_trajs.append((path[fail_s:], [], []))
+
+                x0 = path[bad_pt[0]].get(STATE_ENUM, st)
+                print('MID COND:', fail_s, fail_t, bad_pt, failed_preds, precost, self.id)
+                initial, goal = self.agent.get_hl_info(x0, targets)
+                plan.start = 0
+                new_node = LLSearchNode(plan.plan_str, 
+                                        prob=plan.prob, 
+                                        domain=plan.domain,
+                                        initial=plan.prob.initial,
+                                        priority=ROLL_PRIORITY+1,
+                                        ref_plan=plan,
+                                        targets=targets,
+                                        x0=x0,
+                                        expansions=1,
+                                        label='rollout_midcondition_failure',
+                                        refnode=None,
+                                        freeze_ts=fail_t,
+                                        hl=False,
+                                        ref_traj=traj,
+                                        nodetype='dagger')
+                self.push_queue(new_node, self.motion_queue)
+
         if val >= 0.999:
             print('Success in rollout. Pre: {} Post: {} Mid: {} Random: {}'.format(self.check_precond, \
                                                                         self.check_postcond, \
@@ -267,72 +341,9 @@ class RolloutServer(Server):
             n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_total']
             with n_plans.get_lock():
                 n_plans.value += 1
+        else:
+            print('Failure in supervised rollout. {}'.format(train_pts))
 
-
-        self.log_path(path, -20)
-        #return val, path, max(0, s-last_switch), 0
-        train_pts = []
-        fail_type = 'successful_rollout'
-        if len(precond_viols):
-            fail_type = 'rollout_precondition_failure'
-            bad_pt = precond_viols[0]
-            train_pts.extend([tuple(pt) + (fail_type,) for pt in precond_viols])
-
-        if self.check_postcond:
-            fail_type = 'rollout_postcondition_failure'
-            bad_pt = switch_pts[-1]
-            train_pts.append(tuple(bad_pt) + (fail_type,))
-            self.failed_trajs.append((path[bad_pt[0]:], [], []))
-
-        if self.check_random_switch:
-            ind = np.random.choice(range(len(switch_pts)))
-            train_pts.append(tuple(switch_pts[ind]) + ('rollout_random_switch',))
-
-        if self.check_midcond:
-            curtask = tuple([val for val in cur_tasks[-1] if np.isscalar(val)])
-            plan = self.agent.plans[curtask]
-            st = bad_pt[1]
-            traj, steps, _ = self.agent.reverse_retime(path[bad_pt[0]:], (0, plan.horizon-1), label=True, start_t=st)
-            for t in range(len(traj)-1):
-                t = min(t, plan.horizon-1)
-                set_params_attrs(plan.params, self.agent.state_inds, traj[t], t)
-            self.agent.set_symbols(plan, cur_tasks[-1], targets=targets)
-            failed_preds = plan.get_failed_preds(tol=3e-3)
-            failed_preds = [p for p in failed_preds if (p[1]._rollout or (not p[1]._nonrollout and type(p[1].expr) is not EqExpr))]
-            if len(failed_preds):
-                fail_t = min([p[2]+p[1].active_range[0] for p in failed_preds]) - 1
-            else:
-                fail_t = plan.horizon - 1
-
-            self.failed_trajs.append((path[bad_pt[0]:], [], []))
-
-            fail_t = max(0, fail_t)
-            fail_t = min(fail_t, plan.horizon-2)
-            if len(failed_preds):
-                fail_type = 'rollout_midcondition_failure'
-                if fail_t < len(steps):
-                    fail_s = bad_pt[0] + steps[fail_t]
-                else:
-                    fail_s = bad_pt[0]
-                x0 = path[bad_pt[0]].get(STATE_ENUM, 0)
-                print('MID COND:', fail_s, fail_t, bad_pt, failed_preds)
-                initial, goal = self.agent.get_hl_info(x0, targets)
-                plan.start = 0
-                new_node = LLSearchNode(plan.plan_str, 
-                                        prob=plan.prob, 
-                                        domain=plan.domain,
-                                        initial=plan.prob.initial,
-                                        priority=ROLL_PRIORITY,
-                                        ref_plan=plan,
-                                        targets=targets,
-                                        x0=traj[0],
-                                        expansions=1,
-                                        label='rollout_midcondition_failure',
-                                        refnode=None,
-                                        freeze_ts=fail_t,
-                                        hl=False,
-                                        ref_traj=traj)
-                self.push_queue(new_node, self.motion_queue)
 
         if np.random.uniform() < 1:#0.25:
             lab = '' if val > 0.999 else fail_type
@@ -427,7 +438,8 @@ class RolloutServer(Server):
                                  x0=x0,
                                  targets=targets,
                                  expansions=0,
-                                 label='failed_rollout')
+                                 label='failed_rollout',
+                                 nodetype='dagger')
             self.push_queue(hlnode, self.task_queue)
 
 
@@ -588,7 +600,9 @@ class RolloutServer(Server):
             if self.run_hl_test: continue
             if self._n_plans < ff_iters: continue
 
-            self.set_policies()
+            if not step % 5:
+                self.set_policies()
+
             node = self.pop_queue(self.rollout_queue)
             #if node is None:
             #    new_node = self.spawn_problem()
@@ -609,7 +623,7 @@ class RolloutServer(Server):
                     self.alg_map[task]._update_policy_no_cost(data, label='rollout')
 
             if self.hl_rollout_opt:
-                self.run_hl_update()
+                self.run_hl_update(label='rollout')
 
             self.write_log()
         self.policy_opt.sess.close()
@@ -647,7 +661,8 @@ class RolloutServer(Server):
                                       expansions=node.expansions,
                                       label=fail_type,
                                       x0=state,
-                                      targets=targets)
+                                      targets=targets,
+                                      nodetype='dagger')
                 self.push_queue(hlnode, self.task_queue)
 
         #if len(neg_samples) and self.use_neg:
@@ -686,10 +701,10 @@ class RolloutServer(Server):
             cur_lls = []
             for sample in traj:
                 for t in range(sample.T):
-                    task = tuple(sample.get(FACTOREDTASK_ENUM, t=t))
+                    task = tuple(sample.get(FACTOREDTASK_ENUM, t=t).astype(int))
                     task_name = self.task_list[task[0]]
                     pol = self.agent.policies[task_name]
-                    mu = pol.act(sample.get_obs(t=t))
+                    mu = pol.act(sample.get_X(t=t), sample.get_obs(t=t), t)
                     act = sample.get(ACTION_ENUM, t=t)
                     cur_lls.append(np.sum((mu-act)**2))
             ts.append(cur_t)
@@ -701,7 +716,9 @@ class RolloutServer(Server):
                 }
 
         wind = 10
+        self.check_failed_likelihoods()
         info['dagger_success'] = np.mean(self.postcond_info[-wind:]) if len(self.postcond_info) else 0.
+        info['failed_trajs'] = [(ts, ll) for _, ts, ll in self.failed_trajs]
         for key in self.fail_types:
             info[key] = self.fail_types[key] / self.n_fails
 

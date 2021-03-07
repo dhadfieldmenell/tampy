@@ -121,15 +121,23 @@ class MotionServer(Server):
                 with n_plans.get_lock():
                     n_plans.value += 1
 
-                wt = self.explore_wt if node.label.lower().find('rollout') >= 0 else 1.
-                path, log_info = self.agent.run_plan(plan, node.targets, permute=self.permute_hl, wt=wt, start_ts=cur_t, record=node.hl)
+                wt = self.explore_wt if node.label.lower().find('rollout') >= 0 or node.nodetype.find('dagger') >= 0 else 1.
+                path, log_info = self.agent.run_plan(plan, node.targets, permute=self.permute_hl, wt=wt, start_ts=cur_t, record=node.hl, label=node.nodetype)
                 for key in log_info:
                     self.opt_rollout_info[key].extend(log_info[key])
                 #if self.render and (self.id.find('r0') >= 0 or not path[-1].success and np.random.uniform() < 0.01):
                 #    self.save_video(path, path[-1].success)
+                if len(plan.actions) == 1:
+                    if self.render and node.nodetype.find('dagger') >= 0:
+                        aname = plan.actions[0].name
+                        self.save_video(path, path[-1]._postsuc, lab='_{}_middaggeropt'.format(aname))
+                else:
+                    if self.render and node.nodetype.find('dagger') >= 0:
+                        self.save_video(path, path[-1]._postsuc, lab='_fulldagger')
+
                 self.log_path(path, 10)
-                for step in path: step.source_label = 'optimal'
-                print(self.id, 'Successful refine from', node.label, 'rollout succes was:', path[-1]._postsuc, path[-1].success, 'first ts:', plan.start, cur_t)
+                for step in path: step.source_label = node.nodetype
+                print(self.id, 'Successful refine from', node.label, 'rollout success was:', path[-1]._postsuc, path[-1].success, 'first ts:', plan.start, cur_t)
 
                 if path[-1].success:
                     n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_total']
@@ -149,12 +157,12 @@ class MotionServer(Server):
 
             if not success:
                 fail_step, fail_pred, fail_negated = node.get_failed_pred()
-                failed_preds = plan.get_failed_preds((0, fail_step), priority=-2)
+                failed_preds = plan.get_failed_preds((0, fail_step+fail_pred.active_range[1]), priority=-2)
                 if len(failed_preds):
                     print('Refine failed with linear constr. viol.', node._trace)
                     continue
 
-                print('Refine failed:', plan.get_failed_preds((0, fail_step)), fail_pred, fail_step, plan.actions, node.label, node._trace, node.freeze_ts)
+                print('Refine failed:', plan.get_failed_preds((0, fail_step+fail_pred.active_range[1])), fail_pred, fail_step, plan.actions, node.label, node._trace, node.freeze_ts)
                 if not node.hl: continue
                 if not node.gen_child(): continue
                 n_problem = node.get_problem(fail_step, fail_pred, fail_negated)
@@ -190,7 +198,7 @@ class MotionServer(Server):
                 time.sleep(0.01)
                 continue
 
-            if not step % 2:
+            if not step % 5:
                 self.set_policies()
                 self.write_log()
             self.refine_plan(node)
@@ -198,7 +206,13 @@ class MotionServer(Server):
             inv_cov = self.agent.get_inv_cov()
             for task in self.alg_map:
                 data = self.agent.get_opt_samples(task, clear=True)
-                if len(data): self.alg_map[task]._update_policy_no_cost(data, label='optimal', inv_cov=inv_cov)
+                opt_samples = [sample for sample in data if not len(sample.source_label) or sample.source_label.find('opt') >= 0]
+                expl_samples = [sample for sample in data if len(sample.source_label) and sample.source_label.find('opt') < 0]
+                if len(opt_samples):
+                    self.alg_map[task]._update_policy_no_cost(opt_samples, label='optimal', inv_cov=inv_cov)
+                if len(expl_samples):
+                    self.alg_map[task]._update_policy_no_cost(expl_samples, label='dagger', inv_cov=inv_cov)
+
             self.run_hl_update()
             step += 1
         self.policy_opt.sess.close()

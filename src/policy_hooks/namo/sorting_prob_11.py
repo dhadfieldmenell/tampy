@@ -8,6 +8,7 @@ import numpy as np
 import random
 import time
 
+import main
 from core.internal_repr.plan import Plan
 from core.util_classes.namo_predicates import dsafe
 from core.util_classes.openrave_body import *
@@ -49,8 +50,8 @@ END_TARGETS.extend([(0.8, 2.),
 n_aux = 4
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25
-#possible_can_locs.extend(list(itertools.product(list(range(-60, 60, 2)), list(range(-60, -10, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-60, 60, 2)), list(range(-70, -20, 2)))))
+#possible_can_locs.extend(list(itertools.product(list(range(-60, 60, 2)), list(range(-70, -20, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-70, 70, 2)), list(range(-80, -20, 2)))))
 
 
 for i in range(len(possible_can_locs)):
@@ -120,7 +121,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         # can_locs = copy.deepcopy(END_TARGETS)
         locs = []
         pr2_loc = None
-        spacing = 2.5
+        spacing = 1.8 # 2.5
         valid = [1 for _ in range(len(can_locs))]
         while len(locs) < config['num_objs'] + 1:
             locs = []
@@ -211,14 +212,17 @@ def parse_hl_plan(hl_plan):
 
 def get_plans(use_tf=False):
     tasks = get_tasks(mapping_file)
-    task_ids = sorted(list(get_tasks(mapping_file).keys()))
-    prim_options = get_prim_choices()
+    task_ids = sorted(list(tasks.keys()))
+    prim_options = get_prim_choices(task_ids)
     plans = {}
     openrave_bodies = {}
     env = None
     params = None
     sess = None
     st = time.time()
+    prob_f = prob_file()
+    d_c = main.parse_file_to_dict(domain_file)
+    p_c = main.parse_file_to_dict(prob_f)
     for task in task_ids:
         next_task_str = copy.deepcopy(tasks[task])
         for i in range(len(prim_options[utils.OBJ_ENUM])):
@@ -228,16 +232,17 @@ def get_plans(use_tf=False):
                 new_task_str = []
                 for step in next_task_str:
                     new_task_str.append(step.format(obj, targ, 'grasp0'))
-                plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params, sess=sess, use_tf=use_tf)
+                plan = plan_from_str(new_task_str, prob_f, domain_file, env, openrave_bodies, params=params, sess=sess, use_tf=use_tf, d_c=d_c, p_c=p_c)
                 params = plan.params
                 plans[(task_ids.index(task), i, j)] = plan
                 if env is None:
                     env = plan.env
-                    for param in list(plan.params.values()):
-                        if hasattr(param, 'geom'):
-                            if not hasattr(param, 'openrave_body') or param.openrave_body is None:
-                                param.openrave_body = OpenRAVEBody(env, param.name, param.geom)
-                            openrave_bodies[param.name] = param.openrave_body
+
+                for param in list(plan.params.values()):
+                    if hasattr(param, 'geom') and param.name not in openrave_bodies:
+                        if not hasattr(param, 'openrave_body') or param.openrave_body is None:
+                            param.openrave_body = OpenRAVEBody(env, param.name, param.geom)
+                        openrave_bodies[param.name] = param.openrave_body
     return plans, openrave_bodies, env
 
 def get_end_targets(num_cans=NUM_OBJS, num_targs=NUM_OBJS, targs=None, randomize=False, possible_locs=END_TARGETS):

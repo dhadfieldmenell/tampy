@@ -961,7 +961,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         postcost = round(self.postcond_cost(s, tuple(task), t), 5)
         offset = str((pos - predpos).round(2))[1:-1]
         act = str(s.get(ACTION_ENUM, t=t).round(3))[1:-1]
-        textover1 = self.mjc_env.get_text_overlay(body='Task: {0} Act: {1}'.format(task, act))
+        textover1 = self.mjc_env.get_text_overlay(body='Task: {0} {1}'.format(task, act))
         textover2 = self.mjc_env.get_text_overlay(body='{0: <6} {1: <6} Error: {2}'.format(precost, postcost, offset), position='bottom left')
         self.reset_to_state(x)
         im = self.mjc_env.render(camera_id=cam_id, height=self.image_height, width=self.image_width, view=False, overlays=(textover1, textover2))

@@ -100,7 +100,8 @@ def run_baseline(args):
     # Retrieve previous information to match how the expert was trained
     exps_info = [[args.config]]
     n_objs = args.nobjs if args.nobjs > 0 else None
-    n_targs = args.ntargs if args.ntargs > 0 else None
+    n_targs = args.nobjs if args.nobjs > 0 else None
+    #n_targs = args.ntargs if args.ntargs > 0 else None
     if USE_BASELINES and len(args.expert_path):
         sys.path.insert(1, args.expert_path)
         exps_info = [['hyp']]
@@ -197,7 +198,8 @@ def main():
             exps = eval(f.read())
     exps_info = exps
     n_objs = args.nobjs if args.nobjs > 0 else None
-    n_targs = args.ntargs if args.ntargs > 0 else None
+    n_targs = args.nobjs if args.nobjs > 0 else None
+    #n_targs = args.ntargs if args.ntargs > 0 else None
     if len(args.test):
         sys.path.insert(1, DIR_KEY+args.test)
         exps_info = [['hyp']]
@@ -358,6 +360,7 @@ def argsparser():
     parser.add_argument('-post', '--check_postcond', action='store_true', default=False)
     parser.add_argument('-mid', '--check_midcond', action='store_true', default=False)
     parser.add_argument('-random', '--check_random_switch', action='store_true', default=False)
+    parser.add_argument('-dwind', '--dagger_window', type=int, default=0)
     parser.add_argument('-mask', '--hl_mask', action='store_false', default=True)
     parser.add_argument('-rs', '--rollout_seed', action='store_true', default=False)
     parser.add_argument('-switch', '--use_switch', action='store_true', default=False)

@@ -88,6 +88,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.rank = hyperparams['master_config'].get('rank', 0)
         self.process_id = self.master_config['id']
         self.goal_type = self.master_config.get('goal_type', 'default')
+        self.dagger_window = self.master_config['dagger_window']
         self._tol = 1e-3
         self.retime = hyperparams['master_config'].get('retime', False)
         for condition in range(len(self.x0)):
@@ -818,13 +819,12 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 if not len(failed):
                     continue
                 print(('Graph failed solve on', x0, task, plan.actions[a], 'up to {0}'.format(et), failed, self.process_id))
-                print([((pname, aname), x0[inds]) for ((pname, aname), inds) in self.state_inds.items()])
                 self.n_fail_opt[task] = self.n_fail_opt.get(task, 0) + 1
                 return False
         return success
 
 
-    def run_plan(self, plan, targets, tasks=None, reset=True, permute=False, save=True, amin=0, amax=None, record=True, wt=1., start_ts=0, verbose=False):
+    def run_plan(self, plan, targets, tasks=None, reset=True, permute=False, save=True, amin=0, amax=None, record=True, wt=1., start_ts=0, verbose=False, label=None):
         if record: self.n_plans_run += 1
         path = []
         log_info = {}
@@ -909,23 +909,37 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 path.append(zero_sample)
             path[-1].task_end = True
 
+        for sample in path:
+            sample.source_label = label
+
+        for ind, s in enumerate(path):
+            s._postsuc = False
+            end_s = [next_s for next_s in path[ind:] if next_s.task_end]
+            end_s = end_s[0] if len(end_s) else path[-1]
+            cost = self.postcond_cost(end_s, end_s.task, end_s.T-1, debug=False)
+            if cost < 1e-3:
+                s._postsuc = True
+
+        if label.find('dagger') >= 0 and self.dagger_window > 0:
+            path[0].success = path[-1].success
+            path = path[:1]
+            path[0].use_ts[self.dagger_window:] = 0.
+            path[0].prim_use_ts[self.dagger_window:] = 0.
+
         if len(path) and path[-1].success > 0.99:
             for sample in path: sample.opt_strength = 1.
             if save: self.add_task_paths([path])
             if record: self.n_plans_suc_run += 1
         else:
-            self.goal_f(0, x0, sample.targets)
             print('Failed rollout of plan')
 
         if len(path):
             for ind, s in enumerate(path):
-                s._postsuc = False
                 end_s = [next_s for next_s in path[ind:] if next_s.task_end]
                 end_s = end_s[0] if len(end_s) else path[-1]
                 cost = self.postcond_cost(end_s, end_s.task, end_s.T-1, debug=False)
 
                 if cost < 1e-3:
-                    s._postsuc = True
                     self.optimal_samples[self.task_list[s.task[0]]].append(s)
                     log_info['{}_opt_rollout_success'.format(self.task_list[s.task[0]])].append(1)
                 elif path[-1].success > 0.99:
@@ -1043,6 +1057,9 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
         onehot_task = tuple([val for val in task if np.isscalar(val)])
         plan = self.plans[onehot_task] if onehot_task in self.plans else self.plans[task[0]]
+        if active_ts[1] == -1:
+            active_ts = (plan.horizon-1, plan.horizon-1)
+
         if targets is None or not len(targets):
             targets = self.target_vecs[condition]
         for tname, attr in self.target_inds:

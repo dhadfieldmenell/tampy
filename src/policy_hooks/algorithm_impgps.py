@@ -247,7 +247,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
                     prc[:, t, :, :] = np.tile(traj.inv_pol_covar[t, :, :], [1, 1, 1])
                 else:
                     prc[:, t, :, :] = np.tile(inv_cov, [1, 1, 1])
-                wt[t] = self._hyperparams['opt_wt'] * sample.use_ts[t]
+                wt[t] = sample.use_ts[t] # self._hyperparams['opt_wt'] * sample.use_ts[t]
 
             tgt_mu = np.concatenate((tgt_mu, sample.get_U()))
             obs_data = np.concatenate((obs_data, sample.get_obs()))

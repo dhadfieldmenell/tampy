@@ -57,7 +57,8 @@ class TaskServer(Server):
                                 x0=node.x0,
                                 expansions=node.expansions+1,
                                 label=node.label,
-                                refnode=node)
+                                refnode=node,
+                                nodetype=node.nodetype)
         self.push_queue(new_node, self.motion_queue)
 
 

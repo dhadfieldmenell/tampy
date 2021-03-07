@@ -18,7 +18,6 @@ class Sample(object):
         self._data = {}
         self.reinit()
         self.draw = True
-        self.wt = 1.
         self.opt_wt = None
 
     def reinit(self):
@@ -32,6 +31,7 @@ class Sample(object):
         self.success = 0
         self.opt_suc = 0
         self.source_label = ''
+        self.wt = 1.
 
         self._X = np.empty((self.T, self.dX))
         self._X.fill(np.nan)

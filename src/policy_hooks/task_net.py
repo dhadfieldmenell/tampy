@@ -791,4 +791,13 @@ def get_xavier_weights(filter_shape, poolsize=(2, 2)):
     return tf.Variable(tf.random_uniform(filter_shape, minval=low, maxval=high, dtype=tf.float32))
 
 
+def annotate_xy(self, im_width, im_height, image_input):
+    lab_xarr = np.tile(np.linspace(-1., 1., im_width), (im_height, 1))
+    lab_yarr = lab_xarr.T
+    lab_arr = np.stack([lab_xarr, lab_yarr], axis=-1).astype(np.float32)
+    lab_tensor = tf.Variable(lab_arr.reshape((1, im_width, im_height, 2)), trainable=False, name='xylab')
+    im_rows = tf.shape(image_input)[0]
+    lab_tiled = tf.tile(lab_tensor, tf.stack([im_rows, 1, 1, 1]))
+    image_input = tf.concat(axis=3, values=[image_input, lab_tiled])
+    return image_input
 

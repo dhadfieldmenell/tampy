@@ -81,6 +81,7 @@ class MultiProcessMain(object):
             self.check_dirs()
 
     def init(self, config):
+        init_t = time.time()
         self.config = config
         prob = config['prob']
         self.config['group_id'] = config.get('group_id', 0)

@@ -105,7 +105,7 @@ class Parameter(object):
         self._free_attrs = free_attrs
 
     def freeze_up_to(self, t):
-        if t<= 0: return
+        if t <= 0: return
         for attr in self._free_attrs:
             self._free_attrs[attr][:,:t] = 0.
 
