@@ -32,6 +32,8 @@ class RolloutServer(Server):
         self.out_queue = self.motion_queue
         self.check_precond = hyperparams['check_precond']
         self.check_postcond = hyperparams['check_postcond']
+        self.neg_precond = hyperparams['neg_precond']
+        self.neg_postcond = hyperparams['neg_postcond']
         self.check_midcond = hyperparams['check_midcond']
         self.check_random_switch = hyperparams['check_random_switch']
         self.fail_plan = hyperparams['train_on_fail']
@@ -122,20 +124,23 @@ class RolloutServer(Server):
 
         return True
 
-    def rollout(self, x, targets):
+    def rollout(self, x, targets, tol=4e-3):
         switch_pts = [(0,0)]
         counts = [0]
         cur_ids = [0]
         cur_tasks = []
+        postcond_viols = []
         precond_viols = []
         expl_precond_viols = []
         self.agent.target_vecs[0] = targets
         self.agent.reset_to_state(x)
         neg_samples = []
         init_t = time.time()
+        switch_x = [x]
 
         def task_f(sample, t, curtask):
             task = self.get_task(sample.get_X(t=t), sample.targets, curtask, self.soft)
+            truetask = task
             task = tuple([val for val in task if np.isscalar(val)])
             curtask = tuple([val for val in curtask if np.isscalar(val)])
             #onehot_task = tuple([val for val in task if np.isscalar(val)])
@@ -148,7 +153,12 @@ class RolloutServer(Server):
 
             postcost = None
             precost = None
-            #if self.check_postcond:
+            if self.check_postcond:
+                postcost = self.agent.postcond_cost(sample, curtask, t, x0=switch_x[-1])
+                if task == curtask and postcost < 1e-3:
+                    postcond_viols.append((cur_ids[-1], t))
+                    if self.neg_postcond: neg_samples.append((sample, t, truetask))
+
             #    n_tries = 0
             #    postcost = self.agent.postcond_cost(sample, curtask, t)
             #    #cur_eta = self.eta
@@ -157,42 +167,43 @@ class RolloutServer(Server):
             #    #    task = self.get_task(sample.get_X(t=t), sample.targets, curtask, True, eta=cur_eta)
             #    #    cur_eta *= eta_scale
             #    #    n_tries += 1
-            #    #    neg_samples.append((sample, t, curtask))
 
             if task != curtask and self.check_postcond:
-                postcost = self.agent.postcond_cost(sample, curtask, t)
+                postcost = self.agent.postcond_cost(sample, curtask, t, x0=switch_x[-1])
                 if postcost > 1e-4:
-                    neg_samples.append((sample, t, task))
+                    if self.neg_postcond: neg_samples.append((sample, t, truetask))
                     task = curtask
                 else:
                     self.postcond_costs[self.task_list[curtask[0]]].append(postcost)
             
             if task != curtask and self.check_precond:
-                precost = self.agent.precond_cost(sample, task, t)
+                precost = self.agent.precond_cost(sample, task, t, tol=tol)
                 if precost > 1e-4:
-                    precond_viols.append((cur_ids[0], t))
-                    neg_samples.append((sample, t, task))
+                    #if self.neg_precond: neg_samples.append((sample, t, truetask))
+                    precond_viols.append((cur_ids[-1], t))
                 
                 n_tries = 0
                 cur_eta = self.eta
                 eta_scale = 0.9
                 while n_tries < 20 and task != curtask and precost > 1e-3:
-                    neg_samples.append((sample, t, task))
+                    if self.neg_precond: neg_samples.append((sample, t, truetask))
                     task = self.get_task(sample.get_X(t=t), sample.targets, curtask, True, eta=cur_eta)
-                    precost = self.agent.precond_cost(sample, task, t)
+                    truetask = task
+                    task = tuple([val for val in task if np.isscalar(val)])
+                    precost = self.agent.precond_cost(sample, task, t, tol=tol)
                     cur_eta *= eta_scale
                     n_tries += 1
 
                 if precost > 1e-3 and task != curtask:
-                    expl_precond_viols.append((cur_ids[0], t))
+                    expl_precond_viols.append((cur_ids[-1], t))
                     task = curtask
 
             if task == curtask:
                 counts.append(counts[-1]+1)
             else:
                 counts.append(0)
-                #print('ALLOWED SWITCH:', precost, postcost, counts[-1])
                 switch_pts.append((cur_ids[-1], t))
+                switch_x.append(sample.get_X(t=t))
                 self.task_successes[self.task_list[curtask[0]]].append(1)
             cur_tasks.append(task)
             return task
@@ -249,7 +260,7 @@ class RolloutServer(Server):
         self.adj_eta = False
         self.postcond_info.append(val)
         for step in path: step.source_label = 'rollout'
-        postcost = self.agent.postcond_cost(path[-1], cur_tasks[-1], path[-1].T-1)
+        postcost = self.agent.postcond_cost(path[-1], cur_tasks[-1], path[-1].T-1, tol=tol, x0=switch_x[-1])
         self.postcond_costs[self.task_list[cur_tasks[-1][0]]].append(postcost)
         if postcost > 1e-4:
             self.task_successes[self.task_list[cur_tasks[-1][0]]].append(0)
@@ -278,8 +289,7 @@ class RolloutServer(Server):
         if not len(expl_precond_viols) and self.check_midcond:
             bad_pt = switch_pts[-1]
             curtask = tuple([val for val in cur_tasks[-1] if np.isscalar(val)])
-            self.save_video(path[bad_pt[0]:], 0, lab='odd_midfail', st=bad_pt[1])
-            precost = self.agent.precond_cost(path[bad_pt[0]], curtask, bad_pt[1])
+            #self.save_video(path[bad_pt[0]:], 0, lab='odd_midfail', st=bad_pt[1])
             plan = self.agent.plans[curtask]
             st = bad_pt[1]
             traj, steps, _ = self.agent.reverse_retime(path[bad_pt[0]:], (0, plan.horizon-1), label=True, start_t=st)
@@ -288,10 +298,20 @@ class RolloutServer(Server):
                 set_params_attrs(plan.params, self.agent.state_inds, traj[t], t)
             set_params_attrs(plan.params, self.agent.state_inds, path[bad_pt[0]].get_X(t=st), 0)
             self.agent.set_symbols(plan, cur_tasks[-1], targets=targets)
-            failed_preds = plan.get_failed_preds(tol=1e-3, active_ts=(0, plan.horizon-1))
+            failed_preds = plan.get_failed_preds(tol=tol, active_ts=(0, plan.horizon-1))
             failed_preds = [p for p in failed_preds if (p[1]._rollout or (not p[1]._nonrollout and type(p[1].expr) is not EqExpr))]
+
             if len(failed_preds):
-                fail_t = min([p[2]+p[1].active_range[0] for p in failed_preds]) - 1
+                valid_ts = np.ones(plan.horizon)
+                for p in failed_preds:
+                    for ts in range(max(0, p[2]+p[1].active_range[0]), \
+                                    min(p[2]+p[1].active_range[1], len(valid_ts))+1):
+                        valid_ts[ts] = 0.
+                fail_t = len(valid_ts) - 1
+                while fail_t > 0 and valid_ts[fail_t] == 0:
+                    fail_t -= 1
+
+                #fail_t = min([p[2]+p[1].active_range[0] for p in failed_preds]) - 1
             else:
                 fail_t = plan.horizon - 1
 
@@ -309,7 +329,7 @@ class RolloutServer(Server):
                 self.failed_trajs.append((path[fail_s:], [], []))
 
                 x0 = path[bad_pt[0]].get(STATE_ENUM, st)
-                print('MID COND:', fail_s, fail_t, bad_pt, failed_preds, precost, self.id)
+                print('MID COND:', fail_s, fail_t, bad_pt, failed_preds, self.id)
                 initial, goal = self.agent.get_hl_info(x0, targets)
                 plan.start = 0
                 new_node = LLSearchNode(plan.plan_str, 
@@ -598,11 +618,9 @@ class RolloutServer(Server):
                 self.test_hl(save_video=save_video)
 
             if self.run_hl_test: continue
-            if self._n_plans < ff_iters: continue
+            #if self._n_plans < ff_iters: continue
 
-            if not step % 5:
-                self.set_policies()
-
+            self.set_policies()
             node = self.pop_queue(self.rollout_queue)
             #if node is None:
             #    new_node = self.spawn_problem()
@@ -665,8 +683,8 @@ class RolloutServer(Server):
                                       nodetype='dagger')
                 self.push_queue(hlnode, self.task_queue)
 
-        #if len(neg_samples) and self.use_neg:
-        #    self.update_negative_primitive(neg_samples)
+        if len(neg_samples) and self.use_neg:
+            self.update_negative_primitive(neg_samples)
        
 
     def test_run(self, state, targets, max_t=20, hl=False, soft=False, check_cost=True, eta=None, lab=0):

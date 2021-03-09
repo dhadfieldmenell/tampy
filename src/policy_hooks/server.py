@@ -96,7 +96,7 @@ class Server(object):
         self.label_type = 'base'
         self._n_plans = 0
         n_plans = hyperparams['policy_opt']['buffer_sizes']['n_plans']
-        self._last_weight_read = time.time()
+        self._last_weight_read = 0.
 
         self.permute_hl = hyperparams['permute_hl'] > 0
         self.use_neg = hyperparams['negative']
@@ -413,7 +413,6 @@ class Server(object):
         if not self.use_neg or not len(samples): return
         dP, dO = self.agent.dPrimOut, self.agent.dPrim
         dOpts = len(list(self.agent.prob.get_prim_choices(self.agent.task_list).keys()))
-        ### Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dOpts)), np.zeros((0))
         tgt_aux = np.zeros((0))
@@ -428,12 +427,14 @@ class Server(object):
             tgt_aux = np.concatenate((tgt_aux, aux))
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs_data = np.concatenate((obs_data, obs))
-            prc = np.concatenate([self.agent.get_mask(sample, enum) for enum in opts], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
+
+            cont_mask = {enum: 0. if np.isscalar(opts[enum]) else 1.}
+            prc = np.concatenate([cont_mask[enum] * self.agent.get_mask(sample, enum) for enum in opts], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
             prc = prc[t:t+1]
             if not self.config['hl_mask']:
                 prc[:] = 1.
             tgt_prc = np.concatenate((tgt_prc, prc))
-           
+          
             mu = []
             for ind, enum in enumerate(opts.keys()):
                 if np.isscalar(opts[enum]):
@@ -442,8 +443,7 @@ class Server(object):
                     vec = np.zeros(len(opts[enum]))
                     vec[task[ind]] = 1.
                     mu.append(vec)
-                mu = np.r_[mu]
-            mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
+            mu = [np.concatenate(mu)]
             tgt_mu = np.concatenate((tgt_mu, mu))
 
         wt *= -1

@@ -21,7 +21,7 @@ import policy_hooks.namo.grip_agent as grip_agent
 # grip_agent.LOCAL_FRAME = False
 from policy_hooks.namo.grip_agent import NAMOGripAgent
 from policy_hooks.namo.namo_grip_policy_solver import NAMOGripPolicySolver
-import policy_hooks.namo.grip_cont_prob as prob
+import policy_hooks.namo.sorting_prob_11 as prob
 prob.NUM_OBJS = NUM_OBJS
 prob.NUM_TARGS = NUM_TARGS
 from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer
@@ -275,7 +275,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                              # utils.DONE_ENUM,
                              # utils.STATE_ENUM,
                              #utils.GOAL_ENUM,
-                             #utils.ONEHOT_GOAL_ENUM,
+                             utils.ONEHOT_GOAL_ENUM,
                              ],
         'val_obs_include': [utils.ONEHOT_GOAL_ENUM,
                             ],
@@ -285,11 +285,12 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.OBJ_POSE_ENUM: 2,
                 utils.TARG_POSE_ENUM: 2,
                 utils.LIDAR_ENUM: N_DIRS,
-                utils.MJC_SENSOR_ENUM: 21,
+                utils.MJC_SENSOR_ENUM: 39, # 21,
                 utils.EE_ENUM: 2,
                 utils.END_POSE_ENUM: 2,
                 utils.ABS_POSE_ENUM: 2,
                 utils.REL_POSE_ENUM: 2,
+                utils.TRUE_POSE_ENUM: 2,
                 utils.GRIPPER_ENUM: 1,
                 utils.VEL_ENUM: 1,
                 utils.THETA_ENUM: 1,

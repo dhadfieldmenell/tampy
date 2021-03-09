@@ -89,7 +89,7 @@ class BacktrackLLSolver(LLSolver):
         return success
 
     #@profile
-    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None, n_resamples=5, init_traj=[]):
+    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None, n_resamples=5, init_traj=[], st=0):
         if amax is None:
             amax = len(plan.actions) - 1
 
@@ -98,6 +98,8 @@ class BacktrackLLSolver(LLSolver):
         a = plan.actions[anum]
         if DEBUG: print(("backtracking Solve on {}".format(a.name)))
         active_ts = a.active_timesteps
+        active_ts = (max(st, active_ts[0]), active_ts[1])
+
         inits = {}
         rs_param = self.get_resample_param(a)
         success = False
@@ -130,7 +132,7 @@ class BacktrackLLSolver(LLSolver):
                         p._free_attrs[attr][:, active_ts[1]] = 0
                         p._free_attrs[attr][:, active_ts[0]] = 0
             self.child_solver = self.__class__()
-            success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax, n_resamples=n_resamples, init_traj=init_traj)
+            success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax, n_resamples=n_resamples, init_traj=init_traj, st=st)
 
             # reset free_attrs
             for p in plan.params.values():
@@ -962,9 +964,13 @@ class BacktrackLLSolver(LLSolver):
                 if param.is_symbol(): continue
                 attr_type = param.get_attr_type(attr_name)
                 param_ll = self._param_to_ll[param]
-                attr_val = mean[param_ll.active_ts[0]:param_ll.active_ts[1]+1][:, plan.state_inds[p_name, attr_name]]
                 K = attr_type.dim
-                T = param_ll._horizon
+                T = min(len(mean), param_ll._horizon)
+
+                if len(mean) >= param_ll.active_ts[1]:
+                    attr_val = mean[param_ll.active_ts[0]:param_ll.active_ts[1]+1][:, plan.state_inds[p_name, attr_name]]
+                else:
+                    attr_val = mean[-T:][:, plan.state_inds[p_name, attr_name]]
 
                 if DEBUG: assert (K, T) == attr_val.shape
                 KT = K*T

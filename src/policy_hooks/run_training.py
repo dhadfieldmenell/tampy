@@ -360,6 +360,8 @@ def argsparser():
     parser.add_argument('-post', '--check_postcond', action='store_true', default=False)
     parser.add_argument('-mid', '--check_midcond', action='store_true', default=False)
     parser.add_argument('-random', '--check_random_switch', action='store_true', default=False)
+    parser.add_argument('-neg_pre', '--neg_precond', action='store_true', default=False)
+    parser.add_argument('-neg_post', '--neg_postcond', action='store_true', default=False)
     parser.add_argument('-dwind', '--dagger_window', type=int, default=0)
     parser.add_argument('-mask', '--hl_mask', action='store_false', default=True)
     parser.add_argument('-rs', '--rollout_seed', action='store_true', default=False)

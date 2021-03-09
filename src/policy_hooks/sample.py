@@ -32,6 +32,7 @@ class Sample(object):
         self.opt_suc = 0
         self.source_label = ''
         self.wt = 1.
+        self.base_x = None
 
         self._X = np.empty((self.T, self.dX))
         self._X.fill(np.nan)

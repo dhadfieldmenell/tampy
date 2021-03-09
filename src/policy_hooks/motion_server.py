@@ -112,7 +112,7 @@ class MotionServer(Server):
 
         while cur_t >= 0:
             init_t = time.time()
-            success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=True, traj=node.ref_traj)
+            success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=True, traj=node.ref_traj, st=cur_t)
             self.n_failed += 0. if success else 1.
             path = []
             #print('Time to plan:', time.time() - init_t)
@@ -127,13 +127,15 @@ class MotionServer(Server):
                     self.opt_rollout_info[key].extend(log_info[key])
                 #if self.render and (self.id.find('r0') >= 0 or not path[-1].success and np.random.uniform() < 0.01):
                 #    self.save_video(path, path[-1].success)
-                if len(plan.actions) == 1:
-                    if self.render and node.nodetype.find('dagger') >= 0:
-                        aname = plan.actions[0].name
-                        self.save_video(path, path[-1]._postsuc, lab='_{}_middaggeropt'.format(aname))
-                else:
-                    if self.render and node.nodetype.find('dagger') >= 0:
-                        self.save_video(path, path[-1]._postsuc, lab='_fulldagger')
+
+                if np.random.uniform() <= 0.1 or self.id.find('0') >= 0:
+                    if len(plan.actions) == 1:
+                        if self.render and node.nodetype.find('dagger') >= 0:
+                            aname = plan.actions[0].name
+                            self.save_video(path, path[-1]._postsuc, lab='_{}_middaggeropt'.format(aname))
+                    else:
+                        if self.render and node.nodetype.find('dagger') >= 0:
+                            self.save_video(path, path[-1]._postsuc, lab='_fulldagger')
 
                 self.log_path(path, 10)
                 for step in path: step.source_label = node.nodetype
@@ -151,7 +153,6 @@ class MotionServer(Server):
             self.log_node_info(node, success, path)
             if success: break
             cur_t -= cur_step
-            cur_step *= 3
             node.freeze_ts = cur_t
             plan = self.gen_plan(node)
 
@@ -198,8 +199,8 @@ class MotionServer(Server):
                 time.sleep(0.01)
                 continue
 
+            self.set_policies()
             if not step % 5:
-                self.set_policies()
                 self.write_log()
             self.refine_plan(node)
 

@@ -58,7 +58,7 @@ def multi_softmax_loss_layer(labels, logits, boundaries, precision=None, scalar=
     for i, (start, end) in enumerate(boundaries):
         loss = tf.losses.softmax_cross_entropy(onehot_labels=labels[:,start:end], logits=logits[:, start:end], reduction=tf.losses.Reduction.NONE)
         if precision is not None:
-            loss *= precision[:, i] / (1+tf.reduce_mean(precision[:,i]))
+            loss *= precision[:, i] / (1+tf.reduce_mean(tf.abs(precision[:,i])))
         # loss /= float(end - start)
         # losses.append(tf.reduce_mean(loss, axis=0))
         losses.append(loss)
@@ -75,11 +75,11 @@ def multi_mix_loss_layer(labels, logits, boundaries, types, batch_size, precisio
         if not len(types) or (i < len(types) and types[i] is 'discrete'):
             loss = tf.losses.softmax_cross_entropy(onehot_labels=labels[:,start:end], logits=logits[:, start:end], reduction=tf.losses.Reduction.NONE)
             if precision is not None:
-                loss *= precision[:, i] / (1+tf.reduce_mean(precision[:,i]))
+                loss *= precision[:, i] / (1+tf.reduce_mean(tf.abs(precision[:,i])))
         else:
             loss = contwt * euclidean_loss_layer(labels[:,start:end], logits[:,start:end], None, batch_size)
             if precision is not None:
-                loss *= precision[:, i] / (1+tf.reduce_mean(precision[:,i]))
+                loss *= precision[:, i] / (1+tf.reduce_mean(tf.abs(precision[:,i])))
 
         # loss /= float(end - start)
         # losses.append(tf.reduce_mean(loss, axis=0))
@@ -674,12 +674,14 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
     im_width = network_config['image_width']
     num_channels = network_config['image_channels']
     image_input = tf.reshape(image_input, [-1, im_width, im_height, num_channels])
+    image_input = annotate_xy(im_width, im_height, image_input)
 
     with tf.variable_scope('conv_base'):
         weights = {}
         biases = {}
         conv_layers = []
         cur_in = num_channels
+        cur_in = image_input.get_shape().dims[-1].value
         cur_in_layer = image_input
         for i in range(n_conv):
             filter_size = filter_sizes[i]
@@ -699,6 +701,8 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
 
         _, num_rows, num_cols, num_fp = conv_layers[-1].get_shape()
         num_rows, num_cols, num_fp = [int(x) for x in [num_rows, num_cols, num_fp]]
+
+        '''
         x_map = np.empty([num_rows, num_cols], np.float32)
         y_map = np.empty([num_rows, num_cols], np.float32)
 
@@ -722,6 +726,8 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
         fp_y = tf.reduce_sum(tf.multiply(y_map, softmax), [1], keep_dims=True)
 
         fp = tf.reshape(tf.concat(axis=1, values=[fp_x, fp_y]), [-1, num_fp*2])
+        '''
+        fp = tf.reshape(tf.nn.relu(conv_layers[-1]), [-1, num_fp*num_rows*num_cols])
 
         ### FC Layers
         fc_input = tf.concat(axis=1, values=[fp, state_input])
@@ -791,7 +797,7 @@ def get_xavier_weights(filter_shape, poolsize=(2, 2)):
     return tf.Variable(tf.random_uniform(filter_shape, minval=low, maxval=high, dtype=tf.float32))
 
 
-def annotate_xy(self, im_width, im_height, image_input):
+def annotate_xy(im_width, im_height, image_input):
     lab_xarr = np.tile(np.linspace(-1., 1., im_width), (im_height, 1))
     lab_yarr = lab_xarr.T
     lab_arr = np.stack([lab_xarr, lab_yarr], axis=-1).astype(np.float32)

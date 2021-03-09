@@ -3,7 +3,7 @@ do
     for S in third
     do
         python3 -W ignore policy_hooks/run_training.py -c policy_hooks.namo.hyperparams_v94 \
-                                                       -no 4 -spl -llus 5000  -hlus 10000 \
+                                                       -no 2 -spl -llus 5000  -hlus 10000 \
                                                        -ff 1. -mask -hln 2 -hldim 96 -lldim 64 \
                                                        -retime -vel 0.3 -eta 5 -softev \
                                                        -lr_policy adaptive \
