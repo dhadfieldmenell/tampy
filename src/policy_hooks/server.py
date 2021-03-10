@@ -422,15 +422,18 @@ class Server(object):
             if sample.opt_strength < 1-1e-3: wt[0] *= self.explore_wt
             wt[:] *= sample.wt
             if wt[0] == 0: continue
-            obs = sample.get_prim_obs(ts)
-            aux = int(sample.opt_strength) * np.ones(sample.T)
+            obs = [sample.get_prim_obs(ts)]
+            aux = int(sample.opt_strength) * np.ones(1)
             tgt_aux = np.concatenate((tgt_aux, aux))
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs_data = np.concatenate((obs_data, obs))
 
-            cont_mask = {enum: 0. if np.isscalar(opts[enum]) else 1.}
+            cont_mask = {}
+            for enum in opts:
+                cont_mask[enum] = 0. if np.isscalar(opts[enum]) else 1.
+
             prc = np.concatenate([cont_mask[enum] * self.agent.get_mask(sample, enum) for enum in opts], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
-            prc = prc[t:t+1]
+            prc = prc[ts:ts+1]
             if not self.config['hl_mask']:
                 prc[:] = 1.
             tgt_prc = np.concatenate((tgt_prc, prc))
@@ -447,7 +450,6 @@ class Server(object):
             tgt_mu = np.concatenate((tgt_mu, mu))
 
         wt *= -1
-        assert np.all(wt < 0)
         if len(tgt_mu):
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', self.label_type, aux=tgt_aux)
 

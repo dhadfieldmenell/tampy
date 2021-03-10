@@ -266,9 +266,9 @@ class EnvWrapper():
             cur_pos = self.get_attr('sawyer', 'pose')
             cur_quat =  self.get_attr('sawyer', 'right_ee_rot', euler=False)
             cur_jnts = self.get_attr('sawyer', 'right')
-            self.robot.openrave_body.set_dof({'right': cur_jnts})
+            self.robot.openrave_body.set_dof({'right': REF_JNTS})
             x = np.random.uniform(-0.1, 0.4)
-            y = np.random.uniform(-0.7, 0)
+            y = np.random.uniform(-0.5, 0)
             z = np.random.uniform(1.0, 1.3)
             self.robot.openrave_body.set_pose(cur_pos)
             ik = self.robot.openrave_body.get_ik_from_pose([x,y,z], cur_quat, 'right')
@@ -297,6 +297,8 @@ class RobotAgent(TAMPAgent):
         if self.ctrl_mode.find('joint') >= 0:
             controller_config = load_controller_config(default_controller="JOINT_POSITION")
             controller_config['kp'] = [7500, 6500, 6500, 6500, 6500, 6500, 12000]
+            controller_config['output_max'] = 0.2
+            controller_config['output_min'] = -0.2
         else:
             controller_config = load_controller_config(default_controller="OSC_POSE")
         self.base_env = robosuite.make(
@@ -503,11 +505,11 @@ class RobotAgent(TAMPAgent):
             #    #       break
 
         if 'right' in ctrl:
+            ctrl['right'][:6] = np.clip(ctrl['right'][:6], -0.1, 0.1)
             targ_pos = self.mjc_env.get_attr('sawyer', 'right') + ctrl['right']
             for n in range(n_steps+1):
                 ctrl = np.r_[targ_pos - self.mjc_env.get_attr('sawyer', 'right'), gripper]
                 self.cur_obs = self.base_env.step(ctrl)
-
         col = 0 # 1 if len(self._col) > 0 else 0
         return True, col
 
@@ -723,19 +725,22 @@ class RobotAgent(TAMPAgent):
                 goal_quat = T.mat2quat(obj_mat.dot(ee_mat))
                 rot_off = theta_error(ee_quat, goal_quat)
                 sample.set(END_POSE_ENUM, obj_pose+grasp_pt, t)
-                sample.set(END_ROT_ENUM, rot_off, t)
+                #sample.set(END_ROT_ENUM, rot_off, t)
+                sample.set(END_ROT_ENUM, mp_state[self.state_inds[obj_name, 'rotation']], t)
             elif self.task_list[task[0]].find('putdown') >= 0:
                 targ_mat = T.quat2mat(targ_quat)
                 goal_quat = T.mat2quat(targ_mat.dot(ee_mat))
                 rot_off = theta_error(ee_quat, targ_quat)
                 sample.set(END_POSE_ENUM, targ_pose+grasp_pt, t)
-                sample.set(END_ROT_ENUM, rot_off, t)
+                #sample.set(END_ROT_ENUM, rot_off, t)
+                sample.set(END_ROT_ENUM, targets[self.target_inds[targ_name, 'rotation']], t)
             else:
                 obj_mat = T.quat2mat(obj_quat)
                 goal_quat = T.mat2quat(obj_mat.dot(ee_mat))
                 rot_off = theta_error(ee_quat, obj_quat)
                 sample.set(END_POSE_ENUM, obj_pose, t)
-                sample.set(END_ROT_ENUM, rot_off, t)
+                #sample.set(END_ROT_ENUM, rot_off, t)
+                sample.set(END_ROT_ENUM, mp_state[self.state_inds[obj_name, 'rotation']], t)
 
         sample.condition = cond
         sample.set(TARGETS_ENUM, targets.copy(), t)

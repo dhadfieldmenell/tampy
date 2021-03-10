@@ -377,7 +377,7 @@ class MoveToPutdownRight(MoveHoldingRight):
                          ('(forall (?obj - Item) (not (Near ?obj ?targ)))', '0:0')])
         self.eff.extend([('(ApproachRight ?robot ?targ)', '{0}:{1}'.format(self.end, self.end-1)),
                          ('(NearApproachRight ?robot ?targ)', '{0}:{1}'.format(self.end, self.end)),
-                         ('(NearApproachRightRot ?robot ?targ)', '{0}:{1}'.format(self.end, self.end)),
+                         #('(NearApproachRightRot ?robot ?targ)', '{0}:{1}'.format(self.end, self.end)),
                          ])
 
 
@@ -613,12 +613,12 @@ class PutdownRight(Putdown):
         self.name = 'putdown_right'
         self.pre.extend([
             ('(NearApproachRight ?robot ?target)', '0:0'),
-            ('(NearApproachRightRot ?robot ?target)', '0:0'),
+            #('(NearApproachRightRot ?robot ?target)', '0:0'),
             ('(ApproachRight ?robot ?target)', '0:-1'),
             ('(InGripperRight ?robot ?item)', '0:-1'),
             ('(InGripperRight ?robot ?item)', '1:1'),
             #('(RightEEValid ?robot)', '{}:{}'.format(1, self.end-1)),
-            ('(NearGripperRight ?robot ?item)', '0:0'),
+            ('(NearGripperRight ?robot ?item)', '0:{}'.format(self.putdown_time)),
             ('(RightGripperDownRot ?robot)', '{0}:{1}'.format(1, self.end-1)),
             ('(EEReachableRight ?robot ?target)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
             ('(EEReachableRightRot ?robot ?target)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
