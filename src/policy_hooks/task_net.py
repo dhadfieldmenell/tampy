@@ -702,7 +702,6 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
         _, num_rows, num_cols, num_fp = conv_layers[-1].get_shape()
         num_rows, num_cols, num_fp = [int(x) for x in [num_rows, num_cols, num_fp]]
 
-        '''
         x_map = np.empty([num_rows, num_cols], np.float32)
         y_map = np.empty([num_rows, num_cols], np.float32)
 
@@ -726,8 +725,6 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
         fp_y = tf.reduce_sum(tf.multiply(y_map, softmax), [1], keep_dims=True)
 
         fp = tf.reshape(tf.concat(axis=1, values=[fp_x, fp_y]), [-1, num_fp*2])
-        '''
-        fp = tf.reshape(tf.nn.relu(conv_layers[-1]), [-1, num_fp*num_rows*num_cols])
 
         ### FC Layers
         fc_input = tf.concat(axis=1, values=[fp, state_input])

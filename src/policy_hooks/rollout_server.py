@@ -618,7 +618,7 @@ class RolloutServer(Server):
                 self.test_hl(save_video=save_video)
 
             if self.run_hl_test: continue
-            #if self._n_plans < ff_iters: continue
+            if self._n_plans < ff_iters: continue
 
             self.set_policies()
             node = self.pop_queue(self.rollout_queue)

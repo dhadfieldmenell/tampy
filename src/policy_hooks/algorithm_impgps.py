@@ -244,7 +244,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
             traj, pol_info = self.new_traj_distr[m], self.cur[m].pol_info
             for t in range(sample.T):
                 if inv_cov is None:
-                    prc[:, t, :, :] = np.tile(traj.inv_pol_covar[t, :, :], [1, 1, 1])
+                    prc[:, t, :, :] = np.tile(traj.inv_pol_covar[0, :, :], [1, 1, 1])
                 else:
                     prc[:, t, :, :] = np.tile(inv_cov, [1, 1, 1])
                 wt[t] = sample.use_ts[t] # self._hyperparams['opt_wt'] * sample.use_ts[t]

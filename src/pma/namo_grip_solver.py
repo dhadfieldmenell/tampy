@@ -86,12 +86,12 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 target = act.params[4]
                 grasp = act.params[5]
                 target_rot = -np.arctan2(target.value[0,0] - oldx, target.value[1,0] - oldy)
+                target_rot = max(min(target_rot, np.pi/4), -np.pi/4)
                 while target_rot < old_rot:
                     target_rot += 2*np.pi
                 while target_rot > old_rot:
                     target_rot -= 2*np.pi
                 if np.abs(target_rot-old_rot) > np.abs(target_rot-old_rot+2*np.pi): target_rot += 2*np.pi
-                target_rot = max(min(target_rot, np.pi/4), -np.pi/4)
                 dist = -gripdist - dsafe
                 target_pos = target.value + [[-dist*np.sin(-target_rot)], [dist*np.cos(-target_rot)]]
                 target_pos = target.value + [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]

@@ -128,13 +128,13 @@ class MotionServer(Server):
                 #if self.render and (self.id.find('r0') >= 0 or not path[-1].success and np.random.uniform() < 0.01):
                 #    self.save_video(path, path[-1].success)
 
-                if np.random.uniform() <= 0.1 or self.id.find('0') >= 0:
+                if self.render and (np.random.uniform() <= 0.1 or self.id.find('0') >= 0):
                     if len(plan.actions) == 1:
-                        if self.render and node.nodetype.find('dagger') >= 0:
+                        if node.nodetype.find('dagger') >= 0:
                             aname = plan.actions[0].name
                             self.save_video(path, path[-1]._postsuc, lab='_{}_middaggeropt'.format(aname))
                     else:
-                        if self.render and node.nodetype.find('dagger') >= 0:
+                        if node.nodetype.find('dagger') >= 0:
                             self.save_video(path, path[-1]._postsuc, lab='_fulldagger')
 
                 self.log_path(path, 10)
@@ -153,11 +153,18 @@ class MotionServer(Server):
             self.log_node_info(node, success, path)
             if success: break
             cur_t -= cur_step
+            while len(plan.get_failed_preds((cur_t, cur_t))) and cur_t > 0:
+                cur_t -= 1
+
             node.freeze_ts = cur_t
             plan = self.gen_plan(node)
 
             if not success:
                 fail_step, fail_pred, fail_negated = node.get_failed_pred()
+                if fail_pred is None:
+                    print('Failure without failed constr?')
+                    continue
+
                 failed_preds = plan.get_failed_preds((0, fail_step+fail_pred.active_range[1]), priority=-2)
                 if len(failed_preds):
                     print('Refine failed with linear constr. viol.', node._trace)

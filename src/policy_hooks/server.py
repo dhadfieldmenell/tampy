@@ -312,6 +312,7 @@ class Server(object):
                 node = None
 
             if node is not None and \
+               hasattr(node, 'heuristic') and \
                node.heuristic() < prob.heuristic():
                 prob = node
 

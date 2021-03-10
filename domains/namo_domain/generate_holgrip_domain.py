@@ -59,7 +59,7 @@ class MoveTo(Action):
         self.pre = [\
                 ('(At ?can ?target)', '0:0'),
                 # ('(forall (?w - Obstacle) (not (Collides ?can ?w)))', '0:0'),
-                ('(forall (?gr - Grasp) (forall (?obj - Can) (not (NearGraspAngle ?robot ?obj))))', '0:0'),
+                ('(forall (?obj - Can) (not (NearGraspAngle ?robot ?obj)))', '0:0'),
                 # ('(forall (?w - Obstacle) (not (CanGraspCollides ?can ?w ?g)))', '0:0'),
                 ('(not (GripperClosed ?robot))', '1:{0}'.format(et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '0:{0}'.format(et-1)),
@@ -74,7 +74,7 @@ class MoveTo(Action):
         self.eff = [\
                 ('(NearGraspAngle ?robot ?can)', '{0}:{1}'.format(et, et)),
                 ('(InGraspAngle ?robot ?can)', '{0}:{0}'.format(et-1)),
-                ('(forall (?obj - Can / ?can) (forall (?gr - Grasp) (not (NearGraspAngle ?robot ?obj))))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Can / ?can) (not (NearGraspAngle ?robot ?obj)))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
                 ('(StationaryRot ?robot)', '{0}:{1}'.format(et-4, et-1)),
                 ('(ForThetaDirValid ?robot)', '{0}:{1}'.format(et-4, et-1)),
@@ -123,7 +123,7 @@ class Transfer(Action):
         self.eff = [\
                 ('(forall (?obj - Can / ?c) (not (NearGraspAngle ?robot ?obj)))', '0:0'),
                 ('(At ?c ?t)', '{0}:{1}'.format(et-1, et)),
-                ('(forall (?gr - Grasp) (forall (?obj - Can / ?c) (not (NearGraspAngle ?robot ?obj))))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Can / ?c) (not (NearGraspAngle ?robot ?obj)))', '{0}:{1}'.format(et, et-1)),
                 #('(NearGraspAngle ?robot ?c)', '{0}:{0}'.format(et)),
                 ('(Near ?c ?t)', '{0}:{0}'.format(et)),
                 ('(not (Near ?c ?init))', '{0}:{1}'.format(et, et-1)),
@@ -168,7 +168,7 @@ class Place(Action):
                 ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(0, et-1)),
                 ]
         self.eff = [\
-                ('(forall (?gr - Grasp) (forall (?obj - Can) (not (NearGraspAngle ?robot ?obj))))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Can) (not (NearGraspAngle ?robot ?obj)))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
         ]
 

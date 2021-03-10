@@ -864,6 +864,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             cur_len = len(path)
 
             base_x0 = x0
+
             if self.retime:
                 vel = self.master_config.get('velocity', 0.3)
                 new_traj = self.retime_traj(opt_traj, vel=vel)
@@ -1129,8 +1130,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                     print(e)
                     cost += 1e1
 
-        if len(failed_preds) and cost == 0:
-            cost += 1
+        if len(failed_preds) and cost < 1e-3:
+            cost = 1
        
         if debug:
             print(active_ts, cost, failed_preds, task)

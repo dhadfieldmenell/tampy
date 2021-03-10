@@ -201,8 +201,6 @@ class LLSearchNode(SearchNode):
                 if not param.is_symbol(): continue
                 for attr in param._free_attrs:
                     ref_sym = getattr(self.ref_plan.params[param.name], attr)
-                    if np.any(ref_sym[:] != getattr(param, attr)[:]):
-                        print('BAD COPY!', param.name, attr)
                     getattr(param, attr)[:] = ref_sym[:]
 
             if self.freeze_ts > 0:
