@@ -971,6 +971,8 @@ class BacktrackLLSolver(LLSolver):
                     attr_val = mean[param_ll.active_ts[0]:param_ll.active_ts[1]+1][:, plan.state_inds[p_name, attr_name]]
                 else:
                     attr_val = mean[-T:][:, plan.state_inds[p_name, attr_name]]
+                
+                T = len(attr_val)
 
                 if DEBUG: assert (K, T) == attr_val.shape
                 KT = K*T
@@ -989,7 +991,7 @@ class BacktrackLLSolver(LLSolver):
                 # QuadExpr is 0.5*x^Tx + Ax + b
                 quad_expr = QuadExpr(2*transfer_coeff*Q,
                                      transfer_coeff*A, transfer_coeff*b)
-                ll_attr_val = getattr(param_ll, attr_name)
+                ll_attr_val = getattr(param_ll, attr_name)[:, :T]
                 param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
                 sco_var = self.create_variable(param_ll_grb_vars, cur_val)
                 bexpr = BoundExpr(quad_expr, sco_var)

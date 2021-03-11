@@ -129,8 +129,8 @@ info = params['sawyer'].openrave_body.fwd_kinematics('right')
 params['sawyer'].right_ee_pos[:,0] = info['pos']
 params['sawyer'].right_ee_pos[:,0] = T.quaternion_to_euler(info['quat'], 'xyzw')
 
-goal = '(NearGripperRight sawyer cereal)' #'(At cereal cereal_end_target)'
-#goal = '(At cereal cereal_end_target)'
+#goal = '(NearGripperRight sawyer cereal)' #'(At cereal cereal_end_target)'
+goal = '(At cereal cereal_end_target)'
 solver = RobotSolver()
 load_traj = False
 replan = True

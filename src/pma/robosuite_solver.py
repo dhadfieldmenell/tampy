@@ -17,6 +17,9 @@ REF_JNTS = np.array([0, -np.pi/3, 0, np.pi/6, 0, 2*np.pi/3, 0])
 
 class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
+        if a.name.find('move') < 0 and a.name.find('grasp') >= 0:
+            return [a.params[0], a.params[1]]
+
         if a.name.find('move') >= 0 and a.name.find('put') >= 0:
             return [a.params[0], a.params[2]]
 
@@ -175,10 +178,17 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             elif next_a_name.find('grasp') >= 0 or next_a_name.find('putdown') >= 0:
                 pose = self.vertical_gripper(robot, next_arm, next_obj, next_gripper_open, (next_st, next_et), rand=(rand or (i>0)))
 
+            if a_name.find('grasp') >= 0 and a_name.find('move') < 0:
+                obj = act.params[1]
+                targ = act.params[2]
+                pose = {robot: pose, obj: self.obj_in_gripper(pose['{}_ee_pos'.format(arm)], targ.rotation[:,0], obj)}
+
             if a_name.find('put') >= 0 and a_name.find('move') >= 0:
                 obj = act.params[2]
                 targ = act.params[1]
                 pose = {robot: pose, obj: self.obj_in_gripper(pose['{}_ee_pos'.format(arm)], targ.rotation[:,0], obj)}
+                obj = act.params[1]
+                targ = act.params[2]
 
             if pose is None: break
             robot_pose.append(pose)
@@ -232,7 +242,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                         elif attr_name.find('ee_rot') >= 0:
                             coeff = 2e-3
                         elif attr_name.find('right') >= 0 or attr_name.find('left') >= 0:
-                            coeff = 1e-1
+                            coeff = 1e1
                         else:
                             coeff = 1e-2
 

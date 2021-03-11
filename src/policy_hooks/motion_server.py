@@ -133,13 +133,12 @@ class MotionServer(Server):
                         if node.nodetype.find('dagger') >= 0:
                             aname = plan.actions[0].name
                             self.save_video(path, path[-1]._postsuc, lab='_{}_middaggeropt'.format(aname))
-                    else:
-                        if node.nodetype.find('dagger') >= 0:
-                            self.save_video(path, path[-1]._postsuc, lab='_fulldagger')
+                    elif node.nodetype.find('dagger') >= 0:
+                        self.save_video(path, path[-1]._postsuc, lab='_fulldagger')
 
                 self.log_path(path, 10)
                 for step in path: step.source_label = node.nodetype
-                print(self.id, 'Successful refine from', node.label, 'rollout success was:', path[-1]._postsuc, path[-1].success, 'first ts:', plan.start, cur_t)
+                print(self.id, 'Successful refine from', node.label, plan.actions[0].name, 'rollout success was:', path[-1]._postsuc, path[-1].success, 'first ts:', plan.start, cur_t)
 
                 if path[-1].success:
                     n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_total']
@@ -151,7 +150,7 @@ class MotionServer(Server):
                 #        pickle.dump(plan, f)           
 
             self.log_node_info(node, success, path)
-            if success: break
+            prev_t = cur_t
             cur_t -= cur_step
             while len(plan.get_failed_preds((cur_t, cur_t))) and cur_t > 0:
                 cur_t -= 1
@@ -160,17 +159,17 @@ class MotionServer(Server):
             plan = self.gen_plan(node)
 
             if not success:
-                fail_step, fail_pred, fail_negated = node.get_failed_pred()
+                fail_step, fail_pred, fail_negated = node.get_failed_pred(st=prev_t)
                 if fail_pred is None:
                     print('Failure without failed constr?')
                     continue
 
-                failed_preds = plan.get_failed_preds((0, fail_step+fail_pred.active_range[1]), priority=-2)
+                failed_preds = plan.get_failed_preds((prev_t, fail_step+fail_pred.active_range[1]), priority=-2)
                 if len(failed_preds):
                     print('Refine failed with linear constr. viol.', node._trace)
                     continue
 
-                print('Refine failed:', plan.get_failed_preds((0, fail_step+fail_pred.active_range[1])), fail_pred, fail_step, plan.actions, node.label, node._trace, node.freeze_ts)
+                print('Refine failed:', plan.get_failed_preds((0, fail_step+fail_pred.active_range[1])), fail_pred, fail_step, plan.actions, node.label, node._trace, prev_t)
                 if not node.hl: continue
                 if not node.gen_child(): continue
                 n_problem = node.get_problem(fail_step, fail_pred, fail_negated)
