@@ -71,6 +71,8 @@ class RolloutServer(Server):
         self.task_successes = {task: [] for task in self.task_list}
         self.suc_trajs = [] # Each entry should be (traj, list of ts, list of prob under policy)
         self.failed_trajs = [] # Each entry should be (traj, list of ts, list of prob under policy)
+        self.prev_suc = [] # Each entry is a state and a list of time, success pairs
+        self.prev_fail = [] # Each entry is a state and a list of time, success pairs
 
 
     def hl_log_prob(self, path):
@@ -141,6 +143,7 @@ class RolloutServer(Server):
         def task_f(sample, t, curtask):
             task = self.get_task(sample.get_X(t=t), sample.targets, curtask, self.soft)
             truetask = task
+            truecurtask = curtask
             task = tuple([val for val in task if np.isscalar(val)])
             curtask = tuple([val for val in curtask if np.isscalar(val)])
             #onehot_task = tuple([val for val in task if np.isscalar(val)])
@@ -199,14 +202,19 @@ class RolloutServer(Server):
                     task = curtask
 
             if task == curtask:
+                truetask = list(truetask)
                 counts.append(counts[-1]+1)
+                for ind in range(len(truetask)):
+                    if np.isscalar(truetask[ind]):
+                        truetask[ind] = truecurtask[ind]
+                truetask = tuple(truetask)
             else:
                 counts.append(0)
                 switch_pts.append((cur_ids[-1], t))
                 switch_x.append(sample.get_X(t=t))
                 self.task_successes[self.task_list[curtask[0]]].append(1)
             cur_tasks.append(task)
-            return task
+            return truetask
 
         ntask = len(self.agent.task_list)
         rlen = ntask * self.agent.num_objs # if not self.agent.retime else (3*ntask) * self.agent.num_objs
@@ -715,18 +723,19 @@ class RolloutServer(Server):
 
     def check_failed_likelihoods(self):
         cur_t = time.time()
-        for traj, ts, lls in self.failed_trajs:
-            cur_lls = []
-            for sample in traj:
-                for t in range(sample.T):
-                    task = tuple(sample.get(FACTOREDTASK_ENUM, t=t).astype(int))
-                    task_name = self.task_list[task[0]]
-                    pol = self.agent.policies[task_name]
-                    mu = pol.act(sample.get_X(t=t), sample.get_obs(t=t), t)
-                    act = sample.get(ACTION_ENUM, t=t)
-                    cur_lls.append(np.sum((mu-act)**2))
-            ts.append(cur_t)
-            lls.append(np.mean(cur_lls))
+        for buf in [self.suc_trajs, self.failed_trajs]:
+            for traj, ts, lls in buf:
+                cur_lls = []
+                for sample in traj:
+                    for t in range(sample.T):
+                        task = tuple(sample.get(FACTOREDTASK_ENUM, t=t).astype(int))
+                        task_name = self.task_list[task[0]]
+                        pol = self.agent.policies[task_name]
+                        mu = pol.act(sample.get_X(t=t), sample.get_obs(t=t), t)
+                        act = sample.get(ACTION_ENUM, t=t)
+                        cur_lls.append(np.sum((mu-act)**2))
+                ts.append(cur_t)
+                lls.append(np.mean(cur_lls))
 
     def get_log_info(self):
         info = {
@@ -737,6 +746,7 @@ class RolloutServer(Server):
         self.check_failed_likelihoods()
         info['dagger_success'] = np.mean(self.postcond_info[-wind:]) if len(self.postcond_info) else 0.
         info['failed_trajs'] = [(ts, ll) for _, ts, ll in self.failed_trajs]
+        info['suc_trajs'] = [(ts, ll) for _, ts, ll in self.suc_trajs]
         for key in self.fail_types:
             info[key] = self.fail_types[key] / self.n_fails
 
