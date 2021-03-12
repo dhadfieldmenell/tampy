@@ -3,7 +3,7 @@ import queue
 import time
 
 
-MAX_BUFFER = 200000
+MAX_BUFFER = 250000
 
 class DataLoader(object):
     def __init__(self, config, task, in_queue, batch_size, normalize=False, policy=None, x_idx=None, aug_f=None, min_buffer=10**3, feed_in_policy=None, feed_prob=0., feed_inds=(None, None), feed_map=None):
@@ -66,14 +66,22 @@ class DataLoader(object):
                 else:
                     dct[label].append((obs[i], mu[i], prc[i], wt[i], [], primpt, xpt, task, label))
 
+            labels = list(dct.keys())
             max_size = MAX_BUFFER if not val else (0.1 * MAX_BUFFER)
             max_size = int(max_size)
-            if len(dct[label]) > max_size:
+            data_len = sum([len(dct[lab]) for lab in labels])
+            p = [len(dct[lab])/data_len for lab in labels]
+            #if len(dct[label]) > max_size:
+            n_del = data_len - max_size
+            while n_del > 0:
+                del_label = np.random.choice(labels, p=p)
                 try:
-                    dct[label] = dct[label][-max_size:]
+                    dct[del_label] = dct[del_label][n_del:]
                 except Exception as e:
-                    print(label, max_size, e)
+                    print(del_label, max_size, e)
                     raise e
+                data_len = sum([len(dct[lab]) for lab in labels])
+                n_del = data_len - max_size
 
         return 1
 

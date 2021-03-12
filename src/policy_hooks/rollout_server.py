@@ -288,7 +288,7 @@ class RolloutServer(Server):
             fail_type = 'rollout_postcondition_failure'
             bad_pt = switch_pts[-1]
             train_pts.append(tuple(bad_pt) + (fail_type,))
-            self.failed_trajs.append((path[bad_pt[0]:], [], []))
+            #self.failed_trajs.append((path[bad_pt[0]:], [], []))
 
         if self.check_random_switch:
             ind = np.random.choice(range(len(switch_pts)))
@@ -323,8 +323,8 @@ class RolloutServer(Server):
             else:
                 fail_t = plan.horizon - 1
 
-            if not len(failed_preds):
-                self.suc_trajs.append((path[bad_pt[0]:], [], []))
+            #if not len(failed_preds):
+            #    self.suc_trajs.append((path[bad_pt[0]:], [], []))
 
             fail_t = max(0, fail_t)
             fail_t = min(fail_t, plan.horizon-2)
@@ -334,7 +334,7 @@ class RolloutServer(Server):
                     fail_s = bad_pt[0] + steps[fail_t]
                 else:
                     fail_s = bad_pt[0]
-                self.failed_trajs.append((path[fail_s:], [], []))
+                #self.failed_trajs.append((path[fail_s:], [], []))
 
                 x0 = path[bad_pt[0]].get(STATE_ENUM, st)
                 print('MID COND:', fail_s, fail_t, bad_pt, failed_preds, self.id)
