@@ -764,6 +764,14 @@ class RobotAgent(TAMPAgent):
             sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose, t)
             sample.set(TARG_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
 
+            obj_quat = T.euler_to_quaternion(mp_state[self.state_inds[obj, 'rotation']], 'xyzw')
+            obj_mat = T.quat2mat(obj_quat)
+            goal_quat = T.mat2quat(obj_mat.dot(ee_mat))
+            rot_off = theta_error(ee_quat, goal_quat)
+            sample.set(OBJ_ROTDELTA_ENUMS[i], rot_off, t)
+            targ_rot_off = theta_error(ee_quat, [0, 0, 0, 1])
+            sample.set(TARG_ROTDELTA_ENUMS[i], targ_rot_off, t)
+
         if fill_obs:
             if IM_ENUM in self._hyperparams['obs_include'] or \
                IM_ENUM in self._hyperparams['prim_obs_include']:

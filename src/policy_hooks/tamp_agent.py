@@ -847,7 +847,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 if pname in perm:
                     x0[self.state_inds[perm[pname], aname]] = getattr(plan.params[pname], aname)[:,0]
         if reset:
-            self.reset_to_state(x0, env_state)
+            self.reset_to_state(x0)
 
         if amax is None:
             amax = len(plan.actions)-1

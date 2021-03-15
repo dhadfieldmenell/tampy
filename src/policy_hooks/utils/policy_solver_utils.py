@@ -96,9 +96,16 @@ for i in range(100):
     GOAL_ENUMS[i] = 300 + i
 
 OBJ_DELTA_ENUMS = {}
-for i in range(100):
+for i in range(50):
     OBJ_DELTA_ENUMS[i] = 400 + i
 
+OBJ_ROTDELTA_ENUMS = {}
+for i in range(50, 100):
+    OBJ_ROTDELTA_ENUMS[i-50] = 400 + i
+
+TARG_ROTDELTA_ENUMS = {}
+for i in range(50):
+    TARG_ROTDELTA_ENUMS[i] = 500 + i
 
 IM_H = 64
 IM_W = 64
