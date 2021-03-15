@@ -36,6 +36,7 @@ class Sample(object):
 
         self._X = np.empty((self.T, self.dX))
         self._X.fill(np.nan)
+        self.env_state = {}
         self._obs = np.empty((self.T, self.dO))
         self._obs.fill(np.nan)
         self._prim_out = np.empty((self.T, self.dPrimOut))

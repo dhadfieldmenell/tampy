@@ -84,7 +84,7 @@ class optimal_pol:
                 cur_val = X[self.state_inds[param, attr]] if (param, attr) in self.state_inds else None
                 if attr.find('grip') >= 0:
                     val = self.opt_traj[t+1, self.state_inds[param, attr]]
-                    val = 0.1 if val <= 0 else -0.1 #0.020833 if val <= 0. else -0.020833
+                    val = 1. if val <= 0 else -1. #0.020833 if val <= 0. else -0.020833
                     u[self.action_inds[param, attr]] = val 
                 elif attr.find('ee_pos') >= 0:
                     cur_ee = cur_val if cur_val is not None else self.opt_traj[t, self.state_inds[param, attr]]
@@ -110,7 +110,7 @@ class optimal_pol:
             for param, attr in self.action_inds:
                 if attr.find('grip') >= 0:
                     val = self.opt_traj[-1, self.state_inds[param, attr]]
-                    val = 0.1 if val <= 0 else -0.1 #0.020833 if val <= 0. else -0.020833
+                    val = 1. if val <= 0 else -1. #0.020833 if val <= 0. else -0.020833
                     u[self.action_inds[param, attr]] = val 
         if np.any(np.isnan(u)):
             u[np.isnan(u)] = 0.
@@ -258,6 +258,10 @@ class EnvWrapper():
     def forward(self):
         self.env.sim.data.qvel[:] = 0
         self.env.sim.data.qacc[:] = 0
+        self.env.sim.data.qacc_warmstart[:] = 0
+        self.env.sim.data.ctrl[:] = 0
+        self.env.sim.data.qfrc_applied[:] = 0
+        self.env.sim.data.xfrc_applied[:] = 0
         self.env.sim.forward()
 
     def reset(self):
@@ -269,7 +273,7 @@ class EnvWrapper():
             self.robot.openrave_body.set_dof({'right': REF_JNTS})
             x = np.random.uniform(-0.1, 0.4)
             y = np.random.uniform(-0.5, 0)
-            z = np.random.uniform(1.0, 1.3)
+            z = np.random.uniform(1.0, 1.2)
             self.robot.openrave_body.set_pose(cur_pos)
             ik = self.robot.openrave_body.get_ik_from_pose([x,y,z], cur_quat, 'right')
             self.set_attr('sawyer', 'right', ik, forward=True)
@@ -336,6 +340,7 @@ class RobotAgent(TAMPAgent):
     def get_annotated_image(self, s, t, cam_id=None):
         x = s.get_X(t=t)
         self.reset_to_state(x)
+        self.mjc_env.forward()
         task = [int(val) for val in s.get(FACTOREDTASK_ENUM, t=t)]
         pos = s.get(END_POSE_ENUM, t=t)
         precost = round(self.precond_cost(s, tuple(task), t), 5)
@@ -344,9 +349,11 @@ class RobotAgent(TAMPAgent):
         precost = str(precost)[1:]
         postcost = str(postcost)[1:]
 
+        gripcmd = round(s.get_U(t=t)[self.action_inds['sawyer', 'right_gripper']][0], 2)
+
         for ctxt in self.base_env.sim.render_contexts:
             ctxt._overlay[mj_const.GRID_TOPLEFT] = ['{}'.format(task), '']
-            ctxt._overlay[mj_const.GRID_BOTTOMLEFT] = ['{0: <7} {1: <7}'.format(precost, postcost), '']
+            ctxt._overlay[mj_const.GRID_BOTTOMLEFT] = ['{0: <7} {1: <7} {2}'.format(precost, postcost, gripcmd), '']
         #return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
         im = self.base_env.sim.render(height=192, width=192, camera_name="frontview")
         im = np.flip(im, axis=0)
@@ -357,6 +364,7 @@ class RobotAgent(TAMPAgent):
 
     def get_image(self, x, depth=False, cam_id=None):
         self.reset_to_state(x)
+        self.mjc_env.forward()
         #return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
         return self.base_env.sim.render(height=128, width=128, camera_name="frontview")
 
@@ -392,6 +400,7 @@ class RobotAgent(TAMPAgent):
         for t in range(0, self.T):
             noise_full = np.zeros((self.dU,))
             self.fill_sample(condition, sample, cur_state, t, task, fill_obs=True)
+            sample.env_state[t] = self.base_env.sim.get_state()
             prev_task = task
             if task_f is not None:
                 sample.task = task
@@ -418,7 +427,7 @@ class RobotAgent(TAMPAgent):
             sample.set(NOISE_ENUM, noise_full, t)
 
             obs = sample.get_obs(t=t)
-            U_full = np.clip(U_full, -MAX_STEP, MAX_STEP)
+            #U_full = np.clip(U_full, -MAX_STEP, MAX_STEP)
             assert not np.any(np.isnan(U_full))
             sample.set(ACTION_ENUM, U_full, t)
             obj = self.prob.get_prim_choices(self.task_list)[OBJ_ENUM][task[1]]
@@ -505,7 +514,7 @@ class RobotAgent(TAMPAgent):
             #    #       break
 
         if 'right' in ctrl:
-            ctrl['right'][:6] = np.clip(ctrl['right'][:6], -0.1, 0.1)
+            #ctrl['right'][:6] = np.clip(ctrl['right'][:6], -0.1, 0.1)
             targ_pos = self.mjc_env.get_attr('sawyer', 'right') + ctrl['right']
             for n in range(n_steps+1):
                 ctrl = np.r_[targ_pos - self.mjc_env.get_attr('sawyer', 'right'), gripper]
@@ -833,7 +842,7 @@ class RobotAgent(TAMPAgent):
         self.reset_to_state(self.x0[m])
 
 
-    def reset_to_state(self, x):
+    def reset_to_state(self, x, env_state=None):
         mp_state = x[self._x_data_idx[STATE_ENUM]]
         self._done = 0.
         self._prev_U = np.zeros((self.hist_len, self.dU))
@@ -843,13 +852,17 @@ class RobotAgent(TAMPAgent):
         self._x_delta[:] = x.reshape((1,-1))
         self._prev_task = np.zeros((self.task_hist_len, self.dPrimOut))
         self.cur_state = x.copy()
-        self.mjc_env.reset()
-        for (pname, aname), inds in self.state_inds.items():
-            if pname == 'table': continue
-            if aname.find('ee_pos') >= 0 or aname.find('ee_rot') >= 0: continue
-            val = x[inds]
-            self.mjc_env.set_attr(pname, aname, val, forward=False)
-        self.mjc_env.forward()
+        self.base_env.sim.data.qacc_warmstart[:] = 0.
+        if False: #env_state is not None:
+            self.base_env.sim.set_state(env_state)
+        else:
+            self.base_env.sim.reset()
+            for (pname, aname), inds in self.state_inds.items():
+                if pname == 'table': continue
+                if aname.find('ee_pos') >= 0 or aname.find('ee_rot') >= 0: continue
+                val = x[inds]
+                self.mjc_env.set_attr(pname, aname, val, forward=False)
+            #self.mjc_env.forward()
 
 
     def get_state(self):
@@ -1158,7 +1171,13 @@ class RobotAgent(TAMPAgent):
             grip_out = grip_interp(x)
             rot_out = rot_interp(x)
             out[:, self.state_inds['sawyer', 'right_gripper']] = grip_out
-            out[:, self.state_inds['sawyer', 'right_ee_rot']] = rot_out
+            #out[:, self.state_inds['sawyer', 'right_ee_rot']] = rot_out
+            for step in out:
+                self.sawyer.openrave_body.set_pose(step[self.state_inds['sawyer', 'pose']])
+                self.sawyer.openrave_body.set_dof({'right': step[self.state_inds['sawyer', 'right']]})
+                info = self.sawyer.openrave_body.fwd_kinematics('right')
+                out[:, self.state_inds['sawyer', 'right_ee_pos']] = info['pos']
+                out[:, self.state_inds['sawyer', 'right_ee_rot']] = T.quaternion_to_euler(info['quat'], 'xyzw')
             out[0] = step[0]
             out[-1] = step[-1]
             for pt, val in fix_pts:

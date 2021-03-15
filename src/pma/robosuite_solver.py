@@ -46,17 +46,16 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         target_axis = [0, 0, -1]
         quat = OpenRAVEBody.quat_from_v1_to_v2(gripper_axis, target_axis)
 
-        if 'box' in obj.get_type(True):
-            euler = obj.rotation[:,ts[0]] if not obj.is_symbol() else obj.rotation[:,0]
-            obj_quat = T.euler_to_quaternion(euler, 'xyzw')
-            robot_mat = T.quat2mat(quat)
-            obj_mat = T.quat2mat(obj_quat)
-            quat = T.mat2quat(obj_mat.dot(robot_mat))
+        euler = obj.rotation[:,ts[0]] if not obj.is_symbol() else obj.rotation[:,0]
+        obj_quat = T.euler_to_quaternion(euler, 'xyzw')
+        robot_mat = T.quat2mat(quat)
+        obj_mat = T.quat2mat(obj_quat)
+        quat = T.mat2quat(obj_mat.dot(robot_mat))
 
         iks = []
         attempt = 0
         robot_body.set_pose(robot.pose[:,ts[0]])
-        robot_body.set_dof({arm: np.zeros(len(robot.geom.jnt_names[arm]))})
+        #robot_body.set_dof({arm: np.zeros(len(robot.geom.jnt_names[arm]))})
         #if not null_zero: #ts[1]-ts[0] > 5:
         #    robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
         #robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
@@ -83,6 +82,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             aux_gripper = robot.geom.get_gripper(aux_arm)
             if aux_gripper is not None:
                 pose[aux_gripper] = getattr(robot, aux_gripper)[:, start_ts].reshape((-1,1))
+
         robot_body.set_pose(robot.pose[:,ts[0]])
         for arm in robot.geom.arms:
             robot_body.set_dof({arm: pose[arm].flatten().tolist()})
@@ -116,16 +116,16 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             zero_null = False
 
         robot_body.set_pose(robot.pose[:,st])
-        for arm in robot.geom.arms:
-            robot_body.set_dof({arm: getattr(robot, arm)[:,st].flatten().tolist()})
+        #for arm in robot.geom.arms:
+        #    robot_body.set_dof({arm: getattr(robot, arm)[:,st].flatten().tolist()})
 
-        for arm in robot.geom.arms:
-            attr = '{}_ee_pos'.format(arm)
-            #rot_attr = '{}_ee_rot'.format(arm)
-            if hasattr(robot, attr):
-                info = robot_body.fwd_kinematics(arm)
-                getattr(robot, attr)[:, st] = info['pos']
-                #getattr(robot, rot_attr)[:, st] = T.quaternion_to_euler(info['quat'], 'xyzw')
+        #for arm in robot.geom.arms:
+        #    attr = '{}_ee_pos'.format(arm)
+        #    #rot_attr = '{}_ee_rot'.format(arm)
+        #    if hasattr(robot, attr):
+        #        info = robot_body.fwd_kinematics(arm)
+        #        getattr(robot, attr)[:, st] = info['pos']
+        #        #getattr(robot, rot_attr)[:, st] = T.quaternion_to_euler(info['quat'], 'xyzw')
 
         obj = act.params[1]
         targ = act.params[2]

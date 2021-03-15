@@ -419,10 +419,10 @@ class Server(object):
         tgt_aux = np.zeros((0))
         opts = self.agent.prob.get_prim_choices(self.agent.task_list)
         for sample, ts, task in samples:
-            wt = sample.prim_use_ts[ts:ts+1]
-            if sample.opt_strength < 1-1e-3: wt[0] *= self.explore_wt
-            wt[:] *= sample.wt
-            if wt[0] == 0: continue
+            wt = np.ones(1) # sample.prim_use_ts[ts:ts+1]
+            #if sample.opt_strength < 1-1e-3: wt[0] *= self.explore_wt
+            #wt[:] *= sample.wt
+            #if wt[0] == 0: continue
             obs = [sample.get_prim_obs(ts)]
             aux = int(sample.opt_strength) * np.ones(1)
             tgt_aux = np.concatenate((tgt_aux, aux))
@@ -477,6 +477,7 @@ class Server(object):
                 info['actions'] = sample.get(ACTION_ENUM)
                 info['end_state'] = sample.end_state
                 info['plan_fail_rate'] = self.n_failed / self.n_plans if self.n_plans > 0 else 0.
+                info['source'] = sample.source_label
                 # info['prim_obs'] = sample.get_prim_obs().round(4)
             data.append(info)
         return data
@@ -534,8 +535,9 @@ class Server(object):
         self.cur_vid_id += 1
         buf = []
         for step in rollout:
-            self.agent.target_vecs[0] = step.targets
             if not step.draw: continue
+            old_vec = self.agent.target_vecs[0]
+            self.agent.target_vecs[0] = step.targets
             if ts is None: 
                 ts_range = range(st, step.T)
             else:
@@ -551,6 +553,7 @@ class Server(object):
                         ims.append(self.agent.get_image(step.get_X(t=t), cam_id=cam_id))
                 im = np.concatenate(ims, axis=1)
                 buf.append(im)
+            self.agent.target_vecs[0] = old_vec
         #np.save(fname, np.array(buf))
         print('Time to create video:', time.time() - init_t)
         init_t = time.time()

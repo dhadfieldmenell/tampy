@@ -152,13 +152,13 @@ class RolloutServer(Server):
             if val > 0.999:
                 cur_tasks.append(curtask)
                 counts.append(counts[-1]+1)
-                return curtask
+                return truecurtask
 
             postcost = None
             precost = None
             if self.check_postcond:
                 postcost = self.agent.postcond_cost(sample, curtask, t, x0=switch_x[-1])
-                if task == curtask and postcost < 1e-3:
+                if task == curtask and postcost < 1e-4:
                     postcond_viols.append((cur_ids[-1], t))
                     if self.neg_postcond: neg_samples.append((sample, t, truetask))
 
@@ -188,7 +188,7 @@ class RolloutServer(Server):
                 n_tries = 0
                 cur_eta = self.eta
                 eta_scale = 0.9
-                while n_tries < 20 and task != curtask and precost > 1e-3:
+                while n_tries < 20 and task != curtask and precost > 1e-4:
                     if self.neg_precond: neg_samples.append((sample, t, truetask))
                     task = self.get_task(sample.get_X(t=t), sample.targets, curtask, True, eta=cur_eta)
                     truetask = task
@@ -197,7 +197,7 @@ class RolloutServer(Server):
                     cur_eta *= eta_scale
                     n_tries += 1
 
-                if precost > 1e-3 and task != curtask:
+                if precost > 1e-4 and task != curtask:
                     expl_precond_viols.append((cur_ids[-1], t))
                     task = curtask
 
@@ -300,7 +300,7 @@ class RolloutServer(Server):
             #self.save_video(path[bad_pt[0]:], 0, lab='odd_midfail', st=bad_pt[1])
             plan = self.agent.plans[curtask]
             st = bad_pt[1]
-            traj, steps, _ = self.agent.reverse_retime(path[bad_pt[0]:], (0, plan.horizon-1), label=True, start_t=st)
+            traj, steps, _, env_states = self.agent.reverse_retime(path[bad_pt[0]:], (0, plan.horizon-1), label=True, start_t=st)
             for t in range(len(traj)-1):
                 t = min(t, plan.horizon-1)
                 set_params_attrs(plan.params, self.agent.state_inds, traj[t], t)
@@ -344,7 +344,7 @@ class RolloutServer(Server):
                                         prob=plan.prob, 
                                         domain=plan.domain,
                                         initial=plan.prob.initial,
-                                        priority=ROLL_PRIORITY+1,
+                                        priority=ROLL_PRIORITY,
                                         ref_plan=plan,
                                         targets=targets,
                                         x0=x0,
@@ -354,6 +354,7 @@ class RolloutServer(Server):
                                         freeze_ts=fail_t,
                                         hl=False,
                                         ref_traj=traj,
+                                        env_state=env_states,
                                         nodetype='dagger')
                 self.push_queue(new_node, self.motion_queue)
 

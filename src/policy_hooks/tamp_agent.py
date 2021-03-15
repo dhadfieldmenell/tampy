@@ -793,7 +793,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 sample = self.sample_task(policy, 0, x0.copy(), task, hor=hor, skip_opt=True)
                 cost = self.postcond_cost(sample, task, sample.T-1, x0=x0)
                 if self.retime:
-                    traj, _, labels = self.reverse_retime([sample], (act_st, act_et), label=True)
+                    traj, _, labels, _ = self.reverse_retime([sample], (act_st, act_et), label=True)
                 
                 if cost < 1e-3:
                     self.optimal_samples[self.task_list[task[0]]].append(sample)
@@ -822,7 +822,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return success
 
 
-    def run_plan(self, plan, targets, tasks=None, reset=True, permute=False, save=True, amin=0, amax=None, record=True, wt=1., start_ts=0, verbose=False, label=None):
+    def run_plan(self, plan, targets, tasks=None, reset=True, permute=False, save=True, amin=0, amax=None, record=True, wt=1., start_ts=0, verbose=False, label=None, env_state=None):
         if record: self.n_plans_run += 1
         path = []
         log_info = {}
@@ -847,7 +847,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 if pname in perm:
                     x0[self.state_inds[perm[pname], aname]] = getattr(plan.params[pname], aname)[:,0]
         if reset:
-            self.reset_to_state(x0)
+            self.reset_to_state(x0, env_state)
 
         if amax is None:
             amax = len(plan.actions)-1
@@ -1173,15 +1173,20 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
     
     def reverse_retime(self, samples, ts, label=False, start_t=0):
-        T = 1+sum([s.T-1 for s in samples])
+        T = sum([s.T for s in samples])
         if T - start_t <= ts[1] - ts[0]:
-            if label: return np.concatenate([s.get(STATE_ENUM) for s in samples]), [], []
+            if label:
+                env_states = []
+                for s in samples:
+                    env_states.extend([s.env_state.get(t, None) for t in range(s.T)])
+                return np.concatenate([s.get(STATE_ENUM) for s in samples]), [], [], env_states
             return np.concatenate([s.get(STATE_ENUM) for s in samples], axis=0)
 
         ts = np.linspace(start_t, T, ts[1]-ts[0]+1)
         cur_s, cur_t = 0, start_t
         cur_offset = 0
         traj = []
+        env_state = []
         labels = []
         rev_labels = [0]
         prev_t = cur_t
@@ -1196,6 +1201,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 cur_s += 1
             sample = samples[cur_s]
             traj.append(sample.get(STATE_ENUM, t=cur_t))
+            env_state.append(sample.env_state.get(cur_t, None))
             labels.append(cur_s)
             for _ in range(t-prev_t):
                 rev_labels.append(t)
@@ -1204,7 +1210,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
         rev_labels = rev_labels[:-1]
         rev_labels[-1] = len(traj)-1
-        if label: return np.array(traj), labels, rev_labels
+        if label: return np.array(traj), labels, rev_labels, env_state
         return np.array(traj)
 
 

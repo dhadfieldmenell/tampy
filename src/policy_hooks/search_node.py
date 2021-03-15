@@ -70,7 +70,7 @@ class HLSearchNode(SearchNode):
         return plan_obj
 
 class LLSearchNode(SearchNode):
-    def __init__(self, plan_str, domain, prob, initial, priority=1, keep_failed=False, ref_plan=None, x0=None, targets=None, expansions=0, label='', refnode=None, freeze_ts=-1, hl=True, ref_traj=[], nodetype='optimal'):
+    def __init__(self, plan_str, domain, prob, initial, priority=1, keep_failed=False, ref_plan=None, x0=None, targets=None, expansions=0, label='', refnode=None, freeze_ts=-1, hl=True, ref_traj=[], nodetype='optimal', env_state=None):
         self.curr_plan = 'no plan'
         self.plan_str = plan_str
         self.domain = domain
@@ -82,6 +82,7 @@ class LLSearchNode(SearchNode):
         self.targets = targets
         self.ref_plan = ref_plan
         self.x0 = x0
+        self.env_state = env_state
         self.hl = hl
         self.freeze_ts = freeze_ts
         self.label = label
