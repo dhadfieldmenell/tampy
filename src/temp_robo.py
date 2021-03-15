@@ -66,10 +66,21 @@ env = robosuite.make(
     camera_heights=128,
 )
 obs = env.reset()
+jnts = env.sim.data.qpos[:7]
+for _ in range(40):
+    if ctrl_mode.find('JOINT') >= 0:
+        env.step(np.zeros(8))
+    else:
+        env.step(np.zeros(7))
+    env.sim.data.qacc[:] = 0
+    env.sim.data.qvel[:] = 0
+    env.sim.data.qpos[:7] = jnts 
+    env.sim.forward()
+
 env.sim.data.qvel[:] = 0
 env.sim.data.qacc[:] = 0
 env.sim.forward()
-import ipdb; ipdb.set_trace()
+#import ipdb; ipdb.set_trace()
 
 bt_ll.DEBUG = True
 openrave_bodies = None
@@ -97,7 +108,7 @@ pos = env.sim.data.qpos[cereal_ind:cereal_ind+3]
 quat = env.sim.data.qpos[cereal_ind+3:cereal_ind+7]
 quat = [quat[1], quat[2], quat[3], quat[0]]
 euler = T.quaternion_to_euler(quat, 'xyzw')
-params['cereal'].pose[:,0] = pos - np.array([0, 0, 0.035])
+params['cereal'].pose[:,0] = pos - np.array([0, 0, 0.055])
 params['cereal'].rotation[:,0] = euler
 
 params['bread'].pose[:,0] = [10,10,0]
@@ -187,18 +198,20 @@ env.sim.data.qacc[:] = 0
 env.sim.data.qvel[:] = 0
 env.sim.forward()
 rot_ref = T.euler_to_quaternion(params['sawyer'].right_ee_rot[:,0], 'xyzw') 
+
 for _ in range(40):
     if ctrl_mode.find('JOINT') >= 0:
         env.step(np.zeros(8))
     else:
         env.step(np.zeros(7))
     env.sim.data.qacc[:] = 0
+    env.sim.data.qacc_warmstart[:] = 0
     env.sim.data.qvel[:] = 0
     env.sim.data.qpos[:7] = params['sawyer'].right[:,0]
     env.sim.forward()
     if has_render: env.render()
 
-nsteps = 30
+nsteps = 50
 cur_ind = 0
 tol=1e-3
 true_lb, true_ub = plan.params['sawyer'].geom.get_joint_limits('right')
@@ -210,10 +223,33 @@ for act in plan.actions:
     plan.params['sawyer'].right[:,t] = env.sim.data.qpos[:7]
     plan.params['cereal'].pose[:,t] = env.sim.data.qpos[cereal_ind:cereal_ind+3]
     plan.params['cereal'].rotation[:,t] = T.quaternion_to_euler(env.sim.data.qpos[cereal_ind+3:cereal_ind+7], 'wxyz')
+    cereal_quat = env.sim.data.qpos[cereal_ind+3:cereal_ind+7].copy()
+    grip = env.sim.data.qpos[7:9].copy()
     failed_preds = plan.get_failed_preds(active_ts=(t,t), priority=3, tol=tol)
+    oldqfrc = env.sim.data.qfrc_applied[:]
+    oldxfrc = env.sim.data.xfrc_applied[:]
+    oldacc = env.sim.data.qacc[:]
+    oldvel = env.sim.data.qvel[:]
+    oldwarm = env.sim.data.qacc_warmstart[:]
+    oldctrl = env.sim.data.ctrl[:]
     #failed_preds = [p for p in failed_preds if (p[1]._rollout or not type(p[1].expr) is EqExpr)]
-    print('FAILED:', t, failed_preds)
-    import ipdb; ipdb.set_trace()
+    print('FAILED:', t, failed_preds, act.name)
+    #import ipdb; ipdb.set_trace()
+    old_state = env.sim.get_state()
+    env.sim.reset()
+    env.sim.data.qpos[:7] = plan.params['sawyer'].right[:,t]
+    env.sim.data.qpos[cereal_ind:cereal_ind+3] = plan.params['cereal'].pose[:,t]
+    env.sim.data.qpos[cereal_ind+3:cereal_ind+7] = cereal_quat
+    env.sim.data.qpos[7:9] = grip
+    env.sim.data.qacc[:] = 0. #oldacc
+    env.sim.data.qacc_warmstart[:] = 0.#oldwarm
+    env.sim.data.qvel[:] = 0.
+    env.sim.data.ctrl[:] = 0.#oldctrl
+    env.sim.data.qfrc_applied[:] = 0.#oldqfrc
+    env.sim.data.xfrc_applied[:] = 0.#oldxfrc
+    #env.sim.forward()
+    #env.sim.set_state(old_state)
+    #env.sim.forward()
 
     sawyer = plan.params['sawyer']
     for t in range(act.active_timesteps[0], act.active_timesteps[1]):
@@ -242,12 +278,13 @@ for act in plan.actions:
                 act = base_act.copy()
                 act[:7] = (targ_jnts - env.sim.data.qpos[:7])
                 obs = env.step(act)
-            print('END ERROR:', act[:7], true_act[:7]-env.sim.data.qpos[:7])
             end_jnts = env.sim.data.qpos[:7]
-            print('JNT_DELTA:', true_act[:7] - init_jnts)
-            print('PLAN VS SIM:', end_jnts, sawyer.right[:,t])
+            print('CEREAL, GRIP', env.sim.data.qpos[cereal_ind:cereal_ind+3], env.sim.data.qpos[7:9], env.sim.data.site_xpos[grip_ind], plan.params['cereal'].pose[:,t])
+            #print('END ERROR:', act[:7], true_act[:7]-env.sim.data.qpos[:7])
+            #print('JNT_DELTA:', true_act[:7] - init_jnts)
+            #print('PLAN VS SIM:', end_jnts, sawyer.right[:,t])
             print('EE PLAN VS SIM:', env.sim.data.site_xpos[grip_ind], sawyer.right_ee_pos[:,t], t)
-            print('\n\n\n')
+            #print('\n\n\n')
 
         else:
             targ = base_act[3:7]
@@ -291,7 +328,7 @@ for act in plan.actions:
         #print(base_act[:3], env.sim.data.body_xpos[hand_ind], env.sim.data.site_xpos[grip_ind])
         #print('CEREAL:', t, plan.params['cereal'].pose[:,t], env.sim.data.qpos[cereal_ind:cereal_ind+3])
         if has_render: env.render()
-    import ipdb; ipdb.set_trace()
+    #import ipdb; ipdb.set_trace()
 plan.params['sawyer'].right[:,t] = env.sim.data.qpos[:7]
 plan.params['cereal'].pose[:,t] = env.sim.data.qpos[cereal_ind:cereal_ind+3]
 plan.params['cereal'].rotation[:,t] = T.quaternion_to_euler(env.sim.data.qpos[cereal_ind+3:cereal_ind+7], 'wxyz')
