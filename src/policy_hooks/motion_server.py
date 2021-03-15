@@ -128,7 +128,7 @@ class MotionServer(Server):
                 #if self.render and (self.id.find('r0') >= 0 or not path[-1].success and np.random.uniform() < 0.01):
                 #    self.save_video(path, path[-1].success)
 
-                if self.render and (np.random.uniform() <= 0.1 or self.id.find('0') >= 0):
+                if self.render and self.id.find('0') >= 0:
                     if len(plan.actions) == 1:
                         if node.nodetype.find('dagger') >= 0:
                             aname = plan.actions[0].name

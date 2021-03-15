@@ -1540,7 +1540,7 @@ class Obstructs(CollisionPredicate):
 class WideObstructs(Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.1 # 0.35
+        self.dsafe = 0.3 # 0.35
         self.check_aabb = False # True
 
 
@@ -1902,7 +1902,7 @@ class ObstructsHolding(CollisionPredicate):
 class WideObstructsHolding(ObstructsHolding):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(WideObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.1 # 0.35
+        self.dsafe = 0.3 # 0.35
         self.check_aabb = False # True
 
 
@@ -2131,81 +2131,87 @@ class ApproachGraspAngle(InGraspAngle):
 
 class NearGraspAngle(InGraspAngle):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
-        self.r, self.can = params
-        self.tol = 4e-3
-        if self.r.is_symbol():
-            k = 'value'
-        else:
-            k = 'pose'
-        attr_inds = OrderedDict([(self.r, [(k, np.array([0, 1], dtype=np.int)),
-                                           ("theta", np.array([0], dtype=np.int))]),
-                                 (self.can, [("pose", np.array([0, 1], dtype=np.int))]),
-                                ])
-        angle_expr = Expr(self.f, self.grad)
-        e = LEqExpr(angle_expr, self.tol*np.ones((1,1)))
-
-        super(InGraspAngle, self).__init__(name, e, attr_inds, params, expected_param_types, priority=1)
+        super(NearGraspAngle, self).__init__(name, params, expected_param_types,env, sess, debug)
+        self.coeff = 5e-3
         self._rollout = True
 
-    def f(self, x):
-        x = x.flatten()
-        dist = gripdist + dsafe
-        targ_loc = [-dist * np.sin(x[2]), dist * np.cos(x[2])]
-        can_loc = x[3:5]
-        return np.array([[((x[0]+targ_loc[0])-can_loc[0])**2 + ((x[1]+targ_loc[1])-can_loc[1])**2]])
-
-    def grad(self, x):
-        x = x.flatten()
-        curdisp = x[3:5] - x[:2]
-        dist = gripdist + dsafe
-        theta = x[2]
-        targ_disp = [-dist * np.sin(theta), dist * np.cos(theta)]
-        off = (curdisp[0]-targ_disp[0])**2 + (curdisp[1]-targ_disp[1])**2
-        (x1, y1), (x2, y2) = x[:2], x[3:5]
-
-        x1_grad = -2 * ((x2-x1)+dist*np.sin(theta))
-        y1_grad = -2 * ((y2-y1)-dist*np.cos(theta))
-        theta_grad = 2 * dist * ((x2-x1)*np.cos(theta) + (y2-y1)*np.sin(theta))
-        x2_grad = 2 * ((x2-x1)+dist*np.sin(theta))
-        y2_grad = 2 * ((y2-y1)-dist*np.cos(theta))
-        return np.array([x1_grad, y1_grad, theta_grad, x2_grad, y2_grad]).reshape((1,5))
-
-    def resample(self, negated, time, plan):
-        res = OrderedDict()
-        attr_inds = OrderedDict()
-        a = 0
-        while  a < len(plan.actions) and plan.actions[a].active_timesteps[1] < time:
-            a += 1
-
-        if a >= len(plan.actions) or time == plan.actions[a].active_timesteps[0]:
-            return None, None
-
-        act = plan.actions[a]
-        x = self.get_param_vector(time).flatten()
-        theta = np.arctan2(*(x[3:5]-x[:2]))
-        rot = np.array([[np.cos(-theta), -np.sin(-theta)],
-                        [np.sin(-theta),  np.cos(-theta)]])
-        disp = rot.dot([0, -gripdist-dsafe])
-        offset = (x[3:5] + disp) - x[:2]
-        new_robot_pose = x[:2] + offset
-        new_can_pose = x[3:5] - offset
-        nsteps = 0
-        st = max(max(time-nsteps,1), act.active_timesteps[0]+1)
-        et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1])
-        ref_st = max(max(time-nsteps,0), act.active_timesteps[0])
-        ref_et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1])
-        add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('pose', new_robot_pose), ('theta', np.array([theta]))])
-        for i in range(st, et):
-            dist =float(np.abs(i - time))
-            if i <= time:
-                inter_rp = (dist / nsteps) * self.r.pose[:, ref_st] + ((nsteps - dist) / nsteps) * new_robot_pose
-                inter_cp = (dist / nsteps) * self.can.pose[:, ref_st] + ((nsteps - dist) / nsteps) * new_can_pose
-            else:
-                inter_rp = (dist / nsteps) * self.r.pose[:, ref_et] + ((nsteps - dist) / nsteps) * new_robot_pose
-                inter_cp = (dist / nsteps) * self.can.pose[:, ref_et] + ((nsteps - dist) / nsteps) * new_can_pose
-
-            add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
-        return res, attr_inds
+#class NearGraspAngle(InGraspAngle):
+#    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
+#        self.r, self.can = params
+#        self.tol = 2e-3
+#        if self.r.is_symbol():
+#            k = 'value'
+#        else:
+#            k = 'pose'
+#        attr_inds = OrderedDict([(self.r, [(k, np.array([0, 1], dtype=np.int)),
+#                                           ("theta", np.array([0], dtype=np.int))]),
+#                                 (self.can, [("pose", np.array([0, 1], dtype=np.int))]),
+#                                ])
+#        angle_expr = Expr(self.f, self.grad)
+#        e = LEqExpr(angle_expr, self.tol*np.ones((1,1)))
+#
+#        super(InGraspAngle, self).__init__(name, e, attr_inds, params, expected_param_types, priority=1)
+#        self._rollout = True
+#
+#    def f(self, x):
+#        x = x.flatten()
+#        dist = gripdist + dsafe
+#        targ_loc = [-dist * np.sin(x[2]), dist * np.cos(x[2])]
+#        can_loc = x[3:5]
+#        return np.array([[((x[0]+targ_loc[0])-can_loc[0])**2 + ((x[1]+targ_loc[1])-can_loc[1])**2]])
+#
+#    def grad(self, x):
+#        x = x.flatten()
+#        curdisp = x[3:5] - x[:2]
+#        dist = gripdist + dsafe
+#        theta = x[2]
+#        targ_disp = [-dist * np.sin(theta), dist * np.cos(theta)]
+#        off = (curdisp[0]-targ_disp[0])**2 + (curdisp[1]-targ_disp[1])**2
+#        (x1, y1), (x2, y2) = x[:2], x[3:5]
+#
+#        x1_grad = -2 * ((x2-x1)+dist*np.sin(theta))
+#        y1_grad = -2 * ((y2-y1)-dist*np.cos(theta))
+#        theta_grad = 2 * dist * ((x2-x1)*np.cos(theta) + (y2-y1)*np.sin(theta))
+#        x2_grad = 2 * ((x2-x1)+dist*np.sin(theta))
+#        y2_grad = 2 * ((y2-y1)-dist*np.cos(theta))
+#        return np.array([x1_grad, y1_grad, theta_grad, x2_grad, y2_grad]).reshape((1,5))
+#
+#    def resample(self, negated, time, plan):
+#        res = OrderedDict()
+#        attr_inds = OrderedDict()
+#        a = 0
+#        while  a < len(plan.actions) and plan.actions[a].active_timesteps[1] < time:
+#            a += 1
+#
+#        if a >= len(plan.actions) or time == plan.actions[a].active_timesteps[0]:
+#            return None, None
+#
+#        act = plan.actions[a]
+#        x = self.get_param_vector(time).flatten()
+#        theta = np.arctan2(*(x[3:5]-x[:2]))
+#        rot = np.array([[np.cos(-theta), -np.sin(-theta)],
+#                        [np.sin(-theta),  np.cos(-theta)]])
+#        disp = rot.dot([0, -gripdist-dsafe])
+#        offset = (x[3:5] + disp) - x[:2]
+#        new_robot_pose = x[:2] + offset
+#        new_can_pose = x[3:5] - offset
+#        nsteps = 0
+#        st = max(max(time-nsteps,1), act.active_timesteps[0]+1)
+#        et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1])
+#        ref_st = max(max(time-nsteps,0), act.active_timesteps[0])
+#        ref_et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1])
+#        add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('pose', new_robot_pose), ('theta', np.array([theta]))])
+#        for i in range(st, et):
+#            dist =float(np.abs(i - time))
+#            if i <= time:
+#                inter_rp = (dist / nsteps) * self.r.pose[:, ref_st] + ((nsteps - dist) / nsteps) * new_robot_pose
+#                inter_cp = (dist / nsteps) * self.can.pose[:, ref_st] + ((nsteps - dist) / nsteps) * new_can_pose
+#            else:
+#                inter_rp = (dist / nsteps) * self.r.pose[:, ref_et] + ((nsteps - dist) / nsteps) * new_robot_pose
+#                inter_cp = (dist / nsteps) * self.can.pose[:, ref_et] + ((nsteps - dist) / nsteps) * new_can_pose
+#
+#            add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
+#        return res, attr_inds
 
 class AroundGraspAngle(NearGraspAngle):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):

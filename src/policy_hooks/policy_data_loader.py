@@ -6,7 +6,7 @@ import time
 MAX_BUFFER = 250000
 
 class DataLoader(object):
-    def __init__(self, config, task, in_queue, batch_size, normalize=False, policy=None, x_idx=None, aug_f=None, min_buffer=10**3, feed_in_policy=None, feed_prob=0., feed_inds=(None, None), feed_map=None):
+    def __init__(self, config, task, in_queue, batch_size, normalize=False, policy=None, x_idx=None, aug_f=None, min_buffer=10**3, feed_in_policy=None, feed_prob=0., feed_inds=(None, None), feed_map=None, save_dir=None):
         self.config = config
         self.in_queue = in_queue
         self.task = task
@@ -28,9 +28,21 @@ class DataLoader(object):
         self.items = {}
         self.val_items = {}
 
+        self.save_dir = save_dir
+        self.cur_save = 0
+
     
-    def write_data(self):
-        np.save('{}_data.npy'.format(self.task), self.items)
+    def write_data(self, n_data=None):
+        if n_data is not None:
+            lab = 'optimal'
+            ind = np.random.choice(range(len(self.items[lab])-n_data))
+            items = {lab: self.items[lab][ind:ind+n_data]}
+            val = 'val' if np.random.uniform() <= 0.1 else 'train'
+            np.save('{}/{}_{}data_{}.npy'.format(self.save_dir, self.task, val, self.cur_save), items)
+            self.cur_save += 1
+        else:
+            np.save('{}/{}_traindata.npy'.format(self.save_dir, self.task), self.items)
+            np.save('{}/{}_valdata.npy'.format(self.save_dir, self.task), self.val_items)
 
 
     def pop_queue(self):

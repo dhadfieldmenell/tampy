@@ -269,8 +269,6 @@ class MultiProcessMain(object):
                 'image_channels': self.config['image_channels'],
                 'sensor_dims': self.sensor_dims,
                 'n_layers': self.config['n_layers'],
-                'num_filters': [32, 32, 16],
-                'filter_sizes': [5, 5, 5],
                 'q_imwt': 1,
                 'dim_hidden': self.config['dim_hidden'],
             },
@@ -282,7 +280,7 @@ class MultiProcessMain(object):
                 'image_channels': self.config['image_channels'],
                 'sensor_dims': self.sensor_dims,
                 'n_layers': self.config['prim_n_layers'],
-                'num_filters': [32, 32, 16],
+                'num_filters': [32, 32, 32],
                 'filter_sizes': [5, 5, 5],
                 'dim_hidden': self.config['prim_dim_hidden'],
                 'output_boundaries': self.config['prim_bounds'],
@@ -709,8 +707,13 @@ def setup_dirs(c, args):
             dir_name2 += sub_dirs2[d_ind] + '/'
             if not os.path.isdir(dir_name):
                 os.mkdir(dir_name)
+
             if not os.path.isdir(dir_name2):
                 os.mkdir(dir_name2)
+
+        if not os.path.isdir(dir_name+'samples/'):
+            os.mkdir(dir_name+'samples/')
+
         if args.hl_retrain:
             src = DIR_KEY + args.hl_data + '/hyp.py'
         elif hasattr(args, 'expert_path') and len(args.expert_path):

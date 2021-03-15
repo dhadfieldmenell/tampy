@@ -23,6 +23,7 @@ class PolicyServer(object):
         self.group_id = hyperparams['group_id']
         self.task = hyperparams['scope']
         self.task_list = hyperparams['task_list']
+        self.weight_dir = LOG_DIR+hyperparams['weight_dir']
         self.seed = int((1e2*time.time()) % 1000.)
         n_gpu = hyperparams['n_gpu']
         gpu = 0
@@ -64,12 +65,30 @@ class PolicyServer(object):
             in_inds = np.concatenate(in_inds, axis=0)
             out_inds = np.concatenate(out_inds, axis=0)
 
-        self.data_gen = DataLoader(hyperparams, self.task, self.in_queue, self.batch_size, normalize, min_buffer=self.min_buffer, feed_prob=feed_prob, feed_inds=(in_inds, out_inds), feed_map=self.agent.center_cont)
+        self.data_gen = DataLoader(hyperparams, \
+                                   self.task, \
+                                   self.in_queue, \
+                                   self.batch_size, \
+                                   normalize, \
+                                   min_buffer=self.min_buffer, \
+                                   feed_prob=feed_prob, \
+                                   feed_inds=(in_inds, out_inds), \
+                                   feed_map=self.agent.center_cont)
         aug_f = None
         no_im = IM_ENUM not in hyperparams['prim_obs_include']
         if self.task == 'primitive' and hyperparams['permute_hl'] > 0 and no_im:
             aug_f = self.agent.permute_hl_data
-        self.data_gen = DataLoader(hyperparams, self.task, self.in_queue, self.batch_size, normalize, min_buffer=self.min_buffer, aug_f=aug_f, feed_prob=feed_prob, feed_inds=(in_inds, out_inds), feed_map=self.agent.center_cont)
+        self.data_gen = DataLoader(hyperparams, \
+                                   self.task, \
+                                   self.in_queue, \
+                                   self.batch_size, \
+                                   normalize, \
+                                   min_buffer=self.min_buffer, \
+                                   aug_f=aug_f, \
+                                   feed_prob=feed_prob, \
+                                   feed_inds=(in_inds, out_inds), \
+                                   feed_map=self.agent.center_cont, \
+                                   save_dir=self.weight_dir+'/samples/')
       
         hyperparams['dPrim'] = len(hyperparams['prim_bounds'])
         dO = hyperparams['dPrimObs'] if self.task == 'primitive' else hyperparams['dO']
@@ -184,6 +203,9 @@ class PolicyServer(object):
                 n_train = self.data_gen.get_size()
                 n_val = self.data_gen.get_size(val=True)
                 print('Ran', self.iters, 'updates on', self.task, 'with', n_train, 'train and', n_val, 'val')
+
+            if not self.iters % 10:
+                self.data_gen.write_data(n_data=1024)
 
             if not self.iters % 10 and len(self.val_losses['all']):
                 with open(self.policy_opt_log, 'a+') as f:

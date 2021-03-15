@@ -670,11 +670,12 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
     filter_sizes = network_config['filter_sizes']
     n_conv = len(num_filters)
 
+    fp_only = False
     im_height = network_config['image_height']
     im_width = network_config['image_width']
     num_channels = network_config['image_channels']
     image_input = tf.reshape(image_input, [-1, im_width, im_height, num_channels])
-    image_input = annotate_xy(im_width, im_height, image_input)
+    #image_input = annotate_xy(im_width, im_height, image_input)
 
     with tf.variable_scope('conv_base'):
         weights = {}
@@ -688,10 +689,6 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
             weights['conv_wc{0}'.format(i)] = init_weights([filter_size, filter_size, cur_in, num_filters[i]], name='conv_wc{0}'.format(i)) # 5x5 conv, 1 input, 32 outputs
             biases['conv_bc{0}'.format(i)] = init_bias([num_filters[i]], name='conv_bc{0}'.format(i))
             cur_in = num_filters[i]
-            #if i == 0:
-            #    conv_layers.append(conv2d(img=cur_in_layer, w=weights['conv_wc{0}'.format(i)], b=biases['conv_bc{0}'.format(i)], strides=[1,2,2,1]))
-            #else:
-            #    conv_layers.append(conv2d(img=cur_in_layer, w=weights['conv_wc{0}'.format(i)], b=biases['conv_bc{0}'.format(i)]))
             nonlin = i < n_conv - 1 # Don't put relu on the last conv, it goes through spatial softmax
             if i == 0:
                 conv_layers.append(conv2d(img=cur_in_layer, w=weights['conv_wc{0}'.format(i)], b=biases['conv_bc{0}'.format(i)], strides=[1,2,2,1], nonlin=nonlin))
@@ -701,6 +698,8 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
 
         _, num_rows, num_cols, num_fp = conv_layers[-1].get_shape()
         num_rows, num_cols, num_fp = [int(x) for x in [num_rows, num_cols, num_fp]]
+        if not fp_only:
+            num_fp -= 8
 
         x_map = np.empty([num_rows, num_cols], np.float32)
         y_map = np.empty([num_rows, num_cols], np.float32)
@@ -717,8 +716,12 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
         y_map = tf.reshape(y_map, [num_rows * num_cols])
 
         # rearrange features to be [batch_size, num_fp, num_rows, num_cols]
-        features = tf.reshape(tf.transpose(conv_layers[-1], [0,3,1,2]),
-                              [-1, num_rows*num_cols])
+        if fp_only:
+            features = tf.reshape(tf.transpose(conv_layers[-1], [0,3,1,2]),
+                                  [-1, num_rows*num_cols])
+        else:
+            features = tf.reshape(tf.transpose(conv_layers[-1][:,:,:,8:], [0,3,1,2]),
+                                  [-1, num_rows*num_cols])
         softmax = tf.nn.softmax(features)
 
         fp_x = tf.reduce_sum(tf.multiply(x_map, softmax), [1], keep_dims=True)
@@ -727,7 +730,11 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
         fp = tf.reshape(tf.concat(axis=1, values=[fp_x, fp_y]), [-1, num_fp*2])
 
         ### FC Layers
-        fc_input = tf.concat(axis=1, values=[fp, state_input])
+        if fp_only:
+            fc_input = tf.concat(axis=1, values=[fp, state_input])
+        else:
+            lastconv = tf.reshape(tf.nn.relu(conv_layers[-1][:,:,:,:8]), [-1, num_rows*num_cols*8])
+            fc_input = tf.concat(axis=1, values=[lastconv, fp, state_input])
 
         last_conv_vars = fc_input
         losses = []
@@ -735,8 +742,9 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
         fc_vars = []
         offset = 0
 
+        mlp_applied = fc_input
         #mlp_applied, weights_FC, biases_FC = get_mlp_layers(fc_input, n_layers-2, dim_hidden[:-1], nonlin=True)
-        mlp_applied, weights_FC, biases_FC = get_mlp_layers(fc_input, n_layers-2, dim_hidden[:1], nonlin=True)
+        #mlp_applied, weights_FC, biases_FC = get_mlp_layers(fc_input, n_layers-2, dim_hidden[:1], nonlin=True)
   
     cur_input = mlp_applied
     with tf.variable_scope('discr_head'):
@@ -767,7 +775,7 @@ def fp_multi_modal_cond_network(dim_input=27, dim_output=2, batch_size=25, netwo
         scaled_mlp_applied = tf.concat([discr_mlp, mlp_applied], axis=1)
 
     fc_vars = weights_FC + biases_FC
-    loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, batch_size=batch_size, precision=precision, types=types, wt=5e3) # wt=5e4)
+    loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, batch_size=batch_size, precision=precision, types=types, wt=5e2) # wt=5e4)
     losses = [loss_out]
     preds = [prediction]
 
