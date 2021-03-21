@@ -83,7 +83,7 @@ class optimal_pol:
             for param, attr in self.action_inds:
                 cur_val = X[self.state_inds[param, attr]] if (param, attr) in self.state_inds else None
                 if attr.find('grip') >= 0:
-                    val = self.opt_traj[t+1, self.state_inds[param, attr]]
+                    val = self.opt_traj[t+1, self.state_inds[param, attr]][0]
                     val = 1. if val <= 0 else -1. #0.020833 if val <= 0. else -0.020833
                     u[self.action_inds[param, attr]] = val 
                 elif attr.find('ee_pos') >= 0:
@@ -109,7 +109,7 @@ class optimal_pol:
         else:
             for param, attr in self.action_inds:
                 if attr.find('grip') >= 0:
-                    val = self.opt_traj[-1, self.state_inds[param, attr]]
+                    val = self.opt_traj[-1, self.state_inds[param, attr]][0]
                     val = 1. if val <= 0 else -1. #0.020833 if val <= 0. else -0.020833
                     u[self.action_inds[param, attr]] = val 
         if np.any(np.isnan(u)):
@@ -125,7 +125,7 @@ class EnvWrapper():
         self._type_cache = {}
         self.sim = env.sim
         self.model = env.mjpy_model
-        self.z_offsets = {'cereal': 0.045}
+        self.z_offsets = {'cereal': 0.04}
         self.mode = mode
 
     def get_attr(self, obj, attr, euler=False):
@@ -143,16 +143,19 @@ class EnvWrapper():
             if attr in self.geom.arms:
                 jnts = ['robot0_'+jnt for jnt in jnts]
                 vals = self.get_joints(jnts)
-                lb, ub = self.geom.get_joint_limits(attr)
-                vals = np.maximum(np.minimum(ub, vals), lb)
+                #lb, ub = self.geom.get_joint_limits(attr)
+                #vals = np.maximum(np.minimum(ub, vals), lb)
                 return vals
             else:
+                cv, ov = self.geom.get_gripper_closed_val(), self.geom.get_gripper_open_val()
                 jnts = ['gripper0_'+jnt for jnt in jnts]
                 vals = self.get_joints(jnts)
-                val = np.mean([vals[0], -vals[1]])
-                cv, ov = self.geom.get_gripper_closed_val(), self.geom.get_gripper_open_val()
-                val = cv if np.abs(val - cv) < np.abs(val - ov) else ov
-                return [val]
+                #vals = ov if np.max(np.abs(vals-cv)) > np.max(np.abs(vals-ov)) else cv
+                return vals
+                #val = np.mean([vals[0], -vals[1]])
+                #cv, ov = self.geom.get_gripper_closed_val(), self.geom.get_gripper_open_val()
+                #val = cv if np.abs(val - cv) < np.abs(val - ov) else ov
+                #return [val]
 
         if obj == 'sawyer':
             obj = 'robot0_base'
@@ -170,7 +173,9 @@ class EnvWrapper():
                 jnts = ['robot0_'+jnt for jnt in jnts]
             else:
                 jnts = ['gripper0_'+jnt for jnt in jnts]
-                val = [val[0], -val[0]]
+                if len(val) != 2:
+                    raise Exception()
+                    val = [val[0], -val[0]]
             return self.set_joints(jnts, val, forward=forward)
 
         if attr.find('ee_pos') >= 0 or attr.find('ee_rot') >= 0:
@@ -255,13 +260,16 @@ class EnvWrapper():
         if forward:
             self.forward()
 
-    def forward(self):
+    def zero(self):
         self.env.sim.data.qvel[:] = 0
         self.env.sim.data.qacc[:] = 0
         self.env.sim.data.qacc_warmstart[:] = 0
         self.env.sim.data.ctrl[:] = 0
         self.env.sim.data.qfrc_applied[:] = 0
         self.env.sim.data.xfrc_applied[:] = 0
+
+    def forward(self):
+        self.zero()
         self.env.sim.forward()
 
     def reset(self):
@@ -465,12 +473,12 @@ class RobotAgent(TAMPAgent):
     def run_policy_step(self, u, x):
         self._col = []
         ctrl = {attr: u[inds] for (param_name, attr), inds in self.action_inds.items()}
-        cur_grip = x[self.state_inds['sawyer', 'right_gripper']]
+        cur_grip = x[self.state_inds['sawyer', 'right_gripper']][0]
         cur_z = x[self.state_inds['sawyer', 'right_ee_pos']][2]
         if cur_z > 10:#GRIPPER_Z:
             gripper = 0.1 if cur_grip > 0.013 else -0.1
         else:
-            gripper = 0.1 if ctrl['right_gripper'] > 0 else -0.1
+            gripper = 0.1 if ctrl['right_gripper'][0] > 0 else -0.1
 
         sawyer = list(self.plans.values())[0].params['sawyer']
         true_lb, true_ub = sawyer.geom.get_joint_limits('right')
@@ -523,8 +531,9 @@ class RobotAgent(TAMPAgent):
         return True, col
 
 
-    def set_symbols(self, plan, task, anum=0, cond=0, targets=None):
-        st, et = plan.actions[anum].active_timesteps
+    def set_symbols(self, plan, task, anum=0, cond=0, targets=None, st=0):
+        act_st, et = plan.actions[anum].active_timesteps
+        st = max(act_st, st)
         if targets is None:
             targets = self.target_vecs[cond].copy()
         prim_choices = self.prob.get_prim_choices(self.task_list)
@@ -860,29 +869,37 @@ class RobotAgent(TAMPAgent):
         self._x_delta[:] = x.reshape((1,-1))
         self._prev_task = np.zeros((self.task_hist_len, self.dPrimOut))
         self.cur_state = x.copy()
-        self.base_env.sim.data.qacc_warmstart[:] = 0.
         if False: #env_state is not None:
             self.base_env.sim.set_state(env_state)
         else:
             self.base_env.sim.reset()
+            self.mjc_env.zero()
             for (pname, aname), inds in self.state_inds.items():
                 if pname == 'table': continue
                 if aname.find('ee_pos') >= 0 or aname.find('ee_rot') >= 0: continue
                 val = x[inds]
                 self.mjc_env.set_attr(pname, aname, val, forward=False)
-            #self.mjc_env.forward()
+            #self.base_env.sim.data.ctrl[7] = 0.0208
+            #self.base_env.sim.data.ctrl[8] = -0.0208
+            self.base_env.sim.forward()
 
 
-    def get_state(self):
+    def get_state(self, clip=False):
         x = np.zeros(self.dX)
         for (pname, aname), inds in self.state_inds.items():
             if pname.find('table') >= 0:
                 val = np.array([0,0,-3])
             else:
                 val = self.mjc_env.get_attr(pname, aname, euler=True)
-            if aname in ['left', 'right']:
-                lb, ub = self.mjc_env.geom.get_joint_limits(aname)
-                val = np.maximum(np.minimum(val, ub), lb)
+
+            if clip:
+                if aname in ['left', 'right']:
+                    lb, ub = self.mjc_env.geom.get_joint_limits(aname)
+                    val = np.maximum(np.minimum(val, ub), lb)
+                elif aname.find('gripper') >= 0:
+                    cv, ov = self.sawyer.geom.get_gripper_closed_val(), self.sawyer.geom.get_gripper_open_val()
+                    val = ov if np.max(np.abs(val-cv)) > np.max(np.abs(val-ov)) else cv
+
             if len(inds) == 1:
                 x[inds] = np.mean(val)
             else:
@@ -926,9 +943,9 @@ class RobotAgent(TAMPAgent):
         if not len(opt_traj):
             return self.solve_sample_opt_traj(state, task, condition, traj_mean, targets=targets)
         if not len(targets):
-            old_targets = self.target_vecs[condition]
+            old_targets = self.target_vecs[condition].copy()
         else:
-            old_targets = self.target_vecs[condition]
+            old_targets = self.target_vecs[condition].copy()
             for tname, attr in self.target_inds:
                 self.targets[condition][tname] = targets[self.target_inds[tname, attr]]
             self.target_vecs[condition] = targets
@@ -993,6 +1010,7 @@ class RobotAgent(TAMPAgent):
             x[inds] = val
         targets = {}
         targets['cereal_end_target'] = self.mjc_env.get_item_pose('cereal-visual_main')[0]
+        targets['cereal_end_target'][2] -= self.mjc_env.z_offsets['cereal']
         return [x], [targets] 
     
     
@@ -1217,5 +1235,19 @@ class RobotAgent(TAMPAgent):
         elif ('sawyer', 'right_ee_pos') in self.action_inds and ('sawyer', 'right_ee_rot') in self.action_inds:
             vecs = np.array([1e1, 1e1, 1e1, 1e-2, 1e-2, 1e-2, 1e0])
         return np.diag(vec)
+
+
+    def clip_state(self, x):
+        x = x.copy()
+        lb, ub = self.sawyer.geom.get_joint_limits('right')
+        lb = np.array(lb) + 2e-3
+        ub = np.array(ub) - 2e-3
+        jnt_vals = x[self.state_inds['sawyer', 'right']]
+        x[self.state_inds['sawyer', 'right']] = np.clip(jnt_vals, lb, ub)
+        cv, ov = self.sawyer.geom.get_gripper_closed_val(), self.sawyer.geom.get_gripper_open_val()
+        grip_vals = x[self.state_inds['sawyer', 'right_gripper']]
+        grip_vals = ov if np.mean(np.abs(grip_vals-cv)) > np.mean(np.abs(grip_vals-ov)) else cv
+        x[self.state_inds['sawyer', 'right_gripper']] = grip_vals
+        return x
 
 

@@ -776,12 +776,19 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         plan.dX = self.symbolic_bound
         plan.dU = self.dU
         success = False
+        if x0 is None:
+            x0 = np.zeros_like(self.x0[0])
+            fill_vector(plan.params, self.state_inds, x0, st)
+
+        x0 = self.clip_state(x0)
+        set_params_attrs(plan.params, self.state_inds, x0, st, plan=plan)
+
         xsaved = x0
         for a in range(anum, len(plan.actions)):
             act_st, act_et = plan.actions[a].active_timesteps
-            if xsaved is None or a > anum:
-                x0 = np.zeros_like(self.x0[0])
-                fill_vector(plan.params, self.state_inds, x0, act_st)
+            act_st = max(st, act_st)
+            x0 = np.zeros_like(self.x0[0])
+            fill_vector(plan.params, self.state_inds, x0, act_st)
             task = tuple(self.encode_action(plan.actions[a]))
 
             cost = 1.
@@ -798,11 +805,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 if cost < 1e-3:
                     self.optimal_samples[self.task_list[task[0]]].append(sample)
 
-            if a > anum or xsaved is None:
-                fill_vector(plan.params, self.state_inds, x0, act_st)
-            self.set_symbols(plan, task, anum=a)
+            self.set_symbols(plan, task, anum=a, st=act_st)
             try:
-                success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=traj[st:], st=st)
+                #success = self.ll_solver.find_closest_feasible(plan, (st,st), priority=-2)
+                success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=traj[act_st:], st=act_st)
                 if self.traj_smooth:
                     plan.backup_params()
                     suc = self.ll_solver.traj_smoother(plan)
@@ -810,19 +816,19 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                         plan.restore_params()
             except Exception as e:
                 traceback.print_exception(*sys.exc_info())
-                print(('Exception in full solve for', x0, task, plan.actions[a]), e)
+                print(('Exception in full solve for', x0, task, plan.actions[a]), e, st)
                 success = False
             self.n_opt[task] = self.n_opt.get(task, 0) + 1
 
             if not success:
-                failed = plan.get_failed_preds((st, act_et))
-                print(('Graph failed solve on', x0, task, plan.actions[a], 'on ({0}, {1})'.format(st, act_et), failed, self.process_id))
+                #failed = plan.get_failed_preds((st, act_et))
+                #print(('Graph failed solve on', x0, task, plan.actions[a], 'on ({0}, {1})'.format(st, act_et), failed, self.process_id))
                 self.n_fail_opt[task] = self.n_fail_opt.get(task, 0) + 1
                 return False
         return success
 
 
-    def run_plan(self, plan, targets, tasks=None, reset=True, permute=False, save=True, amin=0, amax=None, record=True, wt=1., start_ts=0, verbose=False, label=None, env_state=None):
+    def run_plan(self, plan, targets, tasks=None, reset=True, permute=False, save=True, amin=0, amax=None, record=True, wt=1., start_ts=0, verbose=False, label=None, env_state=None, x0=None):
         if record: self.n_plans_run += 1
         path = []
         log_info = {}
@@ -836,8 +842,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         base_x0 = np.zeros_like(self.x0[0])
         fill_vector(plan.params, self.state_inds, base_x0, 0)
 
-        x0 = np.zeros_like(self.x0[0])
-        fill_vector(plan.params, self.state_inds, x0, start_ts)
+        if x0 is None:
+            x0 = np.zeros_like(self.x0[0])
+            fill_vector(plan.params, self.state_inds, x0, start_ts)
+
         perm = {}
         old_x0 = x0.copy()
         old_targets = targets
@@ -955,7 +963,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 elif path[-1].success > 0.99:
                     print('Adding path w/postcond failure?', self.task_list[s.task[0]], self.process_id)
                     log_info['{}_opt_rollout_success'.format(self.task_list[s.task[0]])].append(0)
-                    self.optimal_samples[self.task_list[s.task[0]]].append(s)
+                    #self.optimal_samples[self.task_list[s.task[0]]].append(s)
                 elif path[-1].success > 0.99:
                     preds = self._failed_preds(s.get_X(s.T-1),task, 0, active_ts=(-1,-1), x0=x0s[ind])
                     print('Failed to add sample from successful path. Post cost:', cost, 'Task:', s.task, preds)
@@ -1224,4 +1232,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
     def get_random_initial_state_vec(self, config, plans, dX, state_inds, n=1):
         return self.prob.get_random_initial_state_vec(config, plans, dX, state_inds, n)
+
+    
+    def clip_state(self, x):
+        return x.copy()
 

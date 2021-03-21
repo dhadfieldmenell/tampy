@@ -15,6 +15,8 @@ except:
     pass
 
 
+JNT_SLACK = 1e-4
+
 class Robot(object):
     """
     Base class of every robot parameter
@@ -61,7 +63,7 @@ class Robot(object):
         self.intialized = True
 
     def get_joint_move_factor(self):
-        return 20
+        return 5
 
     def get_base_limit(self):
         return np.array([-10, -10, -5*np.pi]), np.array([10, 10, 5*np.pi])
@@ -86,7 +88,8 @@ class Robot(object):
         return self.ee_links[arm]
 
     def gripper_dim(self, arm):
-        return 1
+        gripper = self.get_gripper(arm)
+        return len(self.jnt_names[gripper])
 
     def get_gripper(self, arm):
         return self.ee_link_names[arm]
@@ -116,21 +119,25 @@ class Robot(object):
     def get_dof_inds(self):
         return list(self.dof_inds.items())
 
-    def get_gripper_open_val(self, arm=None):
+    def get_gripper_open_val(self, arm=None, scalar=False):
         if arm is None:
             arm = self.arms[0]
 
         gripper = self.ee_link_names[arm]
         #ub = np.max(self.jnt_limits[gripper][1])
+        if not scalar: return self.jnt_limits[gripper][1]
+
         ub = self.jnt_limits[gripper][1][0]
         return ub
 
-    def get_gripper_closed_val(self, arm=None):
+    def get_gripper_closed_val(self, arm=None, scalar=False):
         if arm is None:
             arm = self.arms[0]
 
         gripper = self.ee_link_names[arm]
         #lb = np.min(self.jnt_limits[gripper][0])
+        if not scalar: return self.jnt_limits[gripper][0]
+
         lb = self.jnt_limits[gripper][0][0]
         return lb
 
@@ -205,8 +212,8 @@ class Robot(object):
             self.link_to_id[jnt_info[12].decode('utf-8')] = i
             self.id_to_link[i] = jnt_info[12].decode('utf-8')
             self.jnt_parents[jnt_name] = jnt_info[-1]
-            jnt_lb = np.trunc(10**n_decs * jnt_info[8]) / 10**n_decs
-            jnt_ub = np.trunc(10**n_decs * jnt_info[9]) / 10**n_decs
+            jnt_lb = np.trunc(10**n_decs * jnt_info[8]) / 10**n_decs - JNT_SLACK
+            jnt_ub = np.trunc(10**n_decs * jnt_info[9]) / 10**n_decs + JNT_SLACK
             self.bounds[jnt_name] = (jnt_lb, jnt_ub)
 
             # Track free joints (necessary for IK solves & similar)

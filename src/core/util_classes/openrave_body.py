@@ -237,32 +237,21 @@ class OpenRAVEBody(object):
         #if not isinstance(self._geom, Robot): return
         if not hasattr(self._geom, 'dof_map'): return
 
-        if USE_OPENRAVE:
-            # Get current dof value for each joint
-            dof_val = self.env_body.GetActiveDOFValues()
+        for key in dof_value_map:
+            if key not in self._geom.dof_map:
+                if debug: print('Cannot set dof for', key)
+                continue
 
-            for k, v in list(dof_value_map.items()):
-                if k not in self._geom.dof_map or np.any(np.isnan(v)): continue
-                inds = self._geom.dof_map[k]
-                try:
-                    dof_val[inds] = v
-                except IndexError:
-                    print(('\n\n\nBad index in set dof:', inds, k, v, self._geom, '\n\n\n'))
-            # Set new DOF value to the robot
-            self.env_body.SetActiveDOFValues(dof_val)
-        else:
-            for key in dof_value_map:
-                if key not in self._geom.dof_map:
-                    if debug: print('Cannot set dof for', key)
-                    continue
-
-                if type(self._geom.dof_map[key]) is int:
-                    P.resetJointState(self.body_id, self._geom.dof_map[key], dof_value_map[key])
-                else:
-                    for i, jnt_ind in enumerate(self._geom.dof_map[key]):
+            if type(self._geom.dof_map[key]) is int:
+                P.resetJointState(self.body_id, self._geom.dof_map[key], dof_value_map[key])
+            else:
+                for i, jnt_ind in enumerate(self._geom.dof_map[key]):
+                    if type(dof_value_map[key]) is int:
+                        val = dof_value_map[key]
+                    else:
                         ind = min(i, len(dof_value_map[key])-1)
-                        val = dof_value_map[key] if type(dof_value_map[key]) is int else dof_value_map[key][ind]
-                        P.resetJointState(self.body_id, self._geom.dof_map[key][i], val)
+                        val = dof_value_map[key][ind]
+                    P.resetJointState(self.body_id, jnt_ind, val)
 
     def _set_active_dof_inds(self, inds = None):
         """

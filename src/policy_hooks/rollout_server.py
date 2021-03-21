@@ -282,7 +282,9 @@ class RolloutServer(Server):
         if len(precond_viols):
             fail_type = 'rollout_precondition_failure'
             bad_pt = precond_viols[0]
-            train_pts.extend([tuple(pt) + (fail_type,) for pt in precond_viols])
+            #train_pts.extend([tuple(pt) + (fail_type,) for pt in precond_viols])
+            rand_ind = np.random.choice(range(len(precond_viols)))
+            train_pts.append(tuple(precond_viols[rand_ind]) + (fail_type,))
 
         if self.check_postcond or val < 1-1e-4:
             fail_type = 'rollout_postcondition_failure'
@@ -294,12 +296,14 @@ class RolloutServer(Server):
             ind = np.random.choice(range(len(switch_pts)))
             train_pts.append(tuple(switch_pts[ind]) + ('rollout_random_switch',))
 
-        if not len(expl_precond_viols) and self.check_midcond:
+        if self.check_midcond:
             bad_pt = switch_pts[-1]
             curtask = tuple([val for val in cur_tasks[-1] if np.isscalar(val)])
             #self.save_video(path[bad_pt[0]:], 0, lab='odd_midfail', st=bad_pt[1])
             plan = self.agent.plans[curtask]
             st = bad_pt[1]
+            x0 = path[bad_pt[0]].get(STATE_ENUM, st).copy()
+
             traj, steps, _, env_states = self.agent.reverse_retime(path[bad_pt[0]:], (0, plan.horizon-1), label=True, start_t=st)
             for t in range(len(traj)-1):
                 t = min(t, plan.horizon-1)
@@ -327,7 +331,7 @@ class RolloutServer(Server):
             #    self.suc_trajs.append((path[bad_pt[0]:], [], []))
 
             fail_t = max(0, fail_t)
-            fail_t = min(fail_t, plan.horizon-2)
+            fail_t = min(fail_t, plan.horizon-3)
             if len(failed_preds):
                 fail_type = 'rollout_midcondition_failure'
                 if fail_t < len(steps):
@@ -336,9 +340,8 @@ class RolloutServer(Server):
                     fail_s = bad_pt[0]
                 #self.failed_trajs.append((path[fail_s:], [], []))
 
-                x0 = path[bad_pt[0]].get(STATE_ENUM, st)
                 print('MID COND:', fail_s, fail_t, bad_pt, failed_preds, self.id)
-                initial, goal = self.agent.get_hl_info(x0, targets)
+                initial, goal = self.agent.get_hl_info(x0.copy(), targets)
                 plan.start = 0
                 new_node = LLSearchNode(plan.plan_str, 
                                         prob=plan.prob, 
@@ -530,12 +533,11 @@ class RolloutServer(Server):
                 rlen *= 2
         self.agent.T = 40 # self.config['task_durations'][self.task_list[0]]
         val, path = self.test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], eta=eta, lab=-5)
-        if not self.adj_eta:
-            self.adj_eta = True
-            adj_val, adj_path = self.test_run(x0, targets, rlen, hl=True, soft=True, eta=eta, lab=-10)
-            self.adj_eta = False
-        else:
-            adj_val = val
+        adj_val = val
+        #if not self.adj_eta:
+        #    self.adj_eta = True
+        #    adj_val, adj_path = self.test_run(x0, targets, rlen, hl=True, soft=True, eta=eta, lab=-10)
+        #    self.adj_eta = False
         true_disp = np.min(np.min([[self.agent.goal_f(0, step.get(STATE_ENUM, t), targets, cont=True) for t in range(step.T)] for step in path]))
         true_val = np.max(np.max([[1-self.agent.goal_f(0, step.get(STATE_ENUM, t), targets) for t in range(step.T)] for step in path]))
         smallest_tol = 2.
@@ -675,10 +677,10 @@ class RolloutServer(Server):
                     t = min(path[s].T-1, t)
                     state = path[s].get(STATE_ENUM, t)
 
-                initial, goal = self.agent.get_hl_info(state, targets)
+                initial, goal = self.agent.get_hl_info(state.copy(), targets)
                 concr_prob = node.concr_prob
                 abs_prob = self.agent.hl_solver.translate_problem(concr_prob, initial=initial, goal=goal)
-                set_params_attrs(concr_prob.init_state.params, self.agent.state_inds, state, 0)
+                set_params_attrs(concr_prob.init_state.params, self.agent.state_inds, state.copy(), 0)
                 hlnode = HLSearchNode(abs_prob,
                                       node.domain,
                                       concr_prob,

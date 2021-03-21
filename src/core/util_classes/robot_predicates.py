@@ -46,13 +46,10 @@ def init_robot_pred(pred, robot, params=[], robot_poses=[], attrs={}):
     pose_inds = []
     attr_inds[robot] = robot_inds
     for attr in attrs[robot]:
-        if attr in r_geom.arms:
+        if attr in r_geom.jnt_names:
             njnts = len(r_geom.jnt_names[attr])
             robot_inds.append((attr, np.array(range(njnts), dtype=np.int)))
             if len(robot_poses): pose_inds.append((attr, np.array(range(njnts), dtype=np.int)))
-        elif attr in list(r_geom.ee_link_names.values()):
-            robot_inds.append((attr, np.array(range(1), dtype=np.int)))
-            if len(robot_poses): pose_inds.append((attr, np.array(range(1), dtype=np.int)))
         elif attr.find('ee_pos') >= 0:
             robot_inds.append((attr, np.array(range(3), dtype=np.int)))
             if len(robot_poses): pose_inds.append((attr, np.array(range(3), dtype=np.int)))
@@ -257,8 +254,8 @@ class RobotPredicate(ExprPredicate):
             ub = np.zeros(3) 
         else:
             dof_inds = np.concatenate([dof_map[arm] for arm in geom.arms])
-            lb = np.zeros(3+sum([len(dof_map[arm]) for arm in geom.arms])+len(geom.grippers))
-            ub = np.zeros(3+sum([len(dof_map[arm]) for arm in geom.arms])+len(geom.grippers))
+            lb = np.zeros(3+sum([len(dof_map[arm]) for arm in geom.arms])+sum([geom.gripper_dim(arm) for arm in geom.arms]))
+            ub = np.zeros(3+sum([len(dof_map[arm]) for arm in geom.arms])+sum([geom.gripper_dim(arm) for arm in geom.arms]))
 
         if delta:
             base_move = geom.get_base_move_limit()
@@ -280,8 +277,8 @@ class RobotPredicate(ExprPredicate):
                 if delta:
                     gripper_lb, gripper_ub = -10, 10
                 else:
-                    gripper_lb = geom.get_gripper_closed_val()
-                    gripper_ub = geom.get_gripper_open_val()
+                    gripper_lb = -1 # geom.get_gripper_closed_val()
+                    gripper_ub = 1 # geom.get_gripper_open_val()
                 lb[cur_ind:cur_ind+ninds] = gripper_lb
                 ub[cur_ind:cur_ind+ninds] = gripper_ub
             elif ee_only:
@@ -1433,7 +1430,7 @@ class WithinJointLimit(RobotPredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.robot, = params
-        attrs = self.robot.geom.arms + self.robot.geom.grippers + ["pose"]
+        attrs = self.robot.geom.arms + ["pose"] + self.robot.geom.grippers
         attr_inds, attr_dim = init_robot_pred(self, self.robot, attrs={self.robot: attrs})
 
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
@@ -1669,17 +1666,20 @@ class InContact(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.robot = params
-        attr_inds = self.attr_inds
+        if not hasattr(self, 'arm'): self.arm = params[0].geom.arms[0]
+        self.gripper = params[0].geom.get_gripper(self.arm)
+        dim = params[0].geom.gripper_dim(self.arm)
+        attr_inds, attr_dim = init_robot_pred(self, params[0], [], attrs={params[0]:[self.gripper]})
 
-        A = np.eye(1).reshape((1,1))
-        b = np.zeros(1).reshape((1,1))
+        A = np.eye(dim)
+        b = np.zeros(dim).reshape((dim,1))
 
-        val = np.array([[self.GRIPPER_CLOSE]])
+        val = self.GRIPPER_CLOSE.reshape((dim,1))
         aff_expr = AffExpr(A, b)
         e = EqExpr(aff_expr, val)
 
         aff_expr = AffExpr(A, b)
-        val = np.array([[self.GRIPPER_OPEN]])
+        val = self.GRIPPER_OPEN.reshape((dim, 1))
         self.neg_expr = EqExpr(aff_expr, val)
 
         super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
@@ -1700,6 +1700,7 @@ class InContacts(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.robot = params
+        if not hasattr(self, 'arm'): self.arm = params[0].geom.arms[0]
         attr_inds = self.attr_inds
 
         A = np.eye(2).reshape((2,2))
@@ -1722,11 +1723,8 @@ class InContacts(ExprPredicate):
 
 class CloseGripper(InContact):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        if not hasattr(self, 'arm'): self.arm = params[0].geom.arms[0]
-        self.GRIPPER_CLOSE = params[0].geom.get_gripper_closed_val() # const.GRIPPER_CLOSE_VALUE
-        self.GRIPPER_OPEN = params[0].geom.get_gripper_open_val() # const.GRIPPER_OPEN_VALUE
-        gripper = params[0].geom.get_gripper(self.arm)
-        attr_inds, attr_dim = init_robot_pred(self, params[0], [], attrs={params[0]:[gripper]})
+        self.GRIPPER_CLOSE = np.array(params[0].geom.get_gripper_closed_val(scalar=False)) # const.GRIPPER_CLOSE_VALUE
+        self.GRIPPER_OPEN = np.array(params[0].geom.get_gripper_open_val(scalar=False)) # const.GRIPPER_OPEN_VALUE
         super(CloseGripper, self).__init__(name, params, expected_param_types, env, debug)
 
 class CloseGripperLeft(CloseGripper):

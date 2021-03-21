@@ -112,7 +112,11 @@ class MotionServer(Server):
 
         while cur_t >= 0:
             init_t = time.time()
-            success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=True, traj=node.ref_traj, st=cur_t)
+            x0 = None
+            if cur_t < len(node.ref_traj): x0 = node.ref_traj[cur_t]
+            if cur_t == 0: x0 = node.x0
+
+            success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=True, traj=node.ref_traj, st=cur_t, x0=x0)
             self.n_failed += 0. if success else 1.
             path = []
             #print('Time to plan:', time.time() - init_t)
@@ -122,7 +126,7 @@ class MotionServer(Server):
                     n_plans.value += 1
 
                 wt = self.explore_wt if node.label.lower().find('rollout') >= 0 or node.nodetype.find('dagger') >= 0 else 1.
-                path, log_info = self.agent.run_plan(plan, node.targets, permute=self.permute_hl, wt=wt, start_ts=cur_t, record=node.hl, label=node.nodetype)
+                path, log_info = self.agent.run_plan(plan, node.targets, permute=self.permute_hl, wt=wt, start_ts=cur_t, record=node.hl, label=node.nodetype, x0=x0)
                 for key in log_info:
                     self.opt_rollout_info[key].extend(log_info[key])
                 #if self.render and (self.id.find('r0') >= 0 or not path[-1].success and np.random.uniform() < 0.01):
@@ -138,7 +142,7 @@ class MotionServer(Server):
 
                 self.log_path(path, 10)
                 for step in path: step.source_label = node.nodetype
-                print(self.id, 'Successful refine from', node.label, plan.actions[0].name, 'rollout success was:', path[-1]._postsuc, path[-1].success, 'first ts:', plan.start, cur_t)
+                print(self.id, 'Successful refine from', node.label, plan.actions[0].name, 'rollout success was:', path[-1]._postsuc, path[-1].success, 'first ts:', plan.start, cur_t, len(node.ref_traj))
 
                 if path[-1].success:
                     n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_total']
@@ -166,7 +170,7 @@ class MotionServer(Server):
 
                 failed_preds = plan.get_failed_preds((prev_t, fail_step+fail_pred.active_range[1]), priority=-2)
                 if len(failed_preds):
-                    print('Refine failed with linear constr. viol.', node._trace)
+                    print('Refine failed with linear constr. viol.', node._trace, prev_t, plan.get_failed_preds((prev_t, prev_t+1), priority=0), len(node.ref_traj))
                     continue
 
                 print('Refine failed:', plan.get_failed_preds((0, fail_step+fail_pred.active_range[1])), fail_pred, fail_step, plan.actions, node.label, node._trace, prev_t)

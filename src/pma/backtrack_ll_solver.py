@@ -181,7 +181,7 @@ class BacktrackLLSolver(LLSolver):
         """
         sampler_begin
         """
-        robot_poses = self.obj_pose_suggester(plan, anum, resample_size=1)
+        robot_poses = self.obj_pose_suggester(plan, anum, resample_size=1, st=st)
 
         """
         sampler end
@@ -254,12 +254,12 @@ class BacktrackLLSolver(LLSolver):
         success = False
         if callback is not None:
             viewer = callback()
-        if force_init or not plan.initialized:
-            self._solve_opt_prob(plan, priority=-2, callback=callback,
-                active_ts=active_ts, verbose=verbose, init_traj=init_traj)
-            # self._solve_opt_prob(plan, priority=-1, callback=callback,
-            #     active_ts=active_ts, verbose=verbose)
-            plan.initialized=True
+        #if force_init or not plan.initialized:
+        #    self._solve_opt_prob(plan, priority=-2, callback=callback,
+        #        active_ts=active_ts, verbose=verbose, init_traj=init_traj)
+        #    # self._solve_opt_prob(plan, priority=-1, callback=callback,
+        #    #     active_ts=active_ts, verbose=verbose)
+        #    plan.initialized=True
 
         #if success or len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) == 0:
         #    return True
@@ -762,6 +762,13 @@ class BacktrackLLSolver(LLSolver):
             ## only add an action
             if action_start >= active_ts[1] and action_start > active_ts[0]: continue
             if action_end < active_ts[0]: continue
+
+            if action_start < active_ts[0]:
+                action_start = active_ts[0]
+
+            if action_end > active_ts[1]:
+                action_end = active_ts[1]
+
             for pred_dict in action.preds:
                 if action_start >= active_ts[0]:
                     self._add_pred_dict(pred_dict, [action_start],
@@ -770,7 +777,7 @@ class BacktrackLLSolver(LLSolver):
                     self._add_pred_dict(pred_dict, [action_end],
                                         priority=priority, add_nonlin=add_nonlin, verbose=verbose)
             ## add all of the linear ineqs
-            timesteps = list(range(max(action_start+1, active_ts[0]),
+            timesteps = list(range(max(action_start, active_ts[0]),
                               min(action_end, active_ts[1])))
             for pred_dict in action.preds:
                 self._add_pred_dict(pred_dict, timesteps, add_nonlin=False,
@@ -1007,7 +1014,12 @@ class BacktrackLLSolver(LLSolver):
         return None
 
     def find_closest_feasible(self, plan, active_ts, priority=MAX_PRIORITY):
-        plan.save_free_attrs()
+        free_attrs = plan.get_free_attrs()
+        for param in plan.params.values():
+            if param.is_symbol(): continue
+            for attr in param._free_attrs:
+                param._free_attrs[attr][:,active_ts[0]] = 1.
+
         model = grb.Model()
         model.params.OutputFlag = 0
         self._bexpr_to_pred = {}
@@ -1019,5 +1031,6 @@ class BacktrackLLSolver(LLSolver):
         succ = self._prob.find_closest_feasible_point()
         if succ:
             self._update_ll_params()
+        plan.store_free_attrs(free_attrs)
         return succ
 

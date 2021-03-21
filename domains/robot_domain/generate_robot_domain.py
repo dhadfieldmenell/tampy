@@ -12,7 +12,7 @@ Types: Robot, RobotPose, CollisionShape
 
 # Define the class location of each non-standard attribute type used in the above parameter type descriptions.
 
-Attribute Import Paths: Vector1d core.util_classes.matrix, Vector3d core.util_classes.matrix, ArmPose7d core.util_classes.matrix, Table core.util_classes.items, Box core.util_classes.items, Basket core.util_classes.items, Cloth core.util_classes.items, Can core.util_classes.items"""
+Attribute Import Paths: Vector1d core.util_classes.matrix, Vector2d core.util_classes.matrix, Vector3d core.util_classes.matrix, ArmPose7d core.util_classes.matrix, Table core.util_classes.items, Box core.util_classes.items, Basket core.util_classes.items, Cloth core.util_classes.items, Can core.util_classes.items"""
 robots = ['Baxter', 'Sawyer']
 for robot in robots:
     dom_str += ", {} core.util_classes.robots".format(robot)
@@ -89,8 +89,9 @@ for r in robots:
         attrs.append((arm, 'ArmPose{0}d'.format(njnts)))
         pose_attrs.append((arm, 'ArmPose{0}d'.format(njnts)))
         gripper = r_geom.get_gripper(arm)
-        attrs.append((gripper, 'Vector1d'))
-        pose_attrs.append((gripper, 'Vector1d'))
+        njnts = r_geom.gripper_dim(arm)
+        attrs.append((gripper, 'Vector{}d'.format(njnts)))
+        pose_attrs.append((gripper, 'Vector{}d'.format(njnts)))
         attrs.append(('{}_ee_pos'.format(arm), 'Vector3d'))
         attrs.append(('{}_ee_rot'.format(arm), 'Vector3d'))
         pose_attrs.append(('{}_ee_pos'.format(arm), 'Vector3d'))

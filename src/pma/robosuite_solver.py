@@ -98,7 +98,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         pose['rotation'] = targ_rot.reshape((-1,1))
         return pose
 
-    def obj_pose_suggester(self, plan, anum, resample_size=20):
+    def obj_pose_suggester(self, plan, anum, resample_size=20, st=0):
         robot_pose = []
         assert anum + 1 <= len(plan.actions)
 
@@ -109,7 +109,8 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         robot = act.params[0]
         robot_body = robot.openrave_body
-        st, et = act.active_timesteps
+        act_st, et = act.active_timesteps
+        st = max(act_st, st)
         zero_null = True
         if hasattr(plan, 'freeze_ts') and plan.freeze_ts > 0:
             st = max(st, plan.freeze_ts)

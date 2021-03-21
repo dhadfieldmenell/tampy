@@ -45,7 +45,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
     def freeze_rs_param(self, act):
         return False #True
 
-    def obj_pose_suggester(self, plan, anum, resample_size=1):
+    def obj_pose_suggester(self, plan, anum, resample_size=1, st=0):
         robot_pose = []
         assert anum + 1 <= len(plan.actions)
 
@@ -57,6 +57,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         robot = plan.params['pr2']
         robot_body = robot.openrave_body
         start_ts, end_ts = act.active_timesteps
+        start_ts = max(st, start_ts)
         old_pose = robot.pose[:, start_ts].reshape((2, 1))
         robot_body.set_pose(old_pose[:, 0])
         oldx, oldy = old_pose.flatten()
