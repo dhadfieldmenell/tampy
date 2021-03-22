@@ -784,8 +784,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         set_params_attrs(plan.params, self.state_inds, x0, st, plan=plan)
 
         xsaved = x0
+        ref_traj = traj
         for a in range(anum, len(plan.actions)):
-            act_st, act_et = plan.actions[a].active_timesteps
+            act_ts = plan.actions[a].active_timesteps
+            act_st, act_et = act_ts
             act_st = max(st, act_st)
             x0 = np.zeros_like(self.x0[0])
             fill_vector(plan.params, self.state_inds, x0, act_st)
@@ -794,13 +796,12 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             cost = 1.
             policy = self.policies[self.task_list[task[0]]]
             labels = None
-            if not len(traj) and rollout and self.policy_initialized(policy):
-                hor = act_et - act_st 
-                if self.retime: hor *= 4
+            if (a != anum or not len(traj)) and rollout and self.policy_initialized(policy):
+                hor = 2 * (act_et - act_st)
+                if self.retime: hor *= 2
                 sample = self.sample_task(policy, 0, x0.copy(), task, hor=hor, skip_opt=True)
                 cost = self.postcond_cost(sample, task, sample.T-1, x0=x0)
-                if self.retime:
-                    traj, _, labels, _ = self.reverse_retime([sample], (act_st, act_et), label=True)
+                ref_traj, _, labels, _ = self.reverse_retime([sample], (act_st, act_et), label=True)
                 
                 if cost < 1e-3:
                     self.optimal_samples[self.task_list[task[0]]].append(sample)
@@ -808,7 +809,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             self.set_symbols(plan, task, anum=a, st=act_st)
             try:
                 #success = self.ll_solver.find_closest_feasible(plan, (st,st), priority=-2)
-                success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=traj[act_st:], st=act_st)
+                success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=ref_traj, st=act_st)
                 if self.traj_smooth:
                     plan.backup_params()
                     suc = self.ll_solver.traj_smoother(plan)
@@ -1181,16 +1182,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
     
     def reverse_retime(self, samples, ts, label=False, start_t=0):
-        T = sum([s.T for s in samples])
-        if T - start_t <= ts[1] - ts[0]:
-            if label:
-                env_states = []
-                for s in samples:
-                    env_states.extend([s.env_state.get(t, None) for t in range(s.T)])
-                return np.concatenate([s.get(STATE_ENUM) for s in samples]), [], [], env_states
-            return np.concatenate([s.get(STATE_ENUM) for s in samples], axis=0)
-
-        ts = np.linspace(start_t, T, ts[1]-ts[0]+1)
+        T = sum([s.T-1 for s in samples]) + 1
+        ts_range = np.linspace(start_t, T, ts[1]-ts[0]+1)
         cur_s, cur_t = 0, start_t
         cur_offset = 0
         traj = []
@@ -1198,7 +1191,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         labels = []
         rev_labels = [0]
         prev_t = cur_t
-        for ind, t in enumerate(ts):
+        for ind, t in enumerate(ts_range):
             t = int(t)
             cur_t = t - cur_offset
             if ind == len(ts)-1 or (cur_s >= len(samples) - 1 and cur_t >= samples[cur_s].T):
@@ -1207,6 +1200,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             elif cur_t >= samples[cur_s].T:
                 cur_t = 0
                 cur_s += 1
+
             sample = samples[cur_s]
             traj.append(sample.get(STATE_ENUM, t=cur_t))
             env_state.append(sample.env_state.get(cur_t, None))

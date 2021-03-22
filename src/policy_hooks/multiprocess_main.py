@@ -77,7 +77,12 @@ class MultiProcessMain(object):
             self.pol_list = ('control',) if not config['args'].split_nets else tuple(get_tasks(task_file).keys())
             config['main'] = self
         else:
-            self.init(config)
+            setup_dirs(config, config['args'])
+            task_file = config.get('task_map_file', '')
+            self.pol_list = ('control',) if not config['args'].split_nets else tuple(get_tasks(task_file).keys())
+            new_config, config_mod = load_config(config['args'])
+            new_config.update(config)
+            self.init(new_config)
             self.check_dirs()
 
     def init(self, config):
@@ -280,7 +285,7 @@ class MultiProcessMain(object):
                 'image_channels': self.config['image_channels'],
                 'sensor_dims': self.sensor_dims,
                 'n_layers': self.config['prim_n_layers'],
-                'num_filters': [32, 32, 32],
+                'num_filters': [32, 32, 16],
                 'filter_sizes': [5, 5, 5],
                 'dim_hidden': self.config['prim_dim_hidden'],
                 'output_boundaries': self.config['prim_bounds'],
@@ -460,23 +465,25 @@ class MultiProcessMain(object):
         return p
 
 
-    def hl_only_retrain(self, hyperparams):
+    def hl_only_retrain(self):
         software_constants.USE_ROS = False
-        hyperparams['run_mcts_rollouts'] = False
-        hyperparams['run_alg_updates'] = False
-        hyperparams['run_hl_test'] = True
-        hyperparams['share_buffers'] = True
+        hyperparams = self.config
         hyperparams['id'] = 'test'
         hyperparams['scope'] = 'primitive'
         descr = hyperparams.get('descr', '')
         self.allocate_shared_buffers(hyperparams)
         self.allocate_queues(hyperparams)
+        hyperparams['policy_opt']['share_buffer'] = True
+        hyperparams['policy_opt']['buffers'] = hyperparams['buffers']
+        hyperparams['policy_opt']['buffer_sizes'] = hyperparams['buffer_sizes']
         server = PolicyServer(hyperparams)
         server.agent = hyperparams['agent']['type'](hyperparams['agent'])
         ll_dir = hyperparams['ll_policy']
         hl_dir = hyperparams['hl_data']
         print(('Launching hl retrain from', ll_dir, hl_dir))
-        hl_retrain.retrain_hl_from_samples(server, hl_dir)
+        #hl_retrain.retrain_hl_from_samples(server, hl_dir)
+        server.data_gen.load_from_dir(DIR_KEY+hl_dir)
+        server.run()
 
 
     def hl_retrain(self, hyperparams):

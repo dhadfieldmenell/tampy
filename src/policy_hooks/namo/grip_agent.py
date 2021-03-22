@@ -832,8 +832,9 @@ class NAMOGripAgent(NAMOSortingAgent):
         return new_traj
 
 
-    def set_symbols(self, plan, task, anum=0, cond=0, targets=None):
-        st, et = plan.actions[anum].active_timesteps
+    def set_symbols(self, plan, task, anum=0, cond=0, targets=None, st=0):
+        act_st, et = plan.actions[anum].active_timesteps
+        st = max(act_st, st)
         if targets is None:
             targets = self.target_vecs[cond].copy()
         prim_choices = self.prob.get_prim_choices(self.task_list)

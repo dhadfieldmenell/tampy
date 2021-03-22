@@ -242,14 +242,15 @@ def main():
             c['weight_dir'] = old_dir
             current_id = 0 # setup_dirs(c, args)
 
-            m = MultiProcessMain(c, load_at_spawn=True)
-            m.monitor = False # If true, m will wait to finish before moving on
-            m.group_id = current_id
             if args.hl_retrain:
-                m.hl_retrain(c)
-            elif args.hl_only_retrain:
-                m.hl_only_retrain(c)
+                m = MultiProcessMain(c, load_at_spawn=False)
+                m.monitor = False # If true, m will wait to finish before moving on
+                m.group_id = current_id
+                m.hl_only_retrain()
             else:
+                m = MultiProcessMain(c, load_at_spawn=True)
+                m.monitor = False # If true, m will wait to finish before moving on
+                m.group_id = current_id
                 m.start()
             mains.append(m)
             time.sleep(1)
@@ -303,6 +304,7 @@ def argsparser():
     parser.add_argument('-render', '--load_render', action='store_true', default=False)
     parser.add_argument('-retime', '--retime', action='store_true', default=False)
     parser.add_argument('-vel', '--velocity', type=float, default=0.3)
+    parser.add_argument('-save_data', '--save_data', action='store_true', default=False)
 
     # Previous policy directories
     parser.add_argument('-llpol', '--ll_policy', type=str, default='')
@@ -335,7 +337,7 @@ def argsparser():
     # HL args
     parser.add_argument('-check_t', '--check_prim_t', type=int, default=1)
     parser.add_argument('-n_resample', '--n_resample', type=int, default=5)
-    parser.add_argument('-ff', '--ff_thresh', type=float, default=0)
+    parser.add_argument('-ff', '--ff_thresh', type=float, default=1.)
     parser.add_argument('-hlfeed', '--hl_feedback_thresh', type=float, default=0.)
     parser.add_argument('-ff_only', '--ff_only', action='store_true', default=False)
     parser.add_argument('-hl_post', '--hl_post', action='store_true', default=False)
