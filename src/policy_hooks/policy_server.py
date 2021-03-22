@@ -183,12 +183,12 @@ class PolicyServer(object):
                 if len(self.train_losses['all']) and len(self.val_losses['all']):
                     ratio = np.mean(self.val_losses['all'][-5:]) / np.mean(self.train_losses['all'][-5:])
                     self.cur_ratio = ratio
-                    if ratio < 1.1:
+                    if ratio < 1.2:
                         self.policy_opt.cur_dec *= 0.975
-                    elif ratio > 1.4:
+                    elif ratio > 1.7:
                         self.policy_opt.cur_dec *= 1.025
                     self.policy_opt.cur_dec = max(self.policy_opt.cur_dec, 1e-12)
-                    self.policy_opt.cur_dec = min(self.policy_opt.cur_dec, 1e1)
+                    self.policy_opt.cur_dec = min(self.policy_opt.cur_dec, 1e-1)
 
             for lab in ['optimal', 'rollout']:
                 mu, obs, prc = self.data_gen.get_batch(label=lab, val=True)
@@ -204,8 +204,9 @@ class PolicyServer(object):
                 n_val = self.data_gen.get_size(val=True)
                 print('Ran', self.iters, 'updates on', self.task, 'with', n_train, 'train and', n_val, 'val')
 
-            if not self.iters % 10:
-                self.data_gen.write_data(n_data=1024)
+            if self.config['save_data']:
+                if not self.iters % 10 and self.task == 'primitive':
+                    self.data_gen.write_data(n_data=1024)
 
             if not self.iters % 10 and len(self.val_losses['all']):
                 with open(self.policy_opt_log, 'a+') as f:
@@ -242,6 +243,9 @@ class PolicyServer(object):
                 'reg_val': self.policy_opt.cur_dec,
                 'loss_ratio': self.cur_ratio,
                 }
+        
+        for key in self.data_gen.items:
+            info['n_train_{}'.format(key)] = len(self.data_gen.items[key])
 
         for key in self.policy_opt.buf_sizes:
             if key.find('n_') >= 0:

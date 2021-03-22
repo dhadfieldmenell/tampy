@@ -957,8 +957,13 @@ class BacktrackLLSolver(LLSolver):
     def _get_fixed_transfer_obj(self, plan, norm, mean, coeff=None, active_ts=None):
         if active_ts is None:
             active_ts = (0, plan.horizon-1)
+
         if not len(mean) or not hasattr(plan, 'state_inds'):
             print('Cannot add fixed transfer; no data')
+            return []
+
+        if len(mean) < active_ts[1] - active_ts[0]:
+            print('Cannot add fixed transfer; insufficient data', len(mean), active_ts, plan.actions)
             return []
 
         if coeff is None:
@@ -969,6 +974,7 @@ class BacktrackLLSolver(LLSolver):
             for p_name, attr_name in plan.state_inds:
                 param = plan.params[p_name]
                 if param.is_symbol(): continue
+
                 attr_type = param.get_attr_type(attr_name)
                 param_ll = self._param_to_ll[param]
                 K = attr_type.dim
@@ -985,17 +991,13 @@ class BacktrackLLSolver(LLSolver):
                 KT = K*T
                 v = -1 * np.ones((KT - K, 1))
                 d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
-                # [:,0] allows numpy to see v and d as one-dimensional so
-                # that numpy will create a diagonal matrix with v and d as a diagonal
                 P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
-                # P = np.eye(KT)
                 Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
                 cur_val = attr_val.reshape((KT, 1), order='F')
                 A = -2*cur_val.T.dot(Q)
                 b = cur_val.T.dot(Q.dot(cur_val))
                 transfer_coeff = coeff/float(plan.horizon)
 
-                # QuadExpr is 0.5*x^Tx + Ax + b
                 quad_expr = QuadExpr(2*transfer_coeff*Q,
                                      transfer_coeff*A, transfer_coeff*b)
                 ll_attr_val = getattr(param_ll, attr_name)[:, :T]
@@ -1005,7 +1007,6 @@ class BacktrackLLSolver(LLSolver):
                 transfer_objs.append(bexpr)
 
         return transfer_objs
-
 
     def _add_col_obj(self, plan, norm='min-vel', coeff=None, active_ts=None):
         return []

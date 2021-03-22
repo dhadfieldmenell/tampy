@@ -80,34 +80,11 @@ class MotionServer(Server):
         start_t = time.time()
         if node is None: return
 
-        #node.gen_plan(self.agent.hl_solver, self.agent.openrave_bodies, self.agent.ll_solver)
-        #plan = node.curr_plan
         plan = self.gen_plan(node)
-        if type(plan) is str: return
-        if not len(plan.actions):
-            print('0-LENGTH PLAN!')
-            return
+        if type(plan) is str or not len(plan.actions): return
 
-        #for a in range(min(len(plan.actions), plan.start+1)):
-        #    task = self.agent.encode_action(plan.actions[a])
-        #    self.agent.set_symbols(plan, task, a, targets=node.targets)
-        #
-        #plan.start = min(plan.start, len(plan.actions)-1)
-        #ts = (0, plan.actions[plan.start].active_timesteps[0])
-        #try:
-        #    failed_prefix = plan.get_failed_preds(active_ts=ts, tol=1e-3)
-        #except Exception as e:
-        #    failed_prefix = ['ERROR IN FAIL CHECK', e]
-
-        #if len(failed_prefix):
-        #    print('BAD PREFIX! -->', plan.actions[:plan.start], 'FAILED', failed_prefix, node._trace)
-        #    plan.start = 0
-
-        #ts = (0, plan.actions[plan.start].active_timesteps[0])
-        #set_params_attrs(plan.params, self.agent.state_inds, node.x0, ts[1])
-        #plan.freeze_actions(plan.start)
         cur_t = node.freeze_ts if node.freeze_ts >= 0 else 0
-        cur_step = 3
+        cur_step = 2
         self.n_plans += 1
 
         while cur_t >= 0:
@@ -119,7 +96,6 @@ class MotionServer(Server):
             success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=True, traj=node.ref_traj, st=cur_t, x0=x0)
             self.n_failed += 0. if success else 1.
             path = []
-            #print('Time to plan:', time.time() - init_t)
             if success:
                 n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
                 with n_plans.get_lock():
@@ -129,8 +105,6 @@ class MotionServer(Server):
                 path, log_info = self.agent.run_plan(plan, node.targets, permute=self.permute_hl, wt=wt, start_ts=cur_t, record=node.hl, label=node.nodetype, x0=x0)
                 for key in log_info:
                     self.opt_rollout_info[key].extend(log_info[key])
-                #if self.render and (self.id.find('r0') >= 0 or not path[-1].success and np.random.uniform() < 0.01):
-                #    self.save_video(path, path[-1].success)
 
                 if self.render and self.id.find('0') >= 0:
                     if len(plan.actions) == 1:
@@ -149,13 +123,11 @@ class MotionServer(Server):
                     with n_plans.get_lock():
                         n_plans.value += 1
 
-                #if not path[-1].success:
-                #    with open('{}.pkl'.format(self.id), 'wb+') as f:
-                #        pickle.dump(plan, f)           
-
             self.log_node_info(node, success, path)
             prev_t = cur_t
             cur_t -= cur_step
+            if success and len(path) and path[-1].success: continue
+
             while len(plan.get_failed_preds((cur_t, cur_t))) and cur_t > 0:
                 cur_t -= 1
 
@@ -197,14 +169,6 @@ class MotionServer(Server):
         step = 0
         while not self.stopped:
             node = self.pop_queue(self.in_queue)
-            #if node is None:
-            #    hlnode = self.spawn_problem()
-            #    self.push_queue(hlnode, self.task_queue)
-            #    time.sleep(1.)
-            #else:
-            #    self.set_policies()
-            #    self.refine_plan(node)
-
             if node is None:
                 time.sleep(0.01)
                 continue

@@ -1,9 +1,10 @@
 import numpy as np
+import os
 import queue
 import time
 
 
-MAX_BUFFER = 250000
+MAX_BUFFER = 300000
 
 class DataLoader(object):
     def __init__(self, config, task, in_queue, batch_size, normalize=False, policy=None, x_idx=None, aug_f=None, min_buffer=10**3, feed_in_policy=None, feed_prob=0., feed_inds=(None, None), feed_map=None, save_dir=None):
@@ -31,7 +32,26 @@ class DataLoader(object):
         self.save_dir = save_dir
         self.cur_save = 0
 
-    
+
+    def load_from_dir(self, dname):
+        fnames = os.listdir(dname+'/samples/')
+        fnames = list(filter(lambda f: f.find(self.task) >= 0, fnames))
+        start_t = time.time()
+        if 'optimal' not in self.items:
+            self.items['optimal'] = []
+            self.val_items['optimal'] = []
+        print('LOADING DATA FROM {} FILES'.format(len(fnames)))
+        for fname in fnames:
+            full_fname = dname+'/samples/'+fname
+            data = np.load(full_fname, allow_pickle=True)
+            data = data[None][0]
+            if fname.find('val') >= 0:
+                self.val_items['optimal'].extend(data['optimal'])
+            else:
+                self.items['optimal'].extend(data['optimal'])
+        print('TIME TO LOAD:', time.time() - start_t, len(self.items['optimal']))
+
+
     def write_data(self, n_data=None):
         if n_data is not None:
             lab = 'optimal'
@@ -183,16 +203,16 @@ class DataLoader(object):
 
     def set_scale(self):
         if self.scale is not None: return self.scale, self.bias
-        obs = []
-        for label in self.items:
-            for item in self.items[label]:
-                obs.append(item[0])
-        obs = np.array(obs)
 
         if not self.normalize:
             self.scale = np.eye(len(self.x_idx))
             self.bias = np.zeros(len(self.x_idx))
         else:
+            obs = []
+            for label in self.items:
+                for item in self.items[label]:
+                    obs.append(item[0])
+            obs = np.array(obs)
             self.scale = np.diag(1.0 / np.maximum(np.std(obs[:, self.x_idx], axis=0), 1e-1))
             self.bias = -np.mean(obs[:, self.x_idx].dot(self.scale), axis=0)
         self.policy.scale = self.scale
