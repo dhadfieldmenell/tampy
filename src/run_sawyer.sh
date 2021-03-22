@@ -16,7 +16,7 @@ do
                                                        -rollout 24 \
                                                        --load_render \
                                                        -warm 200 \
-                                                       -descr sat_redo_sawyer_neg_pick & 
+                                                       -descr mon_redo_sawyer_neg_jnt_pick & 
         sleep 6h
         pkill -f run_train -9
         pkill -f ros -9
@@ -37,7 +37,7 @@ do
                                                        -rollout 24 \
                                                        --load_render \
                                                        -warm 200 \
-                                                       -descr sat_redo_withrot_sawyer_pick & 
+                                                       -descr mon_redo_withrot_sawyer_jnt_pick & 
         sleep 6h
         pkill -f run_train -9
         pkill -f ros -9

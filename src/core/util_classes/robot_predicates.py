@@ -2295,7 +2295,7 @@ class ApproachRightRot(EEReachableRightRot):
 class NearApproachRightRot(ApproachRightRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         # self.f_tol = 0.04
-        self.coeff = 5e-3
+        self.coeff = 2e-3
         super(NearApproachRightRot, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 

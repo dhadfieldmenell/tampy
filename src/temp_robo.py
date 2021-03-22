@@ -40,9 +40,19 @@ def theta_error(cur_quat, next_quat):
 
 ctrl_mode = "JOINT_POSITION"
 true_mode = 'JOINT'
+
+ctrl_mode = 'OSC_POSE'
+true_mode = 'IK'
+
 controller_config = load_controller_config(default_controller=ctrl_mode)
 if ctrl_mode.find('JOINT') >= 0:
     controller_config['kp'] = [7500, 6500, 6500, 6500, 6500, 6500, 12000]
+else:
+    controller_config['kp'] = 5000 # [8000, 8000, 8000, 4000, 4000, 4000]
+    controller_config['input_max'] = 0.2 #[0.05, 0.05, 0.05, 4, 4, 4]
+    controller_config['input_min'] = -0.2 # [-0.05, -0.05, -0.05, -4, -4, -4]
+    controller_config['output_max'] = 0.02 # [0.1, 0.1, 0.1, 2, 2, 2]
+    controller_config['output_min'] = -0.02 # [-0.1, -0.1, -0.1, -2, -2, -2]
 
 has_render = False # True
 env = robosuite.make(
@@ -72,8 +82,6 @@ for _ in range(40):
         env.step(np.zeros(8))
     else:
         env.step(np.zeros(7))
-    env.sim.data.qacc[:] = 0
-    env.sim.data.qvel[:] = 0
     env.sim.data.qpos[:7] = jnts 
     env.sim.forward()
 
@@ -183,7 +191,7 @@ for t in range(plan.horizon):
         #angle = robosuite.utils.transform_utils.quat2axisangle(quat)
 
         rgrip = sawyer.right_gripper[0,t]
-        act = np.r_[pos, quat, [-1e1*rgrip]]
+        act = np.r_[pos, quat, [-rgrip]]
         #act = np.r_[pos, angle, [-rgrip]]
         #act = np.r_[sawyer.right[:,t], [-rgrip]]
     cmds.append(act)
@@ -191,7 +199,7 @@ for t in range(plan.horizon):
 grip_ind = env.mjpy_model.site_name2id('gripper0_grip_site')
 hand_ind = env.mjpy_model.body_name2id('robot0_right_hand')
 env.reset()
-env.sim.data.qpos[cereal_ind:cereal_ind+3] = plan.params['cereal'].pose[:,0]
+env.sim.data.qpos[cereal_ind:cereal_ind+3] = plan.params['cereal'].pose[:,0] + [0, 0, 0.055]
 env.sim.data.qpos[cereal_ind+3:cereal_ind+7] = T.euler_to_quaternion(plan.params['cereal'].rotation[:,0], 'wxyz')
 env.sim.data.qpos[:7] = params['sawyer'].right[:,0]
 env.sim.data.qacc[:] = 0
@@ -204,12 +212,9 @@ for _ in range(40):
         env.step(np.zeros(8))
     else:
         env.step(np.zeros(7))
-    env.sim.data.qacc[:] = 0
-    env.sim.data.qacc_warmstart[:] = 0
-    env.sim.data.qvel[:] = 0
+
     env.sim.data.qpos[:7] = params['sawyer'].right[:,0]
     env.sim.forward()
-    if has_render: env.render()
 
 nsteps = 50
 cur_ind = 0
@@ -234,19 +239,19 @@ for act in plan.actions:
     oldctrl = env.sim.data.ctrl[:]
     #failed_preds = [p for p in failed_preds if (p[1]._rollout or not type(p[1].expr) is EqExpr)]
     print('FAILED:', t, failed_preds, act.name)
-    #import ipdb; ipdb.set_trace()
     old_state = env.sim.get_state()
-    env.sim.reset()
-    env.sim.data.qpos[:7] = plan.params['sawyer'].right[:,t]
-    env.sim.data.qpos[cereal_ind:cereal_ind+3] = plan.params['cereal'].pose[:,t]
-    env.sim.data.qpos[cereal_ind+3:cereal_ind+7] = cereal_quat
-    env.sim.data.qpos[7:9] = grip
-    env.sim.data.qacc[:] = 0. #oldacc
-    env.sim.data.qacc_warmstart[:] = 0.#oldwarm
-    env.sim.data.qvel[:] = 0.
-    env.sim.data.ctrl[:] = 0.#oldctrl
-    env.sim.data.qfrc_applied[:] = 0.#oldqfrc
-    env.sim.data.xfrc_applied[:] = 0.#oldxfrc
+    import ipdb; ipdb.set_trace()
+    #env.sim.reset()
+    #env.sim.data.qpos[:7] = plan.params['sawyer'].right[:,t]
+    #env.sim.data.qpos[cereal_ind:cereal_ind+3] = plan.params['cereal'].pose[:,t]
+    #env.sim.data.qpos[cereal_ind+3:cereal_ind+7] = cereal_quat
+    #env.sim.data.qpos[7:9] = grip
+    #env.sim.data.qacc[:] = 0. #oldacc
+    #env.sim.data.qacc_warmstart[:] = 0.#oldwarm
+    #env.sim.data.qvel[:] = 0.
+    #env.sim.data.ctrl[:] = 0.#oldctrl
+    #env.sim.data.qfrc_applied[:] = 0.#oldqfrc
+    #env.sim.data.xfrc_applied[:] = 0.#oldxfrc
     #env.sim.forward()
     #env.sim.set_state(old_state)
     #env.sim.forward()
@@ -283,7 +288,7 @@ for act in plan.actions:
             #print('END ERROR:', act[:7], true_act[:7]-env.sim.data.qpos[:7])
             #print('JNT_DELTA:', true_act[:7] - init_jnts)
             #print('PLAN VS SIM:', end_jnts, sawyer.right[:,t])
-            print('EE PLAN VS SIM:', env.sim.data.site_xpos[grip_ind], sawyer.right_ee_pos[:,t], t)
+            print('EE PLAN VS SIM:', env.sim.data.site_xpos[grip_ind]-sawyer.right_ee_pos[:,t], t)
             #print('\n\n\n')
 
         else:
@@ -324,9 +329,8 @@ for act in plan.actions:
                 #act[3:6] -= robosuite.utils.transform_utils.quat2axisangle(cur)
                 #act[:7] = (act[:7] - np.array([env.sim.data.qpos[ind] for ind in sawyer_inds]))
                 obs = env.step(act)
-        #print('ANGLE:', t, angle, targ, cur)
-        #print(base_act[:3], env.sim.data.body_xpos[hand_ind], env.sim.data.site_xpos[grip_ind])
-        #print('CEREAL:', t, plan.params['cereal'].pose[:,t], env.sim.data.qpos[cereal_ind:cereal_ind+3])
+            print('CEREAL, GRIP', env.sim.data.qpos[cereal_ind:cereal_ind+3], env.sim.data.qpos[7:9], env.sim.data.site_xpos[grip_ind], plan.params['cereal'].pose[:,t])
+            print('EE PLAN VS SIM:', env.sim.data.site_xpos[grip_ind]-sawyer.right_ee_pos[:,t], t)
         if has_render: env.render()
     #import ipdb; ipdb.set_trace()
 plan.params['sawyer'].right[:,t] = env.sim.data.qpos[:7]

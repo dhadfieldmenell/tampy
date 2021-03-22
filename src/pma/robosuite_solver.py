@@ -13,7 +13,7 @@ from pma import backtrack_ll_solver
 
 REF_JNTS = np.array([0, -np.pi/4, 0, np.pi/4, 0, np.pi/2, 0])
 REF_JNTS = np.array([0, -np.pi/3, 0, np.pi/3, 0, np.pi/2, 0])
-REF_JNTS = np.array([0, -np.pi/3, 0, np.pi/6, 0, 2*np.pi/3, 0])
+#REF_JNTS = np.array([0, -np.pi/3, 0, np.pi/6, 0, 2*np.pi/3, 0])
 
 class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):

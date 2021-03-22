@@ -84,7 +84,7 @@ class optimal_pol:
                 cur_val = X[self.state_inds[param, attr]] if (param, attr) in self.state_inds else None
                 if attr.find('grip') >= 0:
                     val = self.opt_traj[t+1, self.state_inds[param, attr]][0]
-                    val = 1. if val <= 0 else -1. #0.020833 if val <= 0. else -0.020833
+                    val = 0.1 if val <= 0. else -0.1
                     u[self.action_inds[param, attr]] = val 
                 elif attr.find('ee_pos') >= 0:
                     cur_ee = cur_val if cur_val is not None else self.opt_traj[t, self.state_inds[param, attr]]
@@ -110,7 +110,7 @@ class optimal_pol:
             for param, attr in self.action_inds:
                 if attr.find('grip') >= 0:
                     val = self.opt_traj[-1, self.state_inds[param, attr]][0]
-                    val = 1. if val <= 0 else -1. #0.020833 if val <= 0. else -0.020833
+                    val = 0.1 if val <= 0. else -0.1
                     u[self.action_inds[param, attr]] = val 
         if np.any(np.isnan(u)):
             u[np.isnan(u)] = 0.
@@ -305,14 +305,22 @@ class RobotAgent(TAMPAgent):
 
         self.optimal_pol_cls =  optimal_pol
         self.load_render = hyperparams['master_config'].get('load_render', False)
-        self.ctrl_mode = 'joint' #if ('sawyer', 'right') in self.action_inds else 'ee_pos'
+        self.ctrl_mode = 'joint' if ('sawyer', 'right') in self.action_inds else 'ee_pos'
         if self.ctrl_mode.find('joint') >= 0:
             controller_config = load_controller_config(default_controller="JOINT_POSITION")
             controller_config['kp'] = [7500, 6500, 6500, 6500, 6500, 6500, 12000]
             controller_config['output_max'] = 0.2
             controller_config['output_min'] = -0.2
+            freq = 50
         else:
             controller_config = load_controller_config(default_controller="OSC_POSE")
+            controller_config['kp'] = 5000
+            controller_config['input_max'] = 0.2
+            controller_config['input_min'] = -0.2
+            controller_config['output_max'] = 0.02
+            controller_config['output_min'] = -0.02
+            freq = 40
+
         self.base_env = robosuite.make(
                 "PickPlace",
                 robots=["Sawyer"],             # load a Sawyer robot and a Panda robot
@@ -321,7 +329,7 @@ class RobotAgent(TAMPAgent):
                 has_renderer=False,                      # on-screen rendering
                 render_camera="frontview",              # visualize the "frontview" camera
                 has_offscreen_renderer=self.load_render,           # no off-screen rendering
-                control_freq=50,                        # 20 hz control for applied actions
+                control_freq=freq,                        # 20 hz control for applied actions
                 horizon=300,                            # each episode terminates after 200 steps
                 use_object_obs=True,                   # no observations needed
                 use_camera_obs=False,                   # no observations needed
@@ -485,41 +493,19 @@ class RobotAgent(TAMPAgent):
         factor = (np.array(true_ub) - np.array(true_lb)) / 5
         n_steps = 40
         if 'right_ee_pos' in ctrl:
-            cur_jnts = self.mjc_env.get_attr('sawyer', 'right')
-            cur_pos = self.mjc_env.get_attr('sawyer', 'right_ee_pos')
-            targ_pos = cur_pos + ctrl['right_ee_pos']
-            ctrl_rot = Rotation.from_rotvec(ctrl['right_ee_rot'])
-            cur_quat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
-            targrot = (ctrl_rot * Rotation.from_quat(cur_quat)).as_quat()
-            cur_base_pos = self.mjc_env.get_attr('sawyer', 'pose')
-            sawyer.openrave_body.set_dof(cur_base_pos)
-            sawyer.openrave_body.set_dof({'right': REF_JNTS})
-            lb = cur_jnts - factor
-            ub = cur_jnts + factor
-            targ_jnts = sawyer.openrave_body.get_ik_from_pose(targ_pos, targrot, 'right', bnds=(lb, ub))
-            ctrl['right'] = targ_jnts - cur_jnts
-
-            #n_steps = 50
-            ##ctrl['right_ee_pos'] = np.clip(ctrl['right_ee_pos'], -STEP, STEP)
-            #targ_pos = self.mjc_env.get_attr('sawyer', 'right_ee_pos') + ctrl['right_ee_pos']
-            #rotoff = Rotation.from_rotvec(ctrl['right_ee_rot'])
-            #curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
-            #targrot = (rotoff * Rotation.from_quat(curquat)).as_quat()
-            #pos_mult = 1e2#1e2#5e2
-            #rot_mult = 1e2#5e2
-            #scale = 1. # 0.975
-            #for n in range(n_steps+1):
-            #    curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
-            #    pos_ctrl = pos_mult * (targ_pos - self.mjc_env.get_attr('sawyer', 'right_ee_pos'))
-            #    sign1 = np.sign(targrot[np.argmax(np.abs(targrot))])
-            #    sign2 = np.sign(curquat[np.argmax(np.abs(curquat))])
-            #    rot_ctrl = -sign1 * sign2 * rot_mult * robo_T.get_orientation_error(sign1*targrot, sign2*curquat)
-            #    self.cur_obs = self.base_env.step(np.r_[pos_ctrl, rot_ctrl, [gripper]])
-            #    pos_mult *= scale
-            #    rot_mult *= scale
-            #    #if np.max(np.abs(pos_ctrl)) < pos_mult * 0.005 \
-            #    #   and np.max(np.abs(rot_ctrl)) < rot_mult * 0.005:
-            #    #       break
+            n_steps = 50
+            gripper /= 2
+            targ_pos = self.mjc_env.get_attr('sawyer', 'right_ee_pos') + ctrl['right_ee_pos']
+            rotoff = Rotation.from_rotvec(ctrl['right_ee_rot'])
+            curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
+            targrot = (rotoff * Rotation.from_quat(curquat)).as_quat()
+            for n in range(n_steps+1):
+                curquat = self.mjc_env.get_attr('sawyer', 'right_ee_rot', euler=False)
+                pos_ctrl = targ_pos - self.mjc_env.get_attr('sawyer', 'right_ee_pos')
+                sign1 = np.sign(targrot[np.argmax(np.abs(targrot))])
+                sign2 = np.sign(curquat[np.argmax(np.abs(curquat))])
+                rot_ctrl = -sign1 * sign2 * robo_T.get_orientation_error(sign1*targrot, sign2*curquat)
+                self.cur_obs = self.base_env.step(np.r_[pos_ctrl, rot_ctrl, [gripper]])
 
         if 'right' in ctrl:
             #ctrl['right'][:6] = np.clip(ctrl['right'][:6], -0.1, 0.1)
