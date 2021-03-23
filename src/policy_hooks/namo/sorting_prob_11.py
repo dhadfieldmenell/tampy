@@ -60,7 +60,7 @@ n_aux = 4
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25
 #possible_can_locs.extend(list(itertools.product(list(range(-60, 60, 2)), list(range(-70, -20, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-70, 70, 2)), list(range(-80, -20, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-70, 70, 2)), list(range(-70, -20, 2)))))
 
 
 for i in range(len(possible_can_locs)):

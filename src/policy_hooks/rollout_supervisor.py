@@ -27,7 +27,7 @@ class RolloutSupervisor():
         self.reset()
         self.cur_vid_id = 0
         self.t_per_task = 20
-        self.s_per_task = 3
+        self.s_per_task = 4
         if self.agent.retime:
             self.s_per_task *= 3
 
@@ -70,37 +70,28 @@ class RolloutSupervisor():
         postcost = None
         precost = None
         if self.check_postcond:
-            postcost = self.agent.postcond_cost(sample, curtask, t, x0=self.switch_x[-1])
-            if task == curtask and postcost < 1e-4:
-                self.postcond_viols.append((self.cur_ids[-1], t))
+            postcost = self.agent.postcond_cost(sample, task, t, x0=self.switch_x[-1], tol=self.tol)
+            if postcost < 1e-4:
                 if self.neg_postcond: self.neg_samples.append((sample, t, truetask))
 
-        #    n_tries = 0
-        #    postcost = self.agent.postcond_cost(sample, curtask, t)
-        #    #cur_eta = self.eta
-        #    #eta_scale = 0.9
-        #    #while n_tries < 10 and task == curtask and postcost < 1e-3:
-        #    #    task = self.get_task(sample.get_X(t=t), sample.targets, curtask, True, eta=cur_eta)
-        #    #    cur_eta *= eta_scale
-        #    #    n_tries += 1
-
-        if task != curtask and self.check_postcond:
-            postcost = self.agent.postcond_cost(sample, curtask, t, x0=self.switch_x[-1])
-            if postcost > 1e-4:
-                if self.neg_postcond: self.neg_samples.append((sample, t, truetask))
-                task = curtask
-            else:
-                self.postcond_costs[self.agent.task_list[curtask[0]]].append(postcost)
+            if task != curtask:
+                postcost = self.agent.postcond_cost(sample, curtask, t, x0=self.switch_x[-1], tol=self.tol)
+                if postcost > 0:
+                    self.postcond_viols.append((self.cur_ids[-1], t))
+                    task = curtask
+                else:
+                    self.postcond_costs[self.agent.task_list[curtask[0]]].append(postcost)
         
         if task != curtask and self.check_precond:
             precost = self.agent.precond_cost(sample, task, t, tol=self.tol)
-            if precost > 1e-4:
+            if precost > 0:
                 self.precond_viols.append((self.cur_ids[-1], t))
+                if self.neg_precond: self.neg_samples.append((sample, t, truetask))
             
             n_tries = 0
             cur_eta = self.eta
             eta_scale = 0.9
-            while n_tries < 20 and task != curtask and precost > 1e-4:
+            while n_tries < 20 and task != curtask and precost > 0:
                 if self.neg_precond: self.neg_samples.append((sample, t, truetask))
                 task = self.get_task(sample.get_X(t=t), sample.targets, curtask, True, eta=cur_eta)
                 truetask = task
@@ -109,7 +100,7 @@ class RolloutSupervisor():
                 cur_eta *= eta_scale
                 n_tries += 1
 
-            if precost > 1e-4 and task != curtask:
+            if precost > 0 and task != curtask:
                 self.expl_precond_viols.append((self.cur_ids[-1], t))
                 task = curtask
 
@@ -133,15 +124,13 @@ class RolloutSupervisor():
         return truetask
 
 
-    def rollout(self, x, targets, node, tol=4e-3):
+    def rollout(self, x, targets, node, tol=2e-3):
         self.agent.target_vecs[0] = targets
         self.agent.reset_to_state(x)
         self.tol = tol
 
         ntask = len(self.agent.task_list)
         rlen = ntask * self.agent.num_objs
-        if self.agent.retime:
-            rlen *= 4
 
         self.adj_eta = True
         l = self.get_task(x, targets, None, self.soft)
@@ -171,10 +160,6 @@ class RolloutSupervisor():
                 print('TIMEOUT TERMINATING', self.counts[-1], curtask)
                 break
             
-            if len(self.expl_precond_viols):
-                print('PRECOND TERMINATING', self.counts[-1], curtask, self.switch_pts[-1])
-                break
-
         if len(path):
             val = 1 - self.agent.goal_f(0, path[-1].get_X(path[-1].T-1), targets)
         else:
