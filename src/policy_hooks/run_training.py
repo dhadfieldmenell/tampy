@@ -346,6 +346,7 @@ def argsparser():
     parser.add_argument('-roll_post', '--rollout_post', action='store_true', default=False)
     parser.add_argument('-roll_ll', '--ll_rollout_opt', action='store_true', default=False)
     parser.add_argument('-roll_hl', '--hl_rollout_opt', action='store_true', default=False)
+    parser.add_argument('-roll_opt', '--rollout_opt', action='store_true', default=False)
     parser.add_argument('-fail', '--train_on_fail', action='store_true', default=False)
     parser.add_argument('-failmode', '--fail_mode', type=str, default='start')
     parser.add_argument('-aughl', '--augment_hl', action='store_true', default=False)

@@ -3,6 +3,7 @@ import numpy as np
 from sco.expr import EqExpr
 
 from policy_hooks.sample import Sample
+from policy_hooks.save_video import save_video
 from policy_hooks.search_node import *
 from policy_hooks.utils.policy_solver_utils import *
 
@@ -24,6 +25,7 @@ class RolloutSupervisor():
         self.neg_precond = neg_precond
         self.neg_postcond = neg_postcond
         self.reset()
+        self.cur_vid_id = 0
         self.t_per_task = 20
         self.s_per_task = 3
         if self.agent.retime:
@@ -367,5 +369,45 @@ class RolloutSupervisor():
                                       targets=targets,
                                       nodetype='dagger')
                 self.hl_nodes.append(hlnode)
+
+
+    def save_video(self, rollout, success=None, ts=None, lab='', annotate=True, st=0):
+        if not self.hyperparams['load_render']: return
+        old_h = self.agent.image_height
+        old_w = self.agent.image_width
+        self.agent.image_height = 256
+        self.agent.image_width = 256
+        suc_flag = ''
+        cam_ids = self.hyperparams.get('visual_cameras', [self.agent.camera_id])
+        if success is not None:
+            suc_flag = 'success' if success else 'fail'
+        fname = self.video_dir + '/{0}_{1}_{2}_{3}{4}_{5}.npy'.format(self.agent.process_id, self.cur_vid_id, suc_flag, lab, str(cam_ids)[1:-1].replace(' ', ''))
+        self.cur_vid_id += 1
+        buf = []
+        for step in rollout:
+            if not step.draw: continue
+            old_vec = self.agent.target_vecs[0]
+            self.agent.target_vecs[0] = step.targets
+            if ts is None: 
+                ts_range = range(st, step.T)
+            else:
+                ts_range = range(ts[0], ts[1])
+            st = 0
+
+            for t in ts_range:
+                ims = []
+                for ind, cam_id in enumerate(cam_ids):
+                    if annotate and ind == 0:
+                        ims.append(self.agent.get_annotated_image(step, t, cam_id=cam_id))
+                    else:
+                        ims.append(self.agent.get_image(step.get_X(t=t), cam_id=cam_id))
+                im = np.concatenate(ims, axis=1)
+                buf.append(im)
+            self.agent.target_vecs[0] = old_vec
+        #np.save(fname, np.array(buf))
+        save_video(fname, dname=self._hyperparams['descr'], arr=np.array(buf), savepath=self.video_dir)
+        self.agent.image_height = old_h
+        self.agent.image_width = old_w
+
 
 

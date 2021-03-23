@@ -93,7 +93,7 @@ class MotionServer(Server):
             if cur_t < len(node.ref_traj): x0 = node.ref_traj[cur_t]
             if cur_t == 0: x0 = node.x0
 
-            success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=True, traj=node.ref_traj, st=cur_t, x0=x0)
+            success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=self.rollout_opt, traj=node.ref_traj, st=cur_t, x0=x0)
             self.n_failed += 0. if success else 1.
             path = []
             if success:

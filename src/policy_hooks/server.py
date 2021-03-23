@@ -117,6 +117,7 @@ class Server(object):
         self.check_prim_t = hyperparams.get('check_prim_t', 1)
         self.agent.plans, self.agent.openrave_bodies, self.agent.env = self.agent.prob.get_plans(use_tf=True)
         self.dagger_window = hyperparams['dagger_window']
+        self.rollout_opt = hyperparams['rollout_opt']
         task_plans = list(self.agent.plans.items())
         for task, plan in task_plans:
             #self.agent.plans[task[0]] = plan

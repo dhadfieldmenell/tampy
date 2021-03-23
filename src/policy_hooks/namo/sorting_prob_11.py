@@ -37,16 +37,25 @@ pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
 descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.format(NUM_OBJS, SORT_CLOSET, USE_PERTURB, OPT_MCTS_FEEDBACK)
 
 END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
-END_TARGETS.extend([(0.8, 2.),
-                   (-0.8, 2.),
-                   (2.4, 2.),
-                   (-2.4, 2.),
-                   (-3.8, 2.),
-                   (3.8, 2.),
-                   (5.4, 2.),
-                   (-5.4, 2.),
-                   ])
+#END_TARGETS.extend([(0.8, 2.),
+#                   (-0.8, 2.),
+#                   (2.4, 2.),
+#                   (-2.4, 2.),
+#                   (-3.8, 2.),
+#                   (3.8, 2.),
+#                   (5.4, 2.),
+#                   (-5.4, 2.),
+#                   ])
 
+END_TARGETS.extend([(1., 2.),
+                   (-1., 2.),
+                   (2.8, 2.),
+                   (-2.8, 2.),
+                   (-4.6, 2.),
+                   (4.6, 2.),
+                   (6.4, 2.),
+                   (-6.4, 2.),
+                   ])
 n_aux = 4
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25
