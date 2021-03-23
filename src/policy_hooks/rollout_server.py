@@ -409,6 +409,8 @@ class RolloutServer(Server):
         x0 = node.x0
         targets = node.targets
         val, path = self.rollout_supervisor.rollout(x0, targets, node)
+        self.save_video(path, val > 0, lab='_rollout')
+
         self.log_path(path, -20)
         for llnode in self.rollout_supervisor.ll_nodes:
             self.push_queue(llnode, self.motion_queue)
