@@ -932,10 +932,10 @@ if __name__ == '__main__':
     if len(sys.argv) > 2:
         keywords = [sys.argv[2]]
     else: 
-        keywords=['sawyer']
+        keywords=[]
 
     if len(sys.argv) > 3:
-        include = [sys.argv[3:]]
+        include = sys.argv[3:]
     else: 
         include=[]#['conttask_grip']
 

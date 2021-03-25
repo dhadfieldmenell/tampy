@@ -298,6 +298,8 @@ def argsparser():
     parser.add_argument('-task_hist', '--add_task_hist', action='store_true', default=False)
     parser.add_argument('-smooth', '--traj_smooth', action='store_true', default=False)
     parser.add_argument('-seq', '--seq', action='store_true', default=False)
+    parser.add_argument('-verbose', '--verbose', action='store_true', default=False)
+    parser.add_argument('-backup', '--backup', action='store_true', default=False)
     parser.add_argument('-f', '--file', type=str, default='')
     parser.add_argument('-descr', '--descr', type=str, default='')
     parser.add_argument('-save_exp', '--save_expert', action='store_true', default=False)

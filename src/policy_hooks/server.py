@@ -100,6 +100,7 @@ class Server(object):
 
         self.permute_hl = hyperparams['permute_hl'] > 0
         self.use_neg = hyperparams['negative']
+        self.verbose = hyperparams['verbose']
         self.task_list = self.agent.task_list
         self.pol_list = tuple(hyperparams['policy_list'])
         self.stopped = False

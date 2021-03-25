@@ -196,10 +196,10 @@ class RolloutSupervisor():
         self.parse_midcond(path)
 
         if val >= 0.999:
-            print('Success in rollout. Pre: {} Post: {} Mid: {} Random: {}'.format(self.check_precond, \
-                                                                        self.check_postcond, \
-                                                                        self.check_midcond, \
-                                                                        self.check_random))
+            print('{} Success in rollout. Pre: {} Post: {} Mid: {} Random: {}'.format(self.id, self.check_precond, \
+                                                                                self.check_postcond, \
+                                                                                self.check_midcond, \
+                                                                                self.check_random))
             
             self.agent.add_task_paths([path])
             n_plans = self.hyperparams['policy_opt']['buffer_sizes']['n_rollout']

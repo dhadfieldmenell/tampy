@@ -105,23 +105,6 @@ class MultiProcessMain(object):
         task_breaks = []
         goal_states = []
 
-        plans, openrave_bodies, env = prob.get_plans()
-        self.plans = plans
-
-        state_vector_include, action_vector_include, target_vector_include = self.config['get_vector'](self.config)
-
-        self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = utils.get_state_action_inds(list(plans.values())[0], self.config['robot_name'], self.config['attr_map'], state_vector_include, action_vector_include)
-
-        self.target_dim, self.target_inds = utils.get_target_inds(list(plans.values())[0], self.config['attr_map'], target_vector_include)
-
-        for plan in list(plans.values()):
-            plan.state_inds = self.state_inds
-            plan.action_inds = self.action_inds
-            plan.dX = self.dX
-            plan.dU = self.dU
-            plan.symbolic_bound = self.symbolic_bound
-            plan.target_dim = self.target_dim
-            plan.target_inds = self.target_inds
         self.config['target_f'] = None # prob.get_next_target
         self.config['encode_f'] = None # prob.sorting_state_encode
 
@@ -150,51 +133,25 @@ class MultiProcessMain(object):
         self.num_samples = self.config['num_samples']
 
         self.mcts = []
-
-        for condition in range(len(self.agent.x0)):
-            self.mcts.append(MCTS(
-                                  self.task_list,
-                                  self.config['agent']['prim_dims'],
-                                  None,
-                                  None,
-                                  None,
-                                  condition,
-                                  self.agent,
-                                  self.config['branching_factor'],
-                                  self.config['num_samples'],
-                                  self.config['num_distilled_samples'],
-                                  soft_decision=False,
-                                  max_depth=self.config['max_tree_depth'],
-                                  explore_depth=5,
-                                  opt_strength=self.config.get('opt_strength', 0),
-                                  log_prefix=None,#'tf_saved/'+self.config['weight_dir']+'/rollouts',
-                                  curric_thresh=self.config.get('curric_thresh', -1),
-                                  n_thresh=self.config.get('n_thresh', 10),
-                                  her=self.config.get('her', False),
-                                  onehot_task=self.config.get('onehot_task', False),
-                                  soft=self.config.get('soft', False),
-                                  ff_thresh=1.,#self.config.get('ff_thresh', 0),
-                                  eta=self.config.get('eta', 1.),
-                                  ))
         self._map_cont_discr_tasks()
         self._set_alg_config()
         self.config['mcts'] = self.mcts
         # self.config['agent'] = self.agent
         self.config['alg_map'] = self.alg_map
-        self.config['dX'] = self.dX
-        self.config['dU'] = self.dU
-        self.config['symbolic_bound'] = self.symbolic_bound
+        self.config['dX'] = self.config['agent']['dX']
+        self.config['dU'] = self.config['agent']['dU']
+        self.config['symbolic_bound'] = self.config['agent']['symbolic_bound']
         self.config['dO'] = self.agent.dO
         self.config['dPrimObs'] = self.agent.dPrim
         self.config['dValObs'] = self.agent.dVal #+ np.sum([len(options[e]) for e in options])
         self.config['dPrimOut'] = self.agent.dPrimOut
-        self.config['state_inds'] = self.state_inds
-        self.config['action_inds'] = self.action_inds
+        self.config['state_inds'] = self.agent.state_inds
+        self.config['action_inds'] = self.agent.action_inds
         self.config['policy_out_coeff'] = self.policy_out_coeff
         self.config['policy_inf_coeff'] = self.policy_inf_coeff
-        self.config['target_inds'] = self.target_inds
-        self.config['target_dim'] = self.target_dim
-        self.config['task_list'] = self.task_list
+        self.config['target_inds'] = self.agent.target_inds
+        self.config['target_dim'] = self.agent.target_dim
+        self.config['task_list'] = self.agent.task_list
         self.config['time_log'] = 'experiment_logs/'+self.config['weight_dir']+'/timing_info.txt'
         self.config['time_limit'] = time_limit
         self.config['start_t'] = time.time()
@@ -226,7 +183,7 @@ class MultiProcessMain(object):
                         'data_types': {
                             utils.STATE_ENUM: {
                                 'wp': state_cost_wp,
-                                'target_state': np.zeros((1, self.symbolic_bound)),
+                                'target_state': np.zeros((1, self.agent.symbolic_bound)),
                                 'wp_final_multiplier': 5e1,
                             }
                         },
@@ -236,16 +193,16 @@ class MultiProcessMain(object):
                         'type': ActionTrajCost,
                         'data_types': {
                             utils.ACTION_ENUM: {
-                                'wp': np.ones((1, self.dU), dtype='float64'),
-                                'target_state': np.zeros((1, self.dU)),
+                                'wp': np.ones((1, self.agent.dU), dtype='float64'),
+                                'target_state': np.zeros((1, self.agent.dU)),
                             }
                         },
                         'ramp_option': RAMP_CONSTANT
                      }
 
         self.config['algorithm']['cost'] = traj_cost
-        self.config['dQ'] = self.dU
-        self.config['algorithm']['init_traj_distr']['dQ'] = self.dU
+        self.config['dQ'] = self.agent.dU
+        self.config['algorithm']['init_traj_distr']['dQ'] = self.agent.dU
         self.config['algorithm']['init_traj_distr']['dt'] = 1.0
 
         if self.config.get('add_hl_image', False) and any([t.find('cont') >= 0 for t in self.task_types]):
@@ -319,15 +276,15 @@ class MultiProcessMain(object):
 
         self.alg_map = {}
         alg_map = {}
-        for ind, task in enumerate(self.task_list):
-            plan = [pl for lab, pl in self.plans.items() if lab[0] == ind][0]
+        for ind, task in enumerate(self.agent.task_list):
+            plan = [pl for lab, pl in self.agent.plans.items() if lab[0] == ind][0]
             self.config['algorithm']['T'] = plan.horizon
             alg_map[task] = copy.copy(self.config['algorithm'])
         self.config['policy_opt'] = self.config['algorithm']['policy_opt']
         self.config['policy_opt']['split_nets'] = self.config.get('split_nets', False)
 
         self.config['algorithm'] = alg_map
-        for task in self.task_list:
+        for task in self.agent.task_list:
             self.config['algorithm'][task]['policy_opt']['scope'] = 'value'
             self.config['algorithm'][task]['policy_opt']['weight_dir'] = self.config['weight_dir']
             self.config['algorithm'][task]['policy_opt']['prev'] = 'skip'
@@ -339,7 +296,7 @@ class MultiProcessMain(object):
             self.alg_map[task].set_conditions(len(self.agent.x0))
             self.alg_map[task].agent = self.agent
 
-        for task in self.task_list:
+        for task in self.agent.task_list:
             self.config['algorithm'][task]['policy_opt']['prev'] = None
         self.config['alg_map'] = self.alg_map
 

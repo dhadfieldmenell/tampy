@@ -466,11 +466,10 @@ class BacktrackLLSolver(LLSolver):
         for attempt in range(n_resamples):
             # refinement loop
             success = self._solve_opt_prob(plan, priority=priority,
-                            callback=callback, active_ts=active_ts, verbose=verbose, resample = False, smoothing = True)
-            if success:
+                            callback=callback, active_ts=active_ts, verbose=verbose, resample=False, smoothing=True)
+            if success or n_resamples == 0:
                 break
-            plan.check_cnt_violation(tol = 1e-3)
-            self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True, smoothing = True)
+            self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample=True, smoothing=True)
         return success
 
     #@profile

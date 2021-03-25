@@ -46,6 +46,7 @@ class MotionServer(Server):
         with open(self.motion_log, 'w+') as f:
             f.write('')
 
+
     def gen_plan(self, node):
         node.gen_plan(self.agent.hl_solver, self.agent.openrave_bodies, self.agent.ll_solver)
         plan = node.curr_plan
@@ -88,41 +89,7 @@ class MotionServer(Server):
         self.n_plans += 1
 
         while cur_t >= 0:
-            init_t = time.time()
-            x0 = None
-            if cur_t < len(node.ref_traj): x0 = node.ref_traj[cur_t]
-            if cur_t == 0: x0 = node.x0
-
-            success = self.agent.backtrack_solve(plan, anum=plan.start, n_resamples=self._hyperparams['n_resample'], rollout=self.rollout_opt, traj=node.ref_traj, st=cur_t, x0=x0)
-            self.n_failed += 0. if success else 1.
-            path = []
-            if success:
-                n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
-                with n_plans.get_lock():
-                    n_plans.value += 1
-
-                wt = self.explore_wt if node.label.lower().find('rollout') >= 0 or node.nodetype.find('dagger') >= 0 else 1.
-                path, log_info = self.agent.run_plan(plan, node.targets, permute=self.permute_hl, wt=wt, start_ts=cur_t, record=node.hl, label=node.nodetype, x0=x0)
-                for key in log_info:
-                    self.opt_rollout_info[key].extend(log_info[key])
-
-                if self.render and self.id.find('0') >= 0:
-                    if len(plan.actions) == 1:
-                        if node.nodetype.find('dagger') >= 0:
-                            aname = plan.actions[0].name
-                            self.save_video(path, path[-1]._postsuc, lab='_{}_middaggeropt'.format(aname))
-                    elif node.nodetype.find('dagger') >= 0:
-                        self.save_video(path, path[-1]._postsuc, lab='_fulldagger')
-
-                self.log_path(path, 10)
-                for step in path: step.source_label = node.nodetype
-                print(self.id, 'Successful refine from', node.label, plan.actions[0].name, 'rollout success was:', path[-1]._postsuc, path[-1].success, 'first ts:', plan.start, cur_t, len(node.ref_traj))
-
-                if path[-1].success:
-                    n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_total']
-                    with n_plans.get_lock():
-                        n_plans.value += 1
-
+            path, success = self.collect_trajectory(plan, node, cur_t)
             self.log_node_info(node, success, path)
             prev_t = cur_t
             cur_t -= cur_step
@@ -134,35 +101,85 @@ class MotionServer(Server):
             node.freeze_ts = cur_t
             plan = self.gen_plan(node)
 
-            if not success:
-                fail_step, fail_pred, fail_negated = node.get_failed_pred(st=prev_t)
-                if fail_pred is None:
-                    print('Failure without failed constr?')
-                    continue
+            if not success: self.parse_failed(plan, node, prev_t)
 
-                failed_preds = plan.get_failed_preds((prev_t, fail_step+fail_pred.active_range[1]), priority=-2)
-                if len(failed_preds):
-                    print('Refine failed with linear constr. viol.', node._trace, prev_t, plan.get_failed_preds((prev_t, prev_t+1), priority=0), len(node.ref_traj))
-                    continue
 
-                print('Refine failed:', plan.get_failed_preds((0, fail_step+fail_pred.active_range[1])), fail_pred, fail_step, plan.actions, node.label, node._trace, prev_t)
-                if not node.hl: continue
-                if not node.gen_child(): continue
-                n_problem = node.get_problem(fail_step, fail_pred, fail_negated)
-                abs_prob = self.agent.hl_solver.translate_problem(n_problem, goal=node.concr_prob.goal)
-                prefix = node.curr_plan.prefix(fail_step)
-                hlnode = HLSearchNode(abs_prob,
-                                     node.domain,
-                                     n_problem,
-                                     priority=node.priority+1,
-                                     prefix=prefix,
-                                     llnode=node,
-                                     x0=node.x0,
-                                     targets=node.targets,
-                                     expansions=node.expansions+1,
-                                     label=self.id)
-                self.push_queue(hlnode, self.task_queue)
-                print(self.id, 'Failed to refine, pushing to task node.')
+    def collect_trajectory(self, plan, node, cur_t):
+        x0 = None
+        if cur_t < len(node.ref_traj): x0 = node.ref_traj[cur_t]
+        if cur_t == 0: x0 = node.x0
+
+        wt = self.explore_wt if node.label.lower().find('rollout') >= 0 or node.nodetype.find('dagger') >= 0 else 1.
+        verbose = self.verbose and np.random.uniform() < 0.01
+        success, path, info = self.agent.backtrack_solve(plan, 
+                                                         anum=plan.start, 
+                                                         x0=x0,
+                                                         targets=node.targets,
+                                                         n_resamples=self._hyperparams['n_resample'], 
+                                                         rollout=self.rollout_opt, 
+                                                         traj=node.ref_traj, 
+                                                         st=cur_t, 
+                                                         permute=self.permute_hl,
+                                                         label=node.label,
+                                                         backup=self.backup,
+                                                         verbose=verbose)
+        for step in path:
+            step.wt = wt
+
+        self.n_failed += 0. if success else 1.
+        n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
+        with n_plans.get_lock():
+            n_plans.value += 1
+
+        if self.verbose and self.render and self.id.find('0') >= 0:
+            if len(plan.actions) == 1:
+                if node.nodetype.find('dagger') >= 0:
+                    aname = plan.actions[0].name
+                    self.save_video(path, path[-1]._postsuc, lab='_{}_middaggeropt'.format(aname))
+            elif node.nodetype.find('dagger') >= 0:
+                self.save_video(path, path[-1]._postsuc, lab='_fulldagger')
+
+        self.log_path(path, 10)
+        for step in path: step.source_label = node.nodetype
+        if success and len(path):
+            print(self.id, 'Successful refine from', node.label, plan.actions[0].name, 'rollout success was:', path[-1]._postsuc, path[-1].success, 'first ts:', plan.start, cur_t, len(node.ref_traj))
+
+        if len(path) and path[-1].success:
+            n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_total']
+            with n_plans.get_lock():
+                n_plans.value += 1
+        return path, success
+
+
+    def parse_failed(self, plan, node, prev_t):
+        fail_step, fail_pred, fail_negated = node.get_failed_pred(st=prev_t)
+        if fail_pred is None:
+            print('Failure without failed constr?')
+            return
+
+        failed_preds = plan.get_failed_preds((prev_t, fail_step+fail_pred.active_range[1]), priority=-2)
+        if len(failed_preds):
+            print('Refine failed with linear constr. viol.', node._trace, prev_t, plan.get_failed_preds((prev_t, prev_t+1), priority=0), len(node.ref_traj))
+            return
+
+        print('Refine failed:', plan.get_failed_preds((0, fail_step+fail_pred.active_range[1])), fail_pred, fail_step, plan.actions, node.label, node._trace, prev_t)
+        if not node.hl: return
+        if not node.gen_child(): return
+        n_problem = node.get_problem(fail_step, fail_pred, fail_negated)
+        abs_prob = self.agent.hl_solver.translate_problem(n_problem, goal=node.concr_prob.goal)
+        prefix = node.curr_plan.prefix(fail_step)
+        hlnode = HLSearchNode(abs_prob,
+                             node.domain,
+                             n_problem,
+                             priority=node.priority+1,
+                             prefix=prefix,
+                             llnode=node,
+                             x0=node.x0,
+                             targets=node.targets,
+                             expansions=node.expansions+1,
+                             label=self.id)
+        self.push_queue(hlnode, self.task_queue)
+        print(self.id, 'Failed to refine, pushing to task node.')
 
 
     def run(self):
@@ -238,6 +255,7 @@ class MotionServer(Server):
 
         with self.policy_opt.buf_sizes[key].get_lock():
             self.policy_opt.buf_sizes[key].value += 1
+
 
     def get_log_info(self):
         info = {
