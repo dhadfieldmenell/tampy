@@ -196,7 +196,7 @@ class RolloutSupervisor():
         self.parse_midcond(path)
 
         if val >= 0.999:
-            print('{} Success in rollout. Pre: {} Post: {} Mid: {} Random: {}'.format(self.id, self.check_precond, \
+            print('Success in rollout. Pre: {} Post: {} Mid: {} Random: {}'.format(self.check_precond, \
                                                                                 self.check_postcond, \
                                                                                 self.check_midcond, \
                                                                                 self.check_random))

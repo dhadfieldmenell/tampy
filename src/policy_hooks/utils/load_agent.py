@@ -89,12 +89,10 @@ def load_agent(config):
     if config.get('add_image', False):
         config['obs_include'].append(utils.IM_ENUM)
         config['load_render'] = True
-    prim_bounds = []
     prim_dims = OrderedDict({})
     config['prim_dims'] = prim_dims
     options = prob.get_prim_choices(task_list)
     ind = len(task_list)
-    prim_bounds.append((0, ind))
     for enum in options:
         if enum == utils.TASK_ENUM: continue
         if hasattr(options[enum], '__len__'):
@@ -109,26 +107,33 @@ def load_agent(config):
     for enum in prim_dims:
         sensor_dims[enum] = prim_dims[enum]
 
-    ind = 0
+    prim_ind = 0
+    cont_ind = 0
     prim_bounds = []
-    if config.get('onehot_task', False):
-        config['prim_out_include'] = [utils.ONEHOT_TASK_ENUM]
-        prim_bounds.append((0, len(list(plans.keys()))))
-        ind = prim_bounds[0][1]
-    else:
-        prim_bounds.append((0, len(task_list)))
-        ind = len(task_list)
-        for enum in options:
-            if enum == utils.TASK_ENUM: continue
-            prim_bounds.append((ind, ind+sensor_dims[enum]))
-            ind += sensor_dims[enum]
+    cont_bounds = []
+    prim_out = []
+    cont_out = []
+    prim_bounds.append((0, len(task_list)))
+    prim_out.append(utils.TASK_ENUM)
+    prim_ind = len(task_list)
+    for enum in options:
+        if enum == utils.TASK_ENUM: continue
+        if hasattr(options[enum], '__len__'):
+            prim_bounds.append((prim_ind, prim_ind+sensor_dims[enum]))
+            prim_ind += sensor_dims[enum]
+            prim_out.append(enum)
+        else:
+            cont_bounds.append((cont_ind, cont_ind+sensor_dims[enum]))
+            cont_ind += sensor_dims[enum]
+            cont_out.append(enum)
 
-        for enum in config['prim_out_include']:
-            if enum == utils.TASK_ENUM or enum in options: continue
-            prim_bounds.append((ind, ind+sensor_dims[enum]))
-            ind += sensor_dims[enum]
+    for enum in config['prim_out_include']:
+        if enum == utils.TASK_ENUM or enum in options: continue
+        prim_bounds.append((prim_ind, prim_ind+sensor_dims[enum]))
+        prim_ind += sensor_dims[enum]
+        prim_out.append(enum)
 
-    sensor_dims[utils.TASK_HIST_ENUM] = int(config['task_hist_len'] * ind)
+    sensor_dims[utils.TASK_HIST_ENUM] = int(config['task_hist_len'] * prim_ind)
 
     aux_bounds = []
     if len(prim_bounds) > len(options.keys()):
@@ -136,6 +141,7 @@ def load_agent(config):
         prim_bounds = prim_bounds[:len(options.keys())]
 
     config['prim_bounds'] = prim_bounds
+    config['cont_bounds'] = cont_bounds
     config['prim_dims'] = prim_dims
     config['aux_bounds'] = aux_bounds
 
@@ -164,7 +170,8 @@ def load_agent(config):
         'state_include': config['state_include'],
         'obs_include': config['obs_include'],
         'prim_obs_include': config['prim_obs_include'],
-        'prim_out_include': config['prim_out_include'],
+        'prim_out_include': prim_out,
+        'cont_out_include': cont_out,
         'val_obs_include': config['val_obs_include'],
         'conditions': config['num_conds'],
         'solver': None,

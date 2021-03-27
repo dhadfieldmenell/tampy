@@ -74,11 +74,13 @@ class Plan(object):
 
     def backup_params(self):
         for p in self.params:
-            self.backup[p] = self.params[p].copy()
+            self.backup[p] = self.params[p].copy(self.horizon)
 
     def restore_params(self):
-        for p in self.params:
-            self.params[p] = self.backup[p]
+        for p in self.params.values():
+            for attr in p._free_attrs:
+                p._free_attrs[attr][:] = self.backup[p.name]._free_attrs[attr][:]
+                getattr(p, attr)[:] = getattr(self.backup[p.name], attr)[:]
 
     def save_free_attrs(self):
         for p in self.params.values():
@@ -308,4 +310,16 @@ class Plan(object):
                 raise AttributeError('Reference plan does not contain {0}'.format(pname))
             param.fill(plan.params[pname], active_ts)
         self.start = amax
+
+    def get_values(self):
+        vals = {}
+        for pname, param in self.params.items():
+            for attr in param._free_attrs:
+                vals[pname, attr] = getattr(param, attr).copy()
+        return vals
+
+
+    def store_values(self, vals):
+        for param, attr in vals:
+            getattr(self.params[param], attr)[:] = vals[param, attr]
 

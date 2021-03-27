@@ -101,6 +101,7 @@ class Server(object):
         self.permute_hl = hyperparams['permute_hl'] > 0
         self.use_neg = hyperparams['negative']
         self.verbose = hyperparams['verbose']
+        self.backup = hyperparams['backup']
         self.task_list = self.agent.task_list
         self.pol_list = tuple(hyperparams['policy_list'])
         self.stopped = False
@@ -325,11 +326,11 @@ class Server(object):
 
 
     def set_policies(self):
-        inter = 180
+        inter = 120
         if self.policy_opt.share_buffers and time.time() - self._last_weight_read > inter:
             self.policy_opt.read_shared_weights()
+            self._last_weight_read = time.time()
         chol_pol_covar = {}
-        self._last_weight_read = time.time()
         #for task in self.agent.task_list:
         #    if task not in self.policy_opt.valid_scopes:
         #        task_name = 'control'
@@ -557,12 +558,12 @@ class Server(object):
                 buf.append(im)
             self.agent.target_vecs[0] = old_vec
         #np.save(fname, np.array(buf))
-        print('Time to create video:', time.time() - init_t)
+        #print('Time to create video:', time.time() - init_t)
         init_t = time.time()
         save_video(fname, dname=self._hyperparams['descr'], arr=np.array(buf), savepath=self.video_dir)
         self.agent.image_height = old_h
         self.agent.image_width = old_w
-        print('Time to save video:', time.time() - init_t)
+        #print('Time to save video:', time.time() - init_t)
 
 
 class DummyPolicy:

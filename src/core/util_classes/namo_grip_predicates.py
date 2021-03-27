@@ -1540,7 +1540,7 @@ class Obstructs(CollisionPredicate):
 class WideObstructs(Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.3 # 0.35
+        self.dsafe = 0.05 # 0.35
         self.check_aabb = False # True
 
 
@@ -1902,7 +1902,7 @@ class ObstructsHolding(CollisionPredicate):
 class WideObstructsHolding(ObstructsHolding):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(WideObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.3 # 0.35
+        self.dsafe = 0.05 # 0.35
         self.check_aabb = False # True
 
 

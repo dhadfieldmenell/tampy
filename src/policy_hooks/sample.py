@@ -27,9 +27,11 @@ class Sample(object):
         self.dM = self.agent.dM
         self.dPrim = self.agent.dPrim
         self.dPrimOut = self.agent.dPrimOut
+        self.dContOut = self.agent.dContOut
         self.dVal = self.agent.dVal
         self.success = 0
         self.opt_suc = 0
+        self._postsuc = False
         self.source_label = ''
         self.wt = 1.
         self.base_x = None
@@ -41,6 +43,8 @@ class Sample(object):
         self._obs.fill(np.nan)
         self._prim_out = np.empty((self.T, self.dPrimOut))
         self._prim_out.fill(np.nan)
+        self._cont_out = np.empty((self.T, self.dPrimOut))
+        self._cont_out.fill(np.nan)
         self._prim_obs = np.empty((self.T, self.dPrim))
         self._prim_obs.fill(np.nan)
         self._val_obs = np.empty((self.T, self.dVal))
@@ -66,6 +70,7 @@ class Sample(object):
             self._val_obs.fill(np.nan)  # Invalidate existing obs.
             self._prim_obs.fill(np.nan)  # Invalidate existing obs.
             self._prim_out.fill(np.nan)  # Invalidate existing out.
+            self._cont_out.fill(np.nan)  # Invalidate existing out.
             self._meta.fill(np.nan)  # Invalidate existing meta data.
         else:
             if sensor_name not in self._data:
@@ -78,6 +83,7 @@ class Sample(object):
             self._val_obs[t, :].fill(np.nan)
             self._prim_obs[t, :].fill(np.nan)
             self._prim_out[t, :].fill(np.nan)
+            self._cont_out[t, :].fill(np.nan)
 
     def get(self, sensor_name, t=None):
         """ Get trajectory data for a particular sensor. """
@@ -157,6 +163,20 @@ class Sample(object):
                 data = (self._data[data_type] if t is None
                         else self._data[data_type][t, :])
                 self.agent.pack_data_prim_out(out, data, data_types=[data_type])
+        return out.copy()
+
+    def get_cont_out(self, t=None):
+        """ Get the observation. Put it together if not precomputed. """
+        out = self._cont_out if t is None else self._cont_out[t, :]
+        if np.any(np.isnan(out)):
+            for data_type in self._data:
+                if data_type not in self.agent.cont_out_data_types:
+                    continue
+                if data_type in self.agent.meta_data_types:
+                    continue
+                data = (self._data[data_type] if t is None
+                        else self._data[data_type][t, :])
+                self.agent.pack_data_cont_out(out, data, data_types=[data_type])
         return out.copy()
 
     def get_val_obs(self, t=None):

@@ -146,7 +146,7 @@ class BacktrackLLSolver(LLSolver):
                         p._free_attrs[attr][:, active_ts[0]] = old_params_free_2[p][attr]
             return success
 
-        # if there is no parameter to resample or some part of rs_param is fixed, then go ahead optimize over this action
+        ### if there is no parameter to resample or some part of rs_param is fixed, then go ahead optimize over this action
         if rs_param is None: #  or sum([not np.all(rs_param._free_attrs[attr]) for attr in rs_param._free_attrs.keys() ]):
             ## this parameter is fixed
             if callback is not None:
@@ -163,7 +163,7 @@ class BacktrackLLSolver(LLSolver):
             ## no other options, so just return here
             return recursive_solve()
 
-        ## so that this won't be optimized over
+        ### so that this won't be optimized over
         rs_params = rs_param if type(rs_param) is list else [rs_param]
         free_attrs = {}
         for param in rs_params:
@@ -218,6 +218,7 @@ class BacktrackLLSolver(LLSolver):
 
         for param in free_attrs:
             param._free_attrs = free_attrs[param]
+        plan.store_free_attrs(init_free_attrs)
         return success
 
     def validate_wp(self, plan, callback=None, amin=0, amax=None, nsamples=1):
@@ -266,7 +267,7 @@ class BacktrackLLSolver(LLSolver):
 
         for priority in self.solve_priorities:
             if DEBUG: print('solving at priority', priority)
-            for attempt in range(n_resamples):
+            for attempt in range(max(1, n_resamples)):
                 ## refinement loop
                 success = self._solve_opt_prob(plan, priority=priority,
                                 callback=callback, active_ts=active_ts, verbose=verbose,
@@ -274,11 +275,10 @@ class BacktrackLLSolver(LLSolver):
                 # success = len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) == 0
 
                 # No point in resampling if the endpoints or linear constraints can't be satisfied
-                if success or priority < 0:
+                if success or priority < 0 or n_resamples == 0:
                     break
 
                 # failed_preds = plan.get_failed_preds(active_ts=active_ts, tol=1e-3)
-                # if len(failed_preds): import ipdb; ipdb.set_trace()
 
                 success = self._solve_opt_prob(plan, priority=priority, callback=callback, 
                                                active_ts=active_ts, verbose=verbose, resample = True,
@@ -291,7 +291,6 @@ class BacktrackLLSolver(LLSolver):
                 if success:
                     break
 
-                # import ipdb; ipdb.set_trace()
                 # assert not (success and not len(plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)) == 0)
 
             if not success:
@@ -337,7 +336,6 @@ class BacktrackLLSolver(LLSolver):
             # failed_preds = plan.get_failed_preds(active_ts = (active_ts[0], active_ts[1]-1), priority=priority, tol = tol)
             failed_preds = plan.get_failed_preds(active_ts = (active_ts[0], active_ts[1]), priority=priority, tol=tol)
             rs_obj = self._resample(plan, failed_preds, sample_all=False)
-            # import ipdb; ipdb.set_trace()
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
             obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
             #obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
@@ -347,7 +345,6 @@ class BacktrackLLSolver(LLSolver):
             obj_bexprs.extend(rs_obj)
             self._add_obj_bexprs(obj_bexprs)
             initial_trust_region_size = 1e3
-            # import ipdb; ipdb.set_trace()
         else:
             self._bexpr_to_pred = {}
             if self.col_coeff > 0 and priority >= 0: self._add_col_obj(plan, active_ts=active_ts)
@@ -733,6 +730,7 @@ class BacktrackLLSolver(LLSolver):
                     for t in effective_timesteps:
                         if t in active_range:
                             if t + pred.active_range[1] > effective_timesteps[-1]: continue
+                            if t + pred.active_range[0] < effective_timesteps[0]: continue
                             var = self._spawn_sco_var_for_pred(pred, t)
                             bexpr = BoundExpr(expr, var)
 
@@ -757,6 +755,7 @@ class BacktrackLLSolver(LLSolver):
         if active_ts is None:
             active_ts = (0, plan.horizon-1)
         for action in plan.actions:
+            true_start, true_end = action.active_timesteps
             action_start, action_end = action.active_timesteps
             ## only add an action
             if action_start >= active_ts[1] and action_start > active_ts[0]: continue
@@ -796,8 +795,14 @@ class BacktrackLLSolver(LLSolver):
             if action_start >= active_ts[1] and action_start > active_ts[0]: continue
             if action_end < active_ts[0]: continue
 
+            if action_start < active_ts[0]:
+                action_start = active_ts[0]
+
+            if action_end > active_ts[1]:
+                action_end = active_ts[1]
+
             timesteps = list(range(max(action_start, active_ts[0]),
-                              min(action_end, active_ts[1])+1))
+                                   min(action_end, active_ts[1])+1))
             for pred_dict in action.preds:
                 self._add_pred_dict(pred_dict, timesteps, priority=priority,
                                     add_nonlin=add_nonlin, verbose=verbose)
@@ -1015,10 +1020,9 @@ class BacktrackLLSolver(LLSolver):
 
     def find_closest_feasible(self, plan, active_ts, priority=MAX_PRIORITY):
         free_attrs = plan.get_free_attrs()
-        for param in plan.params.values():
-            if param.is_symbol(): continue
-            for attr in param._free_attrs:
-                param._free_attrs[attr][:,active_ts[0]] = 1.
+        #for param in plan.params.values():
+        #    for attr in param._free_attrs:
+        #        param._free_attrs[attr][:,active_ts[0]] = 1.
 
         model = grb.Model()
         model.params.OutputFlag = 0

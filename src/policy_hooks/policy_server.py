@@ -38,17 +38,24 @@ class PolicyServer(object):
         hyperparams['policy_opt']['split_hl_loss'] = hyperparams['split_hl_loss']
         hyperparams['policy_opt']['gpu_id'] = 0
         hyperparams['policy_opt']['use_gpu'] = 1
-        hyperparams['policy_opt']['load_all'] = self.task != 'primitive'
+        hyperparams['policy_opt']['load_all'] = self.task not in ['cont', 'primitive']
         hyperparams['agent']['master_config'] = hyperparams
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
         self.map_cont_discr_tasks()
+        self.prim_opts = self.agent.prob.get_prim_choices(self.agent.task_list)
         self.stopped = False
         self.warmup = hyperparams['tf_warmup_iters']
         self.queues = hyperparams['queues']
-        self.min_buffer = hyperparams['prim_update_size'] if self.task == 'primitive' else hyperparams['update_size']
-        self.in_queue = hyperparams['hl_queue'] if self.task == 'primitive' else hyperparams['ll_queue']
+        self.min_buffer = hyperparams['prim_update_size'] if self.task in ['cont', 'primitive'] else hyperparams['update_size']
+        if self.task == 'primitive':
+            self.in_queue = hyperparams['hl_queue']
+        elif self.task == 'cont':
+            self.in_queue = hyperparams['cont_queue']
+        else:
+            self.in_queue = hyperparams['ll_queue']
+
         self.batch_size = hyperparams['batch_size']
-        normalize = self.task != 'primitive'
+        normalize = self.task not in ['cont', 'primitive']
         feed_prob = hyperparams['end_to_end_prob']
         in_inds, out_inds = None, None
         if len(self.continuous_opts):
@@ -92,9 +99,15 @@ class PolicyServer(object):
       
         hyperparams['dPrim'] = len(hyperparams['prim_bounds'])
         dO = hyperparams['dPrimObs'] if self.task == 'primitive' else hyperparams['dO']
-        dU = max([b[1] for b in hyperparams['prim_bounds']] + [b[1] for b in hyperparams['aux_bounds']]) if self.task == 'primitive' else hyperparams['dU']
-        dP = hyperparams['dPrim'] if self.task == 'primitive' else hyperparams['dU']
-        precShape = tf.TensorShape([None, dP]) if self.task == 'primitive' else tf.TensorShape([None, dP, dP])
+        if self.task == 'primitive':
+            dU = max([b[1] for b in hyperparams['prim_bounds']] + [b[1] for b in hyperparams['aux_bounds']])
+            dP = hyperparams['dPrim']
+            precShape = tf.TensorShape([None, dP])
+        else:
+            dU = hyperparams['dU']
+            dP = hyperparams['dU']
+            precShape = tf.TensorShape([None, dP, dP])
+
         data = tf.data.Dataset.from_tensor_slices([0, 1, 2])
         self.load_f = lambda x: tf.data.Dataset.from_generator(self.data_gen.gen_load, \
                                                          output_types=tf.int32, \
@@ -119,11 +132,15 @@ class PolicyServer(object):
             hyperparams['dPrimObs'],
             hyperparams['dValObs'],
             hyperparams['prim_bounds'],
-            (self.input, self.act, self.prc),
+            inputs=(self.input, self.act, self.prc),
         )
         self.policy_opt.lr_policy = hyperparams['lr_policy']
         self.lr_policy = hyperparams['lr_policy']
-        self.data_gen.x_idx = self.policy_opt.x_idx if self.task != 'primitive' else self.policy_opt.prim_x_idx
+        if self.task == 'primitive':
+            self.data_gen.x_idx = self.policy_opt.prim_x_idx
+        else:
+            self.data_gen.x_idx = self.policy_opt.x_idx
+
         self.data_gen.policy = self.policy_opt.get_policy(self.task)
 
         self.policy_opt_log = LOG_DIR + hyperparams['weight_dir'] + '/policy_{0}_log.txt'.format(self.task)
@@ -150,14 +167,24 @@ class PolicyServer(object):
         self.task_types = []
         self.discrete_opts = []
         self.continuous_opts = []
+        self.discr_bounds = []
+        self.cont_bounds = []
+        cur_discr = 0
+        cur_cont = 0
         opts = self.agent.prob.get_prim_choices(self.agent.task_list)
         for key, val in opts.items():
             if hasattr(val, '__len__'):
                 self.task_types.append('discrete')
                 self.discrete_opts.append(key)
+                next_discr = cur_discr + len(val)
+                self.discr_bounds.append((cur_discr, next_discr))
+                cur_discr = next_discr
             else:
                 self.task_types.append('continuous')
                 self.continuous_opts.append(key)
+                next_cont = cur_cont + int(val)
+                self.cont_bounds.append((cur_cont, next_cont))
+                cur_cont = next_cont
 
 
     def run(self):
@@ -196,7 +223,7 @@ class PolicyServer(object):
 
             if not self.iters % 10:
                 self.policy_opt.write_shared_weights([self.task])
-                if len(self.continuous_opts) and self.task != 'primitive':
+                if len(self.continuous_opts) and self.task not in ['cont', 'primitive']:
                     self.policy_opt.read_shared_weights(['primitive'])
                     self.data_gen.feed_in_policy = self.policy_opt.prim_policy
 
@@ -205,7 +232,7 @@ class PolicyServer(object):
                 print('Ran', self.iters, 'updates on', self.task, 'with', n_train, 'train and', n_val, 'val')
 
             if self.config['save_data']:
-                if not self.iters % 10 and self.task == 'primitive':
+                if not self.iters % 10 and self.task in ['cont', 'primitive']:
                     self.data_gen.write_data(n_data=1024)
 
             if not self.iters % 10 and len(self.val_losses['all']):

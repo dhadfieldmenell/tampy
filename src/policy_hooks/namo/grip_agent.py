@@ -29,7 +29,7 @@ import baxter_gym
 from baxter_gym.envs import MJCEnv
 
 import core.util_classes.items as items
-from core.util_classes.namo_grip_predicates import dsafe, NEAR_TOL, dmove, HLGraspFailed, HLTransferFailed, HLPlaceFailed
+from core.util_classes.namo_grip_predicates import dsafe, NEAR_TOL, dmove, HLGraspFailed, HLTransferFailed, HLPlaceFailed, GRIP_VAL
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
 
@@ -595,7 +595,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         onehot_task = tuple([val for val in task if np.isscalar(val)])
         plan = self.plans[onehot_task]
         if run_traj:
-            sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, opt_traj), condition, state, task, noisy=False, skip_opt=True)
+            sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, opt_traj), condition, state, task, noisy=False, skip_opt=True, hor=len(opt_traj))
         else:
             self.T = plan.horizon
             sample = Sample(self)
@@ -820,10 +820,10 @@ class NAMOGripAgent(NAMOSortingAgent):
             grip_out = grip_interp(x)
             out[:, self.state_inds['pr2', 'gripper']] = grip_out
             out[0] = step[0]
-            out[-1] = step[-1]
             for pt, val in fix_pts:
                 out[pt] = val
-            out = np.r_[out, [out[-1]]]
+            out[-1] = step[-1]
+            #out = np.r_[out, [out[-1]]]
             if len(new_traj):
                 new_traj = np.r_[new_traj, out]
             else:
@@ -855,7 +855,7 @@ class NAMOGripAgent(NAMOSortingAgent):
 
         for pname in plan.params:
             if '{0}_init_target'.format(pname) in plan.params:
-                plan.params['{0}_init_target'.format(pname)].value[:,0] = plan.params[pname].pose[:,0]
+                plan.params['{0}_init_target'.format(pname)].value[:,0] = plan.params[pname].pose[:,st]
 
 
     def goal(self, cond, targets=None):
@@ -981,4 +981,13 @@ class NAMOGripAgent(NAMOSortingAgent):
             else:
                 new_val.append(abs_val[t] - ee_pos[t])
         return np.array(new_val)
+
+
+    def clip_state(self, x):
+        x = x.copy()
+        inds = self.state_inds['pr2', 'gripper']
+        val = x[inds][0]
+        x[inds] = GRIP_VAL if x[inds][0] >= 0 else -GRIP_VAL
+        return x
+
 

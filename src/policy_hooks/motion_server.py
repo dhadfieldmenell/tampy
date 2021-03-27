@@ -110,7 +110,7 @@ class MotionServer(Server):
         if cur_t == 0: x0 = node.x0
 
         wt = self.explore_wt if node.label.lower().find('rollout') >= 0 or node.nodetype.find('dagger') >= 0 else 1.
-        verbose = self.verbose and np.random.uniform() < 0.01
+        verbose = self.verbose and np.random.uniform() < 0.05
         success, path, info = self.agent.backtrack_solve(plan, 
                                                          anum=plan.start, 
                                                          x0=x0,
@@ -132,12 +132,14 @@ class MotionServer(Server):
             n_plans.value += 1
 
         if self.verbose and self.render and self.id.find('0') >= 0:
-            if len(plan.actions) == 1:
-                if node.nodetype.find('dagger') >= 0:
-                    aname = plan.actions[0].name
-                    self.save_video(path, path[-1]._postsuc, lab='_{}_middaggeropt'.format(aname))
-            elif node.nodetype.find('dagger') >= 0:
+            if node.nodetype.find('dagger') >= 0:
                 self.save_video(path, path[-1]._postsuc, lab='_fulldagger')
+
+        if self.verbose and self.render:
+            for ind, batch in enumerate(info['to_render']):
+                for next_path in batch:
+                    if len(next_path):
+                        self.save_video(next_path, next_path[-1]._postsuc, lab='_{}_backup_solve'.format(ind))
 
         self.log_path(path, 10)
         for step in path: step.source_label = node.nodetype

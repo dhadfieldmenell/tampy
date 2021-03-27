@@ -107,8 +107,10 @@ class DataLoader(object):
             n_del = data_len - max_size
             while n_del > 0:
                 del_label = np.random.choice(labels, p=p)
+                rand_ind = np.random.randint(len(dct[del_label]))
                 try:
-                    dct[del_label] = dct[del_label][n_del:]
+                    del dct[del_label][rand_ind]
+                    #dct[del_label] = dct[del_label][n_del:]
                 except Exception as e:
                     print(del_label, max_size, e)
                     raise e
@@ -156,7 +158,6 @@ class DataLoader(object):
             aux.append(dct[lab][ind][4])
             primobs.append(dct[lab][ind][5])
             x.append(dct[lab][ind][6])
-        #if self.task == 'primitive': print('Time to collect tensor:', time.time() - start_t)
         if self.normalize or self.aug_f is not None:
             obs = np.array(obs)
 
@@ -165,13 +166,12 @@ class DataLoader(object):
         if self.feed_prob > 0 and self.feed_in_policy is not None:
             if type(obs) is list:
                 obs = np.array(obs)
-            #print('REPLACING LABELS FOR LL W/HL OUTPUTS', self.feed_prob)
             nprim = int(self.feed_prob * len(mu))
             hl_out = self.feed_in_policy.act(None, primobs[:nprim], None)
             hl_val = hl_out[:nprim, self.feed_out_inds]
             if self.feed_map is not None:
                 hl_val = self.feed_map(hl_val, x[:nprim])
-            obs[:nprim, self.feed_in_inds] = hl_val #hl_out[:nprim, self.feed_out_inds]
+            obs[:nprim, self.feed_in_inds] = hl_val
 
         prc = np.array(prc)
         wt = np.array(wt)
@@ -183,21 +183,17 @@ class DataLoader(object):
         if self.aug_f is not None:
             mu, obs, wt, prc = self.aug_f(mu, obs, wt, prc, aux)
         prc = wt * prc
-        #if self.task == 'primitive': print('Time to build tensor:', time.time() - start_t)
         if self.scale is None: self.set_scale()
         if self.normalize:
             obs[:, self.x_idx] = obs[:, self.x_idx].dot(self.scale) + self.bias
-        #if self.task == 'primitive': print('Time to get', len(obs), 'batch:', time.time() - start_t)
         return obs, mu, prc
 
 
     def gen_items(self, label=None, val=False):
         for _ in range(self.load_freq):
-            #print('Waiting for batch to train on', self.task)
             while self.wait_for_data():
                 time.sleep(0.001)
             
-            #print('Sending batch to train on', self.task)
             yield self.get_batch()
 
 

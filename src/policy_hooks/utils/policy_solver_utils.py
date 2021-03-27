@@ -686,3 +686,16 @@ def first_failed_state(cost_f, task_breaks, path, cont=False):
                 return (ind, ts)
     return None
 
+
+def get_values(plan):
+    vals = {}
+    for pname, param in plan.params.items():
+        for attr in param._free_attrs:
+            vals[pname, attr] = getattr(param, attr).copy()
+    return vals
+
+
+def store_values(plan, vals):
+    for param, attr in vals:
+        getattr(plan.params[param], attr)[:] = vals[param, attr]
+

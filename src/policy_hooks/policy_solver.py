@@ -71,6 +71,7 @@ def get_base_solver(parent_class):
 
 
         def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax=None, n_resamples=5, inf_f=None, traj_mean=[], task=None, total_time=None, time_limit=TIME_LIMIT, max_priority=MAX_PRIORITY, min_priority=-2):
+            raise Exception('THIS IS DEPRECATED!')
             if amax is None:
                 amax = len(plan.actions) - 1
 

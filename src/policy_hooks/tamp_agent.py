@@ -629,6 +629,14 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return info
 
 
+    def first_postcond(self, sample, tol=1e-3, x0=None, task=None):
+        for t in range(sample.T):
+            cost = self.postcond_cost(sample, t=t, tol=tol, x0=x0, task=task)
+            if cost < 1e-4:
+                return t
+        return -1
+
+
     def postcond_cost(self, sample, task=None, t=None, debug=False, tol=1e-3, x0=None):
         if t is None: t = sample.T-1
         if task is None: task = tuple(sample.get(FACTOREDTASK_ENUM, t=t))
@@ -770,10 +778,12 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
     def backtrack_solve(self, plan, anum=0, n_resamples=5, x0=None, targets=None, rollout=False, traj=[], st=0, backup=False, label=None, permute=False, verbose=False):
         # Handle to make PR Graph integration easier
+        init_t = time.time()
         reset = True
         path = []
         if targets is None:
             targets = self.target_vecs[0]
+        self.target_vecs[0] = targets
 
         rollout_success = False
         start = anum
@@ -798,13 +808,15 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         if permute:
             perm_tasks, perm_targets, perm = self.permute_tasks(tasks, targets, plan)
 
+        smooth_cnts = []
         for a in range(anum, len(plan.actions)):
+            self.reset_to_state(x0)
             success = False
             act_ts = plan.actions[a].active_timesteps
             act_st, act_et = act_ts
             act_st = max(st, act_st)
-            #x0 = np.zeros_like(self.x0[0])
-            #fill_vector(plan.params, self.state_inds, x0, act_st)
+            prev_x0 = np.zeros_like(self.x0[0])
+            fill_vector(plan.params, self.state_inds, prev_x0, act_st)
             task = tuple(tasks[a])
             perm_task = tuple(perm_tasks[a])
             cost = 1.
@@ -813,63 +825,88 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             if len(traj) > act_et:
                 ref_traj = traj[act_st:act_et+1]
             elif (backup or rollout) and self.policy_initialized(policy):
+                self.reset_to_state(x0)
                 hor = 2 * (act_et - act_st)
                 if self.retime: hor *= 2
                 sample = self.sample_task(policy, 0, x0.copy(), task, hor=hor, skip_opt=True)
+                last_t = self.first_postcond(sample, x0=x0, task=task)
+                if last_t < 0: last_t = None
                 cost = self.postcond_cost(sample, task, sample.T-1, x0=x0)
-                ref_traj, _, labels, _ = self.reverse_retime([sample], (act_st, act_et), label=True)
-                if cost < 1e-4:
+                ref_traj, _, labels, _ = self.reverse_retime([sample], (act_st, act_et), label=True, T=last_t)
+                if cost < 1e-4 and rollout:
                     self.optimal_samples[self.task_list[task[0]]].append(sample)
+            else:
+                ref_traj = []
 
-
-            if backup:
+            if backup and len(ref_traj):
                 info['to_render'].append([])
+                if verbose:
+                    info['to_render'][-1].append([sample])
+
                 cur_path = []
                 n_suc = 0
                 old_solve_priorities = self.ll_solver.solve_priorities
                 self.ll_solver.solve_priorities = [3]
+
+                for ts, state in enumerate(ref_traj[:-1]):
+                    if ts == 0: continue 
+                    state = self.clip_state(state)
+                    for (pname, aname), inds in self.state_inds.items():
+                        getattr(plan.params[pname], aname)[:, act_st+ts] = state[inds]
+
+                prev_suc = act_et
                 for cur_step in range(2, act_et-act_st-1):
+                    old_free = plan.get_free_attrs()
+                    old_vals = plan.get_values()
                     cur_t = act_et - cur_step
-                    cur_x0 = ref_traj[cur_t]
-                    for ts, state in enumerate(ref_traj):
-                        for (pname, aname), inds in self.state_inds.items():
-                            getattr(plan.params[pname], aname)[:, ts] = state[inds]
-                    self.set_symbols(plan, task, anum=a, st=cur_t)
+                    cur_x0 = ref_traj[cur_t-act_st]
+                    set_params_attrs(plan.params, self.state_inds, self.clip_state(cur_x0), act_st, plan=plan)
+                    self.set_symbols(plan, task, anum=a, st=cur_t, targets=targets)
                     try:
-                        success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=0, init_traj=ref_traj[cur_t:], st=cur_t)
+                        #success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=0, init_traj=ref_traj[cur_t-act_st:], st=cur_t)
+                        success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=0, init_traj=[], st=cur_t)
+                    except AttributeError as e:
+                        success = False
                     except Exception as e:
-                        traceback.print_exception(*sys.exc_info())
-                        print(('Exception in full solve for', cur_x0, task, plan.actions[a]), e, st)
+                        print('Exception in backup solve for', cur_x0, task, plan.actions[a], e, cur_t)
                         success = False
 
                     if success:
                         n_suc += 1
-                        next_t = cur_t + 1
-                        next_path, next_x0 = self.run_action(plan, a, cur_x0, perm_targets, perm_task, cur_t, next_t, reset=reset, save=True, record=True, perm=perm)
+                        next_t = max(prev_suc, cur_t+5)
+                        prev_suc = cur_t
+                        next_path, next_x0 = self.run_action(plan, a, cur_x0, perm_targets, perm_task, cur_t, next_t, reset=reset, save=False, record=False, perm=perm, add_noop=False)
                         for step in next_path:
                             self.optimal_samples[self.task_list[task[0]]].append(step)
-                            step.draw = False
+                            #step.draw = False
+                            #step.use_ts[:] = 1.
+                            #step.prim_use_ts[:] = 1.
 
                         cur_path = next_path + cur_path
                         if verbose:
-                            temp_path, temp_x0 = self.run_action(plan, a, cur_x0, targets, task, cur_t, act_et, reset=reset, save=False, record=False, perm={})
-                            info['to_render'][-1].append(temp_path)
+                            print(self.process_id, "Adding backup solve traj...")
+                            info['to_render'][-1].append(next_path)
+                    else:
+                        plan.store_values(old_vals)
 
+                    plan.store_free_attrs(old_free)
                 self.ll_solver.solve_priorities = old_solve_priorities
-                print(self.process_id, 'N samples from smoothing:', n_suc)
+                smooth_cnts.append((task, n_suc, len(cur_path)))
 
-            self.set_symbols(plan, task, anum=a, st=act_st)
+            set_params_attrs(plan.params, self.state_inds, prev_x0, act_st, plan=plan)
+            self.set_symbols(plan, task, anum=a, st=act_st, targets=targets)
+            old_free = plan.get_free_attrs()
             try:
-                success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=ref_traj, st=act_st)
-                if self.traj_smooth:
-                    plan.backup_params()
-                    suc = self.ll_solver.traj_smoother(plan)
-                    if not suc:
-                        plan.restore_params()
+                #success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=ref_traj, st=act_st)
+                success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=[], st=act_st)
+            except AttributeError as e:
+                print(('Opt Exception in full solve for', x0, task, plan.actions[a]), st)
+                success = False
             except Exception as e:
                 traceback.print_exception(*sys.exc_info())
                 print(('Exception in full solve for', x0, task, plan.actions[a]), e, st)
                 success = False
+            plan.store_free_attrs(old_free)
             self.n_opt[task] = self.n_opt.get(task, 0) + 1
 
             if not success:
@@ -882,7 +919,9 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             if not next_path[-1]._postsuc:
                 return False, path, info
             x0 = next_x0
-
+            ref_x0 = x0.copy()
+            ref_x0 = self.clip_state(ref_x0)
+           
         rollout_success = len(path) and path[-1].success > 0.999
         if success:
             self.n_plans_run += 1
@@ -891,7 +930,9 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             self.n_plans_suc_run += 1
             self.add_task_paths([path])
 
-        print(('Plans run vs. success:', self.n_plans_run, self.n_plans_suc_run, self.process_id))
+        if len(smooth_cnts):
+            print(self.process_id, 'N smooth:', smooth_cnts, time.time()-init_t, verbose)
+        print(('Plans run vs. success:', self.n_plans_run, self.n_plans_suc_run, self.process_id, time.time()-init_t))
         return success, path, info
 
 
@@ -929,7 +970,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
         x0s = []
         for a in range(amin, amax+1):
-            next_path, next_x0 = self.run_action(plan, a, x0, targets, tasks[a], start_ts, reset, save, record, perm)
+            next_path, next_x0 = self.run_action(plan, a, x0, targets, tasks[a], start_ts, reset, save, record, perm, add_noop=True)
             path.extend(next_path)
             for _ in range(len(next_path)):
                 x0s.append(x0)
@@ -976,7 +1017,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return path, log_info
 
 
-    def run_action(self, plan, anum, x0, targets, task, start_ts=0, end_ts=None, reset=True, save=True, record=True, perm={}, base_x0=None):
+    def run_action(self, plan, anum, x0, targets, task, start_ts=0, end_ts=None, reset=True, save=True, record=True, perm={}, base_x0=None, add_noop=True):
         x0 = x0.copy()
         static_x0 = x0.copy()
         start_ts = int(start_ts)
@@ -1027,8 +1068,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 t += T - 1
                 x0 = sample.end_state # sample.get_X(t=sample.T-1)
                 sample.success = 1. - self.goal_f(0, x0, sample.targets)
-                sample.use_ts[:] = 1.
-                sample.prim_use_ts[:] = 1.
         else:
             sample = self.sample_optimal_trajectory(x0, task, 0, opt_traj, targets=targets)
             path.append(sample)
@@ -1039,11 +1078,9 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             sample.task = task
             x0 = sample.end_state # sample.get_X(sample.T-1)
             sample.success = 1. - self.goal_f(0, x0, targets)
-            sample.use_ts[:] = 1.
-            sample.prim_use_ts[:] = 1.
         path[-1].task_end = True
         path[-1].set(TASK_DONE_ENUM, np.array([0, 1]), t=path[-1].T-1)
-        if nzero > 0 and true_et == et:
+        if nzero > 0 and add_noop:
             zero_traj = np.tile(opt_traj[-1], [nzero, 1])
             zero_sample = self.sample_optimal_trajectory(path[-1].end_state, task, 0, zero_traj, targets=targets)
             x0 = zero_sample.end_state # sample.get_X(sample.T-1)
@@ -1059,9 +1096,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             path.append(zero_sample)
         end_s = path[-1]
         end_s.task_end = True
-        cost = self.postcond_cost(end_s, task, end_s.T-1, debug=False, x0=base_x0, tol=2e-3)
+        cost = self.postcond_cost(end_s, task, end_s.T-1, debug=False, x0=base_x0, tol=1e-3)
 
         for ind, s in enumerate(path):
+            s.opt_strength = 1.
             if cost < 1e-4:
                 s._postsuc = True
                 if save:
@@ -1260,37 +1298,38 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return np.all(np.array(t1) == np.array(t2))
 
     
-    def reverse_retime(self, samples, ts, label=False, start_t=0):
-        T = sum([s.T-1 for s in samples]) + 1
+    def reverse_retime(self, samples, ts, label=False, start_t=0, T=None):
+        if T is None:
+            T = sum([s.T-1 for s in samples]) + 1
+
         ts_range = np.linspace(start_t, T, ts[1]-ts[0]+1)
         cur_s, cur_t = 0, start_t
         cur_offset = 0
         traj = []
         env_state = []
         labels = []
-        rev_labels = [0]
+        rev_labels = []
         prev_t = cur_t
         for ind, t in enumerate(ts_range):
-            t = int(t)
-            cur_t = t - cur_offset
-            if ind == len(ts)-1 or (cur_s >= len(samples) - 1 and cur_t >= samples[cur_s].T):
+            ts = int(t)
+            cur_t = ts - cur_offset
+            if cur_s >= len(samples) - 1 and cur_t >= samples[cur_s].T - 1:
                 cur_s = len(samples)-1
                 cur_t = samples[-1].T-1
-            elif cur_t >= samples[cur_s].T:
+            elif cur_t >= samples[cur_s].T - 1:
                 cur_t = 0
                 cur_s += 1
+                cur_offset += samples[cur_s].T - 1
 
             sample = samples[cur_s]
             traj.append(sample.get(STATE_ENUM, t=cur_t))
             env_state.append(sample.env_state.get(cur_t, None))
             labels.append(cur_s)
-            for _ in range(t-prev_t):
-                rev_labels.append(t)
+            for _ in range(ts-prev_t):
+                rev_labels.append(ts)
 
-            prev_t = t
+            prev_t = ts
 
-        rev_labels = rev_labels[:-1]
-        rev_labels[-1] = len(traj)-1
         if label: return np.array(traj), labels, rev_labels, env_state
         return np.array(traj)
 

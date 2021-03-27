@@ -19,14 +19,13 @@ from policy_hooks.utils.tf_utils import TfSolver
 
 from policy_hooks.tf_policy import TfPolicy
 
-MAX_QUEUE_SIZE = 200000
 MAX_UPDATE_SIZE = 10000
 SCOPE_LIST = ['primitive']
 
 
 class ControlAttentionPolicyOpt(PolicyOpt):
     """ Policy optimization using tensor flow for DAG computations/nonlinear function approximation. """
-    def __init__(self, hyperparams, dO, dU, dPrimObs, dValObs, primBounds, inputs=None):
+    def __init__(self, hyperparams, dO, dU, dPrimObs, dValObs, primBounds, contBounds=None, inputs=None):
         global tf
         import tensorflow as tf
         self.scope = hyperparams['scope'] if 'scope' in hyperparams else None
@@ -52,7 +51,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             self.buffers = self._hyperparams['buffers']
             self.buf_sizes = self._hyperparams['buffer_sizes']
         auxBounds = self._hyperparams.get('aux_boundaries', [])
-        self._dPrim = max([b[1] for b in primBounds] + [b[1] for b in auxBounds])# primBounds[-1][-1]
+        self._dPrim = max([b[1] for b in primBounds] + [b[1] for b in auxBounds])
+        self._dCont = max([b[1] for b in contBounds]) if contBounds is not None else 0
         self._dPrimObs = dPrimObs
         self._dValObs = dValObs
         self._primBounds = primBounds
@@ -132,7 +132,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.average_error = []
         self.N = 0
         self.n_updates = 0
-        self.buffer_size = MAX_QUEUE_SIZE
         self.lr_scale = 0.9975
         self.lr_policy = 'fixed'
         self._hyperparams['iterations'] = MAX_UPDATE_SIZE // self.batch_size + 1
@@ -319,22 +318,12 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 self.primitive_eta = tf.placeholder_with_default(1., shape=())
                 tf_map_generator = self._hyperparams['primitive_network_model']
                 self.primitive_class_tensor = None
-                if self._hyperparams['split_hl_loss']:
-                    self.primitive_class_tensor = tf.placeholder(shape=[None, 1], dtype='float32')
-                    tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, \
-                                                                       dim_output=self._dPrim, \
-                                                                       batch_size=self.batch_size, \
-                                                                       network_config=self._hyperparams['primitive_network_params'], \
-                                                                       input_layer=inputs, \
-                                                                       eta=self.primitive_eta, \
-                                                                       class_tensor=self.primitive_class_tensor)
-                else:
-                    tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, \
-                                                                       dim_output=self._dPrim, \
-                                                                       batch_size=self.batch_size, \
-                                                                       network_config=self._hyperparams['primitive_network_params'], \
-                                                                       input_layer=inputs, \
-                                                                       eta=self.primitive_eta)
+                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, \
+                                                                   dim_output=self._dPrim, \
+                                                                   batch_size=self.batch_size, \
+                                                                   network_config=self._hyperparams['primitive_network_params'], \
+                                                                   input_layer=inputs, \
+                                                                   eta=self.primitive_eta)
                 self.primitive_obs_tensor = tf_map.get_input_tensor()
                 self.primitive_precision_tensor = tf_map.get_precision_tensor()
                 self.primitive_action_tensor = tf_map.get_target_output_tensor()
@@ -347,6 +336,27 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
                 # Setup the gradients
                 #self.primitive_grads = [tf.gradients(self.primitive_act_op[:,u], self.primitive_obs_tensor)[0] for u in range(self._dPrim)]
+
+        if False: #self.load_all or self.scope is None or 'cont' == self.scope:
+            with tf.variable_scope('cont'):
+                inputs = self.input_layer if 'cont' == self.scope else None
+                self.cont_eta = tf.placeholder_with_default(1., shape=())
+                tf_map_generator = self._hyperparams['cont_network_model']
+                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs+self._dPrim, \
+                                                                   dim_output=self._dCont, \
+                                                                   batch_size=self.batch_size, \
+                                                                   network_config=self._hyperparams['cont_network_params'], \
+                                                                   input_layer=inputs, \
+                                                                   eta=self.cont_eta)
+                self.cont_obs_tensor = tf_map.get_input_tensor()
+                self.cont_precision_tensor = tf_map.get_precision_tensor()
+                self.cont_action_tensor = tf_map.get_target_output_tensor()
+                self.cont_act_op = tf_map.get_output_op()
+                self.cont_feat_op = tf_map.get_feature_op()
+                self.cont_loss_scalar = tf_map.get_loss_op()
+                self.cont_fc_vars = fc_vars
+                self.cont_last_conv_vars = last_conv_vars
+                self.cont_aux_losses = tf_map.aux_loss_ops
 
         for scope in self.valid_scopes:
             if self.scope is None or scope == self.scope:
@@ -390,6 +400,21 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                                last_conv_vars=self.primitive_last_conv_vars,
                                                vars_to_opt=vars_to_opt,
                                                aux_losses=self.primitive_aux_losses)
+        if False: # self.scope is None or 'cont' == self.scope:
+            self.cur_hllr = self._hyperparams['hllr']
+            self.hllr_tensor = tf.Variable(initial_value=self._hyperparams['hllr'], name='hllr')
+            self.cur_dec = self._hyperparams['prim_weight_decay']
+            vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='cont')
+            self.cont_solver = TfSolver(loss_scalar=self.cont_loss_scalar,
+                                       solver_name=self._hyperparams['solver_type'],
+                                       base_lr=self.hllr_tensor,
+                                       lr_policy=self._hyperparams['lr_policy'],
+                                       momentum=self._hyperparams['momentum'],
+                                       weight_decay=self.dec_tensor,
+                                       fc_vars=self.cont_fc_vars,
+                                       last_conv_vars=self.cont_last_conv_vars,
+                                       vars_to_opt=vars_to_opt,
+                                       aux_losses=self.cont_aux_losses)
         self.lr_tensor = tf.Variable(initial_value=self._hyperparams['lr'], name='lr')
         self.cur_lr = self._hyperparams['lr']
         for scope in self.valid_scopes:
@@ -409,6 +434,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
     def get_policy(self, task):
         if task == 'primitive': return self.prim_policy
+        if task == 'cont': return self.cont_policy
         return self.task_map[task]['policy']
 
     def init_policies(self, dU):
@@ -417,6 +443,16 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                         self.primitive_obs_tensor,
                                         self.primitive_act_op,
                                         self.primitive_feat_op,
+                                        np.zeros(dU),
+                                        self.sess,
+                                        self.device_string,
+                                        copy_param_scope=None,
+                                        normalize=False)
+        if False: # self.load_all or self.scope is None or self.scope == 'cont':
+            self.cont_policy = TfPolicy(dU,
+                                        self.cont_obs_tensor,
+                                        self.cont_act_op,
+                                        self.cont_feat_op,
                                         np.zeros(dU),
                                         self.sess,
                                         self.device_string,
@@ -460,6 +496,14 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         if scalar:
             return np.mean(acc)
         return np.mean(acc, axis=0)
+
+
+    def cont_task(self, obs, eta=1.):
+        if len(obs.shape) < 2:
+            obs = obs.reshape(1, -1)
+
+        vals = self.sess.run(self.cont_act_op, feed_dict={self.cont_obs_tensor:obs, self.cont_eta: eta, self.dec_tensor: self.cur_dec})[0].flatten()
+        return res
 
 
     def task_distr(self, obs, eta=1.):
@@ -509,14 +553,18 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         start_t = time.time()
         average_loss = 0
         for i in range(self._hyperparams['iterations']):
-            feed_dict = {self.hllr_tensor: self.cur_hllr} if task == 'primitive' else {self.lr_tensor: self.cur_lr}
+            feed_dict = {self.hllr_tensor: self.cur_hllr} if task in ['cont', 'primitive'] else {self.lr_tensor: self.cur_lr}
             feed_dict[self.dec_tensor] = self.cur_dec
-            solver = self.primitive_solver if task == 'primitive' else self.task_map[task]['solver']
+            if task in self.task_map:
+                solver = self.task_map[task]['solver']
+            elif task == 'primitive':
+                solver = self.primitive_solver
+            elif task == 'cont':
+                solver = self.cont_solver
             train_loss = solver(feed_dict, self.sess, device_string=self.device_string, train=True)[0]
             average_loss += train_loss
         self.tf_iter += self._hyperparams['iterations']
         self.average_losses.append(average_loss / self._hyperparams['iterations'])
-        #if task == 'primitive': print('Time to run', self._hyperparams['iterations'], 'updates:', time.time() - start_t)
 
         '''
         # Optimize variance.
