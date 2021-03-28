@@ -188,10 +188,8 @@ class NAMOGripAgent(NAMOSortingAgent):
                 if onehot_task not in self.plans:
                     task = self.task_to_onehot[task[0]]
                 self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
-
-            grasp = np.array([0, -0.601])
-            if GRASP_ENUM in prim_choices and self.discrete_prim:
-                grasp = self.set_grasp(grasp, task[3])
+                taskname = self.task_list[task[0]]
+                if policies is not None: policy = policies[taskname]
 
             X = cur_state.copy()
             U_full = policy.act(X, sample.get_obs(t=t).copy(), t, noise_full)
@@ -212,14 +210,6 @@ class NAMOGripAgent(NAMOSortingAgent):
             if tname.find('transfer') and len(self._col) == 1 and self._col[0] == objname:
                 col = 0
             col_ts[t] = col
-
-            if self.master_config['local_retime']:
-                dist = np.linalg.norm(U_full[self.action_inds['pr2', 'pose']])
-                if dist > self.master_config['velocity']:
-                    U_old = U_full
-                    U_full *= self.master_config['velocity'] / dist
-                    U_full[self.action_inds['pr2', 'gripper']] = U_old[self.action_inds['pr2', 'gripper']]
-
             sample.set(ACTION_ENUM, U_full, t)
 
             new_state = self.get_state()

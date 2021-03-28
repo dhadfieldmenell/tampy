@@ -52,10 +52,11 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             self.buf_sizes = self._hyperparams['buffer_sizes']
         auxBounds = self._hyperparams.get('aux_boundaries', [])
         self._dPrim = max([b[1] for b in primBounds] + [b[1] for b in auxBounds])
-        self._dCont = max([b[1] for b in contBounds]) if contBounds is not None else 0
+        self._dCont = max([b[1] for b in contBounds]) if contBounds is not None and len(contBounds) else 0
         self._dPrimObs = dPrimObs
         self._dValObs = dValObs
         self._primBounds = primBounds
+        self._contBounds = contBounds if contBounds is not None else []
         self.task_map = {}
         self.device_string = "/cpu:0"
         if self._hyperparams['use_gpu'] == 1:
@@ -90,12 +91,15 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.init_policies(dU)
         llpol = hyperparams.get('ll_policy', '')
         hlpol = hyperparams.get('hl_policy', '')
+        contpol = hyperparams.get('cont_policy', '')
         scopes = self.valid_scopes + SCOPE_LIST if self.scope is None else [self.scope]
         for scope in scopes:
             if len(llpol) and scope in self.valid_scopes:
                 self.restore_ckpt(scope, dirname=llpol)
             if len(hlpol) and scope not in self.valid_scopes:
                 self.restore_ckpt(scope, dirname=hlpol)
+            if len(contpol) and scope not in self.valid_scopes:
+                self.restore_ckpt(scope, dirname=contpol)
 
         # List of indices for state (vector) data and image (tensor) data in observation.
         self.x_idx, self.img_idx, i = [], [], 0
@@ -119,7 +123,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             i += dim
 
         self.update_count = 0
-        if self.scope == 'primitive':
+        if self.scope in ['primitive', 'cont']:
             self.update_size = self._hyperparams['prim_update_size']
         else:
             self.update_size = self._hyperparams['update_size']
@@ -503,6 +507,9 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             obs = obs.reshape(1, -1)
 
         vals = self.sess.run(self.cont_act_op, feed_dict={self.cont_obs_tensor:obs, self.cont_eta: eta, self.dec_tensor: self.cur_dec})[0].flatten()
+        res = []
+        for bound in self._contBounds:
+            res.append(vals[bound[0]:bound[1]])
         return res
 
 
@@ -539,6 +546,12 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                          self.primitive_precision_tensor: tgt_prc,
                          self.dec_tensor: self.cur_dec}
             val_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, train=False)
+        elif task == 'cont':
+            feed_dict = {self.cont_obs_tensor: obs,
+                         self.cont_action_tensor: tgt_mu,
+                         self.cont_precision_tensor: tgt_prc,
+                         self.dec_tensor: self.cur_dec}
+            val_loss = self.cont_solver(feed_dict, self.sess, device_string=self.device_string, train=False)
         else:
             feed_dict = {self.task_map[task]['obs_tensor']: obs,
                          self.task_map[task]['action_tensor']: tgt_mu,

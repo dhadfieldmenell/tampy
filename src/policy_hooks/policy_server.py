@@ -67,7 +67,7 @@ class PolicyServer(object):
             for opt in self.continuous_opts:
                 inopt = opt1 if opt1 is not None else opt
                 in_inds.append(self.agent._obs_data_idx[inopt])
-                out_inds.append(self.agent._prim_out_data_idx[opt])
+                out_inds.append(self.agent._cont_out_data_idx[opt])
                 
             in_inds = np.concatenate(in_inds, axis=0)
             out_inds = np.concatenate(out_inds, axis=0)
@@ -98,12 +98,18 @@ class PolicyServer(object):
                                    save_dir=self.weight_dir+'/samples/')
       
         hyperparams['dPrim'] = len(hyperparams['prim_bounds'])
-        dO = hyperparams['dPrimObs'] if self.task == 'primitive' else hyperparams['dO']
         if self.task == 'primitive':
-            dU = max([b[1] for b in hyperparams['prim_bounds']] + [b[1] for b in hyperparams['aux_bounds']])
+            dO = hyperparams['dPrimObs']
+            dU = max([b[1] for b in self.discr_bounds] + [b[1] for b in hyperparams['aux_bounds']])
             dP = hyperparams['dPrim']
             precShape = tf.TensorShape([None, dP])
+        elif self.task == 'cont':
+            dO = hyperparams['dContObs']
+            dU = max([b[1] for b in self.cont_bounds])
+            dP = hyperparams['dCont']
+            precShape = tf.TensorShape([None, dP])
         else:
+            dO = hyperparams['dO']
             dU = hyperparams['dU']
             dP = hyperparams['dU']
             precShape = tf.TensorShape([None, dP, dP])
@@ -131,13 +137,16 @@ class PolicyServer(object):
             hyperparams['dU'],
             hyperparams['dPrimObs'],
             hyperparams['dValObs'],
-            hyperparams['prim_bounds'],
+            self.discr_bounds,
+            contBounds=self.cont_bounds,
             inputs=(self.input, self.act, self.prc),
         )
         self.policy_opt.lr_policy = hyperparams['lr_policy']
         self.lr_policy = hyperparams['lr_policy']
         if self.task == 'primitive':
             self.data_gen.x_idx = self.policy_opt.prim_x_idx
+        elif self.task == 'cont':
+            self.data_gen.x_idx = self.policy_opt.cont_x_idx
         else:
             self.data_gen.x_idx = self.policy_opt.x_idx
 
@@ -224,8 +233,8 @@ class PolicyServer(object):
             if not self.iters % 10:
                 self.policy_opt.write_shared_weights([self.task])
                 if len(self.continuous_opts) and self.task not in ['cont', 'primitive']:
-                    self.policy_opt.read_shared_weights(['primitive'])
-                    self.data_gen.feed_in_policy = self.policy_opt.prim_policy
+                    self.policy_opt.read_shared_weights(['cont'])
+                    self.data_gen.feed_in_policy = self.policy_opt.cont_policy
 
                 n_train = self.data_gen.get_size()
                 n_val = self.data_gen.get_size(val=True)

@@ -222,6 +222,7 @@ class MultiProcessMain(object):
             'q_imwt': self.config.get('q_imwt', 0),
             'll_policy': self.config.get('ll_policy', ''),
             'hl_policy': self.config.get('hl_policy', ''),
+            'cont_policy': self.config.get('cont_policy', ''),
             'type': ControlAttentionPolicyOpt,
             'network_params': {
                 'obs_include': self.config['agent']['obs_include'],
@@ -606,6 +607,7 @@ class MultiProcessMain(object):
         queues = {}
         config['hl_queue'] = Queue(queue_size)
         config['ll_queue'] = Queue(queue_size)
+        config['cont_queue'] = Queue(queue_size)
         config['motion_queue'] = self.queue_manager.PriorityQueue(queue_size)
         config['task_queue'] = self.queue_manager.PriorityQueue(queue_size)
         config['rollout_queue'] = self.queue_manager.PriorityQueue(queue_size)

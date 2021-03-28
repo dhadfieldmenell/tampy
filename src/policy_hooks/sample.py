@@ -165,6 +165,13 @@ class Sample(object):
                 self.agent.pack_data_prim_out(out, data, data_types=[data_type])
         return out.copy()
 
+    def get_cont_obs(self, t=None):
+        prim_obs = self.get_prim_obs(t=t)
+        prim_out = self.get_prim_out(t=t)
+        if t is None:
+            return np.c_[prim_obs, prim_out]
+        return np.r_[prim_obs, prim_out]
+
     def get_cont_out(self, t=None):
         """ Get the observation. Put it together if not precomputed. """
         out = self._cont_out if t is None else self._cont_out[t, :]

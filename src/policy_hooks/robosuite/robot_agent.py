@@ -1191,10 +1191,9 @@ class RobotAgent(TAMPAgent):
                 out[:, self.state_inds['sawyer', 'right_ee_pos']] = info['pos']
                 out[:, self.state_inds['sawyer', 'right_ee_rot']] = T.quaternion_to_euler(info['quat'], 'xyzw')
             out[0] = step[0]
-            out[-1] = step[-1]
             for pt, val in fix_pts:
                 out[pt] = val
-            out = np.r_[out, [out[-1]]]
+            out[-1] = step[-1]
             if len(new_traj):
                 new_traj = np.r_[new_traj, out]
             else:

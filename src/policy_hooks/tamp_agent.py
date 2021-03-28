@@ -831,6 +831,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 sample = self.sample_task(policy, 0, x0.copy(), task, hor=hor, skip_opt=True)
                 last_t = self.first_postcond(sample, x0=x0, task=task)
                 if last_t < 0: last_t = None
+                last_t = None
                 cost = self.postcond_cost(sample, task, sample.T-1, x0=x0)
                 ref_traj, _, labels, _ = self.reverse_retime([sample], (act_st, act_et), label=True, T=last_t)
                 if cost < 1e-4 and rollout:
