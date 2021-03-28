@@ -822,6 +822,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             cost = 1.
             policy = self.policies[self.task_list[task[0]]]
             labels = None
+            cur_x_hist = self._x_delta.copy()
             if len(traj) > act_et:
                 ref_traj = traj[act_st:act_et+1]
             elif (backup or rollout) and self.policy_initialized(policy):
@@ -846,6 +847,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
                 cur_path = []
                 n_suc = 0
+                hist_traj = np.r_[cur_x_hist, ref_traj]
                 old_solve_priorities = self.ll_solver.solve_priorities
                 self.ll_solver.solve_priorities = [3]
 
@@ -876,7 +878,9 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                         n_suc += 1
                         next_t = max(prev_suc, cur_t+5)
                         prev_suc = cur_t
-                        next_path, next_x0 = self.run_action(plan, a, cur_x0, perm_targets, perm_task, cur_t, next_t, reset=reset, save=False, record=False, perm=perm, add_noop=False)
+                        next_hist = hist_traj[-cur_step-self.hist_len-2:-cur_step-1]
+                        self._x_delta[:] = next_hist
+                        next_path, next_x0 = self.run_action(plan, a, cur_x0, perm_targets, perm_task, cur_t, next_t, reset=reset, save=False, record=False, perm=perm, add_noop=False, prev_hist=next_hist)
                         for step in next_path:
                             self.optimal_samples[self.task_list[task[0]]].append(step)
                             #step.draw = False
@@ -914,7 +918,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 self.n_fail_opt[task] = self.n_fail_opt.get(task, 0) + 1
                 return False, path, info
 
-            next_path, next_x0 = self.run_action(plan, a, x0, perm_targets, perm_task, act_st, reset=reset, save=True, record=True, perm=perm)
+            self._x_delta[:] = cur_x_hist
+            next_path, next_x0 = self.run_action(plan, a, x0, perm_targets, perm_task, act_st, reset=reset, save=True, record=True, perm=perm, prev_hist=cur_x_hist)
             for sample in next_path: sample.opt_strength = 1.
             path.extend(next_path)
             if not next_path[-1]._postsuc:
@@ -1018,7 +1023,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return path, log_info
 
 
-    def run_action(self, plan, anum, x0, targets, task, start_ts=0, end_ts=None, reset=True, save=True, record=True, perm={}, base_x0=None, add_noop=True):
+    def run_action(self, plan, anum, x0, targets, task, start_ts=0, end_ts=None, reset=True, save=True, record=True, perm={}, base_x0=None, add_noop=True, prev_hist=None):
         x0 = x0.copy()
         static_x0 = x0.copy()
         start_ts = int(start_ts)
@@ -1045,6 +1050,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             base_x0[self.state_inds[perm.get(pname, pname), attr]] = static_base[self.state_inds[pname, attr]]
 
         if reset: self.reset_to_state(x0)
+        if prev_hist is not None: self._x_delta[:] = prev_hist
+
         cur_len = len(path)
         if self.retime:
             vel = self.master_config.get('velocity', 0.3)
