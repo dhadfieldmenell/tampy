@@ -52,7 +52,7 @@ class PolicyServer(object):
         elif self.task == 'cont':
             self.in_queue = hyperparams['cont_queue']
         else:
-            self.in_queue = hyperparams['ll_queue']
+            self.in_queue = hyperparams['ll_queue'][self.task]
 
         self.batch_size = hyperparams['batch_size']
         normalize = self.task not in ['cont', 'primitive']
@@ -98,13 +98,13 @@ class PolicyServer(object):
                                    save_dir=self.weight_dir+'/samples/')
       
         hyperparams['dPrim'] = len(hyperparams['prim_bounds'])
-        if self.task == 'primitive':
+        if self.task == 'primitive' or (self.task == 'cont' and not len(self.cont_bounds)):
             dO = hyperparams['dPrimObs']
             dU = max([b[1] for b in self.discr_bounds] + [b[1] for b in hyperparams['aux_bounds']])
             dP = hyperparams['dPrim']
             precShape = tf.TensorShape([None, dP])
         elif self.task == 'cont':
-            dO = hyperparams['dContObs']
+            dO = hyperparams['dPrimObs'] + max([b[1] for b in self.discr_bounds])
             dU = max([b[1] for b in self.cont_bounds])
             dP = hyperparams['dCont']
             precShape = tf.TensorShape([None, dP])
@@ -131,6 +131,8 @@ class PolicyServer(object):
         self.data = self.data.prefetch(3)
         self.input, self.act, self.prc = self.data.make_one_shot_iterator().get_next()
 
+        hyperparams['policy_opt']['primitive_network_params']['output_boundaries'] = self.discr_bounds
+        hyperparams['policy_opt']['cont_network_params']['output_boundaries'] = self.cont_bounds
         self.policy_opt = hyperparams['policy_opt']['type'](
             hyperparams['policy_opt'],
             hyperparams['dO'],

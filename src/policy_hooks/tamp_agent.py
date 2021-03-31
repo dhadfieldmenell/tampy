@@ -45,7 +45,7 @@ class optimal_pol:
         self.state_inds = state_inds
         self.opt_traj = opt_traj
 
-    def act(self, X, O, t, noise):
+    def act(self, X, O, t, noise=None):
         u = np.zeros(self.dU)
         for param, attr in self.action_inds:
             u[self.action_inds[param, attr]] = self.opt_traj[t, self.state_inds[param, attr]]
@@ -129,6 +129,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.eta_scale = 1.
         self._noops = 0.
         self.optimal_samples = {task: [] for task in self.task_list}
+        self.cont_samples = []
         self.optimal_pol_cls = optimal_pol
 
         self.task_paths = []
@@ -183,6 +184,17 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             data.extend(self.optimal_samples[task])
             if clear:
                 self.optimal_samples[task] = []
+        return data
+
+
+    def add_cont_sample(self, sample, max_buf=1e2):
+        self.cont_samples.append(sample)
+        self.cont_samples = self.cont_samples[-max_buf:]
+
+
+    def get_cont_samples(self, clear=True):
+        data = self.cont_samples
+        if clear: self.cont_samples = []
         return data
 
 
@@ -334,9 +346,89 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return hasattr(policy, 'scale') and policy.scale is not None
 
 
-    @abstractmethod
     def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None, policies=None):
-        raise NotImplementedError
+        x0 = state[self._x_data_idx[STATE_ENUM]].copy()
+        task = tuple(task)
+        onehot_task = tuple([val for val in task if np.isscalar(val)])
+        plan = self.plans[onehot_task] if onehot_task in self.plans else self.plans[task[0]]
+
+        if hor is None:
+            hor = plan.horizon if task_f is None else max([p.horizon for p in list(self.plans.values())])
+
+        self.T = hor
+        sample = Sample(self)
+        sample.init_t = 0
+        col_ts = np.zeros(self.T)
+        prim_choices = self.prob.get_prim_choices(self.task_list)
+        sample.targets = self.target_vecs[condition].copy()
+        n_steps = 0
+        end_state = None
+        cur_state = self.get_state() # x0
+        sample.task = task
+
+        self.fill_sample(condition, sample, cur_state.copy(), 0, task, fill_obs=True)
+        for t in range(0, self.T):
+            noise_full = np.zeros((self.dU,))
+
+            self.fill_sample(condition, sample, cur_state.copy(), t, task, fill_obs=True)
+            if task_f is not None:
+                prev_task = task
+                task = task_f(sample, t, task)
+                onehot_task = tuple([val for val in task if np.isscalar(val)])
+                self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
+                taskname = self.task_list[task[0]]
+                if policies is not None: policy = policies[taskname]
+                self.fill_sample(condition, sample, cur_state.copy(), t, task, fill_obs=True)
+
+            prev_vals = {}
+            if policies is not None and 'cont' in policies and len(self.continuous_opts):
+                prev_vals = self.fill_cont(sample, policies['cont'], t)
+
+            sample.set(NOISE_ENUM, noise_full, t)
+
+            U_full = policy.act(cur_state.copy(), sample.get_obs(t=t).copy(), t, noise_full)
+            sample.set(ACTION_ENUM, U_full.copy(), t)
+
+            U_nogrip = U_full.copy()
+            for (pname, aname), inds in self.action_inds.items():
+                if aname.find('grip') >= 0: U_nogrip[inds] = 0.
+
+            if np.all(np.abs(U_nogrip)) < 1e-3:
+                self._noops += 1
+                self.eta_scale = 1. / np.log(self._noops+2)
+            else:
+                self._noops = 0
+                self.eta_scale = 1.
+
+            for enum, val in prev_vals.items():
+                sample.set(enum, val, t=t)
+            if len(self._prev_U): self._prev_U = np.r_[self._prev_U[1:], [U_full]]
+
+            suc, col = self.run_policy_step(U_full, cur_state)
+            col_ts[t] = col
+            new_state = self.get_state()
+
+            if len(self._x_delta)-1:
+                self._x_delta = np.r_[self._x_delta[1:], [new_state]]
+
+            if len(self._prev_task)-1:
+                self._prev_task = np.r_[self._prev_task[1:], [sample.get_prim_out(t=t)]]
+
+            if np.all(np.abs(cur_state - new_state) < 1e-3):
+                sample.use_ts[t] = 0
+
+            cur_state = new_state
+
+        sample.end_state = self.get_state()
+        sample.task_cost = self.goal_f(condition, sample.end_state)
+        sample.prim_use_ts[:] = sample.use_ts[:]
+        sample.col_ts = col_ts
+
+        if len(self.continuous_opts):
+            self.add_cont_sample(sample)
+
+        return sample
+
 
     def sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, skip_opt=False, hor=None, policies=None):
         #if not skip_opt and policy is not None and self.policy_initialized(policy): # Policy is uninitialized
@@ -459,7 +551,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         Only call for successfully planned trajectories
         '''
         class optimal_pol:
-            def act(self, X, O, t, noise):
+            def act(self, X, O, t, noise=None):
                 U = np.zeros((plan.dU), dtype=np.float32)
                 if t < plan.horizon - 1:
                     fill_vector(plan.params, plan.action_inds, U, t+1)
@@ -807,6 +899,9 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         tasks = self.encode_plan(plan)
         if permute:
             perm_tasks, perm_targets, perm = self.permute_tasks(tasks, targets, plan)
+        else:
+            perm_tasks = tasks
+            perm_targets = targets
 
         smooth_cnts = []
         for a in range(anum, len(plan.actions)):
@@ -832,15 +927,15 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 sample = self.sample_task(policy, 0, x0.copy(), task, hor=hor, skip_opt=True)
                 last_t = self.first_postcond(sample, x0=x0, task=task)
                 if last_t < 0: last_t = None
-                last_t = None
-                cost = self.postcond_cost(sample, task, sample.T-1, x0=x0)
+                cost = self.postcond_cost(sample, task, sample.T-1, x0=x0) if last_t is None else 0
                 ref_traj, _, labels, _ = self.reverse_retime([sample], (act_st, act_et), label=True, T=last_t)
+                backup = backup and cost > 1e-4
                 if cost < 1e-4 and rollout:
                     self.optimal_samples[self.task_list[task[0]]].append(sample)
             else:
                 ref_traj = []
 
-            if backup and len(ref_traj):
+            if backup and len(ref_traj) and cost > 0:
                 info['to_render'].append([])
                 if verbose:
                     info['to_render'][-1].append([sample])
@@ -1086,6 +1181,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             sample.task = task
             x0 = sample.end_state # sample.get_X(sample.T-1)
             sample.success = 1. - self.goal_f(0, x0, targets)
+
         path[-1].task_end = True
         path[-1].set(TASK_DONE_ENUM, np.array([0, 1]), t=path[-1].T-1)
         if nzero > 0 and add_noop:
@@ -1356,4 +1452,13 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
     
     def clip_state(self, x):
         return x.copy()
+
+    
+    def fill_cont(self, policy, sample, t):
+        vals = policy.act(sample.get_X(t=t), sample.get_cont_obs(t=t), t)
+        old_vals = {}
+        for ind, enum in enumerate(self.continuous_opts):
+            old_vals[enum] = sample.get(enum, t=t).copy()
+            sample.set(enum, vals[inds], t=t)
+        return vals
 

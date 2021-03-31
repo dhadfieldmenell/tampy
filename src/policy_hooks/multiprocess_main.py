@@ -58,6 +58,8 @@ def spawn_server(cls, hyperparams, load_at_spawn=False):
         hyperparams['policy_opt']['share_buffer'] = True
         hyperparams['policy_opt']['buffers'] = hyperparams['buffers']
         hyperparams['policy_opt']['buffer_sizes'] = hyperparams['buffer_sizes']
+        if cls is PolicyServer and hyperparams['scope'] is 'cont' and not len(hyperparams['cont_bounds']):
+            return
 
     server = cls(hyperparams)
     server.run()
@@ -205,18 +207,19 @@ class MultiProcessMain(object):
         self.config['algorithm']['init_traj_distr']['dQ'] = self.agent.dU
         self.config['algorithm']['init_traj_distr']['dt'] = 1.0
 
-        if self.config.get('add_hl_image', False) and any([t.find('cont') >= 0 for t in self.task_types]):
-            primitive_network_model = fp_multi_modal_cond_network
-        elif self.config.get('add_hl_image', False):
-            primitive_network_model = fp_multi_modal_class_network
-        elif any([t.find('cont') >= 0 for t in self.task_types]):
-            primitive_network_model = tf_cond_network
-        elif self.config.get('split_hl_loss', False):
-            primitive_network_model = tf_balanced_classification_network
+        if self.config.get('add_hl_image', False):
+            primitive_network_model = fp_multi_modal_discr_network
         elif self.config.get('conditional', False):
             primitive_network_model = tf_cond_classification_network
         else:
             primitive_network_model = tf_classification_network if self.config.get('discrete_prim', True) else tf_network
+
+        if self.config.get('add_hl_image', False):
+            cont_network_model = fp_multi_modal_cont_network
+        elif self.config.get('conditional', False):
+            cont_network_model = tf_cond_classification_network
+        else:
+            cont_network_model = tf_classification_network if self.config.get('discrete_prim', True) else tf_network
 
         self.config['algorithm']['policy_opt'] = {
             'q_imwt': self.config.get('q_imwt', 0),
@@ -250,6 +253,21 @@ class MultiProcessMain(object):
                 'aux_boundaries': self.config['aux_bounds'],
                 'types': self.task_types,
             },
+            'cont_network_params': {
+                'obs_include': self.config['agent']['prim_obs_include'],
+                'obs_image_data': [IM_ENUM, OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
+                'image_width': self.config['image_width'],
+                'image_height': self.config['image_height'],
+                'image_channels': self.config['image_channels'],
+                'sensor_dims': self.sensor_dims,
+                'n_layers': self.config['prim_n_layers'],
+                'num_filters': [32, 32, 16],
+                'filter_sizes': [5, 5, 5],
+                'dim_hidden': self.config['prim_dim_hidden'],
+                'output_boundaries': self.config['cont_bounds'],
+                'aux_boundaries': [],
+                'types': self.task_types,
+            },
             'aux_boundaries': self.config['aux_bounds'],
             'lr': self.config['lr'],
             'hllr': self.config['hllr'],
@@ -272,8 +290,6 @@ class MultiProcessMain(object):
             'val_update_size': self.config['val_update_size'],
             'solver_type': self.config['solver_type'],
         }
-        if self.config.get('conditional', False):
-            self.config['algorithm']['policy_opt']['primitive_network_model'] = tf_cond_classification_network
 
         self.alg_map = {}
         alg_map = {}
@@ -315,12 +331,15 @@ class MultiProcessMain(object):
         #    buf_sizes['control'] = mp.Value('i')
         #    buf_sizes['control'].value = 0
         for task in self.pol_list:
-            buffers[task] = mp.Array(ctypes.c_char, (2**28))
+            buffers[task] = mp.Array(ctypes.c_char, (2**27))
             buf_sizes[task] = mp.Value('i')
             buf_sizes[task].value = 0
-        buffers['primitive'] = mp.Array(ctypes.c_char, 20 * (2**28))
+        buffers['primitive'] = mp.Array(ctypes.c_char, 20 * (2**27))
         buf_sizes['primitive'] = mp.Value('i')
         buf_sizes['primitive'].value = 0
+        buffers['cont'] = mp.Array(ctypes.c_char, 20 * (2**28))
+        buf_sizes['cont'] = mp.Value('i')
+        buf_sizes['cont'].value = 0
         buf_sizes['n_data'] = mp.Value('i')
         buf_sizes['n_data'].value = 0
         buf_sizes['n_plans'] = mp.Value('i')
@@ -387,7 +406,7 @@ class MultiProcessMain(object):
 
 
     def create_pol_servers(self, hyperparams):
-        for task in self.pol_list+('primitive',):
+        for task in self.pol_list+('primitive', 'cont'):
             new_hyperparams = copy.copy(hyperparams)
             new_hyperparams['scope'] = task
             new_hyperparams['id'] = task
@@ -606,7 +625,9 @@ class MultiProcessMain(object):
         queue_size = 50
         queues = {}
         config['hl_queue'] = Queue(queue_size)
-        config['ll_queue'] = Queue(queue_size)
+        config['ll_queue'] = {} 
+        for task in self.pol_list:
+            config['ll_queue'][task] = Queue(queue_size)
         config['cont_queue'] = Queue(queue_size)
         config['motion_queue'] = self.queue_manager.PriorityQueue(queue_size)
         config['task_queue'] = self.queue_manager.PriorityQueue(queue_size)

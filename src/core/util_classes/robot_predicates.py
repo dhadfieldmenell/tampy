@@ -2130,7 +2130,7 @@ class EEReachable(PosePredicate):
         grad = np.zeros((dim*step, self.attr_dim*step))
         for s in range(start, end+1):
             rel_pt = self.rel_pt + self.get_rel_pt(s)
-            grad[j:j+dim, i:i+self.attr_dim] = self.coeff * self.rel_ee_pos_check_jac(x[i:i+self.attr_dim], rel_pt)
+            grad[j:j+dim, i:i+self.attr_dim] = self.coeff * self.mask * self.rel_ee_pos_check_jac(x[i:i+self.attr_dim], rel_pt)
             j += dim
             #if s == 0:
             #    grad[j:j+3, i:i+self.attr_dim] = self.rot_coeff *  self.ee_rot_check_jac(x[i:i+self.attr_dim])
@@ -2224,10 +2224,25 @@ class EEReachableLeft(EEReachable):
         self.arm = "left"
         super(EEReachableLeft, self).__init__(name, params, expected_param_types, (-steps, steps), env, debug)
 
+class EEApproachLeft(EEReachable):
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.arm = "left"
+        super(EEApproachLeft, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
+
+class EERetreatLeft(EEReachable):
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.arm = "left"
+        super(EERetreatLeft, self).__init__(name, params, expected_param_types, (0, steps), env, debug)
+
 class EEReachableLeftRot(EEReachableRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
         self.arm = "left"
         super(EEReachableLeftRot, self).__init__(name, params, expected_param_types, (-steps, steps), env, debug)
+
+class EEAtLeftRot(EEReachableRot):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
+        self.arm = "left"
+        super(EEReachableLeftRot, self).__init__(name, params, expected_param_types, (0, 0), env, debug)
 
 class ApproachLeft(EEReachableLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
@@ -2236,6 +2251,15 @@ class ApproachLeft(EEReachableLeft):
 
     def get_rel_pt(self, rel_step):
         return -self.approach_dist*self.axis
+
+class EEAtXYLeft(EEReachableLeft):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        super(EEAtXYLeft, self).__init__(name, params, expected_param_types, env, debug, 0)
+        self.mask = np.array([1., 1., 0.]).reshape((3,1))
+        self.approach_dist = const.GRASP_DIST
+
+    def get_rel_pt(self, rel_step):
+        return np.zeros(3)
 
 class NearApproachLeft(ApproachLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
@@ -2264,10 +2288,25 @@ class EEReachableRight(EEReachable):
         self.arm = "right"
         super(EEReachableRight, self).__init__(name, params, expected_param_types, (-steps, steps), env, debug)
 
+class EEApproachRight(EEReachable):
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.arm = "right"
+        super(EEApproachRight, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
+
+class EERetreatRight(EEReachable):
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.arm = "right"
+        super(EERetreatRight, self).__init__(name, params, expected_param_types, (0, steps), env, debug)
+
 class EEReachableRightRot(EEReachableRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
         self.arm = "right"
         super(EEReachableRightRot, self).__init__(name, params, expected_param_types, (-steps, steps), env, debug)
+
+class EEAtRightRot(EEReachableRot):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
+        self.arm = "right"
+        super(EEReachableRightRot, self).__init__(name, params, expected_param_types, (0, 0), env, debug)
 
 class ApproachRight(EEReachableRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
@@ -2298,6 +2337,15 @@ class NearApproachRightRot(ApproachRightRot):
         self.coeff = 2e-3
         super(NearApproachRightRot, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
+
+class EEAtXYRight(EEReachableRight):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        super(EEAtXYRight, self).__init__(name, params, expected_param_types, env, debug, 0)
+        self.mask = np.array([1., 1., 0.]).reshape((3,1))
+        self.approach_dist = const.GRASP_DIST
+
+    def get_rel_pt(self, rel_step):
+        return np.zeros(3)
 
 class EEReachableLeftInv(EEReachableLeft):
     def get_rel_pt(self, rel_step):

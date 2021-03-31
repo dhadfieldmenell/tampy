@@ -109,7 +109,7 @@ class RolloutServer(Server):
             eta = self.eta
         sample = Sample(self.agent)
         sample.set_X(state.copy(), t=0)
-        self.agent.fill_sample(0, sample, sample.get(STATE_ENUM, 0), 0, prev_task, fill_obs=True, targets=targets)
+        self.agent.fill_sample(0, sample, state.copy(), 0, prev_task, fill_obs=True, targets=targets)
         distrs = self.primitive_call(sample.get_prim_obs(t=0), soft, eta=eta, t=0, task=prev_task)
         #labels = list(self.agent.plans.keys())
         for d in distrs:
@@ -400,6 +400,10 @@ class RolloutServer(Server):
 
             if self.hl_rollout_opt:
                 self.run_hl_update(label='rollout')
+
+            cont_samples = self.agent.get_cont_samples()
+            if len(cont_samples):
+                self.update_cont_network(cont_samples)
 
             self.write_log()
         self.policy_opt.sess.close()

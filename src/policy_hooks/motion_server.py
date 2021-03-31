@@ -110,7 +110,7 @@ class MotionServer(Server):
         if cur_t == 0: x0 = node.x0
 
         wt = self.explore_wt if node.label.lower().find('rollout') >= 0 or node.nodetype.find('dagger') >= 0 else 1.
-        verbose = self.verbose and np.random.uniform() < 0.05
+        verbose = self.verbose and (self.id.find('r0') >= 0 or np.random.uniform() < 0.05)
         success, path, info = self.agent.backtrack_solve(plan, 
                                                          anum=plan.start, 
                                                          x0=x0,
@@ -131,7 +131,7 @@ class MotionServer(Server):
         with n_plans.get_lock():
             n_plans.value += 1
 
-        if self.verbose and self.render and self.id.find('0') >= 0:
+        if self.verbose and self.render and self.id.find('0') >= 0 and len(path):
             if node.nodetype.find('dagger') >= 0:
                 self.save_video(path, path[-1]._postsuc, lab='_fulldagger')
 
@@ -208,7 +208,13 @@ class MotionServer(Server):
                     self.alg_map[task]._update_policy_no_cost(expl_samples, label='dagger', inv_cov=inv_cov)
 
             self.run_hl_update()
+
+            cont_samples = self.agent.get_cont_samples()
+            if len(cont_samples):
+                self.update_cont_network(cont_samples)
+
             step += 1
+
         self.policy_opt.sess.close()
 
 

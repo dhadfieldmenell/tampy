@@ -240,8 +240,10 @@ class Server(object):
         data = (obs, mu, prc, wt, aux, primobs, x, task, label)
         if task == 'primitive':
             q = self.hl_queue
+        elif task == 'cont':
+            q = self.cont_queue
         else:
-            q = self.ll_queue
+            q = self.ll_queue[task] if task in self.ll_queue else self.ll_queue['control']
 
         self.push_queue(data, q)
 
@@ -356,6 +358,7 @@ class Server(object):
         for path in self.agent.get_task_paths():
             path_samples.extend(path)
             ref_paths.append(path)
+
         self.agent.clear_task_paths()
         if label is not None:
             for s in path_samples:
@@ -387,7 +390,7 @@ class Server(object):
         #        samples[0].source_label = ''
 
         for ind, sample in enumerate(samples):
-            mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
+            mu = sample.get_prim_out()
             tgt_mu = np.concatenate((tgt_mu, mu))
             st, et = 0, sample.T # st, et = sample.step * sample.T, (sample.step + 1) * sample.T
             #aux = np.ones(sample.T)
@@ -411,6 +414,45 @@ class Server(object):
         if len(tgt_mu):
             # print('Sending update to primitive net')
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', samples[0].source_label, aux=tgt_aux)
+
+
+    def update_cont_network(self, samples):
+        dP, dO = self.agent.dContOut, self.agent.dPrim + self.agent.dPrimObs
+        dOpts = len(list(self.agent.prob.get_prim_choices(self.agent.task_list).keys()))
+        ### Compute target mean, cov, and weight for each sample.
+        obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
+        tgt_prc, tgt_wt = np.zeros((0, dOpts)), np.zeros((0))
+        tgt_aux = np.zeros((0))
+        opts = self.agent.prob.get_prim_choices(self.agent.task_list)
+
+        #if len(samples):
+        #    lab = samples[0].source_label
+        #    lab = 'n_plans' if lab == 'optimal' else 'n_rollout'
+        #    if lab in self.policy_opt.buf_sizes:
+        #        with self.policy_opt.buf_sizes[lab].get_lock():
+        #            self.policy_opt.buf_sizes[lab].value += 1
+        #        samples[0].source_label = ''
+
+        for ind, sample in enumerate(samples):
+            mu = sample.get_cont_out()
+            tgt_mu = np.concatenate((tgt_mu, mu))
+            st, et = 0, sample.T # st, et = sample.step * sample.T, (sample.step + 1) * sample.T
+            #aux = np.ones(sample.T)
+            #if sample.task_start: aux[0] = 0.
+            aux = int(sample.opt_strength) * np.ones(sample.T)
+            tgt_aux = np.concatenate((tgt_aux, aux))
+            wt = np.ones(sample.T)
+            tgt_wt = np.concatenate((tgt_wt, wt))
+            obs = sample.get_cont_obs()
+            if np.any(np.isnan(obs)):
+                print((obs, sample.task, 'SAMPLE'))
+            obs_data = np.concatenate((obs_data, obs))
+            prc = np.tile(np.eye(dP), (sample.T,1,1))
+            tgt_prc = np.concatenate((tgt_prc, prc))
+
+        if len(tgt_mu):
+            # print('Sending update to primitive net')
+            self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'cont', samples[0].source_label, aux=tgt_aux)
 
 
     def update_negative_primitive(self, samples):

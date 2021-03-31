@@ -20,7 +20,7 @@ from policy_hooks.utils.tf_utils import TfSolver
 from policy_hooks.tf_policy import TfPolicy
 
 MAX_UPDATE_SIZE = 10000
-SCOPE_LIST = ['primitive']
+SCOPE_LIST = ['primitive', 'cont']
 
 
 class ControlAttentionPolicyOpt(PolicyOpt):
@@ -202,7 +202,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             #if self.buf_sizes[scope].value == 0: skip = True
             #wts = self.buffers[scope][:self.buf_sizes[scope].value]
 
-            #if skip: continue
+            if skip: continue
             try:
                 self.deserialize_weights(wts)
             except Exception as e:
@@ -341,7 +341,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 # Setup the gradients
                 #self.primitive_grads = [tf.gradients(self.primitive_act_op[:,u], self.primitive_obs_tensor)[0] for u in range(self._dPrim)]
 
-        if False: #self.load_all or self.scope is None or 'cont' == self.scope:
+        if (self.load_all or self.scope is None or 'cont' == self.scope) and len(self._contBounds):
             with tf.variable_scope('cont'):
                 inputs = self.input_layer if 'cont' == self.scope else None
                 self.cont_eta = tf.placeholder_with_default(1., shape=())
@@ -404,7 +404,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                                last_conv_vars=self.primitive_last_conv_vars,
                                                vars_to_opt=vars_to_opt,
                                                aux_losses=self.primitive_aux_losses)
-        if False: # self.scope is None or 'cont' == self.scope:
+        if (self.scope is None or 'cont' == self.scope) and len(self._contBounds):
             self.cur_hllr = self._hyperparams['hllr']
             self.hllr_tensor = tf.Variable(initial_value=self._hyperparams['hllr'], name='hllr')
             self.cur_dec = self._hyperparams['prim_weight_decay']
@@ -452,7 +452,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                         self.device_string,
                                         copy_param_scope=None,
                                         normalize=False)
-        if False: # self.load_all or self.scope is None or self.scope == 'cont':
+        if (self.load_all or self.scope is None or self.scope == 'cont') and len(self._contBounds):
             self.cont_policy = TfPolicy(dU,
                                         self.cont_obs_tensor,
                                         self.cont_act_op,

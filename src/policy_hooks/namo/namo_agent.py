@@ -162,148 +162,148 @@ class NAMOSortingAgent(TAMPAgent):
         self.target_vecs[condition]= target_vec
 
 
-    def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None, policies=None):
-        assert not np.any(np.isnan(state))
-        start_t = time.time()
-        x0 = state[self._x_data_idx[STATE_ENUM]].copy()
-        task = tuple(task)
-        if self.discrete_prim:
-            onehot_task = tuple([val for val in task if np.isscalar(val)])
-            plan = self.plans[onehot_task]
-        else:
-            plan = self.plans[task[0]]
-        for (param, attr) in self.state_inds:
-            if plan.params[param].is_symbol(): continue
-            getattr(plan.params[param], attr)[:,0] = x0[self.state_inds[param, attr]]
+    #def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None, policies=None):
+    #    assert not np.any(np.isnan(state))
+    #    start_t = time.time()
+    #    x0 = state[self._x_data_idx[STATE_ENUM]].copy()
+    #    task = tuple(task)
+    #    if self.discrete_prim:
+    #        onehot_task = tuple([val for val in task if np.isscalar(val)])
+    #        plan = self.plans[onehot_task]
+    #    else:
+    #        plan = self.plans[task[0]]
+    #    for (param, attr) in self.state_inds:
+    #        if plan.params[param].is_symbol(): continue
+    #        getattr(plan.params[param], attr)[:,0] = x0[self.state_inds[param, attr]]
 
-        # self._in_gripper = None
-        if self._in_gripper is None:
-            self.in_gripper = None
-        else:
-            self.in_gripper = plan.params[self._in_gripper]
-        base_t = 0
-        self.T = plan.horizon if hor is None else hor
-        sample = Sample(self)
-        sample.init_t = 0
-        col_ts = np.zeros(self.T)
+    #    # self._in_gripper = None
+    #    if self._in_gripper is None:
+    #        self.in_gripper = None
+    #    else:
+    #        self.in_gripper = plan.params[self._in_gripper]
+    #    base_t = 0
+    #    self.T = plan.horizon if hor is None else hor
+    #    sample = Sample(self)
+    #    sample.init_t = 0
+    #    col_ts = np.zeros(self.T)
 
-        prim_choices = self.prob.get_prim_choices(self.task_list)
-        target_vec = np.zeros((self.target_dim,))
+    #    prim_choices = self.prob.get_prim_choices(self.task_list)
+    #    target_vec = np.zeros((self.target_dim,))
 
-        set_params_attrs(plan.params, plan.state_inds, x0, 0)
-        for target_name in self.targets[condition]:
-            target = plan.params[target_name]
-            target.value[:,0] = self.targets[condition][target.name]
-            target_vec[self.target_inds[target.name, 'value']] = target.value[:,0]
+    #    set_params_attrs(plan.params, plan.state_inds, x0, 0)
+    #    for target_name in self.targets[condition]:
+    #        target = plan.params[target_name]
+    #        target.value[:,0] = self.targets[condition][target.name]
+    #        target_vec[self.target_inds[target.name, 'value']] = target.value[:,0]
 
-        # self.traj_hist = np.zeros((self.hist_len, self.dU)).tolist()
+    #    # self.traj_hist = np.zeros((self.hist_len, self.dU)).tolist()
 
-        if False: #noisy:
-            noise = generate_noise(self.T, self.dU, self._hyperparams)
-        else:
-            noise = np.zeros((self.T, self.dU))
+    #    if False: #noisy:
+    #        noise = generate_noise(self.T, self.dU, self._hyperparams)
+    #    else:
+    #        noise = np.zeros((self.T, self.dU))
 
-        n_steps = 0
-        end_state = None
-        for t in range(0, self.T):
-            # U_full = np.zeros((self.dU))
-            noise_full = np.zeros((self.dU,))
-            cur_state = np.zeros((plan.symbolic_bound))
-            # fill_vector(plan.params, plan.state_inds, cur_state, t)
-            for pname, aname in self.state_inds:
-                p = plan.params[pname]
-                if p.is_symbol(): continue
-                aval = getattr(p, aname)[:,0]
-                if np.any(np.isnan(aval)):
-                    print(('NAN in:', pname, aname, t, task_f is None))
-                    aval[:] = 0.
-                cur_state[self.state_inds[pname, aname]] = aval
+    #    n_steps = 0
+    #    end_state = None
+    #    for t in range(0, self.T):
+    #        # U_full = np.zeros((self.dU))
+    #        noise_full = np.zeros((self.dU,))
+    #        cur_state = np.zeros((plan.symbolic_bound))
+    #        # fill_vector(plan.params, plan.state_inds, cur_state, t)
+    #        for pname, aname in self.state_inds:
+    #            p = plan.params[pname]
+    #            if p.is_symbol(): continue
+    #            aval = getattr(p, aname)[:,0]
+    #            if np.any(np.isnan(aval)):
+    #                print(('NAN in:', pname, aname, t, task_f is None))
+    #                aval[:] = 0.
+    #            cur_state[self.state_inds[pname, aname]] = aval
 
-            self.fill_sample(condition, sample, cur_state, t, task, fill_obs=True)
-            prev_task = task
-            if task_f is not None:
-                sample.task = task
-                task = task_f(sample, t, task)
-                #if task not in self.plans:
-                #    task = self.task_to_onehot[task[0]]
-                self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
+    #        self.fill_sample(condition, sample, cur_state, t, task, fill_obs=True)
+    #        prev_task = task
+    #        if task_f is not None:
+    #            sample.task = task
+    #            task = task_f(sample, t, task)
+    #            #if task not in self.plans:
+    #            #    task = self.task_to_onehot[task[0]]
+    #            self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
 
-            grasp = np.array([0, -0.601])
-            if GRASP_ENUM in prim_choices and self.discrete_prim:
-                grasp = self.set_grasp(grasp, task[3])
+    #        grasp = np.array([0, -0.601])
+    #        if GRASP_ENUM in prim_choices and self.discrete_prim:
+    #            grasp = self.set_grasp(grasp, task[3])
 
-            X = cur_state.copy()
-            cur_noise = noise[t]
+    #        X = cur_state.copy()
+    #        cur_noise = noise[t]
 
-            U_full = policy.act(sample.get_X(t=t), sample.get_obs(t=t).copy(), t, cur_noise)
-            U_nogrip = U_full.copy()
-            U_nogrip[self.action_inds['pr2', 'gripper']] = 0.
-            if np.all(np.abs(U_nogrip)) < 1e-2:
-                self._noops += 1
-                self.eta_scale = 1. / np.log(self._noops+2)
-            else:
-                self._noops = 0
-                self.eta_scale = 1.
-            assert not np.any(np.isnan(U_full))
-            sample.set(NOISE_ENUM, noise_full, t)
+    #        U_full = policy.act(sample.get_X(t=t), sample.get_obs(t=t).copy(), t, cur_noise)
+    #        U_nogrip = U_full.copy()
+    #        U_nogrip[self.action_inds['pr2', 'gripper']] = 0.
+    #        if np.all(np.abs(U_nogrip)) < 1e-2:
+    #            self._noops += 1
+    #            self.eta_scale = 1. / np.log(self._noops+2)
+    #        else:
+    #            self._noops = 0
+    #            self.eta_scale = 1.
+    #        assert not np.any(np.isnan(U_full))
+    #        sample.set(NOISE_ENUM, noise_full, t)
 
-            if use_prim_obs:
-                obs = sample.get_prim_obs(t=t)
-            else:
-                obs = sample.get_obs(t=t)
+    #        if use_prim_obs:
+    #            obs = sample.get_prim_obs(t=t)
+    #        else:
+    #            obs = sample.get_obs(t=t)
 
-            U_full = np.clip(U_full, -MAX_STEP, MAX_STEP)
-            assert not np.any(np.isnan(U_full))
-            sample.set(ACTION_ENUM, U_full, t)
-            obj = self.prob.get_prim_choices(self.task_list)[OBJ_ENUM][task[1]]
-            suc, col = self.run_policy_step(U_full, cur_state, plan, 0, obj, grasp=grasp)
-            col_ts[t] = col
+    #        U_full = np.clip(U_full, -MAX_STEP, MAX_STEP)
+    #        assert not np.any(np.isnan(U_full))
+    #        sample.set(ACTION_ENUM, U_full, t)
+    #        obj = self.prob.get_prim_choices(self.task_list)[OBJ_ENUM][task[1]]
+    #        suc, col = self.run_policy_step(U_full, cur_state, plan, 0, obj, grasp=grasp)
+    #        col_ts[t] = col
 
-            new_state = np.zeros((plan.symbolic_bound))
-            # fill_vector(plan.params, plan.state_inds, cur_state, t)
-            for pname, aname in self.state_inds:
-                p = plan.params[pname]
-                if p.is_symbol(): continue
-                aval = getattr(p, aname)[:,1]
-                if np.any(np.isnan(aval)):
-                    print(('NAN in:', pname, aname, t+1))
-                    aval[:] = getattr(p, aname)[:,0]
-                getattr(p, aname)[:,0] = aval
-                new_state[self.state_inds[pname, aname]] = aval
-            self.cur_state = new_state
-            if len(self._prev_U): self._prev_U = np.r_[self._prev_U[1:], [U_nogrip]]
-            if len(self._x_delta)-1: self._x_delta = np.r_[self._x_delta[1:], [new_state]]
-            if len(self._prev_task): self._prev_task = np.r_[self._prev_task[1:], [sample.get_prim_out(t=t)]]
+    #        new_state = np.zeros((plan.symbolic_bound))
+    #        # fill_vector(plan.params, plan.state_inds, cur_state, t)
+    #        for pname, aname in self.state_inds:
+    #            p = plan.params[pname]
+    #            if p.is_symbol(): continue
+    #            aval = getattr(p, aname)[:,1]
+    #            if np.any(np.isnan(aval)):
+    #                print(('NAN in:', pname, aname, t+1))
+    #                aval[:] = getattr(p, aname)[:,0]
+    #            getattr(p, aname)[:,0] = aval
+    #            new_state[self.state_inds[pname, aname]] = aval
+    #        self.cur_state = new_state
+    #        if len(self._prev_U): self._prev_U = np.r_[self._prev_U[1:], [U_nogrip]]
+    #        if len(self._x_delta)-1: self._x_delta = np.r_[self._x_delta[1:], [new_state]]
+    #        if len(self._prev_task): self._prev_task = np.r_[self._prev_task[1:], [sample.get_prim_out(t=t)]]
 
 
-            if np.all(np.abs(cur_state - new_state) < 1e-3):
-                sample.use_ts[t] = 0
+    #        if np.all(np.abs(cur_state - new_state) < 1e-3):
+    #            sample.use_ts[t] = 0
 
-            if n_steps == sample.T:
-                end_state = sample.get_X(t=t)
+    #        if n_steps == sample.T:
+    #            end_state = sample.get_X(t=t)
 
-        if policy not in self.n_policy_calls:
-            self.n_policy_calls[policy] = 1
-        else:
-            self.n_policy_calls[policy] += 1
-        # print 'Called policy {0} times.'.format(self.n_policy_calls[policy])
-        # X = np.zeros((plan.symbolic_bound))
-        # fill_vector(plan.params, plan.state_inds, X, plan.horizon-1)
-        sample.end_state = new_state # end_state if end_state is not None else sample.get_X(t=self.T-1)
-        sample.task_cost = self.goal_f(condition, sample.end_state)
-        # if sample.T == plan.horizon:
-        #     sample.use_ts[-1] = 0
-        sample.prim_use_ts[:] = sample.use_ts[:]
-        # sample.use_ts[-1] = 1.
-        sample.col_ts = col_ts
+    #    if policy not in self.n_policy_calls:
+    #        self.n_policy_calls[policy] = 1
+    #    else:
+    #        self.n_policy_calls[policy] += 1
+    #    # print 'Called policy {0} times.'.format(self.n_policy_calls[policy])
+    #    # X = np.zeros((plan.symbolic_bound))
+    #    # fill_vector(plan.params, plan.state_inds, X, plan.horizon-1)
+    #    sample.end_state = new_state # end_state if end_state is not None else sample.get_X(t=self.T-1)
+    #    sample.task_cost = self.goal_f(condition, sample.end_state)
+    #    # if sample.T == plan.horizon:
+    #    #     sample.use_ts[-1] = 0
+    #    sample.prim_use_ts[:] = sample.use_ts[:]
+    #    # sample.use_ts[-1] = 1.
+    #    sample.col_ts = col_ts
 
-        # if np.linalg.norm(sample.get(EE_ENUM, t=0) - sample.get(EE_ENUM, t=sample.T)) < 5e-1:
-        #     sample.use_ts[:] = 0
+    #    # if np.linalg.norm(sample.get(EE_ENUM, t=0) - sample.get(EE_ENUM, t=sample.T)) < 5e-1:
+    #    #     sample.use_ts[:] = 0
 
-        #cost = self.cost_f(sample.end_state, task, condition, active_ts=(sample.T-1, sample.T-1), targets=sample.targets)
-        #self._done = cost
-        #sample.post_cost = cost
-        return sample
+    #    #cost = self.cost_f(sample.end_state, task, condition, active_ts=(sample.T-1, sample.T-1), targets=sample.targets)
+    #    #self._done = cost
+    #    #sample.post_cost = cost
+    #    return sample
 
 
     def dist_obs(self, plan, t, n_dirs=-1, objects=[], ignore=[], center='pr2', return_rays=False, extra_rays=[]):

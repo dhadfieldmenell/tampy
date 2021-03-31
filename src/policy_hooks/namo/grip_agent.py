@@ -61,7 +61,7 @@ class optimal_pol:
         self.state_inds = state_inds
         self.opt_traj = opt_traj
 
-    def act(self, X, O, t, noise):
+    def act(self, X, O, t, noise=None):
         u = np.zeros(self.dU)
         if t < len(self.opt_traj) - 1:
             for param, attr in self.action_inds:
@@ -149,84 +149,84 @@ class NAMOGripAgent(NAMOSortingAgent):
         self.targ_labels.update({i: self.targets[0]['aux_target_{0}'.format(i-no)] for i in range(no, no+self.prob.n_aux)})
 
 
-    def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None, policies=None):
-        assert not np.any(np.isnan(state))
-        start_t = time.time()
-        # self.reset_to_state(state)
-        x0 = state[self._x_data_idx[STATE_ENUM]].copy()
-        task = tuple(task)
-        onehot_task = tuple([val for val in task if np.isscalar(val)])
-        if self.discrete_prim:
-            plan = self.plans[onehot_task]
-        else:
-            plan = self.plans[task[0]]
-        if hor is None:
-            if task_f is None:
-                self.T = plan.horizon
-            else:
-                self.T = max([p.horizon for p in list(self.plans.values())])
-        else:
-            self.T = hor
-        sample = Sample(self)
-        sample.init_t = 0
-        col_ts = np.zeros(self.T)
+    #def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None, policies=None):
+    #    assert not np.any(np.isnan(state))
+    #    start_t = time.time()
+    #    # self.reset_to_state(state)
+    #    x0 = state[self._x_data_idx[STATE_ENUM]].copy()
+    #    task = tuple(task)
+    #    onehot_task = tuple([val for val in task if np.isscalar(val)])
+    #    if self.discrete_prim:
+    #        plan = self.plans[onehot_task]
+    #    else:
+    #        plan = self.plans[task[0]]
+    #    if hor is None:
+    #        if task_f is None:
+    #            self.T = plan.horizon
+    #        else:
+    #            self.T = max([p.horizon for p in list(self.plans.values())])
+    #    else:
+    #        self.T = hor
+    #    sample = Sample(self)
+    #    sample.init_t = 0
+    #    col_ts = np.zeros(self.T)
 
-        prim_choices = self.prob.get_prim_choices(self.task_list)
-        target_vec = np.zeros((self.target_dim,))
+    #    prim_choices = self.prob.get_prim_choices(self.task_list)
+    #    target_vec = np.zeros((self.target_dim,))
 
-        n_steps = 0
-        end_state = None
-        cur_state = self.get_state() # x0
-        sample.task = task
-        for t in range(0, self.T):
-            noise_full = np.zeros((self.dU,))
-            self.fill_sample(condition, sample, cur_state, t, task, fill_obs=True)
-            if task_f is not None:
-                prev_task = task
-                task = task_f(sample, t, task)
-                onehot_task = tuple([val for val in task if np.isscalar(val)])
-                if onehot_task not in self.plans:
-                    task = self.task_to_onehot[task[0]]
-                self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
-                taskname = self.task_list[task[0]]
-                if policies is not None: policy = policies[taskname]
+    #    n_steps = 0
+    #    end_state = None
+    #    cur_state = self.get_state() # x0
+    #    sample.task = task
+    #    for t in range(0, self.T):
+    #        noise_full = np.zeros((self.dU,))
+    #        self.fill_sample(condition, sample, cur_state, t, task, fill_obs=True)
+    #        if task_f is not None:
+    #            prev_task = task
+    #            task = task_f(sample, t, task)
+    #            onehot_task = tuple([val for val in task if np.isscalar(val)])
+    #            if onehot_task not in self.plans:
+    #                task = self.task_to_onehot[task[0]]
+    #            self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
+    #            taskname = self.task_list[task[0]]
+    #            if policies is not None: policy = policies[taskname]
 
-            X = cur_state.copy()
-            U_full = policy.act(X, sample.get_obs(t=t).copy(), t, noise_full)
-            U_nogrip = U_full.copy()
-            U_nogrip[self.action_inds['pr2', 'gripper']] = 0.
-            if np.all(np.abs(U_nogrip)) < 1e-2:
-                self._noops += 1
-                self.eta_scale = 1. / np.log(self._noops+2)
-            else:
-                self._noops = 0
-                self.eta_scale = 1.
-            if len(self._prev_U): self._prev_U = np.r_[self._prev_U[1:], [U_full]]
-            sample.set(NOISE_ENUM, noise_full, t)
-            # U_full = np.clip(U_full, -MAX_STEP, MAX_STEP)
-            suc, col = self.run_policy_step(U_full, cur_state)
-            objname = prim_choices[OBJ_ENUM][task[1]]
-            tname = prim_choices[TASK_ENUM][task[0]]
-            if tname.find('transfer') and len(self._col) == 1 and self._col[0] == objname:
-                col = 0
-            col_ts[t] = col
-            sample.set(ACTION_ENUM, U_full, t)
+    #        X = cur_state.copy()
+    #        U_full = policy.act(X, sample.get_obs(t=t).copy(), t, noise_full)
+    #        U_nogrip = U_full.copy()
+    #        U_nogrip[self.action_inds['pr2', 'gripper']] = 0.
+    #        if np.all(np.abs(U_nogrip)) < 1e-2:
+    #            self._noops += 1
+    #            self.eta_scale = 1. / np.log(self._noops+2)
+    #        else:
+    #            self._noops = 0
+    #            self.eta_scale = 1.
+    #        if len(self._prev_U): self._prev_U = np.r_[self._prev_U[1:], [U_full]]
+    #        sample.set(NOISE_ENUM, noise_full, t)
+    #        # U_full = np.clip(U_full, -MAX_STEP, MAX_STEP)
+    #        suc, col = self.run_policy_step(U_full, cur_state)
+    #        objname = prim_choices[OBJ_ENUM][task[1]]
+    #        tname = prim_choices[TASK_ENUM][task[0]]
+    #        if tname.find('transfer') and len(self._col) == 1 and self._col[0] == objname:
+    #            col = 0
+    #        col_ts[t] = col
+    #        sample.set(ACTION_ENUM, U_full, t)
 
-            new_state = self.get_state()
-            if len(self._x_delta)-1: self._x_delta = np.r_[self._x_delta[1:], [new_state]]
-            if len(self._prev_task)-1:
-                self._prev_task = np.r_[self._prev_task[1:], [sample.get_prim_out(t=t)]]
+    #        new_state = self.get_state()
+    #        if len(self._x_delta)-1: self._x_delta = np.r_[self._x_delta[1:], [new_state]]
+    #        if len(self._prev_task)-1:
+    #            self._prev_task = np.r_[self._prev_task[1:], [sample.get_prim_out(t=t)]]
 
-            if np.all(np.abs(cur_state - new_state) < 1e-3):
-                sample.use_ts[t] = 0
+    #        if np.all(np.abs(cur_state - new_state) < 1e-3):
+    #            sample.use_ts[t] = 0
 
-            cur_state = new_state
+    #        cur_state = new_state
 
-        sample.end_state = new_state # end_state if end_state is not None else sample.get_X(t=self.T-1)
-        sample.task_cost = self.goal_f(condition, sample.end_state)
-        sample.prim_use_ts[:] = sample.use_ts[:]
-        sample.col_ts = col_ts
-        return sample
+    #    sample.end_state = new_state # end_state if end_state is not None else sample.get_X(t=self.T-1)
+    #    sample.task_cost = self.goal_f(condition, sample.end_state)
+    #    sample.prim_use_ts[:] = sample.use_ts[:]
+    #    sample.col_ts = col_ts
+    #    return sample
 
 
     def dist_obs(self, plan, t, n_dirs=-1, ignore=[], return_rays=False, extra_rays=[]):
