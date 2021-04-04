@@ -933,8 +933,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 cost = self.postcond_cost(sample, task, sample.T-1, x0=x0) if last_t is None else 0
                 ref_traj, _, labels, _ = self.reverse_retime([sample], (act_st, act_et), label=True, T=last_t)
                 backup = backup and cost > 1e-4
-                if cost < 1e-4 and rollout:
-                    self.optimal_samples[self.task_list[task[0]]].append(sample)
+                #if cost < 1e-4 and rollout:
+                #    self.optimal_samples[self.task_list[task[0]]].append(sample)
             else:
                 ref_traj = []
 

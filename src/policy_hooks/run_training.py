@@ -327,6 +327,7 @@ def argsparser():
     parser.add_argument('-batch', '--batch_size', type=int, default=256)
     parser.add_argument('-lldec', '--weight_decay', type=float, default=1e-3)
     parser.add_argument('-hldec', '--prim_weight_decay', type=float, default=1e-3)
+    parser.add_argument('-contdec', '--cont_weight_decay', type=float, default=1e-3)
     parser.add_argument('-lr', '--lr', type=float, default=1e-3)
     parser.add_argument('-hllr', '--hllr', type=float, default=1e-3)
     parser.add_argument('-lr_policy', '--lr_policy', type=str, default='fixed')

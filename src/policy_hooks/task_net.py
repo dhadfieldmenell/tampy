@@ -784,7 +784,7 @@ def fp_multi_modal_cont_network(dim_input=27, dim_output=2, batch_size=25, netwo
         scaled_mlp_applied = mlp_applied 
 
     fc_vars = weights_FC + biases_FC
-    loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, batch_size=batch_size, precision=precision, types=types, wt=1e3) # wt=5e4)
+    loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, batch_size=batch_size, precision=precision, types=types, wt=1e1) # wt=5e4)
     losses = [loss_out]
     preds = [prediction]
 

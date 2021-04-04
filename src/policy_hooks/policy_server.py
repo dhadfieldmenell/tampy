@@ -222,9 +222,9 @@ class PolicyServer(object):
                 if len(self.train_losses['all']) and len(self.val_losses['all']):
                     ratio = np.mean(self.val_losses['all'][-5:]) / np.mean(self.train_losses['all'][-5:])
                     self.cur_ratio = ratio
-                    if ratio < 1.2:
+                    if ratio < 1.25:
                         self.policy_opt.cur_dec *= 0.975
-                    elif ratio > 1.7:
+                    elif ratio > 1.75:
                         self.policy_opt.cur_dec *= 1.025
                     self.policy_opt.cur_dec = max(self.policy_opt.cur_dec, 1e-12)
                     self.policy_opt.cur_dec = min(self.policy_opt.cur_dec, 1e-1)

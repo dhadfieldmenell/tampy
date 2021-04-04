@@ -39,7 +39,7 @@ N_SAMPLES = 10
 N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
 OPT_WT_MULT = 5e2
-N_ROLLOUT_SERVERS = 30
+N_ROLLOUT_SERVERS = 34 # 58
 N_ALG_SERVERS = 0
 N_OPTIMIZERS = 0
 N_DIRS = 16
@@ -262,10 +262,10 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'state_include': [utils.STATE_ENUM],
         'obs_include': [#utils.LIDAR_ENUM,
                         utils.MJC_SENSOR_ENUM,
-                        utils.TASK_ENUM,
+                        #utils.TASK_ENUM,
                         #utils.OBJ_POSE_ENUM,
                         #utils.TARG_POSE_ENUM,
-                        utils.END_POSE_ENUM,
+                        #utils.END_POSE_ENUM,
                         utils.THETA_VEC_ENUM,
                         # utils.GRASP_ENUM,
                         #utils.TRAJ_HIST_ENUM,
@@ -285,7 +285,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.OBJ_POSE_ENUM: 2,
                 utils.TARG_POSE_ENUM: 2,
                 utils.LIDAR_ENUM: N_DIRS,
-                utils.MJC_SENSOR_ENUM: 21,
+                utils.MJC_SENSOR_ENUM: 39,
                 utils.EE_ENUM: 2,
                 utils.END_POSE_ENUM: 2,
                 utils.GRIPPER_ENUM: 1,
@@ -316,13 +316,15 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'prim_first_wt': 1e1,
     }
 
-    config['prim_obs_include'].append(utils.EE_ENUM)
+    #config['prim_obs_include'].append(utils.EE_ENUM)
     # config['prim_obs_include'].append(utils.THETA_ENUM)
-    config['val_obs_include'].append(utils.EE_ENUM)
     for o in range(no):
+        config['sensor_dims'][utils.OBJ_DELTA_ENUMS[o]] = 2
         config['sensor_dims'][utils.OBJ_ENUMS[o]] = 2
-        config['prim_obs_include'].append(utils.OBJ_ENUMS[o])
-        config['val_obs_include'].append(utils.OBJ_ENUMS[o])
+        config['sensor_dims'][utils.TARG_ENUMS[o]] = 2
+        config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
+        config['prim_obs_include'].append(utils.TARG_ENUMS[o])
+    config['obs_include'].extend(config['prim_obs_include'])
     return config
 
 config = refresh_config()

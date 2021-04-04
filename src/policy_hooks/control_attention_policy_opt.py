@@ -417,7 +417,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         if (self.scope is None or 'cont' == self.scope) and len(self._contBounds):
             self.cur_hllr = self._hyperparams['hllr']
             self.hllr_tensor = tf.Variable(initial_value=self._hyperparams['hllr'], name='hllr')
-            self.cur_dec = self._hyperparams['prim_weight_decay']
+            self.cur_dec = self._hyperparams['cont_weight_decay']
             vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='cont/')
             with tf.variable_scope('cont'):
                 self.cont_solver = TfSolver(loss_scalar=self.cont_loss_scalar,
