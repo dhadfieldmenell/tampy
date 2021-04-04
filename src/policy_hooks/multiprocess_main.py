@@ -278,6 +278,7 @@ class MultiProcessMain(object):
             'batch_size': self.config['batch_size'],
             'weight_decay': self.config['weight_decay'],
             'prim_weight_decay': self.config['prim_weight_decay'],
+            'cont_weight_decay': self.config['cont_weight_decay'],
             'val_weight_decay': self.config['val_weight_decay'],
             'weights_file_prefix': 'policy',
             'image_width': utils.IM_W,
