@@ -552,9 +552,9 @@ class RobotAgent(TAMPAgent):
 
     def solve_sample_opt_traj(self, state, task, condition, traj_mean=[], inf_f=None, mp_var=0, targets=[], x_only=False, t_limit=60, n_resamples=10, out_coeff=None, smoothing=False, attr_dict=None):
         success = False
-        old_targets = self.target_vecs[condition]
+        old_targets = self.target_vecs[condition].copy()
         if not len(targets):
-            targets = self.target_vecs[condition]
+            targets = self.target_vecs[condition].copy()
         else:
             self.target_vecs[condition] = targets.copy()
             for tname, attr in self.target_inds:
@@ -636,6 +636,7 @@ class RobotAgent(TAMPAgent):
             param = plan.params[param_name]
             if param.is_symbol(): continue
             diff = traj[:, self.state_inds[param_name, attr]].T - getattr(param, attr)
+        self.target_vecs[condition] = old_targets 
         return sample, failed_preds, success
 
 

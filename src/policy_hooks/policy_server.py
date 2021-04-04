@@ -98,6 +98,7 @@ class PolicyServer(object):
                                    save_dir=self.weight_dir+'/samples/')
       
         hyperparams['dPrim'] = len(hyperparams['prim_bounds'])
+        hyperparams['dCont'] = len(hyperparams['cont_bounds'])
         if self.task == 'primitive' or (self.task == 'cont' and not len(self.cont_bounds)):
             dO = hyperparams['dPrimObs']
             dU = max([b[1] for b in self.discr_bounds] + [b[1] for b in hyperparams['aux_bounds']])
@@ -106,8 +107,8 @@ class PolicyServer(object):
         elif self.task == 'cont':
             dO = hyperparams['dPrimObs'] + max([b[1] for b in self.discr_bounds])
             dU = max([b[1] for b in self.cont_bounds])
-            dP = hyperparams['dCont']
-            precShape = tf.TensorShape([None, dP])
+            dP = dU
+            precShape = tf.TensorShape([None, dP, dP])
         else:
             dO = hyperparams['dO']
             dU = hyperparams['dU']

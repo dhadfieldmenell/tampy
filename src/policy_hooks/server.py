@@ -40,6 +40,8 @@ class Server(object):
         np.random.seed(self.seed)
 
         self.render = hyperparams.get('load_render', False)
+        self.weight_dir = self.config['weight_dir']
+        self.exp_id = self.weight_dir.split('/')[-1]
         if self.config['weight_dir'].find('sawyer') >= 0:
             if self.id.find('moretest') < 0 and self.id.find('0') < 0:# and self.id.find('Rollout') < 0:
                 self.render = False
@@ -89,6 +91,7 @@ class Server(object):
         self.rollout_queue = hyperparams['rollout_queue']
         self.ll_queue = hyperparams['ll_queue']
         self.hl_queue = hyperparams['hl_queue']
+        self.cont_queue = hyperparams['cont_queue']
 
         self.pol_cls = DummyPolicy
         self.opt_cls = DummyPolicyOpt
@@ -174,7 +177,8 @@ class Server(object):
                                                             hyperparams['dU'],
                                                             hyperparams['dPrimObs'],
                                                             hyperparams['dValObs'],
-                                                            hyperparams['prim_bounds'])
+                                                            hyperparams['prim_bounds'],
+                                                            hyperparams['cont_bounds'])
         for alg in list(self.alg_map.values()):
             alg.local_policy_opt = self.policy_opt
         self.weights_to_store = {}
@@ -217,10 +221,9 @@ class Server(object):
         x0, targets = x0[0], targets[0]
         target_vec = np.zeros(self.agent.target_dim)
         for (tname, attr), inds in self.agent.target_inds.items():
-            #if attr != 'value': continue
+            if attr != 'value': continue
             target_vec[inds] = targets[tname]
         return x0, target_vec
-
 
 
     def update(self, obs, mu, prc, wt, task, label, acts=[], ref_acts=[], terminal=[], aux=[], primobs=[], x=[]):
@@ -348,6 +351,8 @@ class Server(object):
                                               self.policy_call,
                                               scale=self.policy_opt.task_map[task if task in self.policy_opt.valid_scopes else 'control']['policy'].scale)
                                   for task in self.agent.task_list}
+
+        rollout_policies['cont'] = ContPolicy(self.policy_opt)
         self.agent.policies = rollout_policies
 
 
@@ -374,7 +379,7 @@ class Server(object):
 
     def update_primitive(self, samples):
         dP, dO = self.agent.dPrimOut, self.agent.dPrim
-        dOpts = len(list(self.agent.prob.get_prim_choices(self.agent.task_list).keys()))
+        dOpts = len(self.agent.discrete_opts)
         ### Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dOpts)), np.zeros((0))
@@ -406,7 +411,7 @@ class Server(object):
             if np.any(np.isnan(obs)):
                 print((obs, sample.task, 'SAMPLE'))
             obs_data = np.concatenate((obs_data, obs))
-            prc = np.concatenate([self.agent.get_mask(sample, enum) for enum in opts], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
+            prc = np.concatenate([self.agent.get_mask(sample, enum) for enum in self.discrete_opts], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
             if not self.config['hl_mask']:
                 prc[:] = 1.
             tgt_prc = np.concatenate((tgt_prc, prc))
@@ -417,11 +422,10 @@ class Server(object):
 
 
     def update_cont_network(self, samples):
-        dP, dO = self.agent.dContOut, self.agent.dPrim + self.agent.dPrimObs
-        dOpts = len(list(self.agent.prob.get_prim_choices(self.agent.task_list).keys()))
+        dP, dO = self.agent.dContOut, self.agent.dPrim + self.agent.dPrimOut
         ### Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
-        tgt_prc, tgt_wt = np.zeros((0, dOpts)), np.zeros((0))
+        tgt_prc, tgt_wt = np.zeros((0, dP, dP)), np.zeros((0))
         tgt_aux = np.zeros((0))
         opts = self.agent.prob.get_prim_choices(self.agent.task_list)
 
@@ -606,6 +610,14 @@ class Server(object):
         self.agent.image_height = old_h
         self.agent.image_width = old_w
         #print('Time to save video:', time.time() - init_t)
+
+
+class ContPolicy:
+    def __init__(self, policy_opt):
+        self.policy_opt = policy_opt
+
+    def act(self, x, obs, t, noise=None):
+        return self.policy_opt.cont_task(obs)
 
 
 class DummyPolicy:

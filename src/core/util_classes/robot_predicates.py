@@ -22,6 +22,7 @@ import time
 
 DEFAULT_TOL = 1e-3
 NEAR_TOL = 0.05
+NEAR_ROT_TOL = 0.2
 
 ### HELPER FUNCTIONS
 
@@ -1297,16 +1298,25 @@ class Near(ExprPredicate):
         self.obj, self.target = params
         attr_inds = OrderedDict([(self.obj, [("pose", np.array([0,1,2], dtype=np.int))]),
                                  (self.target, [("value", np.array([0,1,2], dtype=np.int))])])
-
-        # A = np.c_[np.eye(6), -np.eye(6)]
-        # b, val = np.zeros((6, 1)), np.zeros((6, 1))
-        # aff_e = AffExpr(A, b)
-        # e = EqExpr(aff_e, val)
+        #attr_inds = OrderedDict([(self.obj, [("pose", np.array([0,1,2], dtype=np.int)),
+        #                                     ("rotation", np.array([0,1,2], dtype=np.int))]),
+        #                         (self.target, [("value", np.array([0,1,2], dtype=np.int)),
+        #                                        ("rotation", np.array([0,1,2], dtype=np.int))])])
 
         A = np.c_[np.r_[np.eye(3), -np.eye(3)], np.r_[-np.eye(3), np.eye(3)]]
         b, val = np.zeros((6, 1)), NEAR_TOL*np.ones((6, 1))
+        #A = np.c_[np.r_[np.eye(6), -np.eye(6)], np.r_[-np.eye(6), np.eye(6)]]
+        #b, val = np.zeros((12, 1)), np.ones((12, 1))
+        #val[:3] *= NEAR_TOL
+        #val[3:6] *= NEAR_ROT_TOL
+        #val[6:9] *= NEAR_TOL
+        #val[9:12] *= NEAR_ROT_TOL
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
+        #A = np.c_[np.r_[np.eye(3), -np.eye(3)], np.r_[-np.eye(3), np.eye(3)]]
+        #b, val = np.zeros((6, 1)), NEAR_TOL*np.ones((6, 1))
+        #aff_e = AffExpr(A, b)
+        #e = LEqExpr(aff_e, val)
 
         super(Near, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
@@ -2319,7 +2329,7 @@ class ApproachRight(EEReachableRight):
 class NearApproachRight(ApproachRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         #self.f_tol = 0.04
-        self.coeff = 3e-3
+        self.coeff = 8e-3
         super(NearApproachRight, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
@@ -2334,7 +2344,7 @@ class ApproachRightRot(EEReachableRightRot):
 class NearApproachRightRot(ApproachRightRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         # self.f_tol = 0.04
-        self.coeff = 2e-3
+        self.coeff = 4e-3
         super(NearApproachRightRot, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 

@@ -273,6 +273,7 @@ class MultiProcessMain(object):
             'hllr': self.config['hllr'],
             'network_model': tf_network,
             'primitive_network_model': primitive_network_model,
+            'cont_network_model': cont_network_model,
             'iterations': self.config['train_iterations'],
             'batch_size': self.config['batch_size'],
             'weight_decay': self.config['weight_decay'],

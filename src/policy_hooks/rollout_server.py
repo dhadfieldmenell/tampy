@@ -283,12 +283,12 @@ class RolloutServer(Server):
         for t in range(n, n_targs[-1]):
             obj_name = prim_opts[OBJ_ENUM][t]
             targets[self.agent.target_inds['{0}_end_target'.format(obj_name), 'value']] = x0[self.agent.state_inds[obj_name, 'pose']]
+
         if rlen is None:
-            rlen = 2 + n * len(self.agent.task_list)
-            if self.agent.retime:
-                rlen *= 2
-        self.agent.T = 40 # self.config['task_durations'][self.task_list[0]]
-        val, path = self.test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], eta=eta, lab=-5)
+            rlen = 4 + 2 * n * len(self.agent.task_list)
+            if self.agent.retime: rlen *= 2
+        hor = 20
+        val, path = self.test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], eta=eta, lab=-5, hor=hor)
         adj_val = val
         #if not self.adj_eta:
         #    self.adj_eta = True
@@ -441,7 +441,7 @@ class RolloutServer(Server):
         self.rollout_supervisor.reset()
        
 
-    def test_run(self, state, targets, max_t=20, hl=False, soft=False, check_cost=True, eta=None, lab=0):
+    def test_run(self, state, targets, max_t=20, hl=False, soft=False, check_cost=True, eta=None, lab=0, hor=30):
         def task_f(sample, t, curtask):
             return self.get_task(sample.get_X(t=t), sample.targets, curtask, soft)
         self.agent.reset_to_state(state)
@@ -458,7 +458,7 @@ class RolloutServer(Server):
             if l is None: break
             task_name = self.task_list[l[0]]
             pol = self.agent.policies[task_name]
-            s = self.agent.sample_task(pol, 0, state, l, noisy=False, task_f=task_f, skip_opt=True, hor=30)
+            s = self.agent.sample_task(pol, 0, state, l, noisy=False, task_f=task_f, skip_opt=True, hor=hor, policies=self.agent.policies)
             val = 1 - self.agent.goal_f(0, s.get_X(s.T-1), targets)
             t += 1
             state = s.end_state # s.get_X(s.T-1)

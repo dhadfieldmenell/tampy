@@ -724,6 +724,8 @@ def fp_multi_modal_cont_network(dim_input=27, dim_output=2, batch_size=25, netwo
     types = network_config.get('types', [])
     aux_boundaries = network_config.get('aux_boundaries', [])
     aux_types = network_config.get('aux_types', ['cont'])
+    cont_bounds = boundaries
+    types = ['continuous'] * len(cont_bounds)
 
     # List of indices for state (vector) data and image (tensor) data in observation.
     x_idx, img_idx, i = [], [], 0
@@ -775,10 +777,9 @@ def fp_multi_modal_cont_network(dim_input=27, dim_output=2, batch_size=25, netwo
 
     cur_input = fc_input
     with tf.variable_scope('cont_head'):
-        offset += len(dh)
         ncont = np.sum([en-st for (st, en) in cont_bounds])
-        dh = dim_hidden[:-1] + [ncont]
-        mlp_applied, weights_FC_2, biases_FC_2 = get_mlp_layers(cur_input, len(dh), dh, offset)
+        dh = dim_hidden[:-1] + [int(ncont)]
+        mlp_applied, weights_FC, biases_FC = get_mlp_layers(cur_input, len(dh), dh, offset)
         prediction = mlp_applied
         scaled_mlp_applied = mlp_applied 
 

@@ -43,7 +43,7 @@ class Sample(object):
         self._obs.fill(np.nan)
         self._prim_out = np.empty((self.T, self.dPrimOut))
         self._prim_out.fill(np.nan)
-        self._cont_out = np.empty((self.T, self.dPrimOut))
+        self._cont_out = np.empty((self.T, self.dContOut))
         self._cont_out.fill(np.nan)
         self._prim_obs = np.empty((self.T, self.dPrim))
         self._prim_obs.fill(np.nan)

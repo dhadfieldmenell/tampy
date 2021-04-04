@@ -27,7 +27,7 @@ class RolloutSupervisor():
         self.reset()
         self.cur_vid_id = 0
         self.t_per_task = 20
-        self.s_per_task = 4
+        self.s_per_task = 3
         if self.agent.retime:
             self.s_per_task *= 3
 
@@ -130,7 +130,7 @@ class RolloutSupervisor():
         self.tol = tol
 
         ntask = len(self.agent.task_list)
-        rlen = ntask * self.agent.num_objs
+        rlen = self.s_per_task * ntask * self.agent.num_objs
 
         self.adj_eta = True
         l = self.get_task(x, targets, None, self.soft)
@@ -184,12 +184,12 @@ class RolloutSupervisor():
             rand_ind = np.random.choice(range(len(self.precond_viols)))
             train_pts.append(tuple(self.precond_viols[rand_ind]) + (fail_type,))
 
-        if self.check_postcond and val < 1-1e-4:
+        if self.check_postcond and postcost > 1e-4:
             fail_type = 'rollout_postcondition_failure'
             bad_pt = self.switch_pts[-1]
             train_pts.append(tuple(bad_pt) + (fail_type,))
 
-        if self.check_random:
+        if self.check_random and val < 1-1e-4:
             ind = np.random.choice(range(len(self.switch_pts)))
             train_pts.append(tuple(self.switch_pts[ind]) + ('rollout_random_switch',))
 

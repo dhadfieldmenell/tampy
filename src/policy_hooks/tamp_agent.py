@@ -188,6 +188,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
 
     def add_cont_sample(self, sample, max_buf=1e2):
+        max_buf = int(max_buf)
         self.cont_samples.append(sample)
         self.cont_samples = self.cont_samples[-max_buf:]
 
@@ -378,11 +379,11 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
                 taskname = self.task_list[task[0]]
                 if policies is not None: policy = policies[taskname]
-                self.fill_sample(condition, sample, cur_state.copy(), t, task, fill_obs=True)
+                self.fill_sample(condition, sample, cur_state.copy(), t, task, fill_obs=False)
 
             prev_vals = {}
             if policies is not None and 'cont' in policies and len(self.continuous_opts):
-                prev_vals = self.fill_cont(sample, policies['cont'], t)
+                prev_vals = self.fill_cont(policies['cont'], sample, t)
 
             sample.set(NOISE_ENUM, noise_full, t)
 
@@ -515,6 +516,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
 
     def sample_optimal_trajectory(self, state, task, condition, opt_traj=[], traj_mean=[], fixed_targets=[]):
+        raise NotImplementedError('This should be defined in child')
         if not len(opt_traj):
             return self.solve_sample_opt_traj(state, task, condition, traj_mean, fixed_targets)
 
@@ -547,6 +549,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
 
     def _sample_opt_traj(self, plan, state, task, condition):
+        raise NotImplementedError('This should be defined in child')
         '''
         Only call for successfully planned trajectories
         '''
@@ -973,7 +976,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                         n_suc += 1
                         next_t = max(prev_suc, cur_t+5)
                         prev_suc = cur_t
-                        next_hist = hist_traj[-cur_step-self.hist_len-2:-cur_step-1]
+                        next_hist = hist_traj[-cur_step-self.hist_len-1:-cur_step]
                         self._x_delta[:] = next_hist
                         next_path, next_x0 = self.run_action(plan, a, cur_x0, perm_targets, perm_task, cur_t, next_t, reset=reset, save=False, record=False, perm=perm, add_noop=False, prev_hist=next_hist)
                         for step in next_path:
@@ -984,10 +987,12 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
                         cur_path = next_path + cur_path
                         if verbose:
-                            print(self.process_id, "Adding backup solve traj...")
+                            print(self.process_id, "Adding backup solve traj for {}...".format(task))
                             info['to_render'][-1].append(next_path)
                     else:
                         plan.store_values(old_vals)
+                        if verbose:
+                            print(self.process_id, "Failed backup solve traj for {}...".format(task))
 
                     plan.store_free_attrs(old_free)
                 self.ll_solver.solve_priorities = old_solve_priorities
@@ -996,9 +1001,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             set_params_attrs(plan.params, self.state_inds, prev_x0, act_st, plan=plan)
             self.set_symbols(plan, task, anum=a, st=act_st, targets=targets)
             old_free = plan.get_free_attrs()
+            if not rollout: ref_traj = []
             try:
-                #success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=ref_traj, st=act_st)
-                success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=[], st=act_st)
+                success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=ref_traj, st=act_st)
+                #success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=[], st=act_st)
             except AttributeError as e:
                 print(('Opt Exception in full solve for', x0, task, plan.actions[a]), st)
                 success = False
@@ -1459,6 +1465,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         old_vals = {}
         for ind, enum in enumerate(self.continuous_opts):
             old_vals[enum] = sample.get(enum, t=t).copy()
-            sample.set(enum, vals[inds], t=t)
-        return vals
+            sample.set(enum, vals[ind], t=t)
+        return old_vals
 

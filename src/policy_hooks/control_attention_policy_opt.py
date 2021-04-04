@@ -122,6 +122,15 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 self.prim_x_idx = self.prim_x_idx + list(range(i, i+dim))
             i += dim
 
+        self.cont_x_idx, self.cont_img_idx, i = [], [], 0
+        for sensor in self._hyperparams['cont_network_params']['obs_include']:
+            dim = self._hyperparams['cont_network_params']['sensor_dims'][sensor]
+            if sensor in self._hyperparams['cont_network_params']['obs_image_data']:
+                self.cont_img_idx = self.cont_img_idx + list(range(i, i+dim))
+            else:
+                self.cont_x_idx = self.cont_x_idx + list(range(i, i+dim))
+            i += dim
+
         self.update_count = 0
         if self.scope in ['primitive', 'cont']:
             self.update_size = self._hyperparams['prim_update_size']
@@ -149,7 +158,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
 
     def restore_ckpt(self, scope, label=None, dirname=''):
-        variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
+        variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope+'/')
         if not len(variables): return False
         self.saver = tf.train.Saver(variables)
         ext = ''
@@ -208,7 +217,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             except Exception as e:
                 #traceback.print_exception(*sys.exc_info())
                 if not skip:
-                    print('Could not load {0} weights'.format(scope))
+                    print('Could not load {0} weights from {1}'.format(scope, self.scope), e)
 
 
     def serialize_weights(self, scopes=None, save=True):
@@ -217,7 +226,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
         var_to_val = {}
         for scope in scopes:
-            variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
+            variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope+'/')
             for v in variables:
                 var_to_val[v.name] = self.sess.run(v).tolist()
 
@@ -236,7 +245,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         scopes, var_to_val, scales, biases, variances = pickle.loads(json_wts)
 
         for scope in scopes:
-            variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
+            variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope+'/')
             for var in variables:
                 var.load(var_to_val[var.name], session=self.sess)
 
@@ -261,7 +270,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             weight_dir = self.weight_dir
         for scope in scopes:
             try:
-                variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
+                variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope+'/')
                 saver = tf.train.Saver(variables)
                 saver.save(self.sess, 'tf_saved/'+weight_dir+'/'+scope+'{0}.ckpt'.format(lab))
             except:
@@ -392,49 +401,52 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             self.cur_hllr = self._hyperparams['hllr']
             self.hllr_tensor = tf.Variable(initial_value=self._hyperparams['hllr'], name='hllr')
             self.cur_dec = self._hyperparams['prim_weight_decay']
-            vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='primitive')
-            self.primitive_solver = TfSolver(loss_scalar=self.primitive_loss_scalar,
-                                               solver_name=self._hyperparams['solver_type'],
-                                               base_lr=self.hllr_tensor,
-                                               lr_policy=self._hyperparams['lr_policy'],
-                                               momentum=self._hyperparams['momentum'],
-                                               weight_decay=self.dec_tensor,#self._hyperparams['prim_weight_decay'],
-                                               #weight_decay=self._hyperparams['prim_weight_decay'],
-                                               fc_vars=self.primitive_fc_vars,
-                                               last_conv_vars=self.primitive_last_conv_vars,
-                                               vars_to_opt=vars_to_opt,
-                                               aux_losses=self.primitive_aux_losses)
+            vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='primitive/')
+            with tf.variable_scope('primitive'):
+                self.primitive_solver = TfSolver(loss_scalar=self.primitive_loss_scalar,
+                                                   solver_name=self._hyperparams['solver_type'],
+                                                   base_lr=self.hllr_tensor,
+                                                   lr_policy=self._hyperparams['lr_policy'],
+                                                   momentum=self._hyperparams['momentum'],
+                                                   weight_decay=self.dec_tensor,#self._hyperparams['prim_weight_decay'],
+                                                   #weight_decay=self._hyperparams['prim_weight_decay'],
+                                                   fc_vars=self.primitive_fc_vars,
+                                                   last_conv_vars=self.primitive_last_conv_vars,
+                                                   vars_to_opt=vars_to_opt,
+                                                   aux_losses=self.primitive_aux_losses)
         if (self.scope is None or 'cont' == self.scope) and len(self._contBounds):
             self.cur_hllr = self._hyperparams['hllr']
             self.hllr_tensor = tf.Variable(initial_value=self._hyperparams['hllr'], name='hllr')
             self.cur_dec = self._hyperparams['prim_weight_decay']
-            vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='cont')
-            self.cont_solver = TfSolver(loss_scalar=self.cont_loss_scalar,
-                                       solver_name=self._hyperparams['solver_type'],
-                                       base_lr=self.hllr_tensor,
-                                       lr_policy=self._hyperparams['lr_policy'],
-                                       momentum=self._hyperparams['momentum'],
-                                       weight_decay=self.dec_tensor,
-                                       fc_vars=self.cont_fc_vars,
-                                       last_conv_vars=self.cont_last_conv_vars,
-                                       vars_to_opt=vars_to_opt,
-                                       aux_losses=self.cont_aux_losses)
+            vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='cont/')
+            with tf.variable_scope('cont'):
+                self.cont_solver = TfSolver(loss_scalar=self.cont_loss_scalar,
+                                           solver_name=self._hyperparams['solver_type'],
+                                           base_lr=self.hllr_tensor,
+                                           lr_policy=self._hyperparams['lr_policy'],
+                                           momentum=self._hyperparams['momentum'],
+                                           weight_decay=self.dec_tensor,
+                                           fc_vars=self.cont_fc_vars,
+                                           last_conv_vars=self.cont_last_conv_vars,
+                                           vars_to_opt=vars_to_opt,
+                                           aux_losses=self.cont_aux_losses)
         self.lr_tensor = tf.Variable(initial_value=self._hyperparams['lr'], name='lr')
         self.cur_lr = self._hyperparams['lr']
         for scope in self.valid_scopes:
             if self.scope is None or scope == self.scope:
                 self.cur_dec = self._hyperparams['weight_decay']
-                vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
-                self.task_map[scope]['solver'] = TfSolver(loss_scalar=self.task_map[scope]['loss_scalar'],
-                                                       solver_name=self._hyperparams['solver_type'],
-                                                       base_lr=self.lr_tensor,
-                                                       lr_policy=self._hyperparams['lr_policy'],
-                                                       momentum=self._hyperparams['momentum'],
-                                                       #weight_decay=self.dec_tensor,#self._hyperparams['weight_decay'],
-                                                       weight_decay=self._hyperparams['weight_decay'],
-                                                       fc_vars=self.task_map[scope]['fc_vars'],
-                                                       last_conv_vars=self.task_map[scope]['last_conv_vars'],
-                                                       vars_to_opt=vars_to_opt)
+                vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope+'/')
+                with tf.variable_scope(scope):
+                    self.task_map[scope]['solver'] = TfSolver(loss_scalar=self.task_map[scope]['loss_scalar'],
+                                                           solver_name=self._hyperparams['solver_type'],
+                                                           base_lr=self.lr_tensor,
+                                                           lr_policy=self._hyperparams['lr_policy'],
+                                                           momentum=self._hyperparams['momentum'],
+                                                           #weight_decay=self.dec_tensor,#self._hyperparams['weight_decay'],
+                                                           weight_decay=self._hyperparams['weight_decay'],
+                                                           fc_vars=self.task_map[scope]['fc_vars'],
+                                                           last_conv_vars=self.task_map[scope]['last_conv_vars'],
+                                                           vars_to_opt=vars_to_opt)
 
     def get_policy(self, task):
         if task == 'primitive': return self.prim_policy
@@ -443,21 +455,21 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
     def init_policies(self, dU):
         if self.load_all or self.scope is None or self.scope == 'primitive':
-            self.prim_policy = TfPolicy(dU,
+            self.prim_policy = TfPolicy(self._dPrim,
                                         self.primitive_obs_tensor,
                                         self.primitive_act_op,
                                         self.primitive_feat_op,
-                                        np.zeros(dU),
+                                        np.zeros(self._dPrim),
                                         self.sess,
                                         self.device_string,
                                         copy_param_scope=None,
                                         normalize=False)
         if (self.load_all or self.scope is None or self.scope == 'cont') and len(self._contBounds):
-            self.cont_policy = TfPolicy(dU,
+            self.cont_policy = TfPolicy(self._dCont,
                                         self.cont_obs_tensor,
                                         self.cont_act_op,
                                         self.cont_feat_op,
-                                        np.zeros(dU),
+                                        np.zeros(self._dCont),
                                         self.sess,
                                         self.device_string,
                                         copy_param_scope=None,

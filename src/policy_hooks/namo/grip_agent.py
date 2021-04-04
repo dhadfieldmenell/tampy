@@ -980,4 +980,23 @@ class NAMOGripAgent(NAMOSortingAgent):
         x[inds] = GRIP_VAL if x[inds][0] >= 0 else -GRIP_VAL
         return x
 
+    
+    def fill_cont(self, policy, sample, t):
+        vals = policy.act(sample.get_X(t=t), sample.get_cont_obs(t=t), t)
+        old_vals = {}
+        for ind, enum in enumerate(self.continuous_opts):
+            old_vals[enum] = sample.get(enum, t=t).copy()
+            sample.set(enum, vals[ind], t=t)
+            if enum is utils.ABS_POSE_ENUM:
+                mp_state = sample.get_X(t=t)
+                theta = mp_state[self.state_inds['pr2', 'theta']][0]
+                if LOCAL_FRAME:
+                    rot = np.array([[np.cos(-theta), -np.sin(-theta)],
+                                    [np.sin(-theta), np.cos(-theta)]])
+                else:
+                    rot = np.eye(2)
+                old_vals[END_POSE_ENUM] = sample.get(END_POSE_ENUM, t=t).copy()
+                sample.set(utils.END_POSE_ENUM, rot.dot(vals[ind] - mp_state[self.state_inds['pr2', 'pose']]), t)
+                sample.set(utils.TRUE_POSE_ENUM, vals[ind], t)
+        return old_vals
 
