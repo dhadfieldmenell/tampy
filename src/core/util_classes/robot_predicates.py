@@ -2316,7 +2316,7 @@ class EEReachableRightRot(EEReachableRot):
 class EEAtRightRot(EEReachableRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
         self.arm = "right"
-        super(EEReachableRightRot, self).__init__(name, params, expected_param_types, (0, 0), env, debug)
+        super(EEAtRightRot, self).__init__(name, params, expected_param_types, (0, 0), env, debug)
 
 class ApproachRight(EEReachableRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
@@ -2350,7 +2350,7 @@ class NearApproachRightRot(ApproachRightRot):
 
 class EEAtXYRight(EEReachableRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        super(EEAtXYRight, self).__init__(name, params, expected_param_types, env, debug, 0)
+        super(EEAtXYRight, self).__init__(name, params, expected_param_types, env=env, debug=debug, steps=0)
         self.mask = np.array([1., 1., 0.]).reshape((3,1))
         self.approach_dist = const.GRASP_DIST
 
