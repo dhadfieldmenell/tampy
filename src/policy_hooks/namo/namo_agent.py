@@ -146,7 +146,6 @@ class NAMOSortingAgent(TAMPAgent):
         self._in_gripper = None
         no = self._hyperparams['num_objs']
         self.targ_labels = {i: np.array(self.prob.END_TARGETS[i]) for i in range(len(self.prob.END_TARGETS))}
-        self.targ_labels.update({i: self.targets[0]['aux_target_{0}'.format(i-no)] for i in range(no, no+self.prob.n_aux)})
 
 
     def replace_targets(self, condition=0):
@@ -1533,8 +1532,58 @@ class NAMOSortingAgent(TAMPAgent):
             #    mask[t, :] = 0.
         return mask
 
+    
+    def permute_cont_data(self, hl_mu, hl_obs, hl_wt, hl_prc, aux, x):
+        prim_choices = self.prob.get_prim_choices(self.task_list)
+        task = []
+        for (enum, opts) in prim_choices.items():
+            if not np.isscalar(opts):
+                task.append(np.random.randint(len(opts)))
+        obj = prim_choices[OBJ_ENUM][task[1]]
+        targ = prim_choices[TARG_ENUM][task[2]]
+        task_idx = self._prim_out_data_idx[TASK_ENUM]
+        obj_idx = self._prim_out_data_idx[OBJ_ENUM]
+        targ_idx = self._prim_out_data_idx[TARG_ENUM]
 
-    def permute_hl_data(self, hl_mu, hl_obs, hl_wt, hl_prc, aux):
+        task_name = self.task_list[task[0]]
+        task_vec = np.zeros((len(hl_mu), len(prim_choices[TASK_ENUM])))
+        task_vec[task[0]] = 1.
+        hl_obs[:, task_idx] = task_vec
+        obj_vec = np.zeros((len(hl_mu), len(prim_choices[OBJ_ENUM])))
+        obj_vec[task[1]] = 1.
+        hl_obs[:, obj_idx] = obj_vec
+        targ_vec = np.zeros((len(hl_mu), len(prim_choices[TARG_ENUM])))
+        if task_name.find('transfer') >= 0 or task_name.find('place') >= 0:
+            targ_vec[task[2]] = 1.
+        else:
+            targ_vec[:] = 1. / len(prim_choices[TARG_ENUM])
+        hl_obs[:, targ_idx] = targ_vec
+
+        obj_name = 'can{}'.format(task[1])
+        obj_pos = x[:, self.state_inds[obj_name, 'pose']]
+        targ_name = 'end_target_{}'.format(task[2])
+        targ_val = self.prob.END_TARGETS[task[2]]
+        if ABS_POSE_ENUM in self._cont_out_data_idx:
+            idx = self._cont_out_data_idx[ABS_POSE_ENUM]
+            if task_name.find('transfer') >= 0 or task_name.find('place') >= 0:
+                hl_mu[:, idx] = targ_val
+            else:
+                hl_mu[:, idx] = obj_pos
+
+        if END_POSE_ENUM in self._cont_out_data_idx:
+            ee_pos = x[:, self.state_inds['pr2', 'pose']]
+            theta = x[:, self.state_inds['pr2', 'theta']]
+            rot = plan.params['pr2'].theta[0,t]
+            rot_mat = np.array([[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]]) 
+            idx = self._cont_out_data_idx[END_POSE_ENUM]
+            if task_name.find('transfer') >= 0 or task_name.find('place') >= 0:
+                hl_mu[:, idx] = (rot_mat.dot(targ_val.T)).T
+            else:
+                hl_mu[:, idx] = (rot_mat.dot(obj_pos.T)).T
+        return hl_mu, hl_obs, hl_wt, hl_prc
+
+
+    def permute_hl_data(self, hl_mu, hl_obs, hl_wt, hl_prc, aux, x):
         for enum in [IM_ENUM, OVERHEAD_IMAGE_ENUM]:
             if enum in self._prim_obs_data_idx:
                 return hl_mu, hl_obs, hl_wt, hl_prc

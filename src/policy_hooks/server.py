@@ -1,7 +1,7 @@
 import pickle as pickle
 from datetime import datetime
 import numpy as np
-import os
+import os, psutil
 import pprint
 import queue
 import random
@@ -384,6 +384,7 @@ class Server(object):
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dOpts)), np.zeros((0))
         tgt_aux = np.zeros((0))
+        tgt_x = np.zeros((0, self.agent.dX))
         opts = self.agent.prob.get_prim_choices(self.agent.task_list)
 
         #if len(samples):
@@ -397,6 +398,7 @@ class Server(object):
         for ind, sample in enumerate(samples):
             mu = sample.get_prim_out()
             tgt_mu = np.concatenate((tgt_mu, mu))
+            tgt_x = np.concatenate((tgt_x, sample.get_X()))
             st, et = 0, sample.T # st, et = sample.step * sample.T, (sample.step + 1) * sample.T
             #aux = np.ones(sample.T)
             #if sample.task_start: aux[0] = 0.
@@ -418,7 +420,7 @@ class Server(object):
 
         if len(tgt_mu):
             # print('Sending update to primitive net')
-            self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', samples[0].source_label, aux=tgt_aux)
+            self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', samples[0].source_label, aux=tgt_aux, x=tgt_x)
 
 
     def update_cont_network(self, samples):
@@ -427,6 +429,7 @@ class Server(object):
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dP, dP)), np.zeros((0))
         tgt_aux = np.zeros((0))
+        tgt_x = np.zeros((0, self.agent.dX))
         opts = self.agent.prob.get_prim_choices(self.agent.task_list)
 
         #if len(samples):
@@ -440,6 +443,7 @@ class Server(object):
         for ind, sample in enumerate(samples):
             mu = sample.get_cont_out()
             tgt_mu = np.concatenate((tgt_mu, mu))
+            tgt_x = np.concatenate((tgt_x, sample.get_X()))
             st, et = 0, sample.T # st, et = sample.step * sample.T, (sample.step + 1) * sample.T
             #aux = np.ones(sample.T)
             #if sample.task_start: aux[0] = 0.
@@ -456,7 +460,7 @@ class Server(object):
 
         if len(tgt_mu):
             # print('Sending update to primitive net')
-            self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'cont', samples[0].source_label, aux=tgt_aux)
+            self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'cont', samples[0].source_label, aux=tgt_aux, x=tgt_x)
 
 
     def update_negative_primitive(self, samples):
@@ -528,6 +532,8 @@ class Server(object):
                 info['plan_fail_rate'] = self.n_failed / self.n_plans if self.n_plans > 0 else 0.
                 info['source'] = sample.source_label
                 # info['prim_obs'] = sample.get_prim_obs().round(4)
+                info['memory'] = psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2
+
             data.append(info)
         return data
 

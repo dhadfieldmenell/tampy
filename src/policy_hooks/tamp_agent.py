@@ -217,6 +217,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
 
     def add_sample_batch(self, samples, task):
+        raise Exception('Deprecated')
         if type(task) is tuple:
             task = self.task_list[task[0]]
         if not hasattr(samples[0], '__getitem__'):
@@ -927,12 +928,14 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 self.reset_to_state(x0)
                 hor = 2 * (act_et - act_st)
                 if self.retime: hor *= 2
-                sample = self.sample_task(policy, 0, x0.copy(), task, hor=hor, skip_opt=True)
+                policies = {}
+                if 'cont' in self.policies:
+                    policies['cont'] = self.policies['cont']
+                sample = self.sample_task(policy, 0, x0.copy(), task, hor=hor, skip_opt=True, policies=policies)
                 last_t = self.first_postcond(sample, x0=x0, task=task)
                 if last_t < 0: last_t = None
                 cost = self.postcond_cost(sample, task, sample.T-1, x0=x0) if last_t is None else 0
                 ref_traj, _, labels, _ = self.reverse_retime([sample], (act_st, act_et), label=True, T=last_t)
-                backup = backup and cost > 1e-4
                 #if cost < 1e-4 and rollout:
                 #    self.optimal_samples[self.task_list[task[0]]].append(sample)
             else:
@@ -1467,4 +1470,12 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             old_vals[enum] = sample.get(enum, t=t).copy()
             sample.set(enum, vals[ind], t=t)
         return old_vals
+
+
+    def permute_hl_data(self, hl_mu, hl_obs, hl_wt, hl_prc, aux, x):
+        return hl_mu, hl_obs, hl_wt, hl_prc
+
+
+    def permute_cont_data(self, hl_mu, hl_obs, hl_wt, hl_prc, aux, x):
+        return hl_mu, hl_obs, hl_wt, hl_prc
 

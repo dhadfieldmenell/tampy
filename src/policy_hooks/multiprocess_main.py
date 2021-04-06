@@ -254,15 +254,15 @@ class MultiProcessMain(object):
                 'types': self.task_types,
             },
             'cont_network_params': {
-                'obs_include': self.config['agent']['prim_obs_include'],
+                'obs_include': self.config['agent']['prim_out_include'] + self.config['agent']['prim_obs_include'],
                 'obs_image_data': [IM_ENUM, OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
                 'image_width': self.config['image_width'],
                 'image_height': self.config['image_height'],
                 'image_channels': self.config['image_channels'],
                 'sensor_dims': self.sensor_dims,
                 'n_layers': self.config['prim_n_layers'],
-                'num_filters': [32, 32, 16],
-                'filter_sizes': [5, 5, 5],
+                'num_filters': [32, 16],
+                'filter_sizes': [5, 5],
                 'dim_hidden': self.config['prim_dim_hidden'],
                 'output_boundaries': self.config['cont_bounds'],
                 'aux_boundaries': [],
@@ -339,7 +339,7 @@ class MultiProcessMain(object):
         buffers['primitive'] = mp.Array(ctypes.c_char, 20 * (2**27))
         buf_sizes['primitive'] = mp.Value('i')
         buf_sizes['primitive'].value = 0
-        buffers['cont'] = mp.Array(ctypes.c_char, 20 * (2**28))
+        buffers['cont'] = mp.Array(ctypes.c_char, 20 * (2**27))
         buf_sizes['cont'] = mp.Value('i')
         buf_sizes['cont'].value = 0
         buf_sizes['n_data'] = mp.Value('i')
@@ -449,6 +449,27 @@ class MultiProcessMain(object):
         hyperparams = self.config
         hyperparams['id'] = 'test'
         hyperparams['scope'] = 'primitive'
+        descr = hyperparams.get('descr', '')
+        self.allocate_shared_buffers(hyperparams)
+        self.allocate_queues(hyperparams)
+        hyperparams['policy_opt']['share_buffer'] = True
+        hyperparams['policy_opt']['buffers'] = hyperparams['buffers']
+        hyperparams['policy_opt']['buffer_sizes'] = hyperparams['buffer_sizes']
+        server = PolicyServer(hyperparams)
+        server.agent = hyperparams['agent']['type'](hyperparams['agent'])
+        ll_dir = hyperparams['ll_policy']
+        hl_dir = hyperparams['hl_data']
+        print(('Launching hl retrain from', ll_dir, hl_dir))
+        #hl_retrain.retrain_hl_from_samples(server, hl_dir)
+        server.data_gen.load_from_dir(DIR_KEY+hl_dir)
+        server.run()
+
+
+    def cont_only_retrain(self):
+        software_constants.USE_ROS = False
+        hyperparams = self.config
+        hyperparams['id'] = 'test'
+        hyperparams['scope'] = 'cont'
         descr = hyperparams.get('descr', '')
         self.allocate_shared_buffers(hyperparams)
         self.allocate_queues(hyperparams)
@@ -626,17 +647,17 @@ class MultiProcessMain(object):
 
         queue_size = 50
         queues = {}
-        config['hl_queue'] = Queue(queue_size)
+        config['hl_queue'] = Queue(maxsize=queue_size)
         config['ll_queue'] = {} 
         for task in self.pol_list:
-            config['ll_queue'][task] = Queue(queue_size)
-        config['cont_queue'] = Queue(queue_size)
-        config['motion_queue'] = self.queue_manager.PriorityQueue(queue_size)
-        config['task_queue'] = self.queue_manager.PriorityQueue(queue_size)
-        config['rollout_queue'] = self.queue_manager.PriorityQueue(queue_size)
+            config['ll_queue'][task] = Queue(maxsize=queue_size)
+        config['cont_queue'] = Queue(maxsize=queue_size)
+        config['motion_queue'] = self.queue_manager.PriorityQueue(maxsize=queue_size)
+        config['task_queue'] = self.queue_manager.PriorityQueue(maxsize=queue_size)
+        config['rollout_queue'] = self.queue_manager.PriorityQueue(maxsize=queue_size)
 
-        for task in self.pol_list+('primitive',):
-            queues['{0}_pol'.format(task)] = Queue(50)
+        #for task in self.pol_list+('primitive',):
+        #    queues['{0}_pol'.format(task)] = Queue(50)
         config['queues'] = queues
         return queues
 

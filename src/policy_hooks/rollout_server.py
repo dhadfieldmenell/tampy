@@ -29,6 +29,7 @@ ROLL_PRIORITY = 5
 class RolloutServer(Server):
     def __init__(self, hyperparams):
         super(RolloutServer, self).__init__(hyperparams)
+        self.hyperparams = hyperparams
         self.in_queue = self.rollout_queue
         self.out_queue = self.motion_queue
         self.check_precond = hyperparams['check_precond']
@@ -54,17 +55,7 @@ class RolloutServer(Server):
         self.explore_success = hyperparams['explore_success']
         self.soft = hyperparams['soft_eval']
         self.eta = hyperparams['eta']
-        self.rollout_supervisor = RolloutSupervisor(self.agent, 
-                                                    self.policy_opt,
-                                                    hyperparams,
-                                                    self.check_precond,
-                                                    self.check_midcond,
-                                                    self.check_postcond,
-                                                    self.check_random_switch,
-                                                    self.neg_precond,
-                                                    self.neg_postcond,
-                                                    self.soft,
-                                                    self.eta)
+        self.init_supervisor()
 
         self.ll_rollout_opt = hyperparams['ll_rollout_opt']
         self.hl_rollout_opt = hyperparams['hl_rollout_opt']
@@ -86,6 +77,20 @@ class RolloutServer(Server):
         self.failed_trajs = [] # Each entry should be (traj, list of ts, list of prob under policy)
         self.prev_suc = [] # Each entry is a state and a list of time, success pairs
         self.prev_fail = [] # Each entry is a state and a list of time, success pairs
+
+
+    def init_supervisor(self):
+        self.rollout_supervisor = RolloutSupervisor(self.agent, 
+                                                    self.policy_opt,
+                                                    self.hyperparams,
+                                                    self.check_precond,
+                                                    self.check_midcond,
+                                                    self.check_postcond,
+                                                    self.check_random_switch,
+                                                    self.neg_precond,
+                                                    self.neg_postcond,
+                                                    self.soft,
+                                                    self.eta)
 
 
     def hl_log_prob(self, path):
@@ -368,6 +373,7 @@ class RolloutServer(Server):
         self.agent.hl_pol = False
         while not self.stopped:
             step += 1
+            cont_samples = self.agent.get_cont_samples()
             if self._n_plans <= ff_iters:
                 n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
                 self._n_plans = n_plans.value
@@ -401,7 +407,6 @@ class RolloutServer(Server):
             if self.hl_rollout_opt:
                 self.run_hl_update(label='rollout')
 
-            cont_samples = self.agent.get_cont_samples()
             if len(cont_samples):
                 self.update_cont_network(cont_samples)
 
@@ -413,7 +418,8 @@ class RolloutServer(Server):
         x0 = node.x0
         targets = node.targets
         val, path = self.rollout_supervisor.rollout(x0, targets, node)
-        self.save_video(path, val > 0, lab='_rollout')
+        if self.id.find('r0'):
+            self.save_video(path, val > 0, lab='_rollout')
 
         self.log_path(path, -20)
         for llnode in self.rollout_supervisor.ll_nodes:
@@ -439,6 +445,7 @@ class RolloutServer(Server):
 
         self.postcond_info.extend(self.rollout_supervisor.postcond_info)
         self.rollout_supervisor.reset()
+        self.init_supervisor()
        
 
     def test_run(self, state, targets, max_t=20, hl=False, soft=False, check_cost=True, eta=None, lab=0, hor=30):

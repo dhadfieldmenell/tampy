@@ -5,7 +5,7 @@ import threading
 import time
 import queue
 import numpy as np
-import os
+import os, psutil
 
 from policy_hooks.control_attention_policy_opt import ControlAttentionPolicyOpt
 from policy_hooks.msg_classes import *
@@ -72,19 +72,14 @@ class PolicyServer(object):
             in_inds = np.concatenate(in_inds, axis=0)
             out_inds = np.concatenate(out_inds, axis=0)
 
-        self.data_gen = DataLoader(hyperparams, \
-                                   self.task, \
-                                   self.in_queue, \
-                                   self.batch_size, \
-                                   normalize, \
-                                   min_buffer=self.min_buffer, \
-                                   feed_prob=feed_prob, \
-                                   feed_inds=(in_inds, out_inds), \
-                                   feed_map=self.agent.center_cont)
         aug_f = None
         no_im = IM_ENUM not in hyperparams['prim_obs_include']
         if self.task == 'primitive' and hyperparams['permute_hl'] > 0 and no_im:
             aug_f = self.agent.permute_hl_data
+
+        #if self.task == 'cont':
+        #    aug_f = self.agent.permute_cont_data
+
         self.data_gen = DataLoader(hyperparams, \
                                    self.task, \
                                    self.in_queue, \
@@ -115,21 +110,22 @@ class PolicyServer(object):
             dP = hyperparams['dU']
             precShape = tf.TensorShape([None, dP, dP])
 
-        data = tf.data.Dataset.from_tensor_slices([0, 1, 2])
+        data = tf.data.Dataset.from_tensor_slices([0, 1, 2, 3])
         self.load_f = lambda x: tf.data.Dataset.from_generator(self.data_gen.gen_load, \
                                                          output_types=tf.int32, \
                                                          args=())
         data = data.interleave(self.load_f, \
-                                 cycle_length=3, \
+                                 cycle_length=4, \
                                  block_length=1)
         self.gen_f = lambda x: tf.data.Dataset.from_generator(self.data_gen.gen_items, \
                                                          output_types=(tf.float32, tf.float32, tf.float32), \
                                                          output_shapes=(tf.TensorShape([None, dO]), tf.TensorShape([None, dU]), precShape),
                                                          args=(x,))
         self.data = data.interleave(self.gen_f, \
-                                     cycle_length=3, \
+                                     cycle_length=4, \
                                      block_length=1)
         self.data = self.data.prefetch(3)
+
         self.input, self.act, self.prc = self.data.make_one_shot_iterator().get_next()
 
         hyperparams['policy_opt']['primitive_network_params']['output_boundaries'] = self.discr_bounds
@@ -204,6 +200,7 @@ class PolicyServer(object):
         while not self.stopped:
             self.iters += 1
             init_t = time.time()
+            self.data_gen.load_data()
             self.policy_opt.update(self.task)
             #if self.task == 'primitive': print('Time to run update:', time.time() - init_t)
             self.n_updates += 1
@@ -219,12 +216,12 @@ class PolicyServer(object):
                 self.val_losses['aux'].append(losses)
 
             if self.lr_policy == 'adaptive':
-                if len(self.train_losses['all']) and len(self.val_losses['all']):
+                if len(self.train_losses['all']) and len(self.val_losses['all']) and self.policy_opt.cur_dec > 0:
                     ratio = np.mean(self.val_losses['all'][-5:]) / np.mean(self.train_losses['all'][-5:])
                     self.cur_ratio = ratio
-                    if ratio < 1.25:
+                    if ratio < 1.2:
                         self.policy_opt.cur_dec *= 0.975
-                    elif ratio > 1.75:
+                    elif ratio > 1.7:
                         self.policy_opt.cur_dec *= 1.025
                     self.policy_opt.cur_dec = max(self.policy_opt.cur_dec, 1e-12)
                     self.policy_opt.cur_dec = min(self.policy_opt.cur_dec, 1e-1)
@@ -282,7 +279,10 @@ class PolicyServer(object):
                 'reg_val': self.policy_opt.cur_dec,
                 'loss_ratio': self.cur_ratio,
                 }
-        
+
+        info['memory'] = psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2
+        info['in_queue_size'] = self.in_queue.qsize()
+
         for key in self.data_gen.items:
             info['n_train_{}'.format(key)] = len(self.data_gen.items[key])
 

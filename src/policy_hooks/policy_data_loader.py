@@ -1,10 +1,12 @@
+import gc
 import numpy as np
 import os
 import queue
 import time
 
 
-MAX_BUFFER = 150000 # 300000
+#MAX_BUFFER = 300000
+MAX_BUFFER = 50000
 
 class DataLoader(object):
     def __init__(self, config, task, in_queue, batch_size, normalize=False, policy=None, x_idx=None, aug_f=None, min_buffer=10**3, feed_in_policy=None, feed_prob=0., feed_inds=(None, None), feed_map=None, save_dir=None):
@@ -93,13 +95,12 @@ class DataLoader(object):
             for i in range(len(obs)):
                 primpt = primobs[i] if len(primobs) else []
                 xpt = x[i] if len(x) else []
-                if len(aux):
-                    dct[label].append((obs[i], mu[i], prc[i], wt[i], aux[i], primpt, xpt, task, label))
-                else:
-                    dct[label].append((obs[i], mu[i], prc[i], wt[i], [], primpt, xpt, task, label))
+                auxpt = aux[i] if len(aux) else []
+                dct[label].append((obs[i], mu[i], prc[i], wt[i], auxpt, primpt, xpt, task, label))
 
+        for dct in [self.items, self.val_items]:
             labels = list(dct.keys())
-            max_size = MAX_BUFFER if not val else (0.1 * MAX_BUFFER)
+            max_size = MAX_BUFFER if dct is self.items else (0.1 * MAX_BUFFER)
             max_size = int(max_size)
             data_len = sum([len(dct[lab]) for lab in labels])
             p = [len(dct[lab])/data_len for lab in labels]
@@ -109,14 +110,16 @@ class DataLoader(object):
                 del_label = np.random.choice(labels, p=p)
                 rand_ind = np.random.randint(len(dct[del_label]))
                 try:
-                    del dct[del_label][rand_ind]
-                    #dct[del_label] = dct[del_label][n_del:]
+                    #del dct[del_label][rand_ind]
+                    dct[del_label] = dct[del_label][n_del:]
+                    #dct[del_label] = dct[del_label][:rand_ind] + dct[del_label][rand_ind+256:]
                 except Exception as e:
                     print(del_label, max_size, e)
                     raise e
                 data_len = sum([len(dct[lab]) for lab in labels])
                 n_del = data_len - max_size
-
+                p = [len(dct[lab])/data_len for lab in labels]
+            gc.collect()
         return 1
 
 
@@ -181,7 +184,7 @@ class DataLoader(object):
             wt = wt.reshape((-1,1))
         aux = np.array(aux)
         if self.aug_f is not None:
-            mu, obs, wt, prc = self.aug_f(mu, obs, wt, prc, aux)
+            mu, obs, wt, prc = self.aug_f(mu, obs, wt, prc, aux, x)
         prc = wt * prc
         if self.scale is None: self.set_scale()
         if self.normalize:
@@ -190,7 +193,7 @@ class DataLoader(object):
 
 
     def gen_items(self, label=None, val=False):
-        for _ in range(self.load_freq):
+        while True: #for _ in range(self.load_freq):
             while self.wait_for_data():
                 time.sleep(0.001)
             

@@ -229,66 +229,6 @@ class NAMOGripAgent(NAMOSortingAgent):
     #    return sample
 
 
-    def dist_obs(self, plan, t, n_dirs=-1, ignore=[], return_rays=False, extra_rays=[]):
-        if n_dirs <= 0:
-            n_dirs = self.n_dirs
-        n_dirs = n_dirs // 2
-        pr2 = plan.params['pr2']
-        obs = 1e1*np.ones(n_dirs)
-        angles = 2 * np.pi * np.array(list(range(n_dirs)), dtype='float32') / n_dirs
-        rays = np.zeros((n_dirs, 6))
-        rays[:, 2] = 0.4
-        for i in range(n_dirs):
-            a = angles[i]
-            ray = np.array([np.cos(a), np.sin(a)])
-            rays[i, :2] = pr2.pose[:,t]
-            rays[i, 3:5] = LIDAR_DIST * ray
-
-        rot = plan.params['pr2'].theta[0,t]
-        rot_mat = np.array([[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]])
-        far_pt = rot_mat.dot([0, 1.])
-        far_rays = rays.copy()
-        far_rays[:, :2] = (pr2.pose[:,t] + far_pt).reshape((1,2))
-        rays = np.r_[rays, far_rays]
-        if len(extra_rays):
-            rays = np.concatenate([rays, extra_rays], axis=0)
-
-        for params in [plan.params]:
-            for p_name in params:
-                p = params[p_name]
-
-                if p.is_symbol():
-                    if hasattr(p, 'openrave_body') and p.openrave_body is not None:
-                        p.openrave_body.set_pose([0, 0, -5])
-                elif (p_name, 'pose') in self.state_inds:
-                    p.openrave_body.set_pose(plan.params[p_name].pose[:,t])
-                else:
-                    p.openrave_body.set_pose(plan.params[p_name].pose[:,0])
-
-        pr2.openrave_body.set_pose([0, 0, -5]) # Get this out of the way
-        for name in ignore:
-            plan.params[name].openrave_body.set_pose([0, 0, -5])
-
-
-        if const.USE_OPENRAVE:
-            is_hits, hits = self.env.CheckCollisionRays(rays, None)
-            dists = np.linalg.norm(hits[:,:2]-rays[:,:2], axis=1)
-            for i in range(len(is_hits)):
-                dists[i] = dists[i] if is_hits[i] else LIDAR_DIST
-        else:
-            P.stepSimulation()
-            # _, _, hit_frac, hit_pos, hit_normal = P.rayTestBatch(rays[:,:3], rays[:,:3]+rays[:,3:])
-            hits = P.rayTestBatch(rays[:,:3], rays[:,:3]+rays[:,3:])
-            dists = LIDAR_DIST * np.array([h[2] for h in hits])
-
-        # dists[np.abs(dists) > LIDAR_DIST] = LIDAR_DIST
-        # dists[not np.array(is_hits)] = LIDAR_DIST
-        if return_rays:
-            return dists, rays
-
-        return dists
-
-
     #def run_policy_step(self, u, x, plan, t, obj, grasp=None):
     def run_policy_step(self, u, x):
         self._col = []
@@ -430,7 +370,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             if self.task_list[task[0]].find('move') >= 0:
                 sample.set(END_POSE_ENUM, obj_pose, t)
                 sample.set(REL_POSE_ENUM, base_pos, t)
-                sample.set(ABS_POSE_ENUM, mp_state[self.state_inds[obj_name, 'pose']], t)
+                sample.set(ABS_POSE_ENUM, mp_state[self.state_inds[obj_name, 'pose']].copy(), t)
 
         if TARG_ENUM in prim_choices:
             targ_vec = np.zeros((len(prim_choices[TARG_ENUM])), dtype='float32')
@@ -451,7 +391,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             if self.task_list[task[0]].find('place') >= 0 or self.task_list[task[0]].find('transfer') >= 0:
                 sample.set(END_POSE_ENUM, targ_pose, t)
                 sample.set(REL_POSE_ENUM, base_pos, t)
-                sample.set(ABS_POSE_ENUM, targets[self.target_inds[targ_name, 'value']], t)
+                sample.set(ABS_POSE_ENUM, targets[self.target_inds[targ_name, 'value']].copy(), t)
 
         sample.set(TRUE_POSE_ENUM, sample.get(ABS_POSE_ENUM, t=t), t)
         if ABS_POSE_ENUM in prim_choices:

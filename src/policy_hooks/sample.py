@@ -169,8 +169,8 @@ class Sample(object):
         prim_obs = self.get_prim_obs(t=t)
         prim_out = self.get_prim_out(t=t)
         if t is None:
-            return np.c_[prim_obs, prim_out]
-        return np.r_[prim_obs, prim_out]
+            return np.c_[prim_out, prim_obs]
+        return np.r_[prim_out, prim_obs]
 
     def get_cont_out(self, t=None):
         """ Get the observation. Put it together if not precomputed. """
