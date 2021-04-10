@@ -467,10 +467,11 @@ class Server(object):
     def update_negative_primitive(self, samples):
         if not self.use_neg or not len(samples): return
         dP, dO = self.agent.dPrimOut, self.agent.dPrim
-        dOpts = len(list(self.agent.prob.get_prim_choices(self.agent.task_list).keys()))
+        dOpts = len(self.agent.discrete_opts) 
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dOpts)), np.zeros((0))
         tgt_aux = np.zeros((0))
+        tgt_x = np.zeros((0, self.agent.dX))
         opts = self.agent.prob.get_prim_choices(self.agent.task_list)
         for sample, ts, task in samples:
             wt = np.ones(1) # sample.prim_use_ts[ts:ts+1]
@@ -479,6 +480,7 @@ class Server(object):
             #if wt[0] == 0: continue
             obs = [sample.get_prim_obs(ts)]
             aux = int(sample.opt_strength) * np.ones(1)
+            tgt_x = np.concatenate((tgt_x, sample.get_X()))
             tgt_aux = np.concatenate((tgt_aux, aux))
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs_data = np.concatenate((obs_data, obs))
@@ -487,26 +489,23 @@ class Server(object):
             for enum in opts:
                 cont_mask[enum] = 0. if np.isscalar(opts[enum]) else 1.
 
-            prc = np.concatenate([cont_mask[enum] * self.agent.get_mask(sample, enum) for enum in opts], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
+            prc = np.concatenate([cont_mask[enum] * self.agent.get_mask(sample, enum) for enum in self.agent.discrete_opts], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
             prc = prc[ts:ts+1]
             if not self.config['hl_mask']:
                 prc[:] = 1.
             tgt_prc = np.concatenate((tgt_prc, prc))
           
             mu = []
-            for ind, enum in enumerate(opts.keys()):
-                if np.isscalar(opts[enum]):
-                    mu.append(task[ind])
-                else:
-                    vec = np.zeros(len(opts[enum]))
-                    vec[task[ind]] = 1.
-                    mu.append(vec)
+            for ind, enum in enumerate(self.agent.discrete_opts):
+                vec = np.zeros(len(opts[enum]))
+                vec[task[ind]] = 1.
+                mu.append(vec)
             mu = [np.concatenate(mu)]
             tgt_mu = np.concatenate((tgt_mu, mu))
 
-        wt *= -1
+        tgt_wt[:] *= -1
         if len(tgt_mu):
-            self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', self.label_type, aux=tgt_aux)
+            self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', 'negative', aux=tgt_aux, x=tgt_x)
 
         with self.policy_opt.buf_sizes['n_negative'].get_lock():
             self.policy_opt.buf_sizes['n_negative'].value += len(tgt_mu)

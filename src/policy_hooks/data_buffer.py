@@ -1,7 +1,7 @@
 import numpy as np
 
 
-MAX_BUFFER = 30000
+MAX_BUFFER = 40000
 MIN_BUFFER = 1000
 
 class DataBuffer(object):
@@ -93,9 +93,7 @@ class DataBuffer(object):
         self.primobs[label] = None
         if dPrim is not None:
             self.primobs[label] = np.zeros((size,)+dPrim, dtype=np.float32)
-        self.x[label] = None
-        if dX is not None:
-            self.x[label] = np.zeros((size,)+dX, dtype=np.float32)
+        self.x[label] = np.zeros((size,)+dX, dtype=np.float32)
         self.tasks[label] = []
 
     

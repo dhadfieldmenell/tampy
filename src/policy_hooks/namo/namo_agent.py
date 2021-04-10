@@ -1553,10 +1553,9 @@ class NAMOSortingAgent(TAMPAgent):
         obj_vec[task[1]] = 1.
         hl_obs[:, obj_idx] = obj_vec
         targ_vec = np.zeros((len(hl_mu), len(prim_choices[TARG_ENUM])))
-        if task_name.find('transfer') >= 0 or task_name.find('place') >= 0:
-            targ_vec[task[2]] = 1.
-        else:
-            targ_vec[:] = 1. / len(prim_choices[TARG_ENUM])
+        targ_vec[task[2]] = 1.
+        #if task_name.find('transfer') >= 0 or task_name.find('place') >= 0:
+        #    targ_vec[task[2]] = 1.
         hl_obs[:, targ_idx] = targ_vec
 
         obj_name = 'can{}'.format(task[1])

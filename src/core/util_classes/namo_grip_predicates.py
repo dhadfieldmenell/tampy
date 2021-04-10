@@ -1947,9 +1947,14 @@ class InGraspAngle(ExprPredicate):
         else:
             k = 'pose'
 
+        if self.can.is_symbol():
+            obj_k = 'value'
+        else:
+            obj_k = 'pose'
+
         attr_inds = OrderedDict([(self.r, [(k, np.array([0, 1], dtype=np.int)),
                                            ("theta", np.array([0], dtype=np.int))]),
-                                 (self.can, [("pose", np.array([0, 1], dtype=np.int))]),
+                                 (self.can, [(obj_k, np.array([0, 1], dtype=np.int))]),
                                 ])
         angle_expr = Expr(self.f, self.grad)
         e = EqExpr(angle_expr, np.zeros((3,1)))
@@ -2134,6 +2139,9 @@ class NearGraspAngle(InGraspAngle):
         super(NearGraspAngle, self).__init__(name, params, expected_param_types,env, sess, debug)
         self.coeff = 5e-3
         self._rollout = True
+
+class TargNearGraspAngle(NearGraspAngle):
+    pass
 
 #class NearGraspAngle(InGraspAngle):
 #    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):

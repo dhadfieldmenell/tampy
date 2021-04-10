@@ -358,6 +358,9 @@ class NAMOGripAgent(NAMOSortingAgent):
         if OBJ_ENUM in prim_choices:
             obj_vec = np.zeros((len(prim_choices[OBJ_ENUM])), dtype='float32')
             obj_vec[task[1]] = 1.
+            #if self.task_list[task[0]].find('place') >= 0:
+            #    obj_vec[:] = 1. / len(obj_vec)
+
             sample.obj_ind = task[1]
             obj_ind = task[1]
             obj_name = list(prim_choices[OBJ_ENUM])[obj_ind]
@@ -375,8 +378,8 @@ class NAMOGripAgent(NAMOSortingAgent):
         if TARG_ENUM in prim_choices:
             targ_vec = np.zeros((len(prim_choices[TARG_ENUM])), dtype='float32')
             targ_vec[task[2]] = 1.
-            if self.task_list[task[0]].find('move') >= 0:
-                targ_vec[:] = 1. / len(targ_vec)
+            #if self.task_list[task[0]].find('move') >= 0:
+            #    targ_vec[:] = 1. / len(targ_vec)
             sample.targ_ind = task[2]
             targ_ind = task[2]
             targ_name = list(prim_choices[TARG_ENUM])[targ_ind]

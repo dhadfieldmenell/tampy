@@ -941,7 +941,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             else:
                 ref_traj = []
 
-            if backup and len(ref_traj):# and cost > 0:
+            if backup and len(ref_traj) and cost > 0:
                 info['to_render'].append([])
                 if verbose:
                     info['to_render'][-1].append([sample])

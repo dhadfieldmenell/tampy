@@ -406,6 +406,7 @@ class RolloutServer(Server):
 
             if self.hl_rollout_opt:
                 self.run_hl_update(label='rollout')
+            self.agent.clear_task_paths()
 
             if len(cont_samples):
                 self.update_cont_network(cont_samples)
