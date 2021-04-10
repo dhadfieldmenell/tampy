@@ -1,0 +1,225 @@
+import numpy as np
+
+
+MAX_BUFFER = 30000
+MIN_BUFFER = 1000
+
+class DataBuffer(object):
+    def __init__(self, policy, sizes={}, default_size=MAX_BUFFER, val_ratio=0.1, normalize=False, x_idx=None, min_buffer=MIN_BUFFER):
+        self.sizes = sizes
+        self.default_size = default_size
+        self.val_ratio = val_ratio
+        self.policy = policy
+
+        self.x_idx = x_idx
+        self.normalize = normalize
+        self.scale = None
+        self.bias = None
+        self._normalized = False
+        self.min_buffer = min_buffer
+
+        self.obs = {}
+        self.mu = {}
+        self.wt = {}
+        self.prc = {}
+        self.xs = {}
+        self.aux = {}
+        self.x = {}
+        self.primobs = {}
+        self.tasks = {}
+        self.lens = {}
+
+
+    def update(self, data, val_ratio=0.1):
+        obs, mu, prc, wt, aux, primobs, x, task, label = data
+        dO = obs.shape[1:]
+        dU = mu.shape[1:]
+        dP = prc.shape[1:]
+        dW = wt.shape[1:]
+        dX = x.shape[1:] if len(x) else None
+        dPrim = primobs.shape[1:] if len(primobs) else None
+   
+        assert label.find('VAL') < 0
+        if np.random.uniform() < self.val_ratio:
+            label = 'VAL_' + label
+
+        if label not in self.lens: self.add_label(label, dO, dU, dP, dW, dPrim, dX)
+        if self._normalized: obs = self.center(obs)
+
+        for i in range(len(obs)):
+            primpt = primobs[i] if len(primobs) else []
+            xpt = x[i] if len(x) else []
+            auxpt = aux[i].copy() if len(aux) else []
+            self.add_pt(obs[i], mu[i], prc[i], wt[i], auxpt, primpt, xpt, task, label, normalize=False)
+
+        if self.get_size() >= self.min_buffer and not self._normalized:
+            self._set_scale(min(self.min_buffer, 512))
+            self._normalize()
+   
+
+    def add_pt(self, obs, mu, prc, wt, aux, primobs, x, task, label, normalize=True):
+        if self.lens[label] < len(self.obs[label]):
+            ind = self.lens[label]
+            self.aux[label].append(aux)
+            self.tasks[label].append(task)
+            self.lens[label] += 1
+        else:
+            ind = np.random.randint(self.lens[label])
+            self.aux[label][ind] = aux
+            self.tasks[label][ind] = task
+           
+        if normalize: obs = self.center(obs)
+        self.obs[label][ind] = obs[:]
+        self.mu[label][ind] = mu[:]
+        self.prc[label][ind] = prc[:]
+        self.wt[label][ind] = wt
+        if len(primobs): self.primobs[label][ind] = primobs[:]
+        if len(x): self.x[label][ind] = x[:]
+        
+
+    def add_label(self, label, dO, dU, dP, dW, dPrim, dX):
+        if label in self.lens: return
+
+        self.lens[label] = 0
+        size = self.sizes.get(label, self.default_size)
+        if label.find('VAL_') >= 0:
+            size = int(self.val_ratio * size)
+
+        self.obs[label] = np.nan * np.zeros((size,)+dO, dtype=np.float32)
+        self.mu[label] = np.nan * np.zeros((size,)+dU, dtype=np.float32)
+        self.prc[label] = np.nan * np.zeros((size,)+dP, dtype=np.float32)
+        self.wt[label] = np.nan * np.zeros((size,)+dW, dtype=np.float32)
+        self.aux[label] = []
+        self.primobs[label] = None
+        if dPrim is not None:
+            self.primobs[label] = np.zeros((size,)+dPrim, dtype=np.float32)
+        self.x[label] = None
+        if dX is not None:
+            self.x[label] = np.zeros((size,)+dX, dtype=np.float32)
+        self.tasks[label] = []
+
+    
+    def random_label(self, val=False, min_size=0):
+        lab_f = lambda l: (not val and l.find('VAL_') < 0) or (val and l.find('VAL_') >= 0)
+        labels = [l for l in self.lens.keys() if lab_f(l) and self.lens[l] >= min_size]
+        if not len(labels): return None
+
+        norm = np.sum([self.lens[l] for l in labels])
+        p = [float(self.lens[l])/norm for l in labels]
+        return np.random.choice(labels, p=p)
+
+
+    def get_pt(self, label=None, val=False):
+        if label is None: label = self.random_label(val)
+        if label is None: return None
+
+        ind = np.random.randint(self.lens[label])
+        obs = self.obs[label][ind]
+        mu = self.mu[label][ind]
+        prc = self.prc[label][ind]
+        wt = self.wt[label][ind]
+        x = self.x[label][ind]
+        primobs = self.primobs[label][ind] if label in self.primobs else []
+        aux = self.aux[label][ind]
+        return (obs, mu, prc, wt, x, primobs, aux)
+
+
+    def get_batch(self, batch_size, label=None, val=False):
+        if self.get_size() < self.min_buffer: return None
+        if label is None: label = self.random_label(val, min_size=batch_size)
+        if label is None or self.lens.get(label, 0) < batch_size: return None
+
+        inds = np.random.choice(range(self.lens[label]), batch_size, replace=False)
+        obs = self.obs[label][inds]
+        mu = self.mu[label][inds]
+        prc = self.prc[label][inds]
+        wt = self.wt[label][inds]
+        x = [self.x[label][ind] for ind in inds]
+        primobs = []
+        if self.primobs[label] is not None:
+            primobs = self.primobs[label][inds]
+        aux = [self.aux[label][ind] for ind in inds]
+        return (obs, mu, prc, wt, x, primobs, aux)
+
+
+    def get_size(self, label=None, val=False):
+        if label is not None:
+            if val: label = 'VAL_' + label
+            return self.lens[label]
+        lab_f = lambda l: (not val and l.find('VAL_') < 0) or (val and l.find('VAL_') >= 0)
+        return sum([self.lens[l] for l in self.lens if lab_f(l)])
+
+
+    def _set_scale(self, N):
+        if self.scale is not None: return self.scale, self.bias
+        print('SETTING SCALE AND BIAS')
+        if self.x_idx is None:
+            self.x_idx = range(list(self.obs.values())[0].shape[0])
+
+        self.scale = np.eye(len(self.x_idx))
+        self.bias = np.zeros(len(self.x_idx))
+        if self.normalize:
+            obs = []
+            for _ in range(N):
+                label = self.random_label()
+                ind = np.random.randint(self.lens[label])
+                obs.append(self.obs[label][ind][self.x_idx])
+            obs = np.array(obs)
+            self.scale = np.diag(1.0 / np.maximum(np.std(obs, axis=0), 1e-1))
+            self.bias = -np.mean(obs.dot(self.scale), axis=0)
+
+        if self.policy is not None:
+            self.policy.scale = self.scale
+            self.policy.bias = self.bias
+
+        return self.scale, self.bias
+
+    
+    def _normalize(self):
+        if self._normalized or self.scale is None or not self.normalize:
+            self._normalized = True
+            return
+
+        print('CENTERING FULL DATA...')
+        for lab in self.lens:
+            obs = self.obs[lab][:self.lens[lab]]
+            obs[:, self.x_idx] = obs[:, self.x_idx].dot(self.scale) + self.bias
+            self.obs[lab][:self.lens[lab]] = obs
+        self._normalized = True
+        print('CENTERED FULL DATA')
+
+
+    def center(self, obs):
+        obs[:, self.x_idx] = obs[:, self.x_idx].dot(self.scale) + self.bias
+        return obs
+
+
+    def load_from_dir(self, dname, task):
+        fnames = os.listdir(dname+'/samples/')
+        fnames = list(filter(lambda f: f.find(task) >= 0, fnames))
+        start_t = time.time()
+        print('LOADING DATA FROM {} FILES'.format(len(fnames)))
+        for fname in fnames:
+            full_fname = dname+'/samples/'+fname
+            data = np.load(full_fname, allow_pickle=True)
+            data = data[None][0]
+            self.update(data)
+        print('TIME TO LOAD:', time.time() - start_t, self.get_size())
+
+
+    def write_data(self, save_dir, task, n_data):
+        lab = 'optimal'
+        ind = np.random.choice(range(self.lens[lab]-n_data), replace=False)
+        obs = self.obs[lab][ind]
+        mu = self.mu[lab][ind]
+        wt = self.wt[lab][ind]
+        prc = self.prc[lab][ind]
+        x = [self.x[lab][i] for i in ind]
+        aux = [self.aux[lab][i] for i in ind]
+        primobs = [self.primobs[lab][i] for i in ind]
+        data = (obs, mu, prc, wt, primobs, x, aux)
+        val = 'val' if np.random.uniform() <= 0.1 else 'train'
+        np.save('{}/{}_{}data_{}.npy'.format(save_dir, task, val, self.cur_save), data)
+        self.cur_save += 1
+
+

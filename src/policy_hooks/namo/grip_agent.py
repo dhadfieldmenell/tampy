@@ -453,7 +453,8 @@ class NAMOGripAgent(NAMOSortingAgent):
                 sample.set(MJC_SENSOR_ENUM, self.mjc_env.get_sensors(), t)
 
             if IM_ENUM in self._hyperparams['obs_include'] or \
-               IM_ENUM in self._hyperparams['prim_obs_include']:
+               IM_ENUM in self._hyperparams['prim_obs_include'] or \
+               IM_ENUM in self._hyperparams['cont_obs_include']:
                 im = self.mjc_env.render(height=self.image_height, width=self.image_width, view=self.view)
                 im = (im - 128.) / 128.
                 sample.set(IM_ENUM, im.flatten().astype(np.float32), t)

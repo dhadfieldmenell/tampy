@@ -28,6 +28,7 @@ class Sample(object):
         self.dPrim = self.agent.dPrim
         self.dPrimOut = self.agent.dPrimOut
         self.dContOut = self.agent.dContOut
+        self.dCont = self.agent.dCont
         self.dVal = self.agent.dVal
         self.success = 0
         self.opt_suc = 0
@@ -47,6 +48,8 @@ class Sample(object):
         self._cont_out.fill(np.nan)
         self._prim_obs = np.empty((self.T, self.dPrim))
         self._prim_obs.fill(np.nan)
+        self._cont_obs = np.empty((self.T, self.dCont))
+        self._cont_obs.fill(np.nan)
         self._val_obs = np.empty((self.T, self.dVal))
         self._val_obs.fill(np.nan)
         self._meta = np.empty(self.dM)
@@ -71,6 +74,7 @@ class Sample(object):
             self._prim_obs.fill(np.nan)  # Invalidate existing obs.
             self._prim_out.fill(np.nan)  # Invalidate existing out.
             self._cont_out.fill(np.nan)  # Invalidate existing out.
+            self._cont_obs.fill(np.nan)  # Invalidate existing obs.
             self._meta.fill(np.nan)  # Invalidate existing meta data.
         else:
             if sensor_name not in self._data:
@@ -83,6 +87,7 @@ class Sample(object):
             self._val_obs[t, :].fill(np.nan)
             self._prim_obs[t, :].fill(np.nan)
             self._prim_out[t, :].fill(np.nan)
+            self._cont_obs[t, :].fill(np.nan)
             self._cont_out[t, :].fill(np.nan)
 
     def get(self, sensor_name, t=None):
@@ -166,11 +171,18 @@ class Sample(object):
         return out.copy()
 
     def get_cont_obs(self, t=None):
-        prim_obs = self.get_prim_obs(t=t)
-        prim_out = self.get_prim_out(t=t)
-        if t is None:
-            return np.c_[prim_out, prim_obs]
-        return np.r_[prim_out, prim_obs]
+        """ Get the observation. Put it together if not precomputed. """
+        obs = self._cont_obs if t is None else self._cont_obs[t, :]
+        if np.any(np.isnan(obs)):
+            for data_type in self._data:
+                if data_type not in self.agent.cont_obs_data_types:
+                    continue
+                if data_type in self.agent.meta_data_types:
+                    continue
+                data = (self._data[data_type] if t is None
+                        else self._data[data_type][t, :])
+                self.agent.pack_data_cont_obs(obs, data, data_types=[data_type])
+        return obs.copy()
 
     def get_cont_out(self, t=None):
         """ Get the observation. Put it together if not precomputed. """

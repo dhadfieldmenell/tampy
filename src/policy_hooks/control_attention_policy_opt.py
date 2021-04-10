@@ -25,7 +25,7 @@ SCOPE_LIST = ['primitive', 'cont']
 
 class ControlAttentionPolicyOpt(PolicyOpt):
     """ Policy optimization using tensor flow for DAG computations/nonlinear function approximation. """
-    def __init__(self, hyperparams, dO, dU, dPrimObs, dValObs, primBounds, contBounds=None, inputs=None):
+    def __init__(self, hyperparams, dO, dU, dPrimObs, dContObs, dValObs, primBounds, contBounds=None, inputs=None):
         global tf
         import tensorflow as tf
         self.scope = hyperparams['scope'] if 'scope' in hyperparams else None
@@ -54,6 +54,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self._dPrim = max([b[1] for b in primBounds] + [b[1] for b in auxBounds])
         self._dCont = max([b[1] for b in contBounds]) if contBounds is not None and len(contBounds) else 0
         self._dPrimObs = dPrimObs
+        self._dContObs = dContObs
         self._dValObs = dValObs
         self._primBounds = primBounds
         self._contBounds = contBounds if contBounds is not None else []
@@ -355,7 +356,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 inputs = self.input_layer if 'cont' == self.scope else None
                 self.cont_eta = tf.placeholder_with_default(1., shape=())
                 tf_map_generator = self._hyperparams['cont_network_model']
-                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs+self._dPrim, \
+                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dContObs, \
                                                                    dim_output=self._dCont, \
                                                                    batch_size=self.batch_size, \
                                                                    network_config=self._hyperparams['cont_network_params'], \

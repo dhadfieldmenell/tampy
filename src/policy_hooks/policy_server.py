@@ -100,7 +100,7 @@ class PolicyServer(object):
             dP = hyperparams['dPrim']
             precShape = tf.TensorShape([None, dP])
         elif self.task == 'cont':
-            dO = hyperparams['dPrimObs'] + max([b[1] for b in self.discr_bounds])
+            dO = hyperparams['dContObs']
             dU = max([b[1] for b in self.cont_bounds])
             dP = dU
             precShape = tf.TensorShape([None, dP, dP])
@@ -135,6 +135,7 @@ class PolicyServer(object):
             hyperparams['dO'],
             hyperparams['dU'],
             hyperparams['dPrimObs'],
+            hyperparams['dContObs'],
             hyperparams['dValObs'],
             self.discr_bounds,
             contBounds=self.cont_bounds,
@@ -143,13 +144,14 @@ class PolicyServer(object):
         self.policy_opt.lr_policy = hyperparams['lr_policy']
         self.lr_policy = hyperparams['lr_policy']
         if self.task == 'primitive':
-            self.data_gen.x_idx = self.policy_opt.prim_x_idx
+            self.data_gen.data_buf.x_idx = self.policy_opt.prim_x_idx
         elif self.task == 'cont':
-            self.data_gen.x_idx = self.policy_opt.cont_x_idx
+            self.data_gen.data_buf.x_idx = self.policy_opt.cont_x_idx
         else:
-            self.data_gen.x_idx = self.policy_opt.x_idx
+            self.data_gen.data_buf.x_idx = self.policy_opt.x_idx
 
         self.data_gen.policy = self.policy_opt.get_policy(self.task)
+        self.data_gen.data_buf.policy = self.policy_opt.get_policy(self.task)
 
         self.policy_opt_log = LOG_DIR + hyperparams['weight_dir'] + '/policy_{0}_log.txt'.format(self.task)
         self.policy_info_log = LOG_DIR + hyperparams['weight_dir'] + '/policy_{0}_info.txt'.format(self.task)
@@ -283,13 +285,14 @@ class PolicyServer(object):
         info['memory'] = psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2
         info['in_queue_size'] = self.in_queue.qsize()
 
-        for key in self.data_gen.items:
-            info['n_train_{}'.format(key)] = len(self.data_gen.items[key])
+        for key in self.data_gen.data_buf.lens:
+            info['n_train_{}'.format(key)] = self.data_gen.data_buf.lens[key]
 
         for key in self.policy_opt.buf_sizes:
             if key.find('n_') >= 0:
                  info[key] = self.policy_opt.buf_sizes[key].value
 
+        info['labels'] = list(self.data_gen.data_buf.lens.keys())
         if len(self.val_losses['rollout']):
             info['rollout_val_loss'] = np.mean(self.val_losses['rollout'][-10:]),
             info['rollout_val_component_loss'] = np.mean(self.val_losses['rollout'][-10:], axis=0),

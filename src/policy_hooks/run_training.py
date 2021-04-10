@@ -334,6 +334,7 @@ def argsparser():
     parser.add_argument('-split_hl', '--split_hl_loss', action='store_true', default=False)
     parser.add_argument('-image', '--add_image', action='store_true', default=False)
     parser.add_argument('-hl_image', '--add_hl_image', action='store_true', default=False)
+    parser.add_argument('-cont_image', '--add_cont_image', action='store_true', default=False)
     parser.add_argument('-imwidth', '--image_width', type=int, default=64)
     parser.add_argument('-imheight', '--image_height', type=int, default=64)
 

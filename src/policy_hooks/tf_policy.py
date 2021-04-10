@@ -34,14 +34,14 @@ class TfPolicy(Policy):
         self.x_idx = None
         self.normalize = normalize
 
-        if copy_param_scope:
-            self.copy_params = tf.get_collection(tf.GraphKeys.VARIABLES, scope=copy_param_scope)
-            self.copy_params_assign_placeholders = [tf.placeholder(tf.float32, shape=param.get_shape()) for
-                                                      param in self.copy_params]
+        #if copy_param_scope:
+        #    self.copy_params = tf.get_collection(tf.GraphKeys.VARIABLES, scope=copy_param_scope)
+        #    self.copy_params_assign_placeholders = [tf.placeholder(tf.float32, shape=param.get_shape()) for
+        #                                              param in self.copy_params]
 
-            self.copy_params_assign_ops = [tf.assign(self.copy_params[i],
-                                                     self.copy_params_assign_placeholders[i])
-                                             for i in range(len(self.copy_params))]
+        #    self.copy_params_assign_ops = [tf.assign(self.copy_params[i],
+        #                                             self.copy_params_assign_placeholders[i])
+        #                                     for i in range(len(self.copy_params))]
 
     def act(self, x, obs, t, noise=None):
         """

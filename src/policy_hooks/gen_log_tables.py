@@ -944,7 +944,7 @@ if __name__ == '__main__':
     while not terminate:
         if not perpetual:
             terminate = True
-        gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=30, window=50, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_{}'.format(keywords[0]))
+        gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=30, window=100, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_{}'.format(keywords[0]))
         #gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=True, include=include, inter=30, window=50, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='splitendsucc_{}'.format(keywords[0]))
         gen_data_plots(xvar='time', yvar=['reg_val', 'loss_ratio'], keywords=keywords, lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='{}primcurve'.format(keywords[0]))
         gen_data_plots(xvar='time', yvar=['reg_val'], keywords=keywords, lab='control', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='{}ctrlcurve'.format(keywords[0]))

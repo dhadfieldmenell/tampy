@@ -77,6 +77,10 @@ def load_agent(config):
     }
     for enum in config['sensor_dims']:
         sensor_dims[enum] = config['sensor_dims'][enum]
+
+    if 'cont_obs_include' not in config:
+        config['cont_obs_include'] = config['prim_obs_include']
+
     if config['add_action_hist']:
         config['prim_obs_include'].append(utils.TRAJ_HIST_ENUM)
     if config['add_obs_delta']:
@@ -85,6 +89,9 @@ def load_agent(config):
         config['prim_obs_include'].append(utils.TASK_HIST_ENUM)
     if config.get('add_hl_image', False):
         config['prim_obs_include'].append(utils.IM_ENUM)
+        config['load_render'] = True
+    if config.get('add_cont_image', False):
+        config['cont_obs_include'].append(utils.IM_ENUM)
         config['load_render'] = True
     if config.get('add_image', False):
         config['obs_include'].append(utils.IM_ENUM)
@@ -171,6 +178,7 @@ def load_agent(config):
         'obs_include': config['obs_include'],
         'prim_obs_include': config['prim_obs_include'],
         'prim_out_include': prim_out,
+        'cont_obs_include': config['cont_obs_include'],
         'cont_out_include': cont_out,
         'val_obs_include': config['val_obs_include'],
         'conditions': config['num_conds'],

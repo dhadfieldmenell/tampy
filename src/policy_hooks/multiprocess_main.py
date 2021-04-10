@@ -145,6 +145,7 @@ class MultiProcessMain(object):
         self.config['symbolic_bound'] = self.config['agent']['symbolic_bound']
         self.config['dO'] = self.agent.dO
         self.config['dPrimObs'] = self.agent.dPrim
+        self.config['dContObs'] = self.agent.dCont
         self.config['dValObs'] = self.agent.dVal #+ np.sum([len(options[e]) for e in options])
         self.config['dPrimOut'] = self.agent.dPrimOut
         self.config['state_inds'] = self.agent.state_inds
@@ -246,15 +247,15 @@ class MultiProcessMain(object):
                 'image_channels': self.config['image_channels'],
                 'sensor_dims': self.sensor_dims,
                 'n_layers': self.config['prim_n_layers'],
-                'num_filters': [32, 32, 16],
-                'filter_sizes': [5, 5, 5],
+                'num_filters': [32, 16],
+                'filter_sizes': [5, 5],
                 'dim_hidden': self.config['prim_dim_hidden'],
                 'output_boundaries': self.config['prim_bounds'],
                 'aux_boundaries': self.config['aux_bounds'],
                 'types': self.task_types,
             },
             'cont_network_params': {
-                'obs_include': self.config['agent']['prim_out_include'] + self.config['agent']['prim_obs_include'],
+                'obs_include': self.config['agent']['cont_obs_include'],
                 'obs_image_data': [IM_ENUM, OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
                 'image_width': self.config['image_width'],
                 'image_height': self.config['image_height'],
@@ -646,12 +647,15 @@ class MultiProcessMain(object):
         self.queue_manager.start()
 
         queue_size = 50
+        train_queue_size = 20
+
         queues = {}
-        config['hl_queue'] = Queue(maxsize=queue_size)
+        config['hl_queue'] = Queue(maxsize=train_queue_size)
         config['ll_queue'] = {} 
         for task in self.pol_list:
-            config['ll_queue'][task] = Queue(maxsize=queue_size)
-        config['cont_queue'] = Queue(maxsize=queue_size)
+            config['ll_queue'][task] = Queue(maxsize=train_queue_size)
+        config['cont_queue'] = Queue(maxsize=train_queue_size)
+
         config['motion_queue'] = self.queue_manager.PriorityQueue(maxsize=queue_size)
         config['task_queue'] = self.queue_manager.PriorityQueue(maxsize=queue_size)
         config['rollout_queue'] = self.queue_manager.PriorityQueue(maxsize=queue_size)

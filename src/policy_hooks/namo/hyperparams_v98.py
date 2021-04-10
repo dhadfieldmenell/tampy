@@ -175,6 +175,9 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.domain_file = "../domains/namo_domain/namo_current_holgrip.domain"
     prob.END_TARGETS = prob.END_TARGETS[:8]
     prob.n_aux = 0
+    opts = prob.get_prim_choices()
+    discr_opts = [opt for opt in opts if not np.isscalar(opts[opt])]
+    cont_opts = [opt for opt in opts if np.isscalar(opts[opt])]
     config = {
         'gui_on': False,
         'iterations': algorithm['iterations'],
@@ -272,15 +275,13 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                         # utils.DONE_ENUM,
                         ],
         'prim_obs_include': [
-                             # utils.DONE_ENUM,
-                             # utils.STATE_ENUM,
-                             #utils.GOAL_ENUM,
                              utils.ONEHOT_GOAL_ENUM,
                              ],
         'val_obs_include': [utils.ONEHOT_GOAL_ENUM,
                             ],
         #'prim_out_include': [utils.TASK_ENUM, utils.OBJ_ENUM, utils.TARG_ENUM, utils.GRASP_ENUM],
-        'prim_out_include': list(prob.get_prim_choices().keys()),
+        'prim_out_include': discr_opts,
+        'cont_obs_include': [opt for opt in discr_opts],
         'sensor_dims': {
                 utils.OBJ_POSE_ENUM: 2,
                 utils.TARG_POSE_ENUM: 2,

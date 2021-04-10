@@ -176,6 +176,7 @@ class Server(object):
                                                             hyperparams['dO'],
                                                             hyperparams['dU'],
                                                             hyperparams['dPrimObs'],
+                                                            hyperparams['dContObs'],
                                                             hyperparams['dValObs'],
                                                             hyperparams['prim_bounds'],
                                                             hyperparams['cont_bounds'])
@@ -424,7 +425,7 @@ class Server(object):
 
 
     def update_cont_network(self, samples):
-        dP, dO = self.agent.dContOut, self.agent.dPrim + self.agent.dPrimOut
+        dP, dO = self.agent.dContOut, self.agent.dCont
         ### Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dP, dP)), np.zeros((0))
