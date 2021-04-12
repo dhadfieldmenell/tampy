@@ -908,7 +908,9 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             perm_targets = targets
 
         smooth_cnts = []
+        self.reset_to_state(x0)
         for a in range(anum, len(plan.actions)):
+            cur_x_hist = self._x_delta.copy()
             self.reset_to_state(x0)
             success = False
             act_ts = plan.actions[a].active_timesteps
@@ -921,7 +923,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             cost = 1.
             policy = self.policies[self.task_list[task[0]]]
             labels = None
-            cur_x_hist = self._x_delta.copy()
             if len(traj) > act_et:
                 ref_traj = traj[act_st:act_et+1]
             elif (backup or rollout) and self.policy_initialized(policy):
@@ -1022,7 +1023,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 self.n_fail_opt[task] = self.n_fail_opt.get(task, 0) + 1
                 return False, path, info
 
-            self._x_delta[:] = cur_x_hist
             next_path, next_x0 = self.run_action(plan, a, x0, perm_targets, perm_task, act_st, reset=reset, save=True, record=True, perm=perm, prev_hist=cur_x_hist)
             for sample in next_path: sample.opt_strength = 1.
             path.extend(next_path)
@@ -1035,6 +1035,11 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         rollout_success = len(path) and path[-1].success > 0.999
         if success:
             self.n_plans_run += 1
+
+        #if permute:
+        #    for sample in path:
+        #        for ts in range(sample.T-1):
+        #            self.permute_ts(sample, ts)
 
         if rollout_success:
             self.n_plans_suc_run += 1
@@ -1146,15 +1151,23 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         rev_perm = {}
         for key, val in perm.items():
             rev_perm[val] = key
+
         opt_traj = np.zeros((et-st+1, self.symbolic_bound))
+        if prev_hist is not None: self._x_delta[:] = prev_hist
+
+        old_targets = self.target_vecs[0].copy()
+        self.target_vecs[0] = targets
+        cur_hist = prev_hist.copy() if prev_hist is not None else self._x_delta.copy()
+        static_hist = cur_hist.copy()
         for pname, attr in self.state_inds:
             if plan.params[pname].is_symbol(): continue
             opt_traj[:,self.state_inds[perm.get(pname, pname), attr]] = getattr(plan.params[pname], attr)[:,st:et+1].T
             x0[self.state_inds[perm.get(pname, pname), attr]] = static_x0[self.state_inds[pname, attr]]
             base_x0[self.state_inds[perm.get(pname, pname), attr]] = static_base[self.state_inds[pname, attr]]
+            cur_hist[:, self.state_inds[perm.get(pname, pname), attr]] = static_hist[:, self.state_inds[pname, attr]]
 
         if reset: self.reset_to_state(x0)
-        if prev_hist is not None: self._x_delta[:] = prev_hist
+        self._x_delta[:] = cur_hist
 
         cur_len = len(path)
         if self.retime:
@@ -1222,11 +1235,39 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 if save: print('Ran opt path w/postcond failure?', task, self.process_id)
 
         static_x0 = x0.copy()
+        static_hist = self._x_delta.copy()
         for pname, attr in self.state_inds:
             if plan.params[pname].is_symbol(): continue
             x0[self.state_inds[rev_perm.get(pname, pname), attr]] = static_x0[self.state_inds[pname, attr]]
+            self._x_delta[:, self.state_inds[rev_perm.get(pname, pname), attr]] = static_hist[:, self.state_inds[pname, attr]]
 
+        self.target_vecs[0] = old_targets
         return path, x0
+
+
+    def permute_ts(self, sample, ts):
+        targets = sample.targets
+        tasks = [tuple(sample.get(FACTOREDTASK_ENUM, t=ts).astype(np.int))]
+        plan = self.plans[tasks[0]]
+        perm_tasks, perm_targets, perm = self.permute_tasks(tasks, targets, plan)
+        prev_hist = self._x_delta[:].copy()
+        cur_x = sample.get_X(t=ts)
+        perm_x = cur_x.copy()
+        rev_perm = {}
+        for key, val in perm.items():
+            rev_perm[val] = key
+
+        hist = None
+        if STATE_HIST_ENUM in self.sensor_dims:
+            hist = sample.get(STATE_HIST_ENUM, t=ts).reshape((-1, self.dX))
+
+        for pname, attr in self.state_inds:
+            if plan.params[pname].is_symbol(): continue
+            perm_x[self.state_inds[perm.get(pname, pname), attr]] = cur_x[self.state_inds[perm.get(pname, pname), attr]] 
+            if hist is not None: self._x_delta[:, self.state_inds[perm.get(pname, pname), attr]] = hist[:, self.state_inds[perm.get(pname, pname), attr]]
+
+        self.fill_sample(0, sample, perm_x, ts, perm_tasks[0], targets=perm_targets, fill_obs=True)
+        self._x_delta[:] = prev_hist
 
 
     def retime_traj(self, traj, vel=0.3, inds=None):

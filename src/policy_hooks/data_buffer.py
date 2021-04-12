@@ -122,21 +122,42 @@ class DataBuffer(object):
         return (obs, mu, prc, wt, x, primobs, aux)
 
 
-    def get_batch(self, batch_size, label=None, val=False):
+    def get_batch(self, batch_size, label=None, val=False, mix=True):
         if self.get_size() < self.min_buffer: return None
         if label is None: label = self.random_label(val, min_size=batch_size)
         if label is None or self.lens.get(label, 0) < batch_size: return None
 
-        inds = np.random.choice(range(self.lens[label]), batch_size, replace=False)
-        obs = self.obs[label][inds]
-        mu = self.mu[label][inds]
-        prc = self.prc[label][inds]
-        wt = self.wt[label][inds]
-        x = [self.x[label][ind] for ind in inds]
-        primobs = []
-        if self.primobs[label] is not None:
-            primobs = self.primobs[label][inds]
-        aux = [self.aux[label][ind] for ind in inds]
+        if mix:
+            N = 8
+            per_label = batch_size // N
+            data = []
+            for n in range(N):
+                inds = np.random.choice(range(self.lens[label]), per_label, replace=False)
+                obs = self.obs[label][inds]
+                mu = self.mu[label][inds]
+                prc = self.prc[label][inds]
+                wt = self.wt[label][inds]
+                x = [self.x[label][ind] for ind in inds]
+                primobs = []
+                if self.primobs[label] is not None:
+                    primobs = self.primobs[label][inds]
+                aux = [self.aux[label][ind] for ind in inds]
+                data.append((obs, mu, prc, wt, x, primobs, aux))
+                label = self.random_label(val, min_size=per_label)
+                if label is None: return None
+            return (np.concatenate([data[j][i] for j in range(len(data))], axis=0) for i in range(len(data[0])))
+
+        else:
+            inds = np.random.choice(range(self.lens[label]), batch_size, replace=False)
+            obs = self.obs[label][inds]
+            mu = self.mu[label][inds]
+            prc = self.prc[label][inds]
+            wt = self.wt[label][inds]
+            x = [self.x[label][ind] for ind in inds]
+            primobs = []
+            if self.primobs[label] is not None:
+                primobs = self.primobs[label][inds]
+            aux = [self.aux[label][ind] for ind in inds]
         return (obs, mu, prc, wt, x, primobs, aux)
 
 

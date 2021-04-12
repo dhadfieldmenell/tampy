@@ -219,7 +219,7 @@ class PolicyServer(object):
 
             if self.lr_policy == 'adaptive':
                 if len(self.train_losses['all']) and len(self.val_losses['all']) and self.policy_opt.cur_dec > 0:
-                    ratio = np.mean(self.val_losses['all'][-5:]) / np.mean(self.train_losses['all'][-5:])
+                    ratio = np.mean(self.val_losses['optimal'][-5:]) / np.mean(self.train_losses['optimal'][-5:])
                     self.cur_ratio = ratio
                     if ratio < 1.2:
                         self.policy_opt.cur_dec *= 0.975
@@ -268,10 +268,8 @@ class PolicyServer(object):
         info = {
                 'time': time.time() - self.start_t,
                 'train_loss': np.mean(self.train_losses['all'][-10:]),
-                'train_aux_loss': self.train_losses['aux'][-1],
                 'train_component_loss': np.mean(self.train_losses['all'][-10:], axis=0),
                 'val_loss': np.mean(self.val_losses['all'][-10:]),
-                'val_aux_loss': self.val_losses['aux'][-1],
                 'val_component_loss': np.mean(self.val_losses['all'][-10:], axis=0),
                 'scope': self.task,
                 'n_updates': self.n_updates,
@@ -299,6 +297,9 @@ class PolicyServer(object):
         if len(self.val_losses['optimal']):
             info['optimal_val_loss'] = np.mean(self.val_losses['optimal'][-10:]),
             info['optimal_val_component_loss'] = np.mean(self.val_losses['optimal'][-10:], axis=0),
+        if len(self.train_losses['optimal']):
+            info['optimal_train_loss'] = np.mean(self.train_losses['optimal'][-10:]),
+            info['optimal_train_component_loss'] = np.mean(self.train_losses['optimal'][-10:], axis=0),
         if test_acc >= 0:
             info['test_accuracy'] = test_acc
             info['test_component_accuracy'] = test_component_acc

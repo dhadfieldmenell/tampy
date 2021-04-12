@@ -503,7 +503,10 @@ class Server(object):
             mu = [np.concatenate(mu)]
             tgt_mu = np.concatenate((tgt_mu, mu))
 
-        tgt_wt[:] *= -1
+        tgt_wt[:] *= 0.1
+        inds = np.where(np.abs(tgt_mu - 0.5) > 0.45)
+        #tgt_mu[inds] = 1. - tgt_mu[inds]
+        tgt_mu = 1. - tgt_mu
         if len(tgt_mu):
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', 'negative', aux=tgt_aux, x=tgt_x)
 
