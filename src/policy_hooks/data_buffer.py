@@ -122,7 +122,7 @@ class DataBuffer(object):
         return (obs, mu, prc, wt, x, primobs, aux)
 
 
-    def get_batch(self, batch_size, label=None, val=False, mix=True):
+    def get_batch(self, batch_size, label=None, val=False, mix=False):
         if self.get_size() < self.min_buffer: return None
         if label is None: label = self.random_label(val, min_size=batch_size)
         if label is None or self.lens.get(label, 0) < batch_size: return None

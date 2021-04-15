@@ -293,7 +293,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.ATGOAL_ENUM: no,
                 utils.FACTOREDTASK_ENUM: len(list(prob.get_prim_choices().keys())),
                 utils.RIGHT_ENUM: 7,
-                utils.RIGHT_GRIPPER_ENUM: 1,
+                utils.RIGHT_GRIPPER_ENUM: 2,
                 # utils.INIT_OBJ_POSE_ENUM: 2,
             },
         'visual': False,

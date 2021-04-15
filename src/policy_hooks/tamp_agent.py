@@ -926,7 +926,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             if len(traj) > act_et:
                 ref_traj = traj[act_st:act_et+1]
             elif (backup or rollout) and self.policy_initialized(policy):
-                self.reset_to_state(x0)
                 hor = 2 * (act_et - act_st)
                 if self.retime: hor *= 2
                 policies = {}
@@ -982,7 +981,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                         prev_suc = cur_t
                         next_hist = hist_traj[-cur_step-self.hist_len-1:-cur_step]
                         self._x_delta[:] = next_hist
-                        next_path, next_x0 = self.run_action(plan, a, cur_x0, perm_targets, perm_task, cur_t, next_t, reset=reset, save=False, record=False, perm=perm, add_noop=False, prev_hist=next_hist)
+                        next_path, next_x0 = self.run_action(plan, a, cur_x0, perm_targets, perm_task, cur_t, next_t, reset=True, save=False, record=False, perm=perm, add_noop=False, prev_hist=next_hist)
                         for step in next_path:
                             self.optimal_samples[self.task_list[task[0]]].append(step)
                             #step.draw = False
@@ -1023,10 +1022,11 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 self.n_fail_opt[task] = self.n_fail_opt.get(task, 0) + 1
                 return False, path, info
 
-            next_path, next_x0 = self.run_action(plan, a, x0, perm_targets, perm_task, act_st, reset=reset, save=True, record=True, perm=perm, prev_hist=cur_x_hist)
+            next_path, next_x0 = self.run_action(plan, a, x0, perm_targets, perm_task, act_st, reset=True, save=True, record=True, perm=perm, prev_hist=cur_x_hist)
             for sample in next_path: sample.opt_strength = 1.
             path.extend(next_path)
             if not next_path[-1]._postsuc:
+                self.n_plans_run += 1
                 return False, path, info
             x0 = next_x0
             ref_x0 = x0.copy()

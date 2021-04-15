@@ -21,7 +21,7 @@ import time
 
 
 DEFAULT_TOL = 1e-3
-NEAR_TOL = 0.05
+NEAR_TOL = 0.02
 NEAR_ROT_TOL = 0.2
 
 ### HELPER FUNCTIONS
@@ -1830,21 +1830,21 @@ class InGripperRight(InGripper):
 class NearGripper(InGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.coeff = 1e-2
-        self.rot_coeff = 1e-2
+        self.rot_coeff = 4e-3
         super(NearGripper, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
 class NearGripperLeft(InGripperLeft):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.coeff = 2e-2
-        self.rot_coeff = 1e-2
+        self.coeff = 1e-2
+        self.rot_coeff = 4e-3
         super(NearGripperLeft, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
 class NearGripperRight(InGripperRight):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.coeff = 2e-2
-        self.rot_coeff = 1e-2
+        self.coeff = 1e-2
+        self.rot_coeff = 4e-3
         super(NearGripperRight, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
@@ -2251,6 +2251,7 @@ class EEReachableLeftRot(EEReachableRot):
 
 class EEAtLeftRot(EEReachableRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
+        self.coeff = 4e-3
         self.arm = "left"
         super(EEReachableLeftRot, self).__init__(name, params, expected_param_types, (0, 0), env, debug)
 
@@ -2264,6 +2265,7 @@ class ApproachLeft(EEReachableLeft):
 
 class EEAtXYLeft(EEReachableLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.coeff = 2e-2
         super(EEAtXYLeft, self).__init__(name, params, expected_param_types, env, debug, 0)
         self.mask = np.array([1., 1., 0.]).reshape((3,1))
         self.approach_dist = const.GRASP_DIST
@@ -2316,6 +2318,7 @@ class EEReachableRightRot(EEReachableRot):
 class EEAtRightRot(EEReachableRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
         self.arm = "right"
+        self.coeff = 4e-3
         super(EEAtRightRot, self).__init__(name, params, expected_param_types, (0, 0), env, debug)
 
 class ApproachRight(EEReachableRight):
@@ -2350,6 +2353,7 @@ class NearApproachRightRot(ApproachRightRot):
 
 class EEAtXYRight(EEReachableRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.coeff = 2e-2
         super(EEAtXYRight, self).__init__(name, params, expected_param_types, env=env, debug=debug, steps=0)
         self.mask = np.array([1., 1., 0.]).reshape((3,1))
         self.approach_dist = const.GRASP_DIST
@@ -2906,8 +2910,8 @@ class IsPushing(PosePredicate):
 
 class GrippersDownRot(GrippersLevel):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.coeff = 2e-2
-        self.opt_coeff = 2e-2
+        self.coeff = 1e-2
+        self.opt_coeff = 1e-2
         attr_inds, attr_dim = init_robot_pred(self, params[0], [])
         self.local_dir = np.array([0,0,1])
 

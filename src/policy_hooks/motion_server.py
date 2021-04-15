@@ -95,13 +95,12 @@ class MotionServer(Server):
             cur_t -= cur_step
             if success and len(path) and path[-1].success: continue
 
+            if not success: self.parse_failed(plan, node, prev_t)
             while len(plan.get_failed_preds((cur_t, cur_t))) and cur_t > 0:
                 cur_t -= 1
 
             node.freeze_ts = cur_t
             plan = self.gen_plan(node)
-
-            if not success: self.parse_failed(plan, node, prev_t)
 
 
     def collect_trajectory(self, plan, node, cur_t):
@@ -131,14 +130,17 @@ class MotionServer(Server):
         with n_plans.get_lock():
             n_plans.value += 1
 
-        if self.verbose and self.render and self.id.find('0') >= 0 and len(path):
+        if self.verbose and self.id.find('0') >= 0 and len(path):
             if node.nodetype.find('dagger') >= 0:
                 self.save_video(path, path[-1]._postsuc, lab='_fulldagger')
+            elif np.random.uniform() < 0.05:
+                self.save_video(path, path[-1]._postsuc, lab='_optimal')
 
         if self.verbose and self.render:
             for ind, batch in enumerate(info['to_render']):
                 for next_path in batch:
                     if len(next_path):
+                        print('BACKUP VIDEO:', next_path[-1].task)
                         self.save_video(next_path, next_path[-1]._postsuc, lab='_{}_backup_solve'.format(ind))
 
         self.log_path(path, 10)

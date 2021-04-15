@@ -189,9 +189,12 @@ class EnvWrapper():
 
     def get_item_pose(self, item_name, order='xyzw', euler=False):
         pos, quat = None, None
+        true_name = item_name
         try:
             suffix='_joint0'
-            ind = self.env.mjpy_model.joint_name2id(item_name+suffix)
+            if item_name in ['milk', 'cereal', 'can', 'bread']:
+                true_name = item_name.capitalize()
+            ind = self.env.mjpy_model.joint_name2id(true_name+suffix)
             adr = self.env.mjpy_model.jnt_qposadr[ind]
             pos = self.env.sim.data.qpos[adr:adr+3]
             quat = self.env.sim.data.qpos[adr+3:adr+7]
@@ -216,13 +219,16 @@ class EnvWrapper():
 
     def set_item_pose(self, item_name, pos=None, quat=None, forward=False, order='xyzw', euler=False):
         if item_name == 'sawyer': return
+        true_name = item_name
         if quat is not None and len(quat) == 3:
             quat = T.euler_to_quaternion(quat, 'xyzw')
         if quat is not None:
             quat = [quat[3], quat[0], quat[1], quat[2]]
         try:
             suffix='_joint0'
-            ind = self.env.mjpy_model.joint_name2id(item_name+suffix)
+            if item_name in ['milk', 'cereal', 'can', 'bread']:
+                true_name = item_name.capitalize()
+            ind = self.env.mjpy_model.joint_name2id(true_name+suffix)
             adr = self.env.mjpy_model.jnt_qposadr[ind]
             if pos is not None:
                 if item_name in ['milk', 'cereal', 'can', 'bread']:
@@ -261,8 +267,10 @@ class EnvWrapper():
             self.forward()
 
     def zero(self):
+        self.env.sim.data.time = 0.0
         self.env.sim.data.qvel[:] = 0
         self.env.sim.data.qacc[:] = 0
+        self.env.sim.data.qfrc_bias[:] = 0
         self.env.sim.data.qacc_warmstart[:] = 0
         self.env.sim.data.ctrl[:] = 0
         self.env.sim.data.qfrc_applied[:] = 0
@@ -274,17 +282,17 @@ class EnvWrapper():
 
     def reset(self):
         obs = self.env.reset()
-        if P.getConnectionInfo()['isConnected'] and np.random.uniform() < 0.5:
-            cur_pos = self.get_attr('sawyer', 'pose')
-            cur_quat =  self.get_attr('sawyer', 'right_ee_rot', euler=False)
-            cur_jnts = self.get_attr('sawyer', 'right')
-            self.robot.openrave_body.set_dof({'right': REF_JNTS})
-            x = np.random.uniform(-0.1, 0.4)
-            y = np.random.uniform(-0.5, 0)
-            z = np.random.uniform(1.0, 1.2)
-            self.robot.openrave_body.set_pose(cur_pos)
-            ik = self.robot.openrave_body.get_ik_from_pose([x,y,z], cur_quat, 'right')
-            self.set_attr('sawyer', 'right', ik, forward=True)
+        #if P.getConnectionInfo()['isConnected'] and np.random.uniform() < 0.5:
+        #    cur_pos = self.get_attr('sawyer', 'pose')
+        #    cur_quat =  self.get_attr('sawyer', 'right_ee_rot', euler=False)
+        #    cur_jnts = self.get_attr('sawyer', 'right')
+        #    self.robot.openrave_body.set_dof({'right': REF_JNTS})
+        #    x = np.random.uniform(-0.1, 0.4)
+        #    y = np.random.uniform(-0.5, 0)
+        #    z = np.random.uniform(1.0, 1.2)
+        #    self.robot.openrave_body.set_pose(cur_pos)
+        #    ik = self.robot.openrave_body.get_ik_from_pose([x,y,z], cur_quat, 'right')
+        #    self.set_attr('sawyer', 'right', ik, forward=True)
 
         cur_pos = self.get_attr('sawyer', 'right_ee_pos')
         cur_jnts = self.get_attr('sawyer', 'right')
@@ -355,8 +363,7 @@ class RobotAgent(TAMPAgent):
 
     def get_annotated_image(self, s, t, cam_id=None):
         x = s.get_X(t=t)
-        self.reset_to_state(x)
-        self.mjc_env.forward()
+        self.reset_to_state(x, full=False)
         task = [int(val) for val in s.get(FACTOREDTASK_ENUM, t=t)]
         pos = s.get(END_POSE_ENUM, t=t)
         precost = round(self.precond_cost(s, tuple(task), t), 5)
@@ -379,8 +386,7 @@ class RobotAgent(TAMPAgent):
         return im
 
     def get_image(self, x, depth=False, cam_id=None):
-        self.reset_to_state(x)
-        self.mjc_env.forward()
+        self.reset_to_state(x, full=False)
         #return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
         return self.base_env.sim.render(height=128, width=128, camera_name="frontview")
 
@@ -491,7 +497,7 @@ class RobotAgent(TAMPAgent):
         sawyer = list(self.plans.values())[0].params['sawyer']
         true_lb, true_ub = sawyer.geom.get_joint_limits('right')
         factor = (np.array(true_ub) - np.array(true_lb)) / 5
-        n_steps = 40
+        n_steps = 25
         if 'right_ee_pos' in ctrl:
             n_steps = 50
             gripper /= 2
@@ -558,7 +564,8 @@ class RobotAgent(TAMPAgent):
         else:
             self.target_vecs[condition] = targets.copy()
             for tname, attr in self.target_inds:
-                self.targets[condition][tname] = targets[self.target_inds[tname, attr]]
+                if attr == 'value':
+                    self.targets[condition][tname] = targets[self.target_inds[tname, attr]]
 
         x0 = state[self._x_data_idx[STATE_ENUM]]
 
@@ -659,6 +666,7 @@ class RobotAgent(TAMPAgent):
                 ee_pose = mp_state[inds]
                 ee_rot = mp_state[self.state_inds[pname, 'ee_rot']]
 
+        ee_spat = Rotation.from_euler('xyz', ee_rot)
         ee_quat = T.euler_to_quaternion(ee_rot, 'xyzw')
         ee_mat = T.quat2mat(ee_quat)
         sample.set(STATE_ENUM, mp_state, t)
@@ -736,7 +744,8 @@ class RobotAgent(TAMPAgent):
                 targ_mat = T.quat2mat(targ_quat)
                 goal_quat = T.mat2quat(targ_mat.dot(ee_mat))
                 rot_off = theta_error(ee_quat, targ_quat)
-                sample.set(END_POSE_ENUM, targ_pose+grasp_pt, t)
+                #sample.set(END_POSE_ENUM, targ_pose+grasp_pt, t)
+                sample.set(END_POSE_ENUM, targ_off_pose, t)
                 #sample.set(END_ROT_ENUM, rot_off, t)
                 sample.set(END_ROT_ENUM, targets[self.target_inds[targ_name, 'rotation']], t)
             else:
@@ -760,13 +769,17 @@ class RobotAgent(TAMPAgent):
             sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose, t)
             sample.set(TARG_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
 
+            obj_spat = Rotation.from_euler('xyz', mp_state[self.state_inds[obj, 'rotation']])
             obj_quat = T.euler_to_quaternion(mp_state[self.state_inds[obj, 'rotation']], 'xyzw')
             obj_mat = T.quat2mat(obj_quat)
             goal_quat = T.mat2quat(obj_mat.dot(ee_mat))
             rot_off = theta_error(ee_quat, goal_quat)
-            sample.set(OBJ_ROTDELTA_ENUMS[i], rot_off, t)
+            #sample.set(OBJ_ROTDELTA_ENUMS[i], rot_off, t)
+            sample.set(OBJ_ROTDELTA_ENUMS[i], (obj_spat.inv() * ee_spat).as_rotvec(), t)
             targ_rot_off = theta_error(ee_quat, [0, 0, 0, 1])
-            sample.set(TARG_ROTDELTA_ENUMS[i], targ_rot_off, t)
+            targ_spat = Rotation.from_euler('xyz', [0., 0., 0.])
+            #sample.set(TARG_ROTDELTA_ENUMS[i], targ_rot_off, t)
+            sample.set(TARG_ROTDELTA_ENUMS[i], (targ_spat.inv() * ee_spat).as_rotvec(), t)
 
         if fill_obs:
             if IM_ENUM in self._hyperparams['obs_include'] or \
@@ -846,7 +859,7 @@ class RobotAgent(TAMPAgent):
         self.reset_to_state(self.x0[m])
 
 
-    def reset_to_state(self, x, env_state=None):
+    def reset_to_state(self, x, full=True):
         mp_state = x[self._x_data_idx[STATE_ENUM]]
         self._done = 0.
         self._prev_U = np.zeros((self.hist_len, self.dU))
@@ -856,19 +869,14 @@ class RobotAgent(TAMPAgent):
         self._x_delta[:] = x.reshape((1,-1))
         self._prev_task = np.zeros((self.task_hist_len, self.dPrimOut))
         self.cur_state = x.copy()
-        if False: #env_state is not None:
-            self.base_env.sim.set_state(env_state)
-        else:
-            self.base_env.sim.reset()
-            self.mjc_env.zero()
-            for (pname, aname), inds in self.state_inds.items():
-                if pname == 'table': continue
-                if aname.find('ee_pos') >= 0 or aname.find('ee_rot') >= 0: continue
-                val = x[inds]
-                self.mjc_env.set_attr(pname, aname, val, forward=False)
-            #self.base_env.sim.data.ctrl[7] = 0.0208
-            #self.base_env.sim.data.ctrl[8] = -0.0208
-            self.base_env.sim.forward()
+        if full: self.base_env.reset()
+        self.base_env.sim.reset()
+        for (pname, aname), inds in self.state_inds.items():
+            if pname == 'table': continue
+            if aname.find('ee_pos') >= 0 or aname.find('ee_rot') >= 0: continue
+            val = x[inds]
+            self.mjc_env.set_attr(pname, aname, val, forward=False)
+        self.base_env.sim.forward()
 
 
     def get_state(self, clip=False):
@@ -934,7 +942,8 @@ class RobotAgent(TAMPAgent):
         else:
             old_targets = self.target_vecs[condition].copy()
             for tname, attr in self.target_inds:
-                self.targets[condition][tname] = targets[self.target_inds[tname, attr]]
+                if attr == 'value':
+                    self.targets[condition][tname] = targets[self.target_inds[tname, attr]]
             self.target_vecs[condition] = targets
 
         exclude_targets = []
@@ -949,7 +958,8 @@ class RobotAgent(TAMPAgent):
 
         self.target_vecs[condition] = old_targets
         for tname, attr in self.target_inds:
-            self.targets[condition][tname] = old_targets[self.target_inds[tname, attr]]
+            if attr == 'value':
+                self.targets[condition][tname] = old_targets[self.target_inds[tname, attr]]
         # self.optimal_samples[self.task_list[task[0]]].append(sample)
         return sample
 
@@ -996,7 +1006,7 @@ class RobotAgent(TAMPAgent):
                 if len(inds) == 1: val = np.mean(val)
             x[inds] = val
         targets = {}
-        targets['cereal_end_target'] = self.mjc_env.get_item_pose('cereal-visual_main')[0]
+        targets['cereal_end_target'] = self.mjc_env.get_item_pose('VisualCereal_main')[0]
         targets['cereal_end_target'][2] -= self.mjc_env.z_offsets['cereal']
         return [x], [targets] 
     
@@ -1191,9 +1201,9 @@ class RobotAgent(TAMPAgent):
                 info = self.sawyer.openrave_body.fwd_kinematics('right')
                 out[:, self.state_inds['sawyer', 'right_ee_pos']] = info['pos']
                 out[:, self.state_inds['sawyer', 'right_ee_rot']] = T.quaternion_to_euler(info['quat'], 'xyzw')
-            out[0] = step[0]
             for pt, val in fix_pts:
                 out[pt] = val
+            out[0] = step[0]
             out[-1] = step[-1]
             if len(new_traj):
                 new_traj = np.r_[new_traj, out]

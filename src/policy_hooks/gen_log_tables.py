@@ -162,7 +162,10 @@ def get_policy_data(policy, keywords=[], exclude=[], include=[]):
                     next_data = f.read()
                 if len(next_data):
                     next_data = str.split(next_data, '\n\n')
-                    r_data = [eval(d) for d in next_data if len(d)]
+                    try:
+                        r_data = [eval(d) for d in next_data if len(d)]
+                    except:
+                        continue
                     print('Loading {0} pts for {1}'.format(len(r_data), full_dir+'/'+r))
                     for pt in r_data:
                         pt['exp id'] = 0
@@ -280,7 +283,10 @@ def get_rollout_info_data(keywords=[], exclude=[], include=[]):
                         next_data = f.read()
                     if len(next_data):
                         next_data = str.split(next_data, '\n\n')
-                        r_data = [eval(d) for d in next_data if len(d)]
+                        try:
+                            r_data = [eval(d) for d in next_data if len(d)]
+                        except:
+                            continue
                         for pt in r_data:
                             pt['exp id'] = 0
                         print('ROLLOUT: Loading {0} pts for {1}'.format(len(r_data), full_dir+'/'+r))
@@ -317,7 +323,10 @@ def get_rollout_data(keywords=[], nfiles=20, exclude=[]):
                     with open(full_dir+'/'+r, 'r') as f:
                         next_data = f.read()
                     if len(next_data):
-                        r_data = eval(next_data)
+                        try:
+                            r_data = eval(next_data)
+                        except:
+                            continue
                         for pt in next_data:
                             pt['exp id'] = 0
                         rollout_data[r] = r_data

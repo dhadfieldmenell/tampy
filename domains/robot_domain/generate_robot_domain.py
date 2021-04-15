@@ -499,7 +499,7 @@ class GraspRight(Grasp):
         self.pre.extend([
             #('(ApproachRight ?robot ?item)', '0:0'),
             ('(NearApproachRight ?robot ?item)', '0:0'),
-            ('(NearApproachRightRot ?robot ?item)', '0:0'),
+            #('(NearApproachRightRot ?robot ?item)', '0:0'),
             ('(not (InGripperRight ?robot ?item))', '0:0'),
             ('(not (InGripperLeft ?robot ?item))', '0:0'),
             #('(RightEEValid ?robot)', '{}:{}'.format(1, self.end-1)),
@@ -543,7 +543,8 @@ class Putdown(Action):
         self.retreat_time = retreat_time
 
         self.pre = [\
-            ('(At ?item ?target)', '{0}:{1}'.format(putdown_time, end)),
+            ('(Near ?item ?target)', '{0}:{1}'.format(putdown_time, end-1)),
+            ('(At ?item ?target)', '{0}:{1}'.format(putdown_time, putdown_time)),
             ('(forall (?obj - Item) (not (At ?obj ?target)))', '0:0'),
             ('(forall (?obj - Item) (not (Near ?obj ?target)))', '0:0'),
             ('(RobotAt ?robot ?sp)', '0:-1'),
@@ -576,8 +577,8 @@ class Putdown(Action):
             )', '{}:{}'.format(1, putdown_time+2))
         ]
         self.eff = [\
-            ('(At ?item ?target)', '{}:{}'.format(end-1, end)) ,
-            ('(Near ?item ?target)', '{}:{}'.format(end-1, end)) ,
+            ('(At ?item ?target)', '{}:{}'.format(end, end-1)) ,
+            ('(Near ?item ?target)', '{}:{}'.format(end, end)) ,
             ('(not (RobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
             ('(RobotAt ?robot ?ep)', '{}:{}'.format(end, end-1)),
             ('(forall (?sym1 - RobotPose)\
@@ -632,8 +633,9 @@ class PutdownRight(Putdown):
             #('(InGripperRight ?robot ?item)', '0:-1'),
             ('(NearGripperRight ?robot ?item)', '0:0'),
             #('(RightEEValid ?robot)', '{}:{}'.format(1, self.end-1)),
-            ('(NearGripperRight ?robot ?item)', '0:{}'.format(self.putdown_time)),
-            ('(RightGripperDownRot ?robot)', '{0}:{1}'.format(1, self.end-1)),
+            ('(NearGripperRight ?robot ?item)', '1:{}'.format(self.putdown_time)),
+            ('(not (NearGripperRight ?robot ?item))', '{}:{}'.format(self.putdown_time+2, self.end-1)),
+            #('(RightGripperDownRot ?robot)', '{0}:{1}'.format(1, self.end-1)),
             ('(EEApproachRight ?robot ?target)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
             ('(EERetreatRight ?robot ?target)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
             ('(EEAtRightRot ?robot ?target)', '{}:{}'.format(self.putdown_time-self.steps, self.putdown_time+self.steps)),
@@ -643,7 +645,7 @@ class PutdownRight(Putdown):
             #('(InGripperRight ?robot ?item)', '{}:{}'.format(self.putdown_time, self.putdown_time)),
             ('(forall (?obj - Item)\
                 (not (InGripperRight ?robot ?item))\
-                )', '{0}:{1}'.format(self.putdown_time+1, self.end)),])
+                )', '{0}:{1}'.format(self.end, self.end)),])
         self.eff.extend([
             ('(not (InGripperRight ?robot ?item))', '{0}:{0}'.format(self.end)),
             ('(not (NearGripperRight ?robot ?item))', '{0}:{0}'.format(self.end)),

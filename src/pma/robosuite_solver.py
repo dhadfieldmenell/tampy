@@ -30,7 +30,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         return True
 
 
-    def vertical_gripper(self, robot, arm, obj, gripper_open=True, ts=(0,20), rand=False, null_zero=True):
+    def vertical_gripper(self, robot, arm, obj, gripper_open=True, ts=(0,20), rand=False, null_zero=True, disp=np.array([0, 0, const.GRASP_DIST])):
         start_ts, end_ts = ts
         robot_body = robot.openrave_body
         robot_body.set_from_param(robot, start_ts)
@@ -38,9 +38,9 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         old_arm_pose = getattr(robot, arm)[:, start_ts].copy()
         offset = obj.geom.grasp_point if hasattr(obj.geom, 'grasp_point') else np.zeros(3)
         if obj.is_symbol():
-            target_loc = obj.value[:, 0] + np.array([0, 0, const.GRASP_DIST]) + offset
+            target_loc = obj.value[:, 0] + disp + offset
         else:
-            target_loc = obj.pose[:, start_ts] + np.array([0, 0, const.GRASP_DIST]) + offset
+            target_loc = obj.pose[:, start_ts] + disp + offset
 
         gripper_axis = robot.geom.get_gripper_axis(arm)
         target_axis = [0, 0, -1]
