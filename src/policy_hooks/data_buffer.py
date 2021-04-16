@@ -5,11 +5,12 @@ MAX_BUFFER = 40000
 MIN_BUFFER = 1000
 
 class DataBuffer(object):
-    def __init__(self, policy, sizes={}, default_size=MAX_BUFFER, val_ratio=0.1, normalize=False, x_idx=None, min_buffer=MIN_BUFFER):
+    def __init__(self, policy, sizes={}, default_size=MAX_BUFFER, val_ratio=0.1, normalize=False, x_idx=None, min_buffer=MIN_BUFFER, ratios=None):
         self.sizes = sizes
         self.default_size = default_size
         self.val_ratio = val_ratio
         self.policy = policy
+        self.ratios = ratios
 
         self.x_idx = x_idx
         self.normalize = normalize
@@ -98,12 +99,24 @@ class DataBuffer(object):
 
     
     def random_label(self, val=False, min_size=0):
+        min_buf = self.min_buffer if not val else self.min_buffer // 10
+        min_size = max(min_buf, min_size)
         lab_f = lambda l: (not val and l.find('VAL_') < 0) or (val and l.find('VAL_') >= 0)
         labels = [l for l in self.lens.keys() if lab_f(l) and self.lens[l] >= min_size]
+        base_labels = labels if not val else [l.split('VAL_')[-1] for l in labels]
         if not len(labels): return None
 
-        norm = np.sum([self.lens[l] for l in labels])
-        p = [float(self.lens[l])/norm for l in labels]
+        if self.ratios is None:
+            norm = np.sum([self.lens[l] for l in labels])
+            p = [float(self.lens[l])/norm for l in labels]
+        else:
+            p = [self.ratios[l] for l in base_labels]
+            for ind, l in enumerate(labels):
+                if self.lens[l] < min_size:
+                    p[ind] = 0.
+
+        norm = np.sum(p)
+        p = [pt/norm for pt in p]
         return np.random.choice(labels, p=p)
 
 

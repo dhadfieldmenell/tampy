@@ -34,6 +34,14 @@ class PolicyServer(object):
         self.start_t = hyperparams['start_t']
         self.config = hyperparams
         self.permute = hyperparams['permute_hl'] > 0
+
+        ratios = hyperparams.get('ratios', {})
+        for key in ['negative', 'optimal', 'dagger', 'rollout']:
+            if key not in ratios: ratios[key] = hyperparams['perc_{}'.format(key)]
+
+        for key in ratios: ratios[key] /= np.sum(list(ratios.values()))
+        hyperparams['ratios'] = ratios
+
         hyperparams['policy_opt']['scope'] = self.task
         hyperparams['policy_opt']['split_hl_loss'] = hyperparams['split_hl_loss']
         hyperparams['policy_opt']['gpu_id'] = 0

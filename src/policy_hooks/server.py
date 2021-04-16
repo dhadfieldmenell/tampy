@@ -102,7 +102,11 @@ class Server(object):
         self._last_weight_read = 0.
 
         self.permute_hl = hyperparams['permute_hl'] > 0
-        self.use_neg = hyperparams['negative']
+        self.neg_ratio = hyperparams['perc_negative']
+        self.use_neg = self.neg_ratio > 0
+        self.opt_ratio = hyperparams['perc_optimal']
+        self.dagger_ratio = hyperparams['perc_dagger']
+        self.rollout_ratio = hyperparams['perc_rollout']
         self.verbose = hyperparams['verbose']
         self.backup = hyperparams['backup']
         self.task_list = self.agent.task_list
@@ -229,17 +233,18 @@ class Server(object):
 
     def update(self, obs, mu, prc, wt, task, label, acts=[], ref_acts=[], terminal=[], aux=[], primobs=[], x=[]):
         assert(len(mu) == len(obs))
+        assert len(label)
 
-        prc[np.where(prc > 1e10)] = 1e10
-        wt[np.where(wt > 1e10)] = 1e10
-        prc[np.where(prc < -1e10)] = -1e10
-        wt[np.where(wt < -1e10)] = -1e10
-        mu[np.where(np.abs(mu) > 1e10)] = 0
+        #prc[np.where(prc > 1e10)] = 1e10
+        #wt[np.where(wt > 1e10)] = 1e10
+        #prc[np.where(prc < -1e10)] = -1e10
+        #wt[np.where(wt < -1e10)] = -1e10
+        #mu[np.where(np.abs(mu) > 1e10)] = 0
         if np.any(np.isnan(obs)):
             print((obs, task, np.isnan(obs)))
         assert not np.any(np.isnan(obs))
         assert not np.any(np.isinf(obs))
-        obs[np.where(np.abs(obs) > 1e10)] = 0
+        #obs[np.where(np.abs(obs) > 1e10)] = 0
 
         data = (obs, mu, prc, wt, aux, primobs, x, task, label)
         if task == 'primitive':
@@ -473,40 +478,33 @@ class Server(object):
         tgt_aux = np.zeros((0))
         tgt_x = np.zeros((0, self.agent.dX))
         opts = self.agent.prob.get_prim_choices(self.agent.task_list)
+        cont_mask = {}
+        for enum in opts:
+            cont_mask[enum] = 0. if np.isscalar(opts[enum]) else 1.
+
         for sample, ts, task in samples:
+            mu = []
+            for ind, val in task:
+                opt = self.agent.discrete_opts[ind]
+                vec = np.ones(len(opts[opt]))
+                if len(opts[opt]) > 1:
+                    vec[val] = 0.
+                    vec /= np.sum(vec)
+                mu.append(vec)
+            mu = [np.concatenate(mu)]
+            tgt_mu = np.concatenate((tgt_mu, mu))
             wt = np.ones(1) # sample.prim_use_ts[ts:ts+1]
-            #if sample.opt_strength < 1-1e-3: wt[0] *= self.explore_wt
-            #wt[:] *= sample.wt
-            #if wt[0] == 0: continue
             obs = [sample.get_prim_obs(ts)]
-            aux = int(sample.opt_strength) * np.ones(1)
+            aux = np.ones(1)
             tgt_x = np.concatenate((tgt_x, sample.get_X()))
             tgt_aux = np.concatenate((tgt_aux, aux))
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs_data = np.concatenate((obs_data, obs))
 
-            cont_mask = {}
-            for enum in opts:
-                cont_mask[enum] = 0. if np.isscalar(opts[enum]) else 1.
-
             prc = np.concatenate([cont_mask[enum] * self.agent.get_mask(sample, enum) for enum in self.agent.discrete_opts], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
             prc = prc[ts:ts+1]
-            if not self.config['hl_mask']:
-                prc[:] = 1.
             tgt_prc = np.concatenate((tgt_prc, prc))
-          
-            mu = []
-            for ind, enum in enumerate(self.agent.discrete_opts):
-                vec = np.zeros(len(opts[enum]))
-                vec[task[ind]] = 1.
-                mu.append(vec)
-            mu = [np.concatenate(mu)]
-            tgt_mu = np.concatenate((tgt_mu, mu))
 
-        tgt_wt[:] *= 0.1
-        inds = np.where(np.abs(tgt_mu - 0.5) > 0.45)
-        #tgt_mu[inds] = 1. - tgt_mu[inds]
-        tgt_mu = 1. - tgt_mu
         if len(tgt_mu):
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', 'negative', aux=tgt_aux, x=tgt_x)
 

@@ -518,30 +518,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
     def sample_optimal_trajectory(self, state, task, condition, opt_traj=[], traj_mean=[], fixed_targets=[]):
         raise NotImplementedError('This should be defined in child')
-        if not len(opt_traj):
-            return self.solve_sample_opt_traj(state, task, condition, traj_mean, fixed_targets)
-
-        exclude_targets = []
-        opt_disp_traj = np.zeros_like(opt_traj)
-        for t in range(0, len(opt_traj)-1):
-            opt_disp_traj[t] = opt_traj[t+1] - opt_traj[t]
-
-        if len(fixed_targets):
-            targets = fixed_targets
-            obj = fixed_targets[0]
-            targ = fixed_targets[1]
-        else:
-            task_distr, obj_distr, targ_distr = self.prob_func(sample.get_prim_obs(t=0))
-            obj = self.plans_list[0].params[self.obj_list[np.argmax(obj_distr)]]
-            targ = self.plans_list[0].params[self.targ_list[np.argmax(targ_distr)]]
-            targets = [obj, targ]
-            # targets = get_next_target(self.plans_list[0], state, task, self.targets[condition], sample_traj=traj_mean)
-
-        sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, opt_disp_traj), condition, state, [task, targets[0].name, targets[1].name], noisy=False, fixed_obj=True)
-        self.optimal_samples[task].append(sample)
-        sample.set_ref_X(sample.get(STATE_ENUM))
-        sample.set_ref_U(sample.get_U())
-        return sample
 
 
     @abstractmethod
@@ -551,26 +527,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
     def _sample_opt_traj(self, plan, state, task, condition):
         raise NotImplementedError('This should be defined in child')
-        '''
-        Only call for successfully planned trajectories
-        '''
-        class optimal_pol:
-            def act(self, X, O, t, noise=None):
-                U = np.zeros((plan.dU), dtype=np.float32)
-                if t < plan.horizon - 1:
-                    fill_vector(plan.params, plan.action_inds, U, t+1)
-                else:
-                    fill_vector(plan.params, plan.action_inds, U, t)
-                return U
-
-        state_traj = np.zeros((plan.horizon, self.symbolic_bound))
-        for i in range(plan.horizon):
-            fill_vector(plan.params, plan.state_inds, state_traj[i], i)
-        sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False)
-        self.optimal_samples[self.task_list[task[0]]].append(sample)
-        sample.set_ref_X(state_traj)
-        sample.set_ref_U(sample.get_U())
-        return sample, [], True
 
 
     def replace_targets(self, condition=0):
@@ -984,6 +940,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                         next_path, next_x0 = self.run_action(plan, a, cur_x0, perm_targets, perm_task, cur_t, next_t, reset=True, save=False, record=False, perm=perm, add_noop=False, prev_hist=next_hist)
                         for step in next_path:
                             self.optimal_samples[self.task_list[task[0]]].append(step)
+                            step.source_label = label
                             #step.draw = False
                             #step.use_ts[:] = 1.
                             #step.prim_use_ts[:] = 1.
@@ -1023,7 +980,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 return False, path, info
 
             next_path, next_x0 = self.run_action(plan, a, x0, perm_targets, perm_task, act_st, reset=True, save=True, record=True, perm=perm, prev_hist=cur_x_hist)
-            for sample in next_path: sample.opt_strength = 1.
+            for sample in next_path:
+                sample.opt_strength = 1.
+                sample.source_label = label
+
             path.extend(next_path)
             if not next_path[-1]._postsuc:
                 self.n_plans_run += 1
@@ -1228,8 +1188,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             s.opt_strength = 1.
             if cost < 1e-4:
                 s._postsuc = True
-                if save:
-                    self.optimal_samples[self.task_list[task[0]]].append(s)
+                if save: self.optimal_samples[self.task_list[task[0]]].append(s)
             else:
                 s._postsuc = False
                 if save: print('Ran opt path w/postcond failure?', task, self.process_id)

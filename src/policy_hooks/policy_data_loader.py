@@ -15,7 +15,7 @@ class DataLoader(object):
         self.config = config
         self.in_queue = in_queue
         self.task = task
-        self.data_buf = DataBuffer(policy, x_idx=x_idx, normalize=normalize, min_buffer=min_buffer)
+        self.data_buf = DataBuffer(policy, x_idx=x_idx, normalize=normalize, min_buffer=min_buffer, ratios=config['ratios'])
         self.label_ratio = None
         self.batch_size = batch_size
         self.aug_f = aug_f

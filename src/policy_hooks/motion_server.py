@@ -181,7 +181,8 @@ class MotionServer(Server):
                              x0=node.x0,
                              targets=node.targets,
                              expansions=node.expansions+1,
-                             label=self.id)
+                             label=self.id,
+                             nodetype=node.nodetype)
         self.push_queue(hlnode, self.task_queue)
         print(self.id, 'Failed to refine, pushing to task node.')
 
