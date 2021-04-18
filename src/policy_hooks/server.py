@@ -484,7 +484,7 @@ class Server(object):
 
         for sample, ts, task in samples:
             mu = []
-            for ind, val in task:
+            for ind, val in enumerate(task):
                 opt = self.agent.discrete_opts[ind]
                 vec = np.ones(len(opts[opt]))
                 if len(opts[opt]) > 1:

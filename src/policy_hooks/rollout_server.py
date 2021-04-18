@@ -34,8 +34,8 @@ class RolloutServer(Server):
         self.out_queue = self.motion_queue
         self.check_precond = hyperparams['check_precond']
         self.check_postcond = hyperparams['check_postcond']
-        self.neg_precond = hyperparams['neg_precond']
-        self.neg_postcond = hyperparams['neg_postcond']
+        self.neg_precond = hyperparams['neg_precond'] and self.use_neg
+        self.neg_postcond = hyperparams['neg_postcond'] and self.use_neg
         self.check_midcond = hyperparams['check_midcond']
         self.check_random_switch = hyperparams['check_random_switch']
         self.fail_plan = hyperparams['train_on_fail']
