@@ -125,7 +125,7 @@ class EnvWrapper():
         self._type_cache = {}
         self.sim = env.sim
         self.model = env.mjpy_model
-        self.z_offsets = {'cereal': 0.04}
+        self.z_offsets = {'cereal': 0.04, 'milk': 0.04, 'bread': 0.04, 'can': 0.04}
         self.mode = mode
 
     def get_attr(self, obj, attr, euler=False):
@@ -221,8 +221,8 @@ class EnvWrapper():
         if item_name == 'sawyer': return
         true_name = item_name
         if quat is not None and len(quat) == 3:
-            quat = T.euler_to_quaternion(quat, 'xyzw')
-        if quat is not None:
+            quat = T.euler_to_quaternion(quat, order)
+        if quat is not None and order != 'wxyz':
             quat = [quat[3], quat[0], quat[1], quat[2]]
         try:
             suffix='_joint0'
@@ -296,7 +296,6 @@ class EnvWrapper():
 
         cur_pos = self.get_attr('sawyer', 'right_ee_pos')
         cur_jnts = self.get_attr('sawyer', 'right')
-        cereal_pos = self.get_item_pose('cereal')[0]
         dim = 8 if self.mode.find('joint') >= 0 else 7
         for _ in range(40):
             self.env.step(np.zeros(dim))
@@ -329,6 +328,7 @@ class RobotAgent(TAMPAgent):
             controller_config['output_min'] = -0.02
             freq = 40
 
+        obj_mode = 0 if hyperparams['num_objs'] > 1 else 2
         self.base_env = robosuite.make(
                 "PickPlace",
                 robots=["Sawyer"],             # load a Sawyer robot and a Panda robot
@@ -341,7 +341,7 @@ class RobotAgent(TAMPAgent):
                 horizon=300,                            # each episode terminates after 200 steps
                 use_object_obs=True,                   # no observations needed
                 use_camera_obs=False,                   # no observations needed
-                single_object_mode=2,
+                single_object_mode=obj_mode,
                 object_type='cereal',
                 ignore_done=True,
                 render_gpu_device_id=0,
@@ -996,6 +996,10 @@ class RobotAgent(TAMPAgent):
 
     def get_random_initial_state_vec(self, config, plans, dX, state_inds, ncond):
         self.cur_obs = self.mjc_env.reset()
+        for ind, obj in enumerate(['cereal', 'milk', 'can', 'bread']):
+            if ind >= config['num_objs'] and (obj, 'pose') in self.state_inds:
+                self.set_to_target(obj)
+
         x = np.zeros(self.dX)
         for pname, aname in self.state_inds:
             inds = self.state_inds[pname, aname]
@@ -1005,11 +1009,23 @@ class RobotAgent(TAMPAgent):
                 val = self.mjc_env.get_attr(pname, aname, euler=True)
                 if len(inds) == 1: val = np.mean(val)
             x[inds] = val
+
         targets = {}
-        targets['cereal_end_target'] = self.mjc_env.get_item_pose('VisualCereal_main')[0]
-        targets['cereal_end_target'][2] -= self.mjc_env.z_offsets['cereal']
+        for ind, obj in enumerate(['cereal', 'milk', 'can', 'bread']):
+            targ = '{}_end_target'.format(obj)
+            if (obj, 'pose') in self.state_inds:
+                targets[targ] = self.mjc_env.get_item_pose('Visual{}_main'.format(obj.capitalize()))[0]
+                targets[targ][2] -= self.mjc_env.z_offsets[obj]
         return [x], [targets] 
-    
+   
+
+    def set_to_target(self, obj, targets=None):
+        if targets is None:
+            targ_val = self.mjc_env.get_item_pose('Visual{}_main'.format(obj.capitalize()))[0]
+        else:
+            targ_val = targets[self.target_inds['{}_end_target'.format(obj), 'value']]
+        self.mjc_env.set_item_pose(obj, targ_val, [0., 0., 0., 1.], forward=True)
+
     
     def replace_cond(self, cond, curric_step=-1):
         self.cur_obs = self.mjc_env.reset()

@@ -2983,3 +2983,31 @@ class LeftGripperDownRot(GrippersDownRot):
         self.arms = ['left']
         super(LeftGripperDownRot, self).__init__(name, params, expected_param_types, env, debug)
 
+class HeightBlock(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.goal_obj, self.block_obj, = params
+        goal_geom, block_geom = self.goal_obj.geom, self.block_obj.geom
+        self.goal_h = goal_geom.height
+        self.block_h = block_geom.height
+        self.dist = 0.1
+
+        super(HeightBlock, self).__init__(name, expr, attr_inds, params, expected_param_types, tol=tol, priority=priority, active_range=active_range)
+
+    def test(self, time, negated=False, tol=1e-3):
+        # Move taller objects first
+        if self.block_h <= self.goal_h:
+            return negated
+
+        # Ignore objects already placed
+        block_pos = self.block_obj.pose[:, time]
+        goal_pos = self.goal_obj.pose[:, time]
+        # For now, hardcode in the fact positive means placed
+        if block_pos[1] > 0.05:
+            return negated
+
+        #if np.sum((block_pos - self.block_targ.value[:,0])**2) < self.dist**2:
+        #    return negated
+       
+        return not negated
+
+

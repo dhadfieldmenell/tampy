@@ -33,7 +33,7 @@ class Sample(object):
         self.success = 0
         self.opt_suc = 0
         self._postsuc = False
-        self.source_label = ''
+        self.source_label = 'rollout'
         self.wt = 1.
         self.base_x = None
 
