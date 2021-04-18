@@ -1,8 +1,8 @@
 import numpy as np
 
 
-MAX_BUFFER = 40000
-MIN_BUFFER = 1000
+MAX_BUFFER = 25000
+MIN_BUFFER = 2000
 
 class DataBuffer(object):
     def __init__(self, policy, sizes={}, default_size=MAX_BUFFER, val_ratio=0.1, normalize=False, x_idx=None, min_buffer=MIN_BUFFER, ratios=None):

@@ -109,6 +109,7 @@ class Server(object):
         self.rollout_ratio = hyperparams['perc_rollout']
         self.verbose = hyperparams['verbose']
         self.backup = hyperparams['backup']
+        self.end2end = hyperparams['end_to_end_prob']
         self.task_list = self.agent.task_list
         self.pol_list = tuple(hyperparams['policy_list'])
         self.stopped = False
@@ -246,6 +247,7 @@ class Server(object):
         assert not np.any(np.isinf(obs))
         #obs[np.where(np.abs(obs) > 1e10)] = 0
 
+        primobs = [] if task in ['primitive', 'cont'] or self.end2end == 0 else primobs
         data = (obs, mu, prc, wt, aux, primobs, x, task, label)
         if task == 'primitive':
             q = self.hl_queue
