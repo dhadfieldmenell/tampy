@@ -171,7 +171,7 @@ class RolloutSupervisor():
         self.postcond_info.append(val)
         postcost = self.agent.postcond_cost(path[-1], self.cur_tasks[-1], path[-1].T-1, tol=self.tol, x0=self.switch_x[-1])
         self.postcond_costs[self.agent.task_list[self.cur_tasks[-1][0]]].append(postcost)
-        if postcost > 1e-4:
+        if val < 1 and postcost > 1e-4:
             self.task_successes[self.agent.task_list[self.cur_tasks[-1][0]]].append(0)
         else:
             self.task_successes[self.agent.task_list[self.cur_tasks[-1][0]]].append(1)

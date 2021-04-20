@@ -38,7 +38,6 @@ echo 'export GUROBI_HOME=/home/${USER}/tamp_work/gurobi901/linux64' >> ~/tamp_en
 echo 'export PATH="${PATH}:${GUROBI_HOME}:${GUROBI_HOME}/bin":/home/${USER}/.local/bin' >> ~/tamp_env.sh
 echo 'export LD_LIBRARY_PATH="${GUROBI_HOME}/lib:/home/${USER}/.mujoco/mujoco200/bin"' >> ~/tamp_env.sh
 echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/sco:/home/${USER}/tamp_work/tampy/src' >> ~/tamp_env.sh
-echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/michaelmcdonald/.mujoco/mujoco200/bin' >> ~/tamp_env.sh
 echo 'source ~/tamp_env.sh' >> ~/.bashrc
 
 # Setup gurobi (need to get license separately)
@@ -73,7 +72,7 @@ ln -s mujoco200 mujoco200_linux
 cd ~/tamp_work
 git clone https://github.com/m-j-mcdonald/BaxterGym.git
 git clone https://github.com/m-j-mcdonald/gps.git
-pip install robosuite==1.1.0
+pip install robosuite
 pip install tensorflow==1.10.0
 pip install -e BaxterGym
 cd BaxterGym/baxter_gym
@@ -81,7 +80,7 @@ mkdir local
 echo 'export MUJOCO_KEY_PATH=/home/${USER}/.mujoco/mjkey.txt' >> ~/tamp_env.sh
 echo 'export MUJOCO_GL=egl' >> ~/tamp_env.sh
 echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/gps/python' >> ~/tamp_env.sh
-echo 'export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libGLEW.so' >> ~/tamp_env.sh
+#echo 'export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libGLEW.so' >> ~/tamp_env.sh
 
 cd ~/tamp_work
 git clone https://github.com/AboudyKreidieh/h-baselines.git
@@ -96,3 +95,4 @@ cd ~/tamp_work
 
 pip install tensorflow==1.10.0
 pip install --force-reinstall numpy==1.18.5
+

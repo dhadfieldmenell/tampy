@@ -48,6 +48,7 @@ class PolicyServer(object):
         hyperparams['policy_opt']['use_gpu'] = 1
         hyperparams['policy_opt']['load_all'] = self.task not in ['cont', 'primitive']
         hyperparams['agent']['master_config'] = hyperparams
+        hyperparams['agent']['load_render'] = False
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
         self.map_cont_discr_tasks()
         self.prim_opts = self.agent.prob.get_prim_choices(self.agent.task_list)
@@ -207,6 +208,7 @@ class PolicyServer(object):
 
     def run(self):
         self.iters = 0
+        write_freq = 50
         while not self.stopped:
             self.iters += 1
             init_t = time.time()
@@ -240,7 +242,7 @@ class PolicyServer(object):
                 mu, obs, prc = self.data_gen.get_batch(label=lab, val=True)
                 if len(mu): self.val_losses[lab].append(self.policy_opt.check_validation(mu, obs, prc, task=self.task)[0])
 
-            if not self.iters % 10:
+            if not self.iters % write_freq:
                 self.policy_opt.write_shared_weights([self.task])
                 if len(self.continuous_opts) and self.task not in ['cont', 'primitive']:
                     self.policy_opt.read_shared_weights(['cont'])
@@ -251,10 +253,10 @@ class PolicyServer(object):
                 print('Ran', self.iters, 'updates on', self.task, 'with', n_train, 'train and', n_val, 'val')
 
             if self.config['save_data']:
-                if not self.iters % 10 and self.task in ['cont', 'primitive']:
+                if not self.iters % write_freq and self.task in ['cont', 'primitive']:
                     self.data_gen.write_data(n_data=1024)
 
-            if not self.iters % 10 and len(self.val_losses['all']):
+            if not self.iters % write_freq and len(self.val_losses['all']):
                 with open(self.policy_opt_log, 'a+') as f:
                     info = self.get_log_info()
                     pp_info = pprint.pformat(info, depth=60)

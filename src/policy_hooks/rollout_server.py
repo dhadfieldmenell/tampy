@@ -11,7 +11,6 @@ from software_constants import *
 
 from PIL import Image
 from scipy.cluster.vq import kmeans2 as kmeans
-import tensorflow as tf
 
 from sco.expr import *
 from core.internal_repr.plan import Plan
@@ -382,7 +381,7 @@ class RolloutServer(Server):
                 self.agent.replace_cond(0)
                 self.agent.reset(0)
                 n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans'].value
-                save_video = self.id.find('test') >= 0 and n_plans > 10
+                save_video = self.id.find('test') >= 0
                 self.test_hl(save_video=save_video)
 
             if self.run_hl_test: continue

@@ -42,6 +42,8 @@ class MotionServer(Server):
         self.init_costs = []
         self.rolled_costs = []
         self.final_costs = []
+        self.plan_times = []
+        self.plan_horizons = []
         self.opt_rollout_info = {'{}_opt_rollout_success'.format(taskname): [] for taskname in self.task_list}
         with open(self.motion_log, 'w+') as f:
             f.write('')
@@ -89,13 +91,13 @@ class MotionServer(Server):
         self.n_plans += 1
 
         while cur_t >= 0:
-            path, success = self.collect_trajectory(plan, node, cur_t)
+            path, success, opt_suc = self.collect_trajectory(plan, node, cur_t)
             self.log_node_info(node, success, path)
             prev_t = cur_t
             cur_t -= cur_step
             if success and len(path) and path[-1].success: continue
 
-            if not success: self.parse_failed(plan, node, prev_t)
+            if not opt_suc: self.parse_failed(plan, node, prev_t)
             while len(plan.get_failed_preds((cur_t, cur_t))) and cur_t > 0:
                 cur_t -= 1
 
@@ -110,20 +112,28 @@ class MotionServer(Server):
 
         wt = self.explore_wt if node.label.lower().find('rollout') >= 0 or node.nodetype.find('dagger') >= 0 else 1.
         verbose = self.verbose and (self.id.find('r0') >= 0 or np.random.uniform() < 0.05)
-        success, path, info = self.agent.backtrack_solve(plan, 
-                                                         anum=plan.start, 
-                                                         x0=x0,
-                                                         targets=node.targets,
-                                                         n_resamples=self._hyperparams['n_resample'], 
-                                                         rollout=self.rollout_opt, 
-                                                         traj=node.ref_traj, 
-                                                         st=cur_t, 
-                                                         permute=self.permute_hl,
-                                                         label=node.label,
-                                                         backup=self.backup,
-                                                         verbose=verbose)
+        
+        init_t = time.time()
+        success, opt_suc, path, info = self.agent.backtrack_solve(plan, 
+                                                                 anum=plan.start, 
+                                                                 x0=x0,
+                                                                 targets=node.targets,
+                                                                 n_resamples=self._hyperparams['n_resample'], 
+                                                                 rollout=self.rollout_opt, 
+                                                                 traj=node.ref_traj, 
+                                                                 st=cur_t, 
+                                                                 permute=self.permute_hl,
+                                                                 label=node.label,
+                                                                 backup=self.backup,
+                                                                 verbose=verbose)
+        end_t = time.time()
         for step in path:
             step.wt = wt
+
+        self.plan_horizons.append(plan.horizon)
+        self.plan_horizons = self.plan_horizons[-5:]
+        self.plan_times.append(end_t-init_t)
+        self.plan_times = self.plan_times[-5:]
 
         self.n_failed += 0. if success else 1.
         n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
@@ -152,7 +162,7 @@ class MotionServer(Server):
             n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_total']
             with n_plans.get_lock():
                 n_plans.value += 1
-        return path, success
+        return path, success, opt_suc
 
 
     def parse_failed(self, plan, node, prev_t):
@@ -271,6 +281,8 @@ class MotionServer(Server):
     def get_log_info(self):
         info = {
                 'time': time.time() - self.start_t,
+                'optimization time': np.mean(self.plan_times),
+                'plan length': np.mean(self.plan_horizons),
                 }
 
         for key in self.infos:

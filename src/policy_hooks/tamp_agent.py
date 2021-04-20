@@ -977,7 +977,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
             if not success:
                 self.n_fail_opt[task] = self.n_fail_opt.get(task, 0) + 1
-                return False, path, info
+                return False, False, path, info
 
             next_path, next_x0 = self.run_action(plan, a, x0, perm_targets, perm_task, act_st, reset=True, save=True, record=True, perm=perm, prev_hist=cur_x_hist)
             for sample in next_path:
@@ -987,7 +987,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             path.extend(next_path)
             if not next_path[-1]._postsuc:
                 self.n_plans_run += 1
-                return False, path, info
+                return False, True, path, info
             x0 = next_x0
             ref_x0 = x0.copy()
             ref_x0 = self.clip_state(ref_x0)
@@ -1008,7 +1008,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         if len(smooth_cnts):
             print(self.process_id, 'N smooth:', smooth_cnts, time.time()-init_t, verbose)
         print(('Plans run vs. success:', self.n_plans_run, self.n_plans_suc_run, self.process_id, time.time()-init_t))
-        return success, path, info
+        return success, True, path, info
 
 
     def run_plan(self, plan, targets, tasks=None, reset=True, permute=False, save=True, amin=0, amax=None, record=True, wt=1., start_ts=0, verbose=False, label=None, env_state=None, x0=None, base_x0=None):

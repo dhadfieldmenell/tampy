@@ -125,7 +125,7 @@ class EnvWrapper():
         self._type_cache = {}
         self.sim = env.sim
         self.model = env.mjpy_model
-        self.z_offsets = {'cereal': 0.04, 'milk': 0.04, 'bread': 0.04, 'can': 0.04}
+        self.z_offsets = {'cereal': 0.04, 'milk': 0.02, 'bread': 0.0, 'can': 0.0}
         self.mode = mode
 
     def get_attr(self, obj, attr, euler=False):
@@ -336,7 +336,7 @@ class RobotAgent(TAMPAgent):
                 controller_configs=controller_config,   # each arm is controlled using OSC
                 has_renderer=False,                      # on-screen rendering
                 render_camera="frontview",              # visualize the "frontview" camera
-                has_offscreen_renderer=self.load_render,           # no off-screen rendering
+                has_offscreen_renderer=False,#self.load_render,           # no off-screen rendering
                 control_freq=freq,                        # 20 hz control for applied actions
                 horizon=300,                            # each episode terminates after 200 steps
                 use_object_obs=True,                   # no observations needed
@@ -347,6 +347,13 @@ class RobotAgent(TAMPAgent):
                 render_gpu_device_id=0,
                 initialization_noise={'magnitude': 0.1, 'type': 'gaussian'}
             )
+
+        if self.load_render:
+            from mujoco_py import MjRenderContextOffscreen
+            render_context = MjRenderContextOffscreen(self.base_env.sim, device_id=0)
+            self.base_env.sim.add_render_context(render_context)
+            self.base_env.sim._render_context_offscreen.vopt.geomgroup[0] = 0
+            self.base_env.sim._render_context_offscreen.vopt.geomgroup[1] = 1
 
         self.sawyer = list(self.plans.values())[0].params['sawyer']
         self.mjc_env = EnvWrapper(self.base_env, self.sawyer, self.ctrl_mode)
