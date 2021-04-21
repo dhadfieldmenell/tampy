@@ -125,7 +125,7 @@ class EnvWrapper():
         self._type_cache = {}
         self.sim = env.sim
         self.model = env.mjpy_model
-        self.z_offsets = {'cereal': 0.04, 'milk': 0.02, 'bread': 0.0, 'can': 0.0}
+        self.z_offsets = {'cereal': 0.04, 'milk': 0.03, 'can': 0.02, 'bread': 0.01}
         self.mode = mode
 
     def get_attr(self, obj, attr, euler=False):

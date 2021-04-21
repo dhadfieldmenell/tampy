@@ -36,7 +36,7 @@ class PolicyServer(object):
         self.permute = hyperparams['permute_hl'] > 0
 
         ratios = hyperparams.get('ratios', {})
-        for key in ['negative', 'optimal', 'dagger', 'rollout']:
+        for key in ['negative', 'optimal', 'dagger', 'rollout', 'human']:
             if key not in ratios: ratios[key] = hyperparams['perc_{}'.format(key)]
 
         for key in ratios: ratios[key] /= np.sum(list(ratios.values()))

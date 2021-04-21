@@ -557,6 +557,15 @@ class Server(object):
             f.write(pp_info)
             f.write('\n')
 
+    
+    def send_to_label(self, rollout, suc):
+        if not self.config['label_server']: return
+        targets = rollout[-1].targets
+        vid = self._gen_video(rollout)
+        x = np.concatenate([s.get_X()[:-1] for s in path])
+        q = self.config['label_in_queue']
+        self.push_queue((vid, x, targets, suc))
+
 
     def save_image(self, rollout=None, success=None, ts=0, render=True, x=None):
         if not self.render: return

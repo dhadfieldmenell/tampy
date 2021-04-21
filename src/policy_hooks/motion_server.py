@@ -162,6 +162,7 @@ class MotionServer(Server):
             n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_total']
             with n_plans.get_lock():
                 n_plans.value += 1
+
         return path, success, opt_suc
 
 
