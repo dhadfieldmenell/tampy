@@ -2420,15 +2420,14 @@ class Obstructs(CollisionPredicate):
     """
     #@profile
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=const.COLLISION_TOL):
-        assert len(params) == 4
         self._env = env
-        self.robot, self.startp, self.endp, self.obstacle = params
+        self.robot, self.obstacle = params
 
         self.coeff = -const.OBSTRUCTS_COEFF
         self.neg_coeff = const.OBSTRUCTS_COEFF
 
         attrs = {self.robot: self.robot.geom.arms + self.robot.geom.grippers + ['pose']}
-        attr_inds, attr_dim = init_robot_pred(self, self.robot, [params[3]], attrs=attrs)
+        attr_inds, attr_dim = init_robot_pred(self, self.robot, [self.obstacle], attrs=attrs)
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
                                self.obstacle: self.lazy_spawn_or_body(self.obstacle, self.obstacle.name, self.obstacle.geom)}
 
@@ -2445,7 +2444,7 @@ class Obstructs(CollisionPredicate):
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=3, debug=debug, tol=tol, priority = 3)
+                                        expected_param_types, ind0=0, ind1=1, debug=debug, tol=tol, priority=3)
         self.spacial_anchor = False
 
     def f(self, x):
@@ -2485,10 +2484,9 @@ class ObstructsHolding(CollisionPredicate):
     """
     #@profile
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=const.COLLISION_TOL):
-        assert len(params) == 5
         self._env = env
-        self.robot, self.startp, self.endp, self.obstacle, self.obj = params
-        attr_inds, attr_dim = init_robot_pred(self, self.robot, [params[3], params[4]])
+        self.robot, self.obstacle, self.obj = params
+        attr_inds, attr_dim = init_robot_pred(self, self.robot, [self.obstacle, self.obj])
         # attr_inds for the robot must be in this exact order do to assumptions
         # in OpenRAVEBody's _set_active_dof_inds and the way OpenRAVE's
         # CalculateActiveJacobian for robots work (base pose is always last)
@@ -2498,10 +2496,10 @@ class ObstructsHolding(CollisionPredicate):
         self.neg_coeff = const.OBSTRUCTS_COEFF
 
         attrs = {self.robot: self.robot.geom.arms + self.robot.geom.grippers + ['pose']}
-        if params[3] is not params[4]:
-            attr_inds, attr_dim = init_robot_pred(self, self.robot, [params[3], params[4]], attrs=attrs)
+        if self.obstacle is not self.obj:
+            attr_inds, attr_dim = init_robot_pred(self, self.robot, [self.obstacle, self.obj], attrs=attrs)
         else:
-            attr_inds, attr_dim = init_robot_pred(self, self.robot, [params[3]], attrs=attrs)
+            attr_inds, attr_dim = init_robot_pred(self, self.robot, [self.obj], attrs=attrs)
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
                                self.obstacle: self.lazy_spawn_or_body(self.obstacle, self.obstacle.name, self.obstacle.geom),
                                self.obj: self.lazy_spawn_or_body(self.obj, self.obj.name, self.obj.geom)}
@@ -2530,7 +2528,7 @@ class ObstructsHolding(CollisionPredicate):
 
         col_expr, col_expr_neg = Expr(self.f, self.grad), Expr(self.f_neg, self.grad_neg)
         e, self.neg_expr = LEqExpr(col_expr, val), LEqExpr(col_expr_neg, val)
-        super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=3, debug = debug, tol=tol, priority = 3)
+        super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=1, debug = debug, tol=tol, priority=3)
         self.spacial_anchor = False
 
     def f(self, x):
@@ -2991,7 +2989,15 @@ class HeightBlock(ExprPredicate):
         self.block_h = block_geom.height
         self.dist = 0.1
 
-        super(HeightBlock, self).__init__(name, expr, attr_inds, params, expected_param_types, tol=tol, priority=priority, active_range=active_range)
+        attr_inds = OrderedDict([(self.goal_obj, [("pose", np.array([0,1,2], dtype=np.int))]),
+                                 (self.block_obj, [("pose", np.array([0,1,2], dtype=np.int))])])
+
+        A = np.c_[np.r_[np.eye(3), -np.eye(3)], np.r_[-np.eye(3), np.eye(3)]]
+        b, val = np.zeros((6, 1)), NEAR_TOL*np.ones((6, 1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+
+        super(HeightBlock, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol, priority=priority, active_range=active_range)
 
     def test(self, time, negated=False, tol=1e-3):
         # Move taller objects first
@@ -3002,7 +3008,7 @@ class HeightBlock(ExprPredicate):
         block_pos = self.block_obj.pose[:, time]
         goal_pos = self.goal_obj.pose[:, time]
         # For now, hardcode in the fact positive means placed
-        if block_pos[1] > 0.05:
+        if block_pos[1] > 0.0:
             return negated
 
         #if np.sum((block_pos - self.block_targ.value[:,0])**2) < self.dist**2:

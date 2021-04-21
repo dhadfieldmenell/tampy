@@ -3,9 +3,12 @@ import numpy as np
 from select import select
 import time
 
+from policy_hooks.search_node import HLSearchNode
 from policy_hooks.server import Server
 from policy_hooks.human_labels.video_renderer import VideoRenderer
 
+
+HUMAN_PRIORITY = 10
 
 class LabelServer(Server):
     def __init__(self, hyperparams):
@@ -41,9 +44,9 @@ class LabelServer(Server):
             pt = self.pop_queue(self.in_queue)
             if pt is None: continue
             if pt[-1]:
-                self.successes.append([None,] + list(pt))
+                self.successes.append(list(pt))
             else:
-                self.failures.append([None,] + list(pt))
+                self.failures.append(list(pt))
         self.successes = self.successes[-self.max_buffer:]
         self.failures = self.failures[-self.max_buffer:]
 
@@ -54,7 +57,7 @@ class LabelServer(Server):
         ind = np.random.randint(len(buf))
         example = buf[ind]
 
-        if example[0] is None:
+        if example[0] is None and self.render:
             example[0] = self.gen_video(example)
 
         return example
@@ -97,31 +100,41 @@ class LabelServer(Server):
         self.labelled.append(((res, seg_ts[0]), example))
 
     
-    def search_query(self, t=10):
+    def search_query(self, t=10, N=1, max_iters=10):
         print('\nRunning search query...\n')
         example = self.get_example()
         hor = len(example[0])
         cur_t = hor // 2
-        prev_t = -1
         invalid_input = False
-        while prev_t != cur_t or invalid_input:
+        visited = set()
+        ts = []
+        cur_iter = 0
+        wind = 2 # Consider nearby timesteps visited
+
+        while cur_iter < max_iters and (cur_t not in visited or invalid_input):
+            cur_iter += 1
             invalid_input = False
-            prev_t = cur_t
             cur_t = max(0, min(cur_t, hor))
+            visited.update(list(range(cur_t-wind, cur_t+wind+1)))
             st, et = max(0, cur_t - t//2), min(cur_t + t//2, hor)
             res, label_t = self.query_user(example, (st, et))
 
             if res == 'before':
                 cur_t = st + (cur_t - st) // 2
             elif res == 'after':
+                ts.extend([st, cur_t, et])
                 cur_t = cur_t + (et - cur_t) // 2
             elif res == 'during':
+                ts.append(st)
+                break
+            elif res == 'ignore':
                 break
             else:
                 invalid_input = True
                 print('Invalid search query')
 
-        self.labelled.append(((res, st), example))
+        for t in ts[-N:]:
+            self.labelled.append(((res, t), example))
 
 
     def query_user(self, example, seg_ts, val=False):
@@ -168,6 +181,33 @@ class LabelServer(Server):
             return 'ignore'
 
         return 'invalid'
+
+
+    def push_states(self):
+        for (label, ts), example in self.labelled:
+            X = example[1]
+            x0 = X[ts]
+            targets = example[2]
+            prob = example[3]
+            domain = example[4]
+
+            initial, goal = self.agent.get_hl_info(x0, targets)
+            abs_prob = self.agent.hl_solver.translate_problem(prob, goal=goal, initial=initial)
+            hlnode = HLSearchNode(abs_prob,
+                                  prob,
+                                  domain,
+                                  priority=HUMAN_PRIORITY,
+                                  x0=x0,
+                                  targets=targets,
+                                  expansions=0,
+                                  label='human_label',
+                                  nodetype='human')
+            self.push_queue(hlnode, self.task_queue)
+        self.clear_labels()
+
+
+    def clear_labels(self):
+        self.labelled = []
 
 
     def run(self):

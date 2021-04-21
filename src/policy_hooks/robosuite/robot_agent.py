@@ -125,7 +125,7 @@ class EnvWrapper():
         self._type_cache = {}
         self.sim = env.sim
         self.model = env.mjpy_model
-        self.z_offsets = {'cereal': 0.04, 'milk': 0.02, 'bread': 0.0, 'can': 0.0}
+        self.z_offsets = {'cereal': 0.04, 'milk': 0.03, 'can': 0.02, 'bread': 0.01}
         self.mode = mode
 
     def get_attr(self, obj, attr, euler=False):
@@ -395,7 +395,7 @@ class RobotAgent(TAMPAgent):
     def get_image(self, x, depth=False, cam_id=None):
         self.reset_to_state(x, full=False)
         #return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
-        return self.base_env.sim.render(height=128, width=128, camera_name="frontview")
+        return self.base_env.sim.render(height=192, width=192, camera_name="frontview")
 
     #def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None, policies=None):
     #    assert not np.any(np.isnan(state))
