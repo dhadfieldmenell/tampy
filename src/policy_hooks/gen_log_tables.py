@@ -784,7 +784,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                 print('Rolling mean on', numeric_cols)
                 dfs = [pd.DataFrame(y) for x, y in pd_frame.groupby(['exp id', 'description'], as_index=False)]
                 for df in dfs:
-                    rolling = df[numeric_cols].rolling(int(window), min_periods=1).mean()
+                    rolling = df[numeric_cols].rolling(int(window), win_type=None, min_periods=1).mean()
                     for col in numeric_cols: df[col] = rolling[col]
                 pd_frame = pd.concat(dfs)
             leg_labels = getattr(pd_frame, columns[0]).unique()
@@ -957,7 +957,7 @@ if __name__ == '__main__':
     while not terminate:
         if not perpetual:
             terminate = True
-        gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=120, window=240, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_{}'.format(keywords[0]))
+        gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=180, window=240, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_{}'.format(keywords[0]))
         #gen_data_plots(xvar='time', yvar=['success at end', 'any target', 'subgoals anywhere'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=True, include=include, inter=30, window=50, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='splitendsucc_{}'.format(keywords[0]))
         gen_data_plots(xvar='time', yvar=['reg_val', 'loss_ratio', 'any target', 'subgoals anywhere'], keywords=keywords, lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='{}primcurve'.format(keywords[0]))
         gen_data_plots(xvar='time', yvar=['reg_val'], keywords=keywords, lab='control', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='{}ctrlcurve'.format(keywords[0]))
