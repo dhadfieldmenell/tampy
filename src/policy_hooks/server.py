@@ -43,7 +43,7 @@ class Server(object):
         self.weight_dir = self.config['weight_dir']
         self.exp_id = self.weight_dir.split('/')[-1]
         if self.config['weight_dir'].find('sawyer') >= 0:
-            if self.id.find('moretest') < 0 and self.id.find('0') < 0:# and self.id.find('Rollout') < 0:
+            if self.id.find('moretest') < 0 and self.id.find('0') < 0 and self.id.find('label') < 0:
                 self.render = False
                 hyperparams['load_render'] = False
                 hyperparams['agent']['master_config']['load_render'] = False
@@ -576,6 +576,36 @@ class Server(object):
             im = im.astype(np.uint8)
         im = Image.fromarray(im)
         im.save(fname)
+
+
+    def _gen_video(self, rollout, st=0, ts=None, annotate=False):
+        if not self.render: return
+        old_h = self.agent.image_height
+        old_w = self.agent.image_width
+        self.agent.image_height = 256
+        self.agent.image_width = 256
+        cam_ids = self.config.get('visual_cameras', [self.agent.camera_id])
+        buf = []
+        for step in rollout:
+            if not step.draw: continue
+            old_vec = self.agent.target_vecs[0]
+            self.agent.target_vecs[0] = step.targets
+            ts_range = range(st, step.T) if ts is None else range(ts[0], ts[1])
+            st = 0
+
+            for t in ts_range:
+                ims = []
+                for ind, cam_id in enumerate(cam_ids):
+                    if annotate and ind == 0:
+                        ims.append(self.agent.get_annotated_image(step, t, cam_id=cam_id))
+                    else:
+                        ims.append(self.agent.get_image(step.get_X(t=t), cam_id=cam_id))
+                im = np.concatenate(ims, axis=1)
+                buf.append(im)
+            self.agent.target_vecs[0] = old_vec
+        self.agent.image_height = old_h
+        self.agent.image_width = old_w
+        return np.array(buf)
 
 
     def save_video(self, rollout, success=None, ts=None, lab='', annotate=True, st=0):

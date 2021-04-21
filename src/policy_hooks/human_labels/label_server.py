@@ -41,9 +41,9 @@ class LabelServer(Server):
             pt = self.pop_queue(self.in_queue)
             if pt is None: continue
             if pt[-1]:
-                self.successes.append([None,] + list(pt))
+                self.successes.append(list(pt))
             else:
-                self.failures.append([None,] + list(pt))
+                self.failures.append(list(pt))
         self.successes = self.successes[-self.max_buffer:]
         self.failures = self.failures[-self.max_buffer:]
 
@@ -54,7 +54,7 @@ class LabelServer(Server):
         ind = np.random.randint(len(buf))
         example = buf[ind]
 
-        if example[0] is None:
+        if example[0] is None and self.render:
             example[0] = self.gen_video(example)
 
         return example

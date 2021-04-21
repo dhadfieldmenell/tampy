@@ -147,8 +147,8 @@ dp.add('OpenGripperLeft', ['Robot'])
 dp.add('OpenGripperRight', ['Robot'])
 dp.add('CloseGripper', ['Robot'])
 dp.add('OpenGripper', ['Robot'])
-dp.add('Obstructs', ['Robot', 'RobotPose', 'RobotPose', 'CollisionShape'])
-dp.add('ObstructsHolding', ['Robot', 'RobotPose', 'RobotPose', 'CollisionShape', 'CollisionShape'])
+dp.add('Obstructs', ['Robot', 'CollisionShape'])
+dp.add('ObstructsHolding', ['Robot', 'CollisionShape', 'CollisionShape'])
 dp.add('Collides', ['CollisionShape', 'CollisionShape'])
 dp.add('RCollides', ['Robot', 'CollisionShape'])
 dp.add('RSelfCollides', ['Robot'])
@@ -195,6 +195,7 @@ dp.add('RightGripperDownRot', ['Robot'])
 dp.add('EEValid', ['Robot'])
 dp.add('LeftEEValid', ['Robot'])
 dp.add('RightEEValid', ['Robot'])
+dp.add('HeightBlock', ['Item', 'Item'])
 
 dom_str += dp.get_str() + '\n'
 
@@ -240,7 +241,7 @@ class Move(Action):
             ('(RobotAt ?robot ?start)', '{}:{}'.format(0, -1)),
             ('(not (RobotAt ?robot ?end))', '{}:{}'.format(0, -1)),
             ('(forall (?obj - Item)\
-                (not (Obstructs ?robot ?start ?end ?obj)))', '{}:{}'.format(1, end-1)),
+                (not (Obstructs ?robot ?obj)))', '{}:{}'.format(1, end-1)),
             ('(forall (?obj - Item)\
                 (Stationary ?obj))', '{}:{}'.format(0, end-1)),
             ('(forall (?obs - Obstacle) (StationaryW ?obs))', '{}:{}'.format(0, end-1)),
@@ -322,7 +323,7 @@ class MoveHolding(Action):
             ('(RobotAt ?robot ?start)', '0:-1'),
             ('(not (RobotAt ?robot ?end))', '{}:{}'.format(0, -1)),
             ('(forall (?obj - Item)\
-                (not (ObstructsHolding ?robot ?start ?end ?obj ?item))\
+                (not (ObstructsHolding ?robot ?obj ?item))\
             )', '1:{}'.format(end)),
             ('(forall (?obj - Item)\
                 (StationaryNEq ?obj ?item))', '{}:{}'.format(0, end-1)),
@@ -433,26 +434,18 @@ class Grasp(Action):
                 (not (RCollides ?robot ?obs))\
             )', '{0}:{1}'.format(self.grasp_time+1, self.end-1)),
             ('(forall (?obj - Item)\
-                (not (Obstructs ?robot ?sp ?ep ?obj))\
+                (not (Obstructs ?robot ?obj))\
             )', '1:{}'.format(grasp_time-3)),
             ('(forall (?obj - Item)\
-                (not (ObstructsHolding ?robot ?sp ?ep ?obj ?item))\
+                (not (ObstructsHolding ?robot ?obj ?item))\
             )', '{}:{}'.format(grasp_time-1, end-1))
         ]
         self.eff = [\
             ('(not (At ?item ?target))', '{}:{}'.format(end, end-1)) ,
             ('(not (RobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
             ('(RobotAt ?robot ?ep)', '{}:{}'.format(end, end-1)),
-            ('(forall (?sym1 - RobotPose)\
-                (forall (?sym2 - RobotPose)\
-                    (not (Obstructs ?robot ?sym1 ?sym2 ?item))\
-                )\
-            )', '{}:{}'.format(end, end-1)),
-            ('(forall (?sym1 - Robotpose)\
-                (forall (?sym2 - RobotPose)\
-                    (forall (?obj - Item) (not (ObstructsHolding ?robot ?sym1 ?sym2 ?item ?obj)))\
-                )\
-            )', '{}:{}'.format(end, end-1))
+            ('(not (Obstructs ?robot ?item))', '{}:{}'.format(end, end-1)),
+            ('(forall (?obj - Item) (not (ObstructsHolding ?robot ?item ?obj)))', '{}:{}'.format(end, end-1))
         ]
 
 
@@ -570,10 +563,10 @@ class Putdown(Action):
                 (not (RCollides ?robot ?obs))\
             )', '{0}:{1}'.format(self.putdown_time+1, self.end-1)),
             ('(forall (?obj - Item)\
-                (not (Obstructs ?robot ?sp ?ep ?obj))\
+                (not (Obstructs ?robot ?obj))\
             )', '{}:{}'.format(putdown_time+3, end)),
             ('(forall (?obj - Item)\
-                (not (ObstructsHolding ?robot ?sp ?ep ?obj ?item))\
+                (not (ObstructsHolding ?robot ?obj ?item))\
             )', '{}:{}'.format(1, putdown_time+2))
         ]
         self.eff = [\
@@ -581,16 +574,8 @@ class Putdown(Action):
             ('(Near ?item ?target)', '{}:{}'.format(end, end)) ,
             ('(not (RobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
             ('(RobotAt ?robot ?ep)', '{}:{}'.format(end, end-1)),
-            ('(forall (?sym1 - RobotPose)\
-                (forall (?sym2 - RobotPose)\
-                    (not (Obstructs ?robot ?sym1 ?sym2 ?item))\
-                )\
-            )', '{}:{}'.format(end, end-1)),
-            ('(forall (?sym1 - Robotpose)\
-                (forall (?sym2 - RobotPose)\
-                    (forall (?obj - Item) (not (ObstructsHolding ?robot ?sym1 ?sym2 ?item ?obj)))\
-                )\
-            )', '{}:{}'.format(end, end-1))
+            ('(not (Obstructs ?robot ?item))', '{}:{}'.format(end, end-1)),
+            ('(forall (?obj - Item) (not (ObstructsHolding ?robot ?item ?obj)))', '{}:{}'.format(end, end-1))
         ]
 
 
