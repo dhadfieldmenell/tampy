@@ -43,6 +43,7 @@ from policy_hooks.policy_server import PolicyServer
 from policy_hooks.rollout_server import RolloutServer
 from policy_hooks.motion_server import MotionServer
 from policy_hooks.task_server import TaskServer
+from policy_hooks.human_labels.label_server import LabelServer
 from policy_hooks.tf_models import tf_network, multi_modal_network_fp
 import policy_hooks.hl_retrain as hl_retrain
 from policy_hooks.utils.load_agent import *
@@ -425,6 +426,9 @@ class MultiProcessMain(object):
             self._create_server(hyperparams, TaskServer, start_idx+n)
         for n in range(hyperparams['num_rollout']):
             self._create_server(hyperparams, RolloutServer, start_idx+n)
+        if hyperparams['label_server']:
+            self._create_server(hyperparams, LabelServer, 'labelserver')
+
         hyperparams = copy.copy(hyperparams)
         hyperparams['run_hl_test'] = True
         hyperparams['id'] = 'test'
@@ -659,6 +663,10 @@ class MultiProcessMain(object):
         config['motion_queue'] = self.queue_manager.PriorityQueue(maxsize=queue_size)
         config['task_queue'] = self.queue_manager.PriorityQueue(maxsize=queue_size)
         config['rollout_queue'] = self.queue_manager.PriorityQueue(maxsize=queue_size)
+
+        if config['label_server']:
+            config['label_in_queue'] = Queue(maxsize=queue_size)
+            config['label_out_queue'] = Queue(maxsize=queue_size)
 
         #for task in self.pol_list+('primitive',):
         #    queues['{0}_pol'.format(task)] = Queue(50)

@@ -350,8 +350,8 @@ class RobotAgent(TAMPAgent):
 
         if self.load_render:
             from mujoco_py import MjRenderContextOffscreen
-            render_context = MjRenderContextOffscreen(self.base_env.sim, device_id=0)
-            self.base_env.sim.add_render_context(render_context)
+            self.render_context = MjRenderContextOffscreen(self.base_env.sim, device_id=0)
+            self.base_env.sim.add_render_context(self.render_context)
             self.base_env.sim._render_context_offscreen.vopt.geomgroup[0] = 0
             self.base_env.sim._render_context_offscreen.vopt.geomgroup[1] = 1
 
