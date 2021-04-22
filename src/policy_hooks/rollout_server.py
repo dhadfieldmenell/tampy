@@ -128,7 +128,10 @@ class RolloutServer(Server):
             enum = enums[i]
             if not np.isscalar(opts[enum]):
                 val = np.max(d)
-                ind.append(np.random.choice([i for i in range(len(d)) if d[i] >= val]))
+                inds = [i for i in range(len(d)) if d[i] >= val]
+                if not len(inds):
+                    raise Exception('Bad network output in get_task: {} {}'.format(i, d))
+                ind.append(np.random.choice(inds))
             else:
                 ind.append(d)
         next_label = tuple(ind)

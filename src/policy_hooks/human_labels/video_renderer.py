@@ -89,7 +89,7 @@ class Im(object):
 
         assert arr.shape == (self.height, self.width, self.channels), \
             "You passed in an image with the wrong number shape"
-        flipped_arr = np.flip(arr, axis=0)
+        flipped_arr = arr # np.flip(arr, axis=0)
         image = pyglet.image.ImageData(self.width, self.height,
                                        'RGB', flipped_arr.tobytes())
         self.window.clear()
@@ -113,7 +113,7 @@ class VideoRenderer:
     play_through_mode = 0
     restart_on_get_mode = 1
 
-    def __init__(self, mode=0, fps=4, zoom=1, playback_speed=1, channels=3):
+    def __init__(self, mode=0, fps=4, zoom=3, playback_speed=1, channels=3):
         self.mode = mode
         self.channels = channels
         if self.channels == 1:
@@ -143,7 +143,7 @@ class VideoRenderer:
             self._waiting = False
             if self.v is not None:
                 self.v.cont()
-                time.sleep(1)
+                time.sleep(0.5)
                 self.v.close()
 
 
@@ -191,7 +191,7 @@ class VideoRenderer:
                 v.close()
                 v = Im()
                 v.txtshow('Found user input {}'.format(keystroke))
-                time.sleep(1)
+                time.sleep(0.1)
                 break
             sleep_time = max(0, self.sleep_time-render_time)
             time.sleep(sleep_time)

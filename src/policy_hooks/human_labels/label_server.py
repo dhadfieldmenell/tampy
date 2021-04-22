@@ -40,13 +40,19 @@ class LabelServer(Server):
             example[-1] == success
         '''
         n = self.in_queue.qsize()
+        true_n = 0
         for _ in range(n):
             pt = self.pop_queue(self.in_queue)
             if pt is None: continue
+            #if not self.render and pt[0] is None: continue
             if pt[-1]:
                 self.successes.append(list(pt))
             else:
                 self.failures.append(list(pt))
+            true_n += 1
+        n_suc = len(self.successes)
+        n_fail = len(self.failures)
+        if n > 0: print('Loaded {} points to label; expected {}; {} {}'.format(true_n, n, n_fail, n_suc))
         self.successes = self.successes[-self.max_buffer:]
         self.failures = self.failures[-self.max_buffer:]
 
@@ -111,6 +117,7 @@ class LabelServer(Server):
         cur_iter = 0
         wind = 2 # Consider nearby timesteps visited
 
+        a, b = 0, hor
         while cur_iter < max_iters and (cur_t not in visited or invalid_input):
             cur_iter += 1
             invalid_input = False
@@ -120,10 +127,10 @@ class LabelServer(Server):
             res, label_t = self.query_user(example, (st, et))
 
             if res == 'before':
-                cur_t = st + (cur_t - st) // 2
+                b = cur_t
             elif res == 'after':
+                a = cur_t
                 ts.extend([st, cur_t, et])
-                cur_t = cur_t + (et - cur_t) // 2
             elif res == 'during':
                 ts.append(st)
                 break
@@ -131,7 +138,8 @@ class LabelServer(Server):
                 break
             else:
                 invalid_input = True
-                print('Invalid search query')
+                print('Invalid search query', res)
+            cur_t = (a + b) // 2
 
         for t in ts[-N:]:
             self.labelled.append(((res, t), example))
@@ -148,7 +156,7 @@ class LabelServer(Server):
         #        choice = sys.stdin.readline().lstrip().rstrip()
         #        break
         #ts = self.renderer.get_time()
-        #choice = self.parse_key(choice)
+        choice = self.parse_key(choice)
         return choice, seg_ts[0] + ts
 
 
@@ -157,9 +165,9 @@ class LabelServer(Server):
         while not self.n_examples():
             self.load_examples()
             self.video_renderer.wait()
-            time.sleep(0.01)
+            time.sleep(0.05)
         self.video_renderer.cont()
-        time.sleep(1)
+        time.sleep(0.2)
         self.video_renderer.wait_for_user()
 
 

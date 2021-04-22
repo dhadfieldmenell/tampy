@@ -2993,11 +2993,12 @@ class HeightBlock(ExprPredicate):
                                  (self.block_obj, [("pose", np.array([0,1,2], dtype=np.int))])])
 
         A = np.c_[np.r_[np.eye(3), -np.eye(3)], np.r_[-np.eye(3), np.eye(3)]]
+        A *= 0
         b, val = np.zeros((6, 1)), NEAR_TOL*np.ones((6, 1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
 
-        super(HeightBlock, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol, priority=priority, active_range=active_range)
+        super(HeightBlock, self).__init__(name, e, attr_inds, params, expected_param_types, tol=1e-3, priority=-2, active_range=(0,0))
 
     def test(self, time, negated=False, tol=1e-3):
         # Move taller objects first
@@ -3013,7 +3014,7 @@ class HeightBlock(ExprPredicate):
 
         #if np.sum((block_pos - self.block_targ.value[:,0])**2) < self.dist**2:
         #    return negated
-       
+      
         return not negated
 
 

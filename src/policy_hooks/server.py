@@ -559,12 +559,17 @@ class Server(object):
 
     
     def send_to_label(self, rollout, suc):
-        if not self.config['label_server']: return
+        if not self.config['label_server'] \
+           or not len(rollout) \
+           or not self.render: return
+
         targets = rollout[-1].targets
         vid = self._gen_video(rollout)
-        x = np.concatenate([s.get_X()[:-1] for s in path])
+        x = np.concatenate([s.get_X()[:-1] for s in rollout])
         q = self.config['label_in_queue']
-        self.push_queue((vid, x, targets, suc))
+        print('Sending rollout to label')
+        assert vid is not None
+        self.push_queue((vid, x, targets, suc), q)
 
 
     def save_image(self, rollout=None, success=None, ts=0, render=True, x=None):
@@ -588,7 +593,7 @@ class Server(object):
 
 
     def _gen_video(self, rollout, st=0, ts=None, annotate=False):
-        if not self.render: return
+        if not self.render: return None
         old_h = self.agent.image_height
         old_w = self.agent.image_width
         self.agent.image_height = 256

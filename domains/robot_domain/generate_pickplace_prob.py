@@ -81,7 +81,7 @@ def main():
     s += "Obstacle (name {}) \n\n".format("table")
 
     s += "Init: "
-    dims = [[0.0225, 0.0225, 0.08], [0.02, 0.02, 0.02], [0.05, 0.02, 0.065], [0.02, 0.04]]
+    dims = [[0.0225, 0.0225, 0.06], [0.02, 0.02, 0.02], [0.05, 0.02, 0.065], [0.02, 0.04]]
     s += "(geom milk {0}), ".format(dims[0])
     s += "(geom bread {0}), ".format(dims[1])
     s += "(geom cereal {0}), ".format(dims[2])
@@ -119,6 +119,12 @@ def main():
         s += "(At {0} {0}_init_target), ".format(item)
     s += "(RobotAt sawyer robot_init_pose),"
     s += "(StationaryBase sawyer), "
+    s += "(HeightBlock bread cereal), "
+    s += "(HeightBlock can cereal), "
+    s += "(HeightBlock milk cereal), "
+    s += "(HeightBlock bread milk), "
+    s += "(HeightBlock can milk), "
+    s += "(HeightBlock bread can), "
     s += "(IsMP sawyer), "
     s += "(WithinJointLimit sawyer), "
     s += "(StationaryW table) \n\n"
