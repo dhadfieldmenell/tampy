@@ -179,7 +179,9 @@ class DataBuffer(object):
             if val: label = 'VAL_' + label
             return self.lens[label]
         lab_f = lambda l: (not val and l.find('VAL_') < 0) or (val and l.find('VAL_') >= 0)
-        return sum([self.lens[l] for l in self.lens if lab_f(l)])
+        labels = [l for l in self.lens.keys() if lab_f(l) and self.lens[l] >= self.min_buffer]
+
+        return sum([self.lens[l] for l in labels])
 
 
     def _set_scale(self, N):

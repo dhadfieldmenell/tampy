@@ -395,7 +395,7 @@ class RobotAgent(TAMPAgent):
     def get_image(self, x, depth=False, cam_id=None):
         self.reset_to_state(x, full=False)
         #return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
-        return self.base_env.sim.render(height=192, width=192, camera_name="frontview")
+        return self.base_env.sim.render(height=160, width=160, camera_name="frontview")
 
     #def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None, policies=None):
     #    assert not np.any(np.isnan(state))

@@ -475,6 +475,7 @@ class RolloutServer(Server):
             path.append(s)
         self.eta = old_eta
         self.log_path(path, lab)
+        self.send_to_label(path, val > 0)
         return val, path
 
     def check_failed_likelihoods(self):

@@ -43,7 +43,12 @@ class Server(object):
         self.weight_dir = self.config['weight_dir']
         self.exp_id = self.weight_dir.split('/')[-1]
         if self.config['weight_dir'].find('sawyer') >= 0:
-            if self.id.find('moretest') < 0 and self.id.find('0') < 0 and self.id.find('label') < 0:
+            if self.id.find('moretest') < 0 and \
+               self.id.find('0') < 0 and \
+               (not self.config['label_server'] or self.id.find('3') < 0) and \
+               (not self.config['label_server'] or self.id.find('4') < 0) and \
+               (not self.config['label_server'] or self.id.find('5') < 0) and \
+               self.id.find('label') < 0:
                 self.render = False
                 hyperparams['load_render'] = False
                 hyperparams['agent']['master_config']['load_render'] = False
@@ -558,18 +563,20 @@ class Server(object):
             f.write('\n')
 
     
-    def send_to_label(self, rollout, suc):
+    def send_to_label(self, rollout, suc, tdelta=4):
         if not self.config['label_server'] \
            or not len(rollout) \
            or not self.render: return
 
         targets = rollout[-1].targets
-        vid = self._gen_video(rollout)
-        x = np.concatenate([s.get_X()[:-1] for s in rollout])
+        vid = self._gen_video(rollout, tdelta=tdelta)
+        x = np.concatenate([s.get_X()[::tdelta] for s in rollout])
         q = self.config['label_in_queue']
         print('Sending rollout to label')
         assert vid is not None
-        self.push_queue((vid, x, targets, suc), q)
+
+        pt = (vid, x, targets, suc)
+        self.push_queue(pt, q)
 
 
     def save_image(self, rollout=None, success=None, ts=0, render=True, x=None):
@@ -592,7 +599,7 @@ class Server(object):
         im.save(fname)
 
 
-    def _gen_video(self, rollout, st=0, ts=None, annotate=False):
+    def _gen_video(self, rollout, st=0, ts=None, annotate=False, tdelta=1):
         if not self.render: return None
         old_h = self.agent.image_height
         old_w = self.agent.image_width
@@ -604,7 +611,8 @@ class Server(object):
             if not step.draw: continue
             old_vec = self.agent.target_vecs[0]
             self.agent.target_vecs[0] = step.targets
-            ts_range = range(st, step.T) if ts is None else range(ts[0], ts[1])
+            ts = (st, step.T) if ts is None else ts
+            ts_range = range(ts[0], ts[1], tdelta)
             st = 0
 
             for t in ts_range:
