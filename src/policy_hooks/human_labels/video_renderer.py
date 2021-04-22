@@ -33,10 +33,11 @@ class Im(object):
         self.txtshow('Renderer ready!')
 
 
-    def wait_for_input(self):
+    def wait_for_input(self, timeout=None):
         if self.window is None: return
-        while not self._rec_input:
-            self.check_input()
+        init_t = time.time()
+        while not self._rec_input and (timeout is None or time.time() - init_t < timeout):
+            self.window.dispatch_events()
 
 
     def check_input(self):
@@ -168,14 +169,17 @@ class VideoRenderer:
         v.close()
 
 
-    def interactive_render(self, frames, max_iters=20):
+    def interactive_render(self, frames, max_iters=10):
         if self.v is not None: self.v.close()
         v = Im()
         t = 0
         cur_iter = 0
         self.stop_render = False
         keystroke = ''
-        while not self.stop_render and cur_iter < max_iters:
+        t_limit = 60
+        init_t = time.time()
+        while not self.stop_render and \
+              time.time() - init_t < t_limit:
             if t >= len(frames): t = 0
             if t == 0: cur_iter += 1
             self.cur_t = t
@@ -196,12 +200,14 @@ class VideoRenderer:
             sleep_time = max(0, self.sleep_time-render_time)
             time.sleep(sleep_time)
 
+        '''
         while keystroke == '':
             v.close()
             v = Im()
             v.txtshow('No label detected; please enter now (press u if unsure)')
             v.wait_for_input()
-            keystroke = v.last_keystroke()
+            keystroke = v.last_keystroke
+        '''
 
         v.close()
         return keystroke, self.cur_t

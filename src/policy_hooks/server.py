@@ -48,6 +48,8 @@ class Server(object):
                (not self.config['label_server'] or self.id.find('3') < 0) and \
                (not self.config['label_server'] or self.id.find('4') < 0) and \
                (not self.config['label_server'] or self.id.find('5') < 0) and \
+               (not self.config['label_server'] or self.id.find('6') < 0) and \
+               (not self.config['label_server'] or self.id.find('7') < 0) and \
                self.id.find('label') < 0:
                 self.render = False
                 hyperparams['load_render'] = False
@@ -616,6 +618,7 @@ class Server(object):
             st = 0
 
             for t in ts_range:
+                if t >= step.T: break
                 ims = []
                 for ind, cam_id in enumerate(cam_ids):
                     if annotate and ind == 0:

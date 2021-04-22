@@ -22,6 +22,7 @@ class LabelServer(Server):
         self.successes = []
         self.videos = []
         self.labelled = []
+        self.labels = []
         self.max_buffer = 5
         self.cur_file = 0
         self.n = 0
@@ -58,8 +59,8 @@ class LabelServer(Server):
         fname = self.label_dir + 'fail_{}.pkl'.format(self.cur_file)
         vid_fname = self.label_dir + 'fail_vid_{}'.format(self.cur_file)
         with open(fname, 'wb+') as f:
-            pickle.dump(data[1:], f)
-        np.save(vid_fname, data[0])
+            pickle.dump(data, f)
+        #np.save(vid_fname, data[0])
 
         buf = self.successes
         if len(buf) >= self.max_buffer:
@@ -69,9 +70,9 @@ class LabelServer(Server):
 
             fname = self.label_dir + 'suc_{}.pkl'.format(self.cur_file)
             vid_fname = self.label_dir + 'suc_vid_{}'.format(self.cur_file)
-            with open(fname, 'w+') as f:
-                pickle.dump(data[1:], f)
-            np.save(vid_fname, data[0])
+            with open(fname, 'wb+') as f:
+                pickle.dump(data, f)
+            #np.save(vid_fname, data[0])
 
         self.cur_file += 1
         self.n_since_write = 0
@@ -177,7 +178,7 @@ class LabelServer(Server):
         self.labels.append((res, example[1][seg_ts[0]], example[2], example[-1]))
 
     
-    def search_query(self, t=10, N=1, max_iters=5):
+    def search_query(self, t=10, N=1, max_iters=20):
         print('\nRunning search query...\n')
         example = self.get_example()
         hor = len(example[0])
@@ -201,7 +202,7 @@ class LabelServer(Server):
                 b = cur_t
             elif res == 'after':
                 a = cur_t
-                ts.extend([st, cur_t, et])
+                ts.extend([st, cur_t, et-1])
             elif res == 'during':
                 ts.append(st)
                 break
@@ -239,8 +240,8 @@ class LabelServer(Server):
             self.video_renderer.wait()
             time.sleep(0.05)
         self.video_renderer.cont()
-        time.sleep(0.2)
-        self.video_renderer.wait_for_user()
+        #time.sleep(0.2)
+        #self.video_renderer.wait_for_user()
 
 
     def parse_key(self, keystroke):

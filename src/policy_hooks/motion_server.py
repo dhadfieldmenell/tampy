@@ -163,6 +163,8 @@ class MotionServer(Server):
             with n_plans.get_lock():
                 n_plans.value += 1
 
+        if np.random.uniform() < 0.05 and success:
+            self.send_to_label(path, success)
         return path, success, opt_suc
 
 
