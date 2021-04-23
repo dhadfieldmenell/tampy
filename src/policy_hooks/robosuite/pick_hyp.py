@@ -317,7 +317,8 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
         config['prim_obs_include'].append(utils.TARG_ENUMS[o])
         config['prim_obs_include'].append(utils.OBJ_ROTDELTA_ENUMS[o])
-        config['prim_obs_include'].append(utils.TARG_ROTDELTA_ENUMS[o])
+        # config['prim_obs_include'].append(utils.TARG_ROTDELTA_ENUMS[o])
+    config['prim_obs_include'].append(utils.TARG_ROTDELTA_ENUMS[0])
     return config
 
 config = refresh_config()

@@ -21,7 +21,7 @@ import time
 
 
 DEFAULT_TOL = 1e-3
-NEAR_TOL = 0.02
+NEAR_TOL = 1e-1 # 2e-2
 NEAR_ROT_TOL = 0.2
 
 ### HELPER FUNCTIONS
@@ -1836,14 +1836,14 @@ class NearGripper(InGripper):
 
 class NearGripperLeft(InGripperLeft):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.coeff = 1e-2
+        self.coeff = 2e-2
         self.rot_coeff = 4e-3
         super(NearGripperLeft, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
 class NearGripperRight(InGripperRight):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.coeff = 1e-2
+        self.coeff = 2e-2
         self.rot_coeff = 4e-3
         super(NearGripperRight, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True

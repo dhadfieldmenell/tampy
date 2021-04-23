@@ -770,9 +770,10 @@ class RobotAgent(TAMPAgent):
         sample.targets = targets.copy()
 
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
+            grasp_pt = list(self.plans.values())[0].params[obj].geom.grasp_point
             sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
             targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
-            sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose, t)
+            sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose+grasp_pt, t)
             sample.set(TARG_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
 
             obj_spat = Rotation.from_euler('xyz', mp_state[self.state_inds[obj, 'rotation']])
@@ -1276,6 +1277,6 @@ class RobotAgent(TAMPAgent):
         opts = self.prob.get_prim_choices(self.task_list)
         for obj in opts[OBJ_ENUM]:
             pos = x[self.state_inds[obj, 'pose']]
-            if pos[2] < 0.75: return False
+            if pos[2] < 0.8: return False
         return True
 
