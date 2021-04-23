@@ -2265,7 +2265,7 @@ class ApproachLeft(EEReachableLeft):
 
 class EEAtXYLeft(EEReachableLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.coeff = 2e-2
+        self.coeff = 1.2e-2
         super(EEAtXYLeft, self).__init__(name, params, expected_param_types, env, debug, 0)
         self.mask = np.array([1., 1., 0.]).reshape((3,1))
         self.approach_dist = const.GRASP_DIST
@@ -2276,7 +2276,7 @@ class EEAtXYLeft(EEReachableLeft):
 class NearApproachLeft(ApproachLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         # self.f_tol = 0.04
-        self.coeff = 5e-3
+        self.coeff = 1e-2
         super(NearApproachLeft, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
@@ -2332,7 +2332,7 @@ class ApproachRight(EEReachableRight):
 class NearApproachRight(ApproachRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         #self.f_tol = 0.04
-        self.coeff = 8e-3
+        self.coeff = 1e-2
         super(NearApproachRight, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
@@ -2353,7 +2353,7 @@ class NearApproachRightRot(ApproachRightRot):
 
 class EEAtXYRight(EEReachableRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.coeff = 2e-2
+        self.coeff = 1.2e-2
         super(EEAtXYRight, self).__init__(name, params, expected_param_types, env=env, debug=debug, steps=0)
         self.mask = np.array([1., 1., 0.]).reshape((3,1))
         self.approach_dist = const.GRASP_DIST
