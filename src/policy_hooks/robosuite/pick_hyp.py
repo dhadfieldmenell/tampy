@@ -16,7 +16,7 @@ from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.traj_opt_pi2 import TrajOptPI2
 from core.util_classes.namo_grip_predicates import ATTRMAP
-import policy_hooks.robosuite.sort_prob as prob
+import policy_hooks.robosuite.pick_prob as prob
 prob.NUM_OBJS = NUM_OBJS
 prob.NUM_TARGS = NUM_TARGS
 from policy_hooks.policy_mp_prior_gmm import PolicyMPPriorGMM
@@ -261,7 +261,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                         #utils.TARG_POSE_ENUM,
                         utils.END_POSE_ENUM,
                         utils.END_ROT_ENUM,
-                        #utils.RIGHT_ENUM,
+                        utils.RIGHT_ENUM,
                         #utils.RIGHT_GRIPPER_ENUM,
                         # utils.DONE_ENUM,
                         ],
@@ -269,7 +269,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                              # utils.DONE_ENUM,
                              # utils.STATE_ENUM,
                              #utils.GOAL_ENUM,
-                             utils.ONEHOT_GOAL_ENUM,
+                             #utils.ONEHOT_GOAL_ENUM,
                              ],
         'val_obs_include': [utils.ONEHOT_GOAL_ENUM,
                             ],
@@ -285,7 +285,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.END_ROT_ENUM: 3,
                 utils.GRIPPER_ENUM: 1,
                 utils.GOAL_ENUM: 3*no,
-                utils.ONEHOT_GOAL_ENUM: no*(prob.n_aux + len(prob.END_TARGETS)),
+                utils.ONEHOT_GOAL_ENUM: 16,
                 utils.INGRASP_ENUM: no,
                 utils.TRUETASK_ENUM: 2,
                 utils.TRUEOBJ_ENUM: no,
@@ -293,7 +293,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.ATGOAL_ENUM: no,
                 utils.FACTOREDTASK_ENUM: len(list(prob.get_prim_choices().keys())),
                 utils.RIGHT_ENUM: 7,
-                utils.RIGHT_GRIPPER_ENUM: 1,
+                utils.RIGHT_GRIPPER_ENUM: 2,
                 # utils.INIT_OBJ_POSE_ENUM: 2,
             },
         'visual': False,
@@ -318,8 +318,6 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         config['prim_obs_include'].append(utils.TARG_ENUMS[o])
         config['prim_obs_include'].append(utils.OBJ_ROTDELTA_ENUMS[o])
         config['prim_obs_include'].append(utils.TARG_ROTDELTA_ENUMS[o])
-
     return config
-
 
 config = refresh_config()

@@ -38,15 +38,18 @@ def theta_error(cur_quat, next_quat):
 #controller_config['kp'] = 500
 #controller_config['kp'] = [750, 750, 500, 5000, 5000, 5000]
 
+cur_objs = ['cereal', 'milk', 'can', 'bread']
 ctrl_mode = "JOINT_POSITION"
 true_mode = 'JOINT'
 
-ctrl_mode = 'OSC_POSE'
-true_mode = 'IK'
+#ctrl_mode = 'OSC_POSE'
+#true_mode = 'IK'
 
 controller_config = load_controller_config(default_controller=ctrl_mode)
 if ctrl_mode.find('JOINT') >= 0:
     controller_config['kp'] = [7500, 6500, 6500, 6500, 6500, 6500, 12000]
+    controller_config['output_max'] = 0.2
+    controller_config['output_min'] = -0.2
 else:
     controller_config['kp'] = 5000 # [8000, 8000, 8000, 4000, 4000, 4000]
     controller_config['input_max'] = 0.2 #[0.05, 0.05, 0.05, 4, 4, 4]
@@ -54,7 +57,8 @@ else:
     controller_config['output_max'] = 0.02 # [0.1, 0.1, 0.1, 2, 2, 2]
     controller_config['output_min'] = -0.02 # [-0.1, -0.1, -0.1, -2, -2, -2]
 
-has_render = False # True
+visual = len(os.environ.get('DISPLAY', '')) > 0
+has_render = visual
 env = robosuite.make(
     "PickPlace",
     robots=["Sawyer"],             # load a Sawyer robot and a Panda robot
@@ -64,12 +68,12 @@ env = robosuite.make(
     has_renderer=has_render,                      # on-screen rendering
     render_camera="frontview",              # visualize the "frontview" camera
     has_offscreen_renderer=(not has_render),           # no off-screen rendering
-    control_freq=40,                        # 20 hz control for applied actions
+    control_freq=50,                        # 20 hz control for applied actions
     horizon=200,                            # each episode terminates after 200 steps
     use_object_obs=True,                   # no observations needed
     use_camera_obs=False,                   # no observations needed
-    single_object_mode=2,
-    object_type='cereal',
+    single_object_mode=0,
+    object_type=cur_objs[0],
     ignore_done=True,
     initialization_noise={'magnitude': 0., 'type': 'gaussian'},
     camera_widths=128,
@@ -88,7 +92,7 @@ for _ in range(40):
 env.sim.data.qvel[:] = 0
 env.sim.data.qacc[:] = 0
 env.sim.forward()
-#import ipdb; ipdb.set_trace()
+import ipdb; ipdb.set_trace()
 
 bt_ll.DEBUG = True
 openrave_bodies = None
@@ -110,18 +114,25 @@ params = problem.init_state.params
 body_ind = env.mjpy_model.body_name2id('robot0_base')
 params['sawyer'].pose[:,0] = env.sim.data.body_xpos[body_ind]
 
-cereal_adr = env.mjpy_model.joint_name2id('cereal_joint0')
-cereal_ind = env.mjpy_model.jnt_qposadr[cereal_adr]
-pos = env.sim.data.qpos[cereal_ind:cereal_ind+3]
-quat = env.sim.data.qpos[cereal_ind+3:cereal_ind+7]
-quat = [quat[1], quat[2], quat[3], quat[0]]
-euler = T.quaternion_to_euler(quat, 'xyzw')
-params['cereal'].pose[:,0] = pos - np.array([0, 0, 0.055])
-params['cereal'].rotation[:,0] = euler
+params['bread'].pose[:,0] = [0.1975, 0.1575, 0.845]
+params['cereal'].pose[:,0] = [0.0025, 0.4025, 0.9]
+params['can'].pose[:,0] = [0.1975, 0.4025, 0.86]
+params['milk'].pose[:,0] = [0.002, 0.1575, 0.885]
 
-params['bread'].pose[:,0] = [10,10,0]
-params['milk'].pose[:,0] = [-10,10,0]
-params['can'].pose[:,0] = [-10,10,0]
+inds = {}
+offsets = {'cereal': 0.04, 'milk': 0.02, 'bread': 0.01, 'can': 0.02}
+for obj in ['milk', 'cereal', 'bread', 'can']:
+    adr = env.mjpy_model.joint_name2id('{}_joint0'.format(obj.capitalize()))
+    inds[obj] = env.mjpy_model.jnt_qposadr[adr]
+    if obj not in cur_objs: continue
+    ind = inds[obj]
+    pos = env.sim.data.qpos[ind:ind+3]
+    quat = env.sim.data.qpos[ind+3:ind+7]
+    quat = [quat[1], quat[2], quat[3], quat[0]]
+    euler = T.quaternion_to_euler(quat, 'xyzw')
+    params[obj].pose[:,0] = pos - np.array([0, 0, offsets[obj]])
+    params[obj].rotation[:,0] = euler
+
 
 params['milk_init_target'].value[:,0] = params['milk'].pose[:, 0]
 params['milk_init_target'].rotation[:,0] = params['milk'].rotation[:, 0]
@@ -131,6 +142,7 @@ params['can_init_target'].value[:,0] = params['can'].pose[:, 0]
 params['can_init_target'].rotation[:,0] = params['can'].rotation[:, 0]
 params['bread_init_target'].value[:,0] = params['bread'].pose[:, 0]
 params['bread_init_target'].rotation[:,0] = params['bread'].rotation[:, 0]
+
 
 jnts = params['sawyer'].geom.jnt_names['right']
 jnts = ['robot0_'+ jnt for jnt in jnts]
@@ -149,20 +161,13 @@ params['sawyer'].right_ee_pos[:,0] = info['pos']
 params['sawyer'].right_ee_pos[:,0] = T.quaternion_to_euler(info['quat'], 'xyzw')
 
 #goal = '(NearGripperRight sawyer cereal)' #'(At cereal cereal_end_target)'
-goal = '(At cereal cereal_end_target)'
+goal = ''
+for obj in cur_objs:
+    goal += '(At {} {}_end_target)'.format(obj, obj)
+goal += ''
 solver = RobotSolver()
 load_traj = False
 replan = True
-if load_traj:
-    oldplan = np.load('MotionServer5.pkl', allow_pickle=True)
-    if replan:
-        for pname in oldplan.params:
-            if pname.find('cereal') <0 and pname.find('sawyer') < 0: continue
-            for attr in oldplan.params[pname]._free_attrs:
-                if type(getattr(params[pname], attr)) is str: continue
-                print('SETTING', pname, attr)
-                getattr(params[pname], attr)[:,0] = getattr(oldplan.params[pname], attr)[:,0]
-
 if not replan:
     plan = oldplan
 
@@ -199,8 +204,10 @@ for t in range(plan.horizon):
 grip_ind = env.mjpy_model.site_name2id('gripper0_grip_site')
 hand_ind = env.mjpy_model.body_name2id('robot0_right_hand')
 env.reset()
-env.sim.data.qpos[cereal_ind:cereal_ind+3] = plan.params['cereal'].pose[:,0] + [0, 0, 0.055]
-env.sim.data.qpos[cereal_ind+3:cereal_ind+7] = T.euler_to_quaternion(plan.params['cereal'].rotation[:,0], 'wxyz')
+for obj in inds:
+    ind = inds[obj]
+    env.sim.data.qpos[ind:ind+3] = plan.params[obj].pose[:,0] + [0, 0, offsets[obj]]
+    env.sim.data.qpos[ind+3:ind+7] = T.euler_to_quaternion(plan.params[obj].rotation[:,0], 'wxyz')
 env.sim.data.qpos[:7] = params['sawyer'].right[:,0]
 env.sim.data.qacc[:] = 0
 env.sim.data.qvel[:] = 0
@@ -216,7 +223,8 @@ for _ in range(40):
     env.sim.data.qpos[:7] = params['sawyer'].right[:,0]
     env.sim.forward()
 
-nsteps = 50
+import ipdb; ipdb.set_trace()
+nsteps = 30
 cur_ind = 0
 tol=1e-3
 true_lb, true_ub = plan.params['sawyer'].geom.get_joint_limits('right')
@@ -226,9 +234,10 @@ ref_jnts = np.array([0, -np.pi/4, 0, np.pi/4, 0, np.pi/2, 0])
 for act in plan.actions:
     t = act.active_timesteps[0]
     plan.params['sawyer'].right[:,t] = env.sim.data.qpos[:7]
-    plan.params['cereal'].pose[:,t] = env.sim.data.qpos[cereal_ind:cereal_ind+3]
-    plan.params['cereal'].rotation[:,t] = T.quaternion_to_euler(env.sim.data.qpos[cereal_ind+3:cereal_ind+7], 'wxyz')
-    cereal_quat = env.sim.data.qpos[cereal_ind+3:cereal_ind+7].copy()
+    for obj in cur_objs:
+        ind = inds[obj]
+        plan.params[obj].pose[:,t] = env.sim.data.qpos[ind:ind+3]
+        plan.params[obj].rotation[:,t] = T.quaternion_to_euler(env.sim.data.qpos[ind+3:ind+7], 'wxyz')
     grip = env.sim.data.qpos[7:9].copy()
     failed_preds = plan.get_failed_preds(active_ts=(t,t), priority=3, tol=tol)
     oldqfrc = env.sim.data.qfrc_applied[:]
@@ -240,7 +249,7 @@ for act in plan.actions:
     #failed_preds = [p for p in failed_preds if (p[1]._rollout or not type(p[1].expr) is EqExpr)]
     print('FAILED:', t, failed_preds, act.name)
     old_state = env.sim.get_state()
-    import ipdb; ipdb.set_trace()
+    #import ipdb; ipdb.set_trace()
     #env.sim.reset()
     #env.sim.data.qpos[:7] = plan.params['sawyer'].right[:,t]
     #env.sim.data.qpos[cereal_ind:cereal_ind+3] = plan.params['cereal'].pose[:,t]
@@ -262,7 +271,7 @@ for act in plan.actions:
         cur_ind += 1
         print('TIME:', t)
         init_jnts = env.sim.data.qpos[:7]
-        if ctrl_mode.find('JOINT') >= 0 and true_mode.find('JOINT') <= 0:
+        if ctrl_mode.find('JOINT') >= 0 and true_mode.find('JOINT') < 0:
             cur_jnts = env.sim.data.qpos[:7]
             if t < plan.horizon:
                 targ_pos, targ_rot = sawyer.right_ee_pos[:,t+1], sawyer.right_ee_rot[:,t+1]
@@ -284,10 +293,6 @@ for act in plan.actions:
                 act[:7] = (targ_jnts - env.sim.data.qpos[:7])
                 obs = env.step(act)
             end_jnts = env.sim.data.qpos[:7]
-            print('CEREAL, GRIP', env.sim.data.qpos[cereal_ind:cereal_ind+3], env.sim.data.qpos[7:9], env.sim.data.site_xpos[grip_ind], plan.params['cereal'].pose[:,t])
-            #print('END ERROR:', act[:7], true_act[:7]-env.sim.data.qpos[:7])
-            #print('JNT_DELTA:', true_act[:7] - init_jnts)
-            #print('PLAN VS SIM:', end_jnts, sawyer.right[:,t])
             print('EE PLAN VS SIM:', env.sim.data.site_xpos[grip_ind]-sawyer.right_ee_pos[:,t], t)
             #print('\n\n\n')
 
@@ -329,16 +334,9 @@ for act in plan.actions:
                 #act[3:6] -= robosuite.utils.transform_utils.quat2axisangle(cur)
                 #act[:7] = (act[:7] - np.array([env.sim.data.qpos[ind] for ind in sawyer_inds]))
                 obs = env.step(act)
-            print('CEREAL, GRIP', env.sim.data.qpos[cereal_ind:cereal_ind+3], env.sim.data.qpos[7:9], env.sim.data.site_xpos[grip_ind], plan.params['cereal'].pose[:,t])
             print('EE PLAN VS SIM:', env.sim.data.site_xpos[grip_ind]-sawyer.right_ee_pos[:,t], t)
         if has_render: env.render()
     #import ipdb; ipdb.set_trace()
 plan.params['sawyer'].right[:,t] = env.sim.data.qpos[:7]
-plan.params['cereal'].pose[:,t] = env.sim.data.qpos[cereal_ind:cereal_ind+3]
-plan.params['cereal'].rotation[:,t] = T.quaternion_to_euler(env.sim.data.qpos[cereal_ind+3:cereal_ind+7], 'wxyz')
-print('CEREAL END:', plan.params['cereal'].pose[:,t])
-failed_preds = plan.get_failed_preds(active_ts=(t,t), priority=3, tol=tol)
-#failed_preds = [p for p in failed_preds if (p[1]._rollout or not type(p[1].expr) is EqExpr)]
-print('FAILED:', t, failed_preds)
 import ipdb; ipdb.set_trace()
 

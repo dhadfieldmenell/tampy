@@ -364,7 +364,6 @@ class RobotAgent(TAMPAgent):
         prim_options = self.prob.get_prim_choices(self.task_list)
         no = self._hyperparams['num_objs']
         self.targ_labels = {i: np.array(self.prob.END_TARGETS[i]) for i in range(len(self.prob.END_TARGETS))}
-        self.targ_labels.update({i: self.targets[0]['aux_target_{0}'.format(i-no)] for i in range(no, no+self.prob.n_aux)})
         self.cur_obs = self.mjc_env.reset()
         self.replace_cond(0)
 
@@ -800,7 +799,8 @@ class RobotAgent(TAMPAgent):
     def goal_f(self, condition, state, targets=None, cont=False, anywhere=False, tol=LOCAL_NEAR_TOL, verbose=False):
         if targets is None:
             targets = self.target_vecs[condition]
-        cost = self.prob.NUM_OBJS
+        objs = self.prob.get_prim_choices(self.task_list)[OBJ_ENUM]
+        cost = len(objs)
         alldisp = 0
         plan = list(self.plans.values())[0]
         no = self._hyperparams['num_objs']
@@ -833,7 +833,8 @@ class RobotAgent(TAMPAgent):
             if cont: return cost
             return 1. if len(preds) else 0.
 
-        for param in list(plan.params.values()):
+        for param_name in objs:
+            param = plan.params[param_name]
             if 'Item' in param.get_type(True) and ('{0}_end_target'.format(param.name), 'value') in self.target_inds:
                 if anywhere:
                     vals = [targets[self.target_inds[key, 'value']] for key, _ in self.target_inds if key.find('end_target') >= 0]
@@ -850,7 +851,7 @@ class RobotAgent(TAMPAgent):
                             dist = curdist
                 # np.sum((state[self.state_inds[param.name, 'pose']] - self.targets[condition]['{0}_end_target'.format(param.name)])**2)
                 # cost -= 1 if dist < 0.3 else 0
-                alldisp += curdist # np.linalg.norm(disp)
+                alldisp += dist # np.linalg.norm(disp)
                 cost -= 1 if np.all(np.abs(disp) < tol) else 0
 
         if cont: return alldisp / float(no)
@@ -1029,6 +1030,7 @@ class RobotAgent(TAMPAgent):
     def set_to_target(self, obj, targets=None):
         if targets is None:
             targ_val = self.mjc_env.get_item_pose('Visual{}_main'.format(obj.capitalize()))[0]
+            targ_val[2] -= self.mjc_env.z_offsets[obj]
         else:
             targ_val = targets[self.target_inds['{}_end_target'.format(obj), 'value']]
         self.mjc_env.set_item_pose(obj, targ_val, [0., 0., 0., 1.], forward=True)

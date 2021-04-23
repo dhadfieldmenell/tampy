@@ -42,14 +42,17 @@ class Server(object):
         self.render = hyperparams.get('load_render', False)
         self.weight_dir = self.config['weight_dir']
         self.exp_id = self.weight_dir.split('/')[-1]
+        label = self.config['label_server']
         if self.config['weight_dir'].find('sawyer') >= 0:
             if self.id.find('moretest') < 0 and \
                self.id.find('0') < 0 and \
-               (not self.config['label_server'] or self.id.find('3') < 0) and \
-               (not self.config['label_server'] or self.id.find('4') < 0) and \
-               (not self.config['label_server'] or self.id.find('5') < 0) and \
-               (not self.config['label_server'] or self.id.find('6') < 0) and \
-               (not self.config['label_server'] or self.id.find('7') < 0) and \
+               (not label or self.id.find('3') < 0) and \
+               (not label or self.id.find('4') < 0) and \
+               (not label or self.id.find('5') < 0) and \
+               (not label or self.id.find('6') < 0) and \
+               (not label or self.id.find('7') < 0) and \
+               (not label or self.id.find('8') < 0) and \
+               (not label or self.id.find('9') < 0) and \
                self.id.find('label') < 0:
                 self.render = False
                 hyperparams['load_render'] = False
@@ -577,7 +580,7 @@ class Server(object):
         print('Sending rollout to label')
         assert vid is not None
 
-        pt = (vid, x, targets, suc)
+        pt = (vid, x, targets, self.agent.state_inds, suc)
         self.push_queue(pt, q)
 
 

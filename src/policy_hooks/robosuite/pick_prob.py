@@ -37,12 +37,11 @@ LEFT_INIT_EE = [0.3, 0.8, 0.2]
 RIGHT_INIT_EE = [ 0.3, -0.8,  0.2]
 TABLE_INIT = [1.23/2-0.1, 0, 0.97/2-0.375-0.665-0.05]
 
-ZPOS = -0.029 - 0.05
-END_TARGETS = [(0.1, 0.75, ZPOS),
-               (0.15, 0.75, ZPOS),
-               (0.3, 0.75, ZPOS),
-               (0.45, 0.75, ZPOS),
-               (0.6, 0.75, ZPOS)]
+ZPOS = 0.88
+END_TARGETS = [(0.1975, 0.1575, 0.845),
+               (0.0025, 0.1575, 0.885),
+               (0.0025, 0.4025, 0.9),
+               (0.1975, 0.4025, 0.86),]
 
 possible_can_locs = []
 possible_can_locs.extend(list(itertools.product(list(range(50, 80, 2)), list(range(20, 60, 2)))))
