@@ -186,11 +186,11 @@ class RolloutSupervisor():
 
         if self.check_postcond:
             fail_type = 'rollout_postcondition_failure'
-            bad_pt1 = self.postcond_viols[-1]
-            train_pts.append(tuple(bad_pt1) + (fail_type,))
+            for bad_pt in self.postcond_viols:
+                train_pts.append(tuple(bad_pt) + (fail_type,))
 
-            bad_pt2 = self.switch_pts[-1]
-            train_pts.append(tuple(bad_pt2) + (fail_type,))
+            bad_pt = self.switch_pts[-1]
+            train_pts.append(tuple(bad_pt) + (fail_type,))
 
         if self.check_random and val < 1-1e-4:
             ind = np.random.choice(range(len(self.switch_pts)))

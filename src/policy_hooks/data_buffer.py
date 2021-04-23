@@ -18,6 +18,7 @@ class DataBuffer(object):
         self.bias = None
         self._normalized = False
         self.min_buffer = min_buffer
+        self._min_sample = min_buffer // 2
 
         self.obs = {}
         self.mu = {}
@@ -99,7 +100,7 @@ class DataBuffer(object):
 
     
     def random_label(self, val=False, min_size=0):
-        min_buf = self.min_buffer if not val else self.min_buffer // 10
+        min_buf = self._min_sample if not val else self._min_sample // 10
         min_size = max(min_buf, min_size)
         lab_f = lambda l: (not val and l.find('VAL_') < 0) or (val and l.find('VAL_') >= 0)
         labels = [l for l in self.lens.keys() if lab_f(l) and self.lens[l] >= min_size]
@@ -179,7 +180,7 @@ class DataBuffer(object):
             if val: label = 'VAL_' + label
             return self.lens[label]
         lab_f = lambda l: (not val and l.find('VAL_') < 0) or (val and l.find('VAL_') >= 0)
-        labels = [l for l in self.lens.keys() if lab_f(l) and self.lens[l] >= self.min_buffer]
+        labels = [l for l in self.lens.keys() if lab_f(l) and self.lens[l] >= self._min_sample]
 
         return sum([self.lens[l] for l in labels])
 
