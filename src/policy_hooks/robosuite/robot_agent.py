@@ -49,7 +49,7 @@ import robosuite.utils.transform_utils as robo_T
 
 STEP = 0.1
 NEAR_TOL = 0.05
-LOCAL_NEAR_TOL = 0.12 # 0.3
+LOCAL_NEAR_TOL = 0.17 # 0.3
 MAX_SAMPLELISTS = 1000
 MAX_TASK_PATHS = 100
 GRIP_TOL = 0.
@@ -125,7 +125,7 @@ class EnvWrapper():
         self._type_cache = {}
         self.sim = env.sim
         self.model = env.mjpy_model
-        self.z_offsets = {'cereal': 0.04, 'milk': 0.03, 'can': 0.02, 'bread': 0.01}
+        self.z_offsets = {'cereal': 0.04, 'milk': 0.025, 'can': 0.02, 'bread': 0.01}
         self.mode = mode
 
     def get_attr(self, obj, attr, euler=False):
@@ -1277,6 +1277,7 @@ class RobotAgent(TAMPAgent):
         opts = self.prob.get_prim_choices(self.task_list)
         for obj in opts[OBJ_ENUM]:
             pos = x[self.state_inds[obj, 'pose']]
+            rot = x[self.state_inds[obj, 'rotation']]
             if pos[2] < 0.8: return False
         return True
 

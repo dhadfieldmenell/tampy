@@ -144,7 +144,9 @@ class MotionServer(Server):
             if node.nodetype.find('dagger') >= 0:
                 self.save_video(path, path[-1]._postsuc, lab='_fulldagger')
             elif np.random.uniform() < 0.05:
-                self.save_video(path, path[-1]._postsuc, lab='_optimal')
+                self.save_video(path, path[-1]._postsuc, lab='_optimal', annotate=False)
+            elif not success and np.random.uniform() < 0.2:
+                self.save_video(path, path[-1]._postsuc, lab='_optimal_failed', annotate=False)
 
         if self.verbose and self.render:
             for ind, batch in enumerate(info['to_render']):

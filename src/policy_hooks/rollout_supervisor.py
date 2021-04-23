@@ -47,7 +47,7 @@ class RolloutSupervisor():
         self.hl_nodes = []
         self.n_fails = 0
         self.n_suc = 0
-        self.tol = 2e-3
+        self.tol = 1.5e-3
         self.postcond_info = []
         self.fail_types = {}
         self.postcond_costs = {task: [] for task in self.agent.task_list}
@@ -77,7 +77,8 @@ class RolloutSupervisor():
             if task != curtask:
                 postcost = self.agent.postcond_cost(sample, curtask, t, x0=self.switch_x[-1], tol=self.tol)
                 if postcost > 0:
-                    self.postcond_viols.append((self.cur_ids[-1], t))
+                    #self.postcond_viols.append((self.cur_ids[-1], t))
+                    self.postcond_viols.append(self.switch_pts[-1])
                     task = curtask
                 else:
                     self.postcond_costs[self.agent.task_list[curtask[0]]].append(postcost)
@@ -124,10 +125,9 @@ class RolloutSupervisor():
         return truetask
 
 
-    def rollout(self, x, targets, node, tol=2e-3):
+    def rollout(self, x, targets, node):
         self.agent.target_vecs[0] = targets
         self.agent.reset_to_state(x)
-        self.tol = tol
 
         ntask = len(self.agent.task_list)
         rlen = self.s_per_task * ntask * self.agent.num_objs
@@ -186,8 +186,11 @@ class RolloutSupervisor():
 
         if self.check_postcond:
             fail_type = 'rollout_postcondition_failure'
-            bad_pt = self.switch_pts[-1]
-            train_pts.append(tuple(bad_pt) + (fail_type,))
+            bad_pt1 = self.postcond_viols[-1]
+            train_pts.append(tuple(bad_pt1) + (fail_type,))
+
+            bad_pt2 = self.switch_pts[-1]
+            train_pts.append(tuple(bad_pt2) + (fail_type,))
 
         if self.check_random and val < 1-1e-4:
             ind = np.random.choice(range(len(self.switch_pts)))
