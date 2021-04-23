@@ -1836,14 +1836,14 @@ class NearGripper(InGripper):
 
 class NearGripperLeft(InGripperLeft):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.coeff = 2e-2
+        self.coeff = 1.4e-2
         self.rot_coeff = 4e-3
         super(NearGripperLeft, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
 class NearGripperRight(InGripperRight):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.coeff = 2e-2
+        self.coeff = 1.4e-2
         self.rot_coeff = 4e-3
         super(NearGripperRight, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True

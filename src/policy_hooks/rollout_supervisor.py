@@ -142,6 +142,8 @@ class RolloutSupervisor():
         state = x
         path = []
         last_switch = 0
+        self.switch_pts = [(0,0)]
+        self.counts = [0]
         self.switch_x.append(state)
 
         while val < 1 and s < rlen and self.agent.feasible_state(state, targets):
