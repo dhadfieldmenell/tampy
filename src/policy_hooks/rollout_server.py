@@ -463,7 +463,7 @@ class RolloutServer(Server):
         if eta is not None: self.eta = eta 
         old_eta = self.eta
         debug = np.random.uniform() < 0.1
-        while t < max_t and val < 1-1e-2:
+        while t < max_t and val < 1-1e-2 and self.agent.feasible_state(state, targets):
             l = self.get_task(state, targets, l, soft)
             if l is None: break
             task_name = self.task_list[l[0]]

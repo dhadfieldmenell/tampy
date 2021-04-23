@@ -144,7 +144,7 @@ class RolloutSupervisor():
         last_switch = 0
         self.switch_x.append(state)
 
-        while val < 1 and s < rlen:
+        while val < 1 and s < rlen and self.agent.feasible_state(state, targets):
             curtask = tuple([val for val in self.cur_tasks[-1] if np.isscalar(val)])
             task_name = self.agent.task_list[self.cur_tasks[-1][0]]
             pol = self.agent.policies[task_name]

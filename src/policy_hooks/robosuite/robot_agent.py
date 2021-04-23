@@ -1272,3 +1272,10 @@ class RobotAgent(TAMPAgent):
         return x
 
 
+    def feasible_state(self, x, targets):
+        opts = self.prob.get_prim_choices(self.task_list)
+        for obj in opts[OBJ_ENUM]:
+            pos = x[self.state_inds[obj, 'pose']]
+            if pos[2] < 0.75: return False
+        return True
+

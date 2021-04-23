@@ -1479,3 +1479,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
     def permute_cont_data(self, hl_mu, hl_obs, hl_wt, hl_prc, aux, x):
         return hl_mu, hl_obs, hl_wt, hl_prc
 
+
+    def feasible_state(self, x, targets):
+        return True
+
