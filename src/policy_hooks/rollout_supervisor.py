@@ -28,6 +28,7 @@ class RolloutSupervisor():
         self.cur_vid_id = 0
         self.t_per_task = 20
         self.s_per_task = 3
+        self.n_pts = 3
         if self.agent.retime:
             self.s_per_task *= 3
 
@@ -47,7 +48,7 @@ class RolloutSupervisor():
         self.hl_nodes = []
         self.n_fails = 0
         self.n_suc = 0
-        self.tol = 1.5e-3
+        self.tol = 1.8e-3
         self.postcond_info = []
         self.fail_types = {}
         self.postcond_costs = {task: [] for task in self.agent.task_list}
@@ -86,7 +87,8 @@ class RolloutSupervisor():
         if task != curtask and self.check_precond:
             precost = self.agent.precond_cost(sample, task, t, tol=self.tol)
             if precost > 0:
-                self.precond_viols.append((self.cur_ids[-1], t))
+                #self.precond_viols.append((self.cur_ids[-1], t))
+                self.precond_viols.append(self.switch_pts[-1])
                 if self.neg_precond: self.neg_samples.append((sample, t, truetask))
             
             n_tries = 0
@@ -183,8 +185,10 @@ class RolloutSupervisor():
 
         if len(self.precond_viols):
             fail_type = 'rollout_precondition_failure'
-            rand_ind = np.random.choice(range(len(self.precond_viols)))
-            train_pts.append(tuple(self.precond_viols[rand_ind]) + (fail_type,))
+            for pt in self.precond_viols[-self.n_pts:]:
+                train_pts.append(tuple(pt) + (fail_type,))
+            #rand_ind = np.random.choice(range(len(self.precond_viols)))
+            #train_pts.append(tuple(self.precond_viols[rand_ind]) + (fail_type,))
 
         if self.check_postcond:
             fail_type = 'rollout_postcondition_failure'
@@ -198,6 +202,7 @@ class RolloutSupervisor():
             ind = np.random.choice(range(len(self.switch_pts)))
             train_pts.append(tuple(self.switch_pts[ind]) + ('rollout_random_switch',))
 
+        train_pts = list(set(train_pts))
         self.parse_midcond(path)
 
         if val >= 0.999:

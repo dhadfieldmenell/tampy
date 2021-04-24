@@ -88,7 +88,7 @@ class Im(object):
 
         assert arr.shape == (self.height, self.width, self.channels), \
             "You passed in an image with the wrong number shape"
-        flipped_arr = arr # np.flip(arr, axis=0)
+        flipped_arr = np.flip(arr, axis=0)
         image = pyglet.image.ImageData(self.width, self.height,
                                        'RGB', flipped_arr.tobytes())
         self.window.clear()
@@ -309,6 +309,107 @@ class LabelInterface(object):
 
         assert example[-1] == val
         hor = len(example[0])
+        cur_t = 0
+        invalid_input = False
+        ts = []
+        cur_iter = 0
+        st, et = 0, T
+        while st >= 0 and et <= hor:
+            cur_iter += 1
+            invalid_input = False
+            res, label_t = self.query_user(example, (st, et))
+
+            print('\n\nInterpreted input as: {}\n\n'.format(res))
+            if res == 'before':
+                st -= T // 2
+                et -= T // 2
+            elif res == 'after':
+                st += T // 2
+                et += T // 2
+                ts.extend([st, cur_t, et-1])
+            elif res == 'during':
+                ts.append(st)
+                break
+            elif res == 'stop':
+                self.stopped = True
+                break
+            elif res == 'ignore':
+                break
+            else:
+                invalid_input = True
+                print('Invalid search query', res)
+
+        for i, t in enumerate(ts[-N:]):
+            self.labels.append((res, example[1][t], example[2], example[3], example[-1], len(ts[-N:])-i-1))
+
+
+
+    def binary_search_query(self, t=10, N=1, max_iters=20, val=False):
+        print('\nRunning search query...\n')
+        example = self.get_example(val)
+        if example is None:
+            self.stopped = True
+            return
+
+        assert example[-1] == val
+        hor = len(example[0])
+        cur_t = hor // 2
+        invalid_input = False
+        visited = set()
+        ts = []
+        cur_iter = 0
+        wind = 1 # Consider nearby timesteps visited
+
+        a, b = 0, hor
+        prev_a, prev_b = -1, -1
+        st, et = max(0, cur_t - t//2), min(cur_t + t//2, hor)
+        while cur_iter < max_iters and \
+              (cur_t not in visited or invalid_input) and \
+              (a != prev_a or b != prev_b):
+
+            cur_iter += 1
+            invalid_input = False
+            cur_t = max(0, min(cur_t, hor))
+            visited.update(list(range(cur_t-wind, cur_t+wind+1)))
+            res, label_t = self.query_user(example, (st, et))
+            prev_a, prev_b = a, b
+
+            print('\n\nInterpreted input as: {}\n\n'.format(res))
+            if res == 'before':
+                b = cur_t
+            elif res == 'after':
+                a = cur_t
+                ts.extend([st, cur_t, et-1])
+            elif res == 'during':
+                ts.append(st)
+                break
+            elif res == 'stop':
+                self.stopped = True
+                break
+            elif res == 'ignore':
+                break
+            else:
+                invalid_input = True
+                print('Invalid search query', res)
+
+            cur_t = (a + b) // 2
+            st, et = max(0, cur_t - t//2), min(cur_t + t//2, hor)
+
+        for i, t in enumerate(ts[-N:]):
+            self.labels.append((res, example[1][t], example[2], example[3], example[-1], len(ts[-N:])-i-1))
+
+
+
+
+    def search_query(self, t=10, N=1, max_iters=20, val=False):
+        print('\nRunning search query...\n')
+        example = self.get_example(val)
+        if example is None:
+            self.stopped = True
+            return
+
+        assert example[-1] == val
+        hor = len(example[0])
         cur_t = hor // 2
         invalid_input = False
         visited = set()
@@ -363,13 +464,13 @@ class LabelInterface(object):
 
     def parse_key(self, keystroke):
         keystroke = keystroke.lstrip().rstrip()
-        if keystroke.lower() in ['b', '1', 'before']:
+        if keystroke.lower() in ['b', '1', 'before', 'left']:
             return 'before'
 
-        if keystroke.lower() in ['a', '3', 'after']:
+        if keystroke.lower() in ['a', '3', 'after', 'right']:
             return 'after'
 
-        if keystroke.lower() in ['d', '2', 'during']:
+        if keystroke.lower() in ['d', '2', 'during', 'space']:
             return 'during'
 
         if keystroke.lower() in ['s', '0', 'stop', 'q', 'quit']:

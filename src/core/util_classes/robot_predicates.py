@@ -1781,10 +1781,16 @@ class InGripper(PosePredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         assert len(params) == 2
         self._env = env
-        self.robot, self.obj = params
-        attr_inds, attr_dim = init_robot_pred(self, self.robot, [self.obj])
-        self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
-                               self.obj: self.lazy_spawn_or_body(self.obj, self.obj.name, self.obj.geom)}
+        if params[1].is_symbol():
+            self.robot, self.targ = params
+            attr_inds, attr_dim = init_robot_pred(self, self.robot, [self.targ])
+            self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
+                                   self.targ: self.lazy_spawn_or_body(self.targ, self.targ.name, self.targ.geom)}
+        else:
+            self.robot, self.obj = params
+            attr_inds, attr_dim = init_robot_pred(self, self.robot, [self.obj])
+            self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
+                                   self.obj: self.lazy_spawn_or_body(self.obj, self.obj.name, self.obj.geom)}
 
         self.arm = self.robot.geom.arms[0]
         if not hasattr(self, 'coeff'): self.coeff = const.IN_GRIPPER_COEFF
@@ -2265,7 +2271,7 @@ class ApproachLeft(EEReachableLeft):
 
 class EEAtXYLeft(EEReachableLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.coeff = 2e-2
+        self.coeff = 1e-2
         super(EEAtXYLeft, self).__init__(name, params, expected_param_types, env, debug, 0)
         self.mask = np.array([1., 1., 0.]).reshape((3,1))
         self.approach_dist = const.GRASP_DIST
@@ -2353,7 +2359,7 @@ class NearApproachRightRot(ApproachRightRot):
 
 class EEAtXYRight(EEReachableRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.coeff = 2e-2
+        self.coeff = 1e-2
         super(EEAtXYRight, self).__init__(name, params, expected_param_types, env=env, debug=debug, steps=0)
         self.mask = np.array([1., 1., 0.]).reshape((3,1))
         self.approach_dist = const.GRASP_DIST
@@ -3017,4 +3023,18 @@ class HeightBlock(ExprPredicate):
       
         return not negated
 
+
+class AboveTable(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 1
+        self.obj, = params
+        attr_inds = OrderedDict([(self.obj, [("pose", np.array([2], dtype=np.int))])])
+        A = -np.ones((1,1))
+        b = 0.95 * np.ones((1,1))
+        val = np.zeros((1,1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+
+        super(AboveTable, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        self.spacial_anchor = True
 

@@ -49,7 +49,7 @@ import robosuite.utils.transform_utils as robo_T
 
 STEP = 0.1
 NEAR_TOL = 0.05
-LOCAL_NEAR_TOL = 0.17 # 0.3
+LOCAL_NEAR_TOL = 0.12 # 0.3
 MAX_SAMPLELISTS = 1000
 MAX_TASK_PATHS = 100
 GRIP_TOL = 0.
@@ -363,7 +363,9 @@ class RobotAgent(TAMPAgent):
         self.main_camera_id = 0
         prim_options = self.prob.get_prim_choices(self.task_list)
         no = self._hyperparams['num_objs']
-        self.targ_labels = {i: np.array(self.prob.END_TARGETS[i]) for i in range(len(self.prob.END_TARGETS))}
+        self.targ_labels = {}
+        for i, obj in enumerate(prim_options[OBJ_ENUM]):
+            self.targ_labels[i] = list(self.plans.values())[0].params['{}_end_target'.format(obj)].value[:,0]
         self.cur_obs = self.mjc_env.reset()
         self.replace_cond(0)
 
@@ -394,7 +396,9 @@ class RobotAgent(TAMPAgent):
     def get_image(self, x, depth=False, cam_id=None):
         self.reset_to_state(x, full=False)
         #return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
-        return self.base_env.sim.render(height=192, width=192, camera_name="frontview")
+        im = self.base_env.sim.render(height=192, width=192, camera_name="frontview")
+        im = np.flip(im, axis=0)
+        return im
 
     #def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None, policies=None):
     #    assert not np.any(np.isnan(state))
@@ -1278,6 +1282,6 @@ class RobotAgent(TAMPAgent):
         for obj in opts[OBJ_ENUM]:
             pos = x[self.state_inds[obj, 'pose']]
             rot = x[self.state_inds[obj, 'rotation']]
-            if pos[2] < 0.8: return False
+            if pos[2] < 0.6 or (pos[1] < 0 and pos[2] < 0.8): return False
         return True
 

@@ -45,7 +45,6 @@ class Server(object):
         label = self.config['label_server']
         if self.config['weight_dir'].find('sawyer') >= 0:
             if self.id.find('moretest') < 0 and \
-               self.id.find('test') < 0 and \
                self.id.find('0') < 0 and \
                (not label or self.id.find('3') < 0) and \
                (not label or self.id.find('4') < 0) and \
