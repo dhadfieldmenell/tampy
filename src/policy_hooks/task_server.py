@@ -46,7 +46,12 @@ class TaskServer(Server):
             print('OSError in hl solve:', e)
             plan_str = Plan.IMPOSSIBLE
 
-        if plan_str == Plan.IMPOSSIBLE: return
+        if plan_str == Plan.IMPOSSIBLE:
+            with open(self.log_file, 'a+') as f:
+                state_info = {(pname, aname): node.x0[self.agent.state_inds[pname, aname]] for (pname, aname) in self.agent.state_inds}
+                info = '\n\n{} Task server could not plan for: {}\n{}\n\n'.format(node.label, node.abs_prob, state_info)
+                f.write(str(info))
+            return
         new_node = LLSearchNode(plan_str, 
                                 prob=node.concr_prob, 
                                 domain=node.domain,

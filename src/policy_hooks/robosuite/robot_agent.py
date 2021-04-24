@@ -345,7 +345,7 @@ class RobotAgent(TAMPAgent):
                 object_type='cereal',
                 ignore_done=True,
                 render_gpu_device_id=0,
-                initialization_noise={'magnitude': 0.1, 'type': 'gaussian'}
+                initialization_noise={'magnitude': 0.05, 'type': 'gaussian'}
             )
 
         if self.load_render:
