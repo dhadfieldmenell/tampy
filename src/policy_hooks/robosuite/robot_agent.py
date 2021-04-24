@@ -750,7 +750,7 @@ class RobotAgent(TAMPAgent):
                 sample.set(END_POSE_ENUM, obj_pose+grasp_pt, t)
                 #sample.set(END_ROT_ENUM, rot_off, t)
                 sample.set(END_ROT_ENUM, mp_state[self.state_inds[obj_name, 'rotation']], t)
-                targ_vec = np.zeros(prim_choices[TARG_ENUM])
+                targ_vec = np.zeros(len(prim_choices[TARG_ENUM]))
                 targ_vec[:] = 1. / len(targ_vec)
                 sample.set(TARG_ENUM, targ_vec, t)
             elif self.task_list[task[0]].find('putdown') >= 0:
