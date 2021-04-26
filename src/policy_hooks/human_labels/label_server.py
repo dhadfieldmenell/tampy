@@ -177,27 +177,84 @@ class LabelServer(Server):
         self.labelled.append(((res, seg_ts[0]), example))
         self.labels.append((res, example[1][seg_ts[0]], example[2], example[-1]))
 
-    
-    def search_query(self, t=10, N=1, max_iters=20):
+
+    def search_query(self, t=10, N=1, max_iters=20, val=False):
         print('\nRunning search query...\n')
-        example = self.get_example()
+        example = self.get_example(val)
+        if example is None:
+            self.stopped = True
+            return
+
+        hor = len(example[0])
+        cur_t = 0
+        invalid_input = False
+        ts = []
+        cur_iter = 0
+        st, et = 0, t
+        while st >= 0 and et <= hor:
+            cur_iter += 1
+            invalid_input = False
+            res, label_t = self.query_user(example, (st, et))
+
+            print('\n\nInterpreted input as: {}\n\n'.format(res))
+            if res == 'before':
+                st -= t // 2
+                et -= t // 2
+            elif res == 'after':
+                ts.extend([(res, st), (res, cur_t), (res, et-1)])
+                st += t // 2
+                et += t // 2
+            elif res == 'during':
+                ts.append((res, st))
+                break
+            elif res == 'stop':
+                self.stopped = True
+                break
+            elif res == 'ignore':
+                ts.append((res, 0))
+                break
+            else:
+                invalid_input = True
+                print('Invalid search query', res)
+
+        for i, (res, t)  in enumerate(ts[-N:]):
+            self.labels.append((res, example[1][t], example[2], example[3], example[-1], len(ts[-N:])-i-1))
+
+        if not self.stopped:
+            self.renderer.show_transition()
+
+
+    def binary_search_query(self, t=10, N=1, max_iters=20, val=False):
+        print('\nRunning search query...\n')
+        example = self.get_example(val)
+        if example is None:
+            self.stopped = True
+            return
+
+        assert example[-1] == val
         hor = len(example[0])
         cur_t = hor // 2
         invalid_input = False
         visited = set()
         ts = []
         cur_iter = 0
-        wind = 2 # Consider nearby timesteps visited
+        wind = 1 # Consider nearby timesteps visited
 
         a, b = 0, hor
-        while cur_iter < max_iters and (cur_t not in visited or invalid_input):
+        prev_a, prev_b = -1, -1
+        st, et = max(0, cur_t - t//2), min(cur_t + t//2, hor)
+        while cur_iter < max_iters and \
+              (cur_t not in visited or invalid_input) and \
+              (a != prev_a or b != prev_b):
+
             cur_iter += 1
             invalid_input = False
             cur_t = max(0, min(cur_t, hor))
             visited.update(list(range(cur_t-wind, cur_t+wind+1)))
-            st, et = max(0, cur_t - t//2), min(cur_t + t//2, hor)
             res, label_t = self.query_user(example, (st, et))
+            prev_a, prev_b = a, b
 
+            print('\n\nInterpreted input as: {}\n\n'.format(res))
             if res == 'before':
                 b = cur_t
             elif res == 'after':
@@ -206,31 +263,21 @@ class LabelServer(Server):
             elif res == 'during':
                 ts.append(st)
                 break
+            elif res == 'stop':
+                self.stopped = True
+                break
             elif res == 'ignore':
                 break
             else:
                 invalid_input = True
                 print('Invalid search query', res)
+
             cur_t = (a + b) // 2
+            st, et = max(0, cur_t - t//2), min(cur_t + t//2, hor)
 
-        for t in ts[-N:]:
+        for i, t in enumerate(ts[-N:]):
+            self.labels.append((res, example[1][t], example[2], example[3], example[-1], len(ts[-N:])-i-1))
             self.labelled.append(((res, t), example))
-            self.labels.append((res, example[1][t], example[2], example[-1]))
-
-
-    def query_user(self, example, seg_ts, val=False):
-        suc = False if val else np.random.uniform() < 0.5
-        choice, ts = self.renderer.interactive_render(example[0][seg_ts[0]:seg_ts[1]])
-        #self.renderer.threaded_render(example[0][seg_ts[0]:seg_ts[1]])
-        #while True:
-        #    user_input, _, _ = select([sys.stdin], [], [], self.user_response_timeout)
-        #    if user_input:
-        #        self.renderer.stop()
-        #        choice = sys.stdin.readline().lstrip().rstrip()
-        #        break
-        #ts = self.renderer.get_time()
-        choice = self.parse_key(choice)
-        return choice, seg_ts[0] + ts
 
 
     def wait_for_data(self):
@@ -244,18 +291,24 @@ class LabelServer(Server):
         #self.video_renderer.wait_for_user()
 
 
+    def query_user(self, example, seg_ts):
+        choice, ts = self.renderer.interactive_render(example[0][seg_ts[0]:seg_ts[1]])
+        choice = self.parse_key(choice)
+        return choice, seg_ts[0] + ts
+
+
     def parse_key(self, keystroke):
         keystroke = keystroke.lstrip().rstrip()
-        if keystroke.lower() in ['b', '1', 'before']:
+        if keystroke.lower() in ['b', '1', 'before', 'left']:
             return 'before'
 
-        if keystroke.lower() in ['a', '3', 'after']:
+        if keystroke.lower() in ['a', '3', 'after', 'right']:
             return 'after'
 
-        if keystroke.lower() in ['d', '2', 'during']:
+        if keystroke.lower() in ['d', '2', 'during', 'space']:
             return 'during'
 
-        if keystroke.lower() in ['s', '0', 'stop']:
+        if keystroke.lower() in ['s', '0', 'stop', 'q', 'quit']:
             return 'stop'
 
         if keystroke.lower() in ['u', 'i', '', 'unsure', 'ignore']:
@@ -299,7 +352,7 @@ class LabelServer(Server):
         while True:
             self.load_examples()
             if not self.save_only:
-                self.search_query()
+                self.search_query(N=5, t=6)
             elif self.n_since_write >= self.max_buffer:
                 self.write_to_file()
             else:

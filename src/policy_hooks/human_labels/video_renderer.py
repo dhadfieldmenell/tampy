@@ -90,7 +90,7 @@ class Im(object):
 
         assert arr.shape == (self.height, self.width, self.channels), \
             "You passed in an image with the wrong number shape"
-        flipped_arr = arr # np.flip(arr, axis=0)
+        flipped_arr = np.flip(arr, axis=0)
         image = pyglet.image.ImageData(self.width, self.height,
                                        'RGB', flipped_arr.tobytes())
         self.window.clear()
@@ -175,7 +175,7 @@ class VideoRenderer:
         t = 0
         cur_iter = 0
         self.stop_render = False
-        keystroke = ''
+        keystroke = 'u'
         t_limit = 60
         init_t = time.time()
         while not self.stop_render and \

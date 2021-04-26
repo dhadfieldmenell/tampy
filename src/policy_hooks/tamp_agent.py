@@ -424,6 +424,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         sample.end_state = self.get_state()
         sample.task_cost = self.goal_f(condition, sample.end_state)
         sample.prim_use_ts[:] = sample.use_ts[:]
+        sample.prim_use_ts[-1] = 0.
         sample.col_ts = col_ts
 
         if len(self.continuous_opts):

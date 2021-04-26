@@ -435,7 +435,7 @@ class Grasp(Action):
         grasp_time = end // 2 # const.EEREACHABLE_STEPS + 5
         self.grasp_time = grasp_time
         self.pre = [\
-            ('(At ?item ?target)', '0:0'),
+            ('(Near ?item ?target)', '0:0'),
             ('(At ?item ?target)', '1:{}'.format(grasp_time)),
             ('(RobotAt ?robot ?sp)', '0:-1'),
             ('(not (RobotAt ?robot ?ep))', '{}:{}'.format(0, 0)),
@@ -651,7 +651,7 @@ class PutdownRight(Putdown):
         self.pre.extend([
             ('(NearApproachRight ?robot ?target)', '0:0'),
             #('(NearApproachRightRot ?robot ?target)', '0:0'),
-            ('(ApproachRight ?robot ?target)', '0:-1'),
+            #('(ApproachRight ?robot ?target)', '0:-1'),
             #('(InGripperRight ?robot ?item)', '0:-1'),
             ('(NearGripperRight ?robot ?item)', '0:0'),
             #('(RightEEValid ?robot)', '{}:{}'.format(1, self.end-1)),
