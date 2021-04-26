@@ -546,6 +546,7 @@ class Server(object):
                 info['source'] = sample.source_label
                 # info['prim_obs'] = sample.get_prim_obs().round(4)
                 info['memory'] = psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2
+                info['last_weight_read'] = self._last_weight_read 
 
             data.append(info)
         return data

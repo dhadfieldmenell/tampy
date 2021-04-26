@@ -28,7 +28,7 @@ class RolloutSupervisor():
         self.cur_vid_id = 0
         self.t_per_task = 20
         self.s_per_task = 3
-        self.n_pts = 3
+        self.n_pts = 2
         if self.agent.retime:
             self.s_per_task *= 3
 
@@ -48,7 +48,7 @@ class RolloutSupervisor():
         self.hl_nodes = []
         self.n_fails = 0
         self.n_suc = 0
-        self.tol = 1.8e-3
+        self.tol = 2e-3
         self.postcond_info = []
         self.fail_types = {}
         self.postcond_costs = {task: [] for task in self.agent.task_list}
@@ -87,8 +87,8 @@ class RolloutSupervisor():
         if task != curtask and self.check_precond:
             precost = self.agent.precond_cost(sample, task, t, tol=self.tol)
             if precost > 0:
-                #self.precond_viols.append((self.cur_ids[-1], t))
-                self.precond_viols.append(self.switch_pts[-1])
+                self.precond_viols.append((self.cur_ids[-1], t))
+                #self.precond_viols.append(self.switch_pts[-1])
                 if self.neg_precond: self.neg_samples.append((sample, t, truetask))
             
             n_tries = 0
@@ -183,7 +183,7 @@ class RolloutSupervisor():
         train_pts = []
         fail_type = 'successful_rollout'
 
-        if len(self.precond_viols):
+        if self.check_precond and len(self.precond_viols):
             fail_type = 'rollout_precondition_failure'
             for pt in self.precond_viols[-self.n_pts:]:
                 train_pts.append(tuple(pt) + (fail_type,))
@@ -192,11 +192,12 @@ class RolloutSupervisor():
 
         if self.check_postcond:
             fail_type = 'rollout_postcondition_failure'
-            for bad_pt in self.postcond_viols:
+            for bad_pt in self.postcond_viols[-self.n_pts:]:
                 train_pts.append(tuple(bad_pt) + (fail_type,))
 
             bad_pt = self.switch_pts[-1]
             train_pts.append(tuple(bad_pt) + (fail_type,))
+            train_pts.append((len(path)-1, path[-1].T-1) + (fail_type,))
 
         if self.check_random and val < 1-1e-4:
             ind = np.random.choice(range(len(self.switch_pts)))
@@ -339,6 +340,7 @@ class RolloutSupervisor():
         val = 1 - self.agent.goal_f(0, path[-1].get_X(path[-1].T-1), path[-1].targets)
         x0 = path[0].get_X(0)
         for s, t, fail_type in train_pts:
+            if s == 0 and t == 0: continue
             if val < 1:
                 self.n_fails += 1
                 if fail_type not in self.fail_types:

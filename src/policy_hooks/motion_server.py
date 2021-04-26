@@ -211,8 +211,7 @@ class MotionServer(Server):
                 continue
 
             self.set_policies()
-            if not step % 5:
-                self.write_log()
+            self.write_log()
             self.refine_plan(node)
 
             inv_cov = self.agent.get_inv_cov()

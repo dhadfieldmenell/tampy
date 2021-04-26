@@ -142,7 +142,7 @@ class DataBuffer(object):
         if label is None or self.lens.get(label, 0) < batch_size: return None
 
         if mix:
-            N = 8
+            N = 4
             per_label = batch_size // N
             data = []
             for n in range(N):
