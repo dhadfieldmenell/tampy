@@ -424,7 +424,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         sample.end_state = self.get_state()
         sample.task_cost = self.goal_f(condition, sample.end_state)
         sample.prim_use_ts[:] = sample.use_ts[:]
-        sample.prim_use_ts[-1] = 0.
         sample.col_ts = col_ts
 
         if len(self.continuous_opts):
@@ -1167,6 +1166,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
         path[-1].task_end = True
         path[-1].set(TASK_DONE_ENUM, np.array([0, 1]), t=path[-1].T-1)
+        path[-1].prim_use_ts[-1] = 0.
         if nzero > 0 and add_noop:
             zero_traj = np.tile(opt_traj[-1], [nzero, 1])
             zero_sample = self.sample_optimal_trajectory(path[-1].end_state, task, 0, zero_traj, targets=targets)
