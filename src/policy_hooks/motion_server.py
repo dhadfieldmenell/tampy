@@ -296,6 +296,7 @@ class MotionServer(Server):
                 'time': time.time() - self.start_t,
                 'optimization time': np.mean(self.plan_times),
                 'plan length': np.mean(self.plan_horizons),
+                'opt duration per ts': np.mean(self.plan_times) / np.mean(self.plan_horizons),
                 }
 
         for key in self.infos:

@@ -295,6 +295,8 @@ class RolloutServer(Server):
             rlen = 4 + 2 * n * len(self.agent.task_list)
             if self.agent.retime: rlen *= 2
         hor = 20
+        nt = rlen * hor
+
         val, path = self.test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], eta=eta, lab=-5, hor=hor)
         adj_val = val
         #if not self.adj_eta:
@@ -315,6 +317,7 @@ class RolloutServer(Server):
         ncols = 1. if len(path) >1 and any([len(np.where(sample.col_ts > 0.99)[0]) > 3 for sample in path[:-1]]) else 0. # np.max([np.max(sample.col_ts) for sample in path])
         plan_suc_rate = np.nan if self.agent.n_plans_run == 0 else float(self.agent.n_plans_suc_run) / float(self.agent.n_plans_run)
         n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans'].value
+        ret = self.agent._ret + val * (nt - np.sum([s.T for s in path]))
         s.append((val,
                   len(path), \
                   true_disp, \
@@ -336,6 +339,7 @@ class RolloutServer(Server):
         else:
             s[0] = s[0] + (0,)
         s[0] = s[0] + (adj_val,)
+        s[0] = s[0] + (ret,)
         if ckpt_ind is not None:
             s[0] = s[0] + (ckpt_ind,)
         res.append(s[0])

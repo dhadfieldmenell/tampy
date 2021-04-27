@@ -216,6 +216,7 @@ class FFSolver(HLSolver):
         prob_str += ")\n\n(:init\n"
         used = []
         for pred in concr_prob.init_state.preds:
+            if not pred._init_include: continue
             cur_str = ''
             cur_str += "(%s "%pred.get_type()
             for param in pred.params:
@@ -224,6 +225,7 @@ class FFSolver(HLSolver):
             if cur_str in used: continue
             used.append(cur_str)
             prob_str += cur_str
+
         if initial is not None:
             initial = set(initial)
             for pred in initial:

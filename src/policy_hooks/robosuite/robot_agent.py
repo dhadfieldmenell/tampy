@@ -332,6 +332,8 @@ class RobotAgent(TAMPAgent):
             controller_config['output_min'] = -0.02
             freq = 40
 
+        prim_options = self.prob.get_prim_choices(self.task_list)
+        self.obj_list = prim_options[OBJ_ENUM]
         obj_mode = 0 if hyperparams['num_objs'] > 1 else 2
         self.base_env = robosuite.make(
                 "PickPlace",
@@ -346,7 +348,7 @@ class RobotAgent(TAMPAgent):
                 use_object_obs=True,                   # no observations needed
                 use_camera_obs=False,                   # no observations needed
                 single_object_mode=obj_mode,
-                object_type='cereal',
+                object_type=self.obj_list[0],
                 ignore_done=True,
                 render_gpu_device_id=0,
                 initialization_noise={'magnitude': 0.1, 'type': 'gaussian'}
@@ -365,10 +367,9 @@ class RobotAgent(TAMPAgent):
         self.check_col = hyperparams['master_config'].get('check_col', True)
         self.camera_id = 1
         self.main_camera_id = 0
-        prim_options = self.prob.get_prim_choices(self.task_list)
         no = self._hyperparams['num_objs']
         self.targ_labels = {}
-        for i, obj in enumerate(prim_options[OBJ_ENUM]):
+        for i, obj in enumerate(self.obj_list):
             self.targ_labels[i] = list(self.plans.values())[0].params['{}_end_target'.format(obj)].value[:,0]
         self.cur_obs = self.mjc_env.reset()
         self.replace_cond(0)
@@ -1020,7 +1021,7 @@ class RobotAgent(TAMPAgent):
 
     def get_random_initial_state_vec(self, config, plans, dX, state_inds, ncond):
         self.cur_obs = self.mjc_env.reset()
-        for ind, obj in enumerate(['cereal', 'milk', 'can', 'bread']):
+        for ind, obj in enumerate(self.obj_list):
             if ind >= config['num_objs'] and (obj, 'pose') in self.state_inds:
                 self.set_to_target(obj)
 
@@ -1035,7 +1036,7 @@ class RobotAgent(TAMPAgent):
             x[inds] = val
 
         targets = {}
-        for ind, obj in enumerate(['cereal', 'milk', 'can', 'bread']):
+        for ind, obj in enumerate(self.obj_list):
             targ = '{}_end_target'.format(obj)
             if (obj, 'pose') in self.state_inds:
                 targets[targ] = self.mjc_env.get_item_pose('Visual{}_main'.format(obj.capitalize()))[0]

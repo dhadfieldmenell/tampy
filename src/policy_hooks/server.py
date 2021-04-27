@@ -536,7 +536,7 @@ class Server(object):
             if verbose:
                 info['obs'] = sample.get_obs().round(3)
                 # info['prim_obs'] = sample.get_prim_obs().round(3)
-                info['targets'] = {tname: sample.targets[self.agent.target_inds[tname, attr]] for tname, attr in self.agent.target_inds}
+                info['targets'] = {tname: sample.targets[self.agent.target_inds[tname, attr]] for tname, attr in self.agent.target_inds if attr == 'value'}
                 info['opt_success'] = sample.opt_suc
                 info['tasks'] = sample.get(FACTOREDTASK_ENUM)
                 #info['goal_pose'] = sample.get(END_POSE_ENUM)

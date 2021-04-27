@@ -277,6 +277,8 @@ class NAMOGripAgent(NAMOSortingAgent):
             if np.any(np.abs(poses[pname]-new_poses[pname])) > 5e-2:
                 self._col.append(pname)
         col = 1 if len(self._col) > 0 else 0
+        self._rew = self.reward()
+        self._ret += self._rew
         return True, col
 
 
@@ -480,6 +482,8 @@ class NAMOGripAgent(NAMOSortingAgent):
     def reset_to_state(self, x):
         mp_state = x[self._x_data_idx[STATE_ENUM]]
         self._done = 0.
+        self._ret = 0.
+        self._rew = 0.
         self._prev_U = np.zeros((self.hist_len, self.dU))
         self._x_delta = np.zeros((self.hist_len+1, self.dX))
         self._x_delta[:] = x.reshape((1,-1))

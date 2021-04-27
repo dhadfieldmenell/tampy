@@ -796,6 +796,7 @@ class PosePredicate(RobotPredicate):
             self.inv_mats[arm] = np.linalg.inv(self.mats[arm])
 
         super(PosePredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol, active_range=active_range, priority = priority)
+        self._init_include = False
 
     #@profile
     def rel_ee_pos_check_f(self, x, rel_pt):
@@ -1320,6 +1321,7 @@ class Near(ExprPredicate):
 
         super(Near, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
+
 
 class HLAnchor(ExprPredicate):
     """
@@ -3030,7 +3032,8 @@ class AboveTable(ExprPredicate):
         self.obj, = params
         attr_inds = OrderedDict([(self.obj, [("pose", np.array([2], dtype=np.int))])])
         A = -np.ones((1,1))
-        b = 0.95 * np.ones((1,1))
+        z = 0.98 if self.obj.name in ['milk', 'cereal'] else 0.95
+        b = z * np.ones((1,1))
         val = np.zeros((1,1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
