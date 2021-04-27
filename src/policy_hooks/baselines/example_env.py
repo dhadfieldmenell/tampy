@@ -5,7 +5,7 @@ from policy_hooks.agent_env_wrapper import *
 from policy_hooks.utils.load_agent import *
 
 def run(config, mode='train'):
-    args =config['args']
+    args = config['args']
     agent_config = load_agent(config)
     agent = build_agent(agent_config)
     register_env(config, 'exampleEnv-v0')

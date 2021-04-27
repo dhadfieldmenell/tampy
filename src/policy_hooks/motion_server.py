@@ -165,6 +165,15 @@ class MotionServer(Server):
             with n_plans.get_lock():
                 n_plans.value += 1
 
+        n_plan = self._hyperparams['policy_opt']['buffer_sizes']['n_plan_{}'.format(node.nodetype)]
+        with n_plan.get_lock():
+            n_plan.value += 1
+
+        if not success:
+            n_fail = self._hyperparams['policy_opt']['buffer_sizes']['n_plan_{}_failed'.format(node.nodetype)]
+            with n_fail.get_lock():
+                n_fail.value += 1
+
         if np.random.uniform() < 0.05 and success:
             self.send_to_label(path, success)
         return path, success, opt_suc

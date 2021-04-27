@@ -306,6 +306,10 @@ class EnvWrapper():
         return obs
 
 
+    def close(self):
+        self.env.close()
+
+
 class RobotAgent(TAMPAgent):
     def __init__(self, hyperparams):
         super(RobotAgent, self).__init__(hyperparams)
@@ -521,14 +525,16 @@ class RobotAgent(TAMPAgent):
                 sign1 = np.sign(targrot[np.argmax(np.abs(targrot))])
                 sign2 = np.sign(curquat[np.argmax(np.abs(curquat))])
                 rot_ctrl = -sign1 * sign2 * robo_T.get_orientation_error(sign1*targrot, sign2*curquat)
-                self.cur_obs = self.base_env.step(np.r_[pos_ctrl, rot_ctrl, [gripper]])
+                self.cur_obs, rew, done, _ = self.base_env.step(np.r_[pos_ctrl, rot_ctrl, [gripper]])
 
         if 'right' in ctrl:
             #ctrl['right'][:6] = np.clip(ctrl['right'][:6], -0.1, 0.1)
             targ_pos = self.mjc_env.get_attr('sawyer', 'right') + ctrl['right']
             for n in range(n_steps+1):
                 ctrl = np.r_[targ_pos - self.mjc_env.get_attr('sawyer', 'right'), gripper]
-                self.cur_obs = self.base_env.step(ctrl)
+                self.cur_obs, rew, done, _ = self.base_env.step(ctrl)
+        self._rew = rew
+        self._ret += rew
         col = 0 # 1 if len(self._col) > 0 else 0
         return True, col
 
@@ -878,6 +884,8 @@ class RobotAgent(TAMPAgent):
     def reset_to_state(self, x, full=True):
         mp_state = x[self._x_data_idx[STATE_ENUM]]
         self._done = 0.
+        self._ret = 0.
+        self._rew = 0.
         self._prev_U = np.zeros((self.hist_len, self.dU))
         self._x_delta = np.zeros((self.hist_len+1, self.dX))
         self.eta_scale = 1.
@@ -1287,4 +1295,8 @@ class RobotAgent(TAMPAgent):
             rot = x[self.state_inds[obj, 'rotation']]
             if pos[2] < 0.6 or (pos[1] < 0 and pos[2] < 0.8): return False
         return True
+
+    
+    def reward(self, x=None, targets=None):
+        return self.base_env.reward()
 

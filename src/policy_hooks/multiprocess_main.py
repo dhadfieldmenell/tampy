@@ -350,6 +350,12 @@ class MultiProcessMain(object):
         buf_sizes['n_plans'].value = 0
         buf_sizes['n_failed'] = mp.Value('i')
         buf_sizes['n_failed'].value = 0
+        for key in ['optimal', 'human', 'dagger', 'rollout']:
+            buf_sizes['n_plan_{}_failed'.format(key)] = mp.Value('i')
+            buf_sizes['n_plan_{}_failed'.format(key)].value = 0
+            buf_sizes['n_plan_{}'.format(key)] = mp.Value('i')
+            buf_sizes['n_plan_{}'.format(key)].value = 0
+
         buf_sizes['n_mcts'] = mp.Value('i')
         buf_sizes['n_mcts'].value = 0
         buf_sizes['n_ff'] = mp.Value('i')

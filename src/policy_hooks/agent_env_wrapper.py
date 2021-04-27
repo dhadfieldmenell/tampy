@@ -9,6 +9,8 @@ from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 from policy_hooks.utils.load_agent import *
 
+
+
 def register_env(config, name='TampGym-v0', max_ts=500):
     register(
             id=name,
@@ -26,177 +28,61 @@ def gen_agent_env(config=None, max_ts=500):
     return env
 
 
-def load_config(fname, no, nt):
-    import importlib
-    config_module = importlib.import_module(fname)
-    config = config_module.refresh_config(no, nt)
-    return config
-
-
 class AgentEnvWrapper(Env):
     metadata = {'render.modes': ['rgb_array', 'human']}
     def __init__(self, agent=None, config=None, env=None, use_solver=False, seed=1234, max_ts=500):
-        assert agent is not None or env is not None or config is not None
-        if not config.get('agent_load', False): config = load_agent(config)
+        config = load_agent(config)
         agent = build_agent(config)
         self.agent = agent
-        self.use_solver = use_solver
+        self.dummy_sample = Sample(self.agent)
         self._seed = seed
         self.sub_env = agent.mjc_env if env is None else env
         self._max_time = max_ts
         self._cur_time = 0
+        self._ret = 0.
         self.horizon = max_ts
 
-        # VAE specific
-        self.sub_env.im_height = 80
-        self.sub_env.im_wid = 107
-
-        self.task_options = agent.prob.get_prim_choices() if agent is not None else {}
-        self.num_tasks = len(agent.task_list) if agent is not None \
-                         else env.action_space.n if hasattr(env.action_space, 'n') \
-                         else env.action_space.nvec[0]
-        self.tol = 0.03
-        if self.agent is None:
-            self.action_space = env.action_space if env is not None else spaces.MultiDiscrete([len(opts) for opts in list(self.task_options.values())])
-            self.observation_space = spaces.Box(0, 255, [self.sub_env.im_height, self.sub_env.im_wid, 3], dtype='uint8')
-        else:
-            self.action_space = spaces.Box(-10, 10, [self.agent.dU], dtype='float32')
-            self.observation_space = spaces.Box(-1e3, 1e3, [self.agent.dPrim], dtype='float32')
-        self.cur_state = env.physics.data.qpos.copy() if env is not None else self.agent.x0[0]
-        if self.agent is None or self.agent.master_config['load_render']:
-            self.render()
-            self.render()
-
+        self.action_space = spaces.Box(-10, 10, [self.agent.dU], dtype='float32')
+        self.observation_space = spaces.Box(-1e3, 1e3, [self.agent.dPrim], dtype='float32')
+        self.cur_state = self.agent.x0[0]
         self.expert_paths = []
 
 
-    def encode_action(self, task):
-        if self.agent is not None:
-            # act = np.zeros(self.num_tasks*np.prod([len(opts) for opts in self.task_options.values()]))
-            # act = np.zeros((self.num_tasks+np.sum([len(opts) for opts in self.task_options.values()])))
-            # act[task[0]] += 1.
-            # cur_ind = self.num_tasks
-
-            act = np.zeros(np.sum([len(opts) for opts in list(self.task_options.values())]))
-            cur_ind = 0
-            for i, opt in enumerate(self.task_options.keys()):
-                act[cur_ind+task[i]] = 1.
-                cur_ind += len(self.task_options[opt])
-        elif type(task) is not int:
-            act = np.zeros(np.sum(self.sub_env.action_space.nvec))
-            cur_ind = 0
-            for i, d in enumerate(self.sub_env.action_space.nvec):
-                act[cur_ind+task[i]] = 1.
-                cur_ind += d
-        else:
-            act = np.zeros(self.num_tasks)
-            act[task] = 1.
-
-        return act
-
-
-    def decode_action(self, action):
-        task = [np.argmax(action[:self.num_tasks])]
-        action = action[self.num_tasks:]
-        for opt in self.task_options:
-            dim = len(self.task_options[opt])
-            task.append(np.argmax(action[:dim]))
-            action = action[dim:]
-        return tuple(task)
-
-
-    def step(self, action, encoded=False):
-        # if encoded:
-        #     action = self.decode_action(action)
-       
-        self._cur_time += 1
-        if self.use_solver:
-            sample, _, success = self.agent.solve_sample_opt_traj(self.cur_state, action, condition=0)
-            x = sample.get_X(sample.T-1) if success else sample.get_X(0)
-            obs = self.agent.get_mjc_obs(x)
-            obs = np.array(obs).reshape(self.sub_env.im_height, self.sub_env.im_wid, 3)
-        elif self.agent is not None:
-            x = self.agent.get_state()
-            self.agent.run_policy_step(action, x)
-            x = self.agent.get_state()
-            s = Sample(self.agent)
-            self.agent.fill_sample(0, s, x[self.agent._x_data_idx[STATE_ENUM]], 0, list(self.agent.plans.keys())[0], fill_obs=True)
-            obs = s.get_prim_obs().flatten()
-        else:
-            obs, _, _, _ = self.sub_env.step(action)
-            x = self.sub_env.physics.data.qpos.copy()
-            obs = np.array(obs).reshape(self.sub_env.im_height, self.sub_env.im_wid, 3)
-
+    def step(self, action):
+        x = self.agent.get_state()
+        self.agent.run_policy_step(action, x)
+        s = Sample(self.agent)
+        self.agent.fill_sample(0, self.dummy_sample, x[self.agent._x_data_idx[STATE_ENUM]], 0, list(self.agent.plans.keys())[0], fill_obs=True)
+        obs = s.get_prim_obs().flatten()
         info = {'cur_state': x}
         self.cur_state = x
-        reward = self.check_goal(x)
-        done = reward > 0.99 or self._cur_time >= self._max_time
+        targets = self.agent.target_vecs[0]
+        reward = self.agent.reward(x, targets)
+        self._ret += reward
+        goal = self.agent.goal_f(x, targets=targets)
+        done = goal == 0 or self._cur_time >= self._max_time
         return obs, reward, done, info
-
-
-    def reset_goal(self):
-        if self.agent is not None:
-            self.agent.replace_targets()
-            self.agent.set_to_targets()
-            if self.agent.master_config['load_render']:
-                obs = self.render()
-        else:
-            obs = self.sub_env.reset_goal()
-        self.reset()
-        self.goal_obs = obs
-
-
-    def check_goal(self, x):
-        if self.agent is not None:
-            return 1. - self.agent.goal_f(0, x, cont=True)
-        raise NotImplementedError
 
 
     def reset(self):
         self._cur_time = 0
-        if self.agent is not None:
-            self.agent.replace_cond(0)
-            self.agent.reset(0)
-        else:
-            self.sub_env.reset()
-        self.cur_state = self.sub_env.physics.data.qpos.copy() if self.agent is None else self.agent.x0[0]
-        if self.agent is not None:
-            x = self.agent.get_state()
-            s = Sample(self.agent)
-            self.agent.fill_sample(0, s, x[self.agent._x_data_idx[STATE_ENUM]], 0, list(self.agent.plans.keys())[0], fill_obs=True)
-            obs = s.get_prim_obs()
-            return obs.flatten()
-        else:
-            return self.render()
-
-
-    def reset_to_state(self, x):
-        self.reset()
-        self.agent.x0[0] = x
+        self._ret = 0.
+        self.agent.replace_cond(0)
         self.agent.reset(0)
-
-
-    def reset_init_state(self):
-        if hasattr(self.sub_env, 'randomize_init_state'):
-            self.sub_env.randomize_init_state()
-
-        if self.agent is not None:
-            self.agent.randomize_init_state()
+        self.cur_state = self.agent.x0[0]
+        x = self.agent.get_state()
+        self.agent.fill_sample(0, self.dummy_sample, x[self.agent._x_data_idx[STATE_ENUM]], 0, list(self.agent.plans.keys())[0], fill_obs=True)
+        obs = self.dummy_sample.get_prim_obs(t=0)
+        return obs.flatten()
 
 
     def render(self, mode='rgb_array'):
-        if self.agent is not None:
-            x = self.agent.get_state()
-            self.agent.reset_mjc_env(x, self.agent.target_vecs[0])
-            return self.sub_env.render(camera_id=self.agent.main_camera_id, mode=mode, view=False)
-        else:
-            return self.sub_env.render(mode=mode, view=False)
+        x = self.agent.get_state()
+        return self.agent.get_image(x)
 
 
     def close(self):
-        if self.sub_env is not None:
-            self.sub_env.close()
-        elif self.agent is not None:
+        if self.agent is not None:
             self.agent.mjc_env.close()
 
 
@@ -206,38 +92,4 @@ class AgentEnvWrapper(Env):
         self._seed = seed
         return [seed]
 
-
-    def get_obs(self):
-        # return self.sub_env.get_obs(view=False)
-        return self.render()
-
-
-    def cost_f(self, state, p, condition, active_ts=(0,0), debug=False):
-        if self.agent is not None:
-            return self.agent.cost_f(state, p, condition, active_ts, debug)
-
-        return 0.
-
-
-    def load_data(self, fname):
-        raise NotImplementedError
-
-
-    def get_next_batch(self, n=0):
-        while sum([s.T for s in self.expert_paths])-n <= 0:
-            self.agent.replace_cond(0)
-            path = self.agent.run_pr_graph(self.agent.x0[0], cond=0)
-            self.agent.expert_paths.extend(path)
-        if n == 0: n = sum([s.T for s in self.expert_paths])
-        obs, acs = np.zeros((n, self.agent.dO)), np.zeros((n, self.agent.dU))
-        t = 0
-        while t < n and len(self.expert_paths):
-            ind = np.random.choice(range(len(self.expert_paths)))
-            s = self.expert_paths.pop(ind)
-            m = min(n-t, s.T)
-            inds = np.random.choice(range(s.T), m, replace=False)
-            obs[t:t+m] = s.get_prim_obs()[:,inds]
-            acs[t:t+m] = s.get(ACTION_ENUM)[:,inds]
-            t += s.T
-        return obs, acs
 

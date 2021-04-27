@@ -113,10 +113,22 @@ def run_baseline(args):
     exps = load_multi(exps_info, n_objs, n_targs, args)
     config = exps[0][0][0]
     config['source'] = args.config
-    current_id = setup_dirs(config, args)
+    #current_id = setup_dirs(config, args)
     baseline = args.baseline
 
-    if baseline.lower() == 'gail':
+    old_dir = config['weight_dir']
+    old_file = config['task_map_file']
+    config = {'args': args, 'task_map_file': old_file}
+    config.update(vars(args))
+    config['source'] = exps_info[ind][ind2]
+    config['weight_dir'] = old_dir
+    current_id = 0 # setup_dirs(c, args)
+
+    if baseline.lower() == 'stable':
+        from policy_hooks.baselines.stable import run
+        run(config=config)
+
+    elif baseline.lower() == 'gail':
         from policy_hooks.baselines.gail import run, eval_ckpts
         config['id'] = 0
         if config['task'] == 'evaluate':
@@ -455,6 +467,5 @@ def argsparser():
 
 if __name__ == '__main__':
     import multiprocessing as mp
-    #mp.set_start_method('spawn')
     main()
 

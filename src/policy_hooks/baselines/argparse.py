@@ -17,6 +17,7 @@ def argsparser(parser=None):
     boolean_flag(parser, 'save_sample', default=False, help='save the trajectories or not')
     #  Mujoco Dataset Configuration
     parser.add_argument('--traj_limitation', type=int, default=-1)
+    parser.add_argument('--n_proc', type=int, default=4)
     # Optimization Configuration
     parser.add_argument('--g_step', help='number of steps to train policy in each epoch', type=int, default=3)
     parser.add_argument('--d_step', help='number of steps to train discriminator in each epoch', type=int, default=1)
@@ -24,7 +25,7 @@ def argsparser(parser=None):
     parser.add_argument('--policy_hidden_size', type=int, default=100)
     parser.add_argument('--adversary_hidden_size', type=int, default=100)
     # Algorithms Configuration
-    parser.add_argument('--algo', type=str, choices=['trpo', 'ppo'], default='trpo')
+    parser.add_argument('--algo', type=str, choices=['trpo', 'ppo', 'ppo2', 'sac'], default='trpo')
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--policy_entcoeff', help='entropy coefficiency of policy', type=float, default=0)
     parser.add_argument('--adversary_entcoeff', help='entropy coefficiency of discriminator', type=float, default=1e-3)

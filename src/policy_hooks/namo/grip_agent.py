@@ -133,6 +133,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 40.})
 
             items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (NEAR_TOL, NEAR_TOL, 0.05), 'rgba': tuple(cur_color), 'mass': 1.})
+
         for i in range(len(wall_dims)):
             dim, next_trans = wall_dims[i]
             next_trans[0,3] -= 3.5

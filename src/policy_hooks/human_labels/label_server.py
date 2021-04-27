@@ -219,6 +219,7 @@ class LabelServer(Server):
 
         for i, (res, t)  in enumerate(ts[-N:]):
             self.labels.append((res, example[1][t], example[2], example[3], example[-1], len(ts[-N:])-i-1))
+            self.labelled.append(((res, t), example))
 
         if not self.stopped:
             self.renderer.show_transition()

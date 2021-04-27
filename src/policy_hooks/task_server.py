@@ -47,11 +47,20 @@ class TaskServer(Server):
             plan_str = Plan.IMPOSSIBLE
 
         if plan_str == Plan.IMPOSSIBLE:
+            n_plan = self._hyperparams['policy_opt']['buffer_sizes']['n_plan_{}'.format(node.nodetype)]
+            with n_plan.get_lock():
+                n_plan.value += 1
+
+            n_fail = self._hyperparams['policy_opt']['buffer_sizes']['n_plan_{}_failed'.format(node.nodetype)]
+            with n_fail.get_lock():
+                n_fail.value += 1
+
             with open(self.log_file, 'a+') as f:
                 state_info = {(pname, aname): node.x0[self.agent.state_inds[pname, aname]] for (pname, aname) in self.agent.state_inds}
                 info = '\n\n{} Task server could not plan for: {}\n{}\n\n'.format(node.label, node.abs_prob, state_info)
                 f.write(str(info))
             return
+
         new_node = LLSearchNode(plan_str, 
                                 prob=node.concr_prob, 
                                 domain=node.domain,

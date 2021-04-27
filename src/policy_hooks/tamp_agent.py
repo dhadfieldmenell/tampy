@@ -113,6 +113,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
         self._done = 0.
         self._task_done = 0.
+        self._ret = 0.
+        self._rew = 0.
         self.current_cond = 0
         opts = self._hyperparams['prob'].get_prim_choices(self.task_list)
         self.discrete_opts = [enum for enum, enum_opts in opts.items() if hasattr(enum_opts, '__len__')]
@@ -888,8 +890,13 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 if 'cont' in self.policies:
                     policies['cont'] = self.policies['cont']
                 sample = self.sample_task(policy, 0, x0.copy(), task, hor=hor, skip_opt=True, policies=policies)
+                sample.source_label = label
                 last_t = self.first_postcond(sample, x0=x0, task=task)
-                if last_t < 0: last_t = None
+                if last_t < 0:
+                    last_t = None
+                else:
+                    sample.use_ts[last_t:] = 0.
+                    sample.prim_use_ts[last_t:] = 0.
                 cost = self.postcond_cost(sample, task, sample.T-1, x0=x0) if last_t is None else 0
                 ref_traj, _, labels, _ = self.reverse_retime([sample], (act_st, act_et), label=True, T=last_t)
                 #if cost < 1e-4 and rollout:
@@ -958,36 +965,40 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 self.ll_solver.solve_priorities = old_solve_priorities
                 smooth_cnts.append((task, n_suc, len(cur_path)))
 
-            set_params_attrs(plan.params, self.state_inds, prev_x0, act_st, plan=plan)
-            self.set_symbols(plan, task, anum=a, st=act_st, targets=targets)
-            old_free = plan.get_free_attrs()
-            if not rollout: ref_traj = []
-            try:
-                success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=ref_traj, st=act_st)
-                #success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=[], st=act_st)
-            except AttributeError as e:
-                print(('Opt Exception in full solve for', x0, task, plan.actions[a]), st)
-                success = False
-            except Exception as e:
-                traceback.print_exception(*sys.exc_info())
-                print(('Exception in full solve for', x0, task, plan.actions[a]), e, st)
-                success = False
-            plan.store_free_attrs(old_free)
-            self.n_opt[task] = self.n_opt.get(task, 0) + 1
+            if rollout and cost == 0:
+                next_x0 = ref_traj[-1]
+                path.append(sample)
+            else:
+                set_params_attrs(plan.params, self.state_inds, prev_x0, act_st, plan=plan)
+                self.set_symbols(plan, task, anum=a, st=act_st, targets=targets)
+                old_free = plan.get_free_attrs()
+                if not rollout: ref_traj = []
+                try:
+                    success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=ref_traj, st=act_st)
+                except AttributeError as e:
+                    print(('Opt Exception in full solve for', x0, task, plan.actions[a]), st)
+                    success = False
+                except Exception as e:
+                    traceback.print_exception(*sys.exc_info())
+                    print(('Exception in full solve for', x0, task, plan.actions[a]), e, st)
+                    success = False
+                plan.store_free_attrs(old_free)
+                self.n_opt[task] = self.n_opt.get(task, 0) + 1
 
-            if not success:
-                self.n_fail_opt[task] = self.n_fail_opt.get(task, 0) + 1
-                return False, False, path, info
+                if not success:
+                    self.n_fail_opt[task] = self.n_fail_opt.get(task, 0) + 1
+                    return False, False, path, info
 
-            next_path, next_x0 = self.run_action(plan, a, x0, perm_targets, perm_task, act_st, reset=True, save=True, record=True, perm=perm, prev_hist=cur_x_hist)
-            for sample in next_path:
-                sample.opt_strength = 1.
-                sample.source_label = label
+                next_path, next_x0 = self.run_action(plan, a, x0, perm_targets, perm_task, act_st, reset=True, save=True, record=True, perm=perm, prev_hist=cur_x_hist)
+                for sample in next_path:
+                    sample.opt_strength = 1.
+                    sample.source_label = label
 
-            path.extend(next_path)
-            if not next_path[-1]._postsuc:
-                self.n_plans_run += 1
-                return False, True, path, info
+                path.extend(next_path)
+                if not next_path[-1]._postsuc:
+                    self.n_plans_run += 1
+                    return False, True, path, info
+
             x0 = next_x0
             ref_x0 = x0.copy()
             ref_x0 = self.clip_state(ref_x0)
@@ -1166,7 +1177,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
         path[-1].task_end = True
         path[-1].set(TASK_DONE_ENUM, np.array([0, 1]), t=path[-1].T-1)
-        path[-1].prim_use_ts[-1] = 0.
+        #path[-1].prim_use_ts[-1] = 0.
         if nzero > 0 and add_noop:
             zero_traj = np.tile(opt_traj[-1], [nzero, 1])
             zero_sample = self.sample_optimal_trajectory(path[-1].end_state, task, 0, zero_traj, targets=targets)
@@ -1483,4 +1494,17 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
     def feasible_state(self, x, targets):
         return True
+
+
+    def reward(self, x=None, targets=None):
+        if x is None: x = self.get_state()
+        if targets is None: targets = self.target_vecs[0]
+        opts = self.prob.get_prim_choices(self.task_list)
+        rew = 0
+        for opt in opts[OBJ_ENUM]:
+            xinds = self.state_inds[opt, 'pose']
+            targinds = self.target_inds['{}_end_target'.format(opt), 'value']
+            rew -= np.linalg.norm(x[xinds]-targets[targinds])
+
+        return rew
 
