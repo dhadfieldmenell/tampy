@@ -967,7 +967,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
             if rollout and cost == 0:
                 next_x0 = ref_traj[-1]
+                ref_x0 = next_x0.copy()
+                ref_x0 = self.clip_state(ref_x0)
                 path.append(sample)
+                set_params_attrs(plan.params, self.state_inds, ref_x0, act_et, plan=plan)
             else:
                 set_params_attrs(plan.params, self.state_inds, prev_x0, act_st, plan=plan)
                 self.set_symbols(plan, task, anum=a, st=act_st, targets=targets)
