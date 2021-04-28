@@ -213,7 +213,7 @@ class LabelServer(Server):
                 et += t // 2
             elif res == 'during':
                 ts.append((res, st))
-                ts = [pt in ts if pt[1] <= st]
+                ts = [pt for pt in ts if pt[1] <= st]
                 break
             elif res == 'stop':
                 self.stopped = True
