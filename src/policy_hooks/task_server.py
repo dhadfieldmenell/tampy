@@ -28,12 +28,36 @@ class TaskServer(Server):
         super(TaskServer, self).__init__(hyperparams)
         self.in_queue = self.task_queue
         self.out_queue = self.motion_queue
+        self.prob_queue = []
+        self.labelled_dir = self._hyperparams.get('labelled_dir', None)
 
 
     def run(self):
         while not self.stopped:
             self.find_task_plan()
             time.sleep(0.01)
+
+
+    def load_labelled_state(self):
+        probs = []
+        fnames = os.listdir(self.labelled_dir)
+        for fname in fnames:
+            if fname.find('npy') < 0: continue
+            data = np.load(self.labelled_dir+fname, allow_pickle=True)
+            for pt in data:
+                label = pt[0]
+                x, targets = pt[1], pt[2]
+                inds = pt[3]
+                suc = pt[4]
+                ts = pt[-1]
+                if label in ['after', 'during']:
+                    probs.append((x, targets))
+        ind = int(self.id[-1])
+        ntask = self._hyperparams['num_task']
+        nper = len(probs) / ntask
+        probs = probs[ind*nper:(ind+1)*nper]
+        self.prob_queue.extend(probs)
+
 
     def find_task_plan(self):
         node = self.pop_queue(self.task_queue)

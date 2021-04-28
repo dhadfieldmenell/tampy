@@ -346,6 +346,13 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         raise NotImplementedError
 
 
+    def policies_initialized(self):
+        for policy_name, policy in self.policies.items():
+            if policy_name == 'cont': continue
+            if not self.policy_initialized(policy): return False
+        return True
+
+
     def policy_initialized(self, policy):
         return hasattr(policy, 'scale') and policy.scale is not None
 

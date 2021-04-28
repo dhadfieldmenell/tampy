@@ -23,7 +23,7 @@ class LabelServer(Server):
         self.videos = []
         self.labelled = []
         self.labels = []
-        self.max_buffer = 5
+        self.max_buffer = 10
         self.cur_file = 0
         self.n = 0
         self.n_since_write = 0
@@ -33,7 +33,7 @@ class LabelServer(Server):
         self.user_response_timeout = 1.
         self.video_renderer = VideoRenderer()
         self.label_dir = DIR_KEY + self.config['weight_dir'] + '/labels/'
-        self.save_only = True
+        self.save_only = False
         if not os.path.exists(self.label_dir):
             os.mkdir(self.label_dir)
 
@@ -128,8 +128,15 @@ class LabelServer(Server):
     def get_example(self, suc=False):
         buf = self.successes if suc else self.failures
         if not len(buf): return None
-        ind = np.random.randint(len(buf))
-        example = buf[ind]
+        cur_iter = 0
+        no_motion = True
+        while cur_iter < 5 and no_motion and len(buf):
+            example = buf.pop(0)
+            #ind = np.random.randint(len(buf))
+            #example = buf[ind]
+            x = example[1]
+            no_motion = np.all(np.abs(x[-1]-x[0]) < 0.1)
+            cur_iter += 1
 
         if example[0] is None and self.render:
             example[0] = self.gen_video(example)
@@ -182,7 +189,7 @@ class LabelServer(Server):
         print('\nRunning search query...\n')
         example = self.get_example(val)
         if example is None:
-            self.stopped = True
+            #self.stopped = True
             return
 
         hor = len(example[0])
@@ -206,12 +213,13 @@ class LabelServer(Server):
                 et += t // 2
             elif res == 'during':
                 ts.append((res, st))
+                ts = [pt in ts if pt[1] <= st]
                 break
             elif res == 'stop':
                 self.stopped = True
                 break
             elif res == 'ignore':
-                ts.append((res, 0))
+                ts = []
                 break
             else:
                 invalid_input = True
@@ -330,8 +338,8 @@ class LabelServer(Server):
             initial, goal = self.agent.get_hl_info(x0, targets)
             abs_prob = self.agent.hl_solver.translate_problem(prob, goal=goal, initial=initial)
             hlnode = HLSearchNode(abs_prob,
-                                  prob,
                                   domain,
+                                  prob,
                                   priority=HUMAN_PRIORITY,
                                   x0=x0,
                                   targets=targets,
@@ -351,9 +359,11 @@ class LabelServer(Server):
         print('\n\n\n\n\n\n\n\n LAUNCHED LABEL SERVER \n\n\n')
         if not self.save_only: self.wait_for_data()
         while True:
+            self.wait_for_data()
             self.load_examples()
+            self.push_states()
             if not self.save_only:
-                self.search_query(N=5, t=6)
+                self.search_query(N=3, t=6)
             elif self.n_since_write >= self.max_buffer:
                 self.write_to_file()
             else:

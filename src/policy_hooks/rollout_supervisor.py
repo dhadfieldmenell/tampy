@@ -197,11 +197,12 @@ class RolloutSupervisor():
 
             bad_pt = self.switch_pts[-1]
             train_pts.append(tuple(bad_pt) + (fail_type,))
-            train_pts.append((len(path)-1, path[-1].T-1) + (fail_type,))
+            train_pts.append((len(path)-1, path[-1].T-1, fail_type,))
 
         if self.check_random and val < 1-1e-4:
-            ind = np.random.choice(range(len(self.switch_pts)))
-            train_pts.append(tuple(self.switch_pts[ind]) + ('rollout_random_switch',))
+            s = np.random.randint(len(path))
+            t = np.random.randint(path[s].T)
+            train_pts.append((s, t, 'rollout_random_switch',))
 
         train_pts = list(set(train_pts))
         self.parse_midcond(path)

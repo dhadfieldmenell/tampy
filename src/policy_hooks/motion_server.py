@@ -180,7 +180,11 @@ class MotionServer(Server):
 
 
     def parse_failed(self, plan, node, prev_t):
-        fail_step, fail_pred, fail_negated = node.get_failed_pred(st=prev_t)
+        try:
+            fail_step, fail_pred, fail_negated = node.get_failed_pred(st=prev_t)
+        except:
+            fail_pred = None
+
         if fail_pred is None:
             print('Failure without failed constr?')
             return

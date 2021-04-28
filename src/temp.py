@@ -1,4 +1,9 @@
-from policy_hooks.baselines.mujoco_dset import *
-d = Mujoco_Dset('tf_saved/namo_objs3_3/exp_id0_gripper_dom_2/primitive_exp_data.npy')
+from policy_hooks.human_labels.video_renderer import *
 
-import ipdb; ipdb.set_trace()
+rend = VideoRenderer()
+rend.wait()
+time.sleep(1)
+rend.cont()
+
+rend.wait_for_user()
+

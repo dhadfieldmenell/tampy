@@ -107,6 +107,8 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False,
                                     all_data[k][full_exp][cur_dir][cur_dir][-1]['success with postcond'] = pt[16]
                                 if len(pt) > 17:
                                     all_data[k][full_exp][cur_dir][cur_dir][-1]['success with adj_eta'] = pt[17]
+                                if len(pt) > 18:
+                                    all_data[k][full_exp][cur_dir][cur_dir][-1]['episode return'] = pt[18]
                                 # all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta+1)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'description': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9], 'number of plans': pt[10]})
 
                     i += 1
@@ -228,7 +230,12 @@ def get_motion_data(keywords=[], exclude=[], include=[]):
                         next_data = f.read()
                     if len(next_data):
                         next_data = str.split(next_data, '\n\n')
-                        r_data = [eval(d) for d in next_data if len(d)]
+                        try:
+                            r_data = [eval(d) for d in next_data if len(d)]
+                        except:
+                            continue
+                        for pt in r_data:
+                            pt['exp id'] = 0
                         print('MOTION: Loading {0} pts for {1}'.format(len(r_data), full_dir+'/'+r))
                         rollout_data['motion'].extend(r_data)
                         data[k][full_exp][full_dir] = rollout_data
@@ -746,7 +753,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
         sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_true{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
 
 
-def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100, rolling=True, window=100, xlim=None, ylim=None, fname='', witherr=False):
+def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100, rolling=True, window=100, xlim=None, ylim=None, fname='', witherr=False, style=None):
     sns.set()
     if not separate:
         d = []
@@ -798,7 +805,6 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                 for yind, yv in enumerate(yvars):
                     print('Plotting', xv, yv)
                     cur_y = yv
-                    style = None
                     inter = int(inter)
                     dashes = [(1,0), (4,2), (1,4), (2,2)]
                     df = pd_frame
@@ -865,9 +871,9 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=1.,
     if lab == 'rollout':
         rd = get_rollout_data(keywords, exclude=exclude)
     elif lab == 'motion':
-        rd = get_motion_data(keywords, exclude=exclude)
+        rd = get_motion_data(keywords, exclude=exclude, include=include)
     elif lab == 'rollout_info':
-        rd = get_rollout_info_data(keywords, exclude=exclude)
+        rd = get_rollout_info_data(keywords, exclude=exclude, include=include)
     elif lab == 'test':
         rd = get_test_data(keywords, include=include, exclude=exclude, split_runs=split_runs, pre=pre, label_vars=label_vars)
     else:
@@ -965,6 +971,9 @@ if __name__ == '__main__':
         gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=180, window=200, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_{}'.format(keywords[0]))
         gen_data_plots(xvar='number of plans', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=10, window=100, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_nplans_{}'.format(keywords[0]))
         gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=True, include=include, inter=120, window=200, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='splitendsucc_{}'.format(keywords[0]))
+
+        gen_data_plots(xvar='time', yvar=['optimization time', 'plan length', 'opt duration per ts'], keywords=keywords, lab='motion', label_vars=['descr'], separate=True, keyind=5, ylabel='move_policy_successes', exclude=exclude, split_runs=False, include=include, inter=5, window=50, fname='tampspeedup') 
+
         gen_data_plots(xvar='time', yvar=['reg_val', 'loss_ratio', 'any target', 'subgoals anywhere'], keywords=keywords, lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='{}primcurve'.format(keywords[0]))
         gen_data_plots(xvar='time', yvar=['reg_val'], keywords=keywords, lab='control', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='{}ctrlcurve'.format(keywords[0]))
         gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='control', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='primpol')

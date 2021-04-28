@@ -96,9 +96,21 @@ def load_agent(config):
     if config.get('add_image', False):
         config['obs_include'].append(utils.IM_ENUM)
         config['load_render'] = True
+
+    options = prob.get_prim_choices(task_list)
+    if config['flat']:
+        obs_include = config['obs_include']
+        config['obs_include'] = []
+        for enum in obs_include:
+            if enum not in [END_POSE_ENUM, END_ROT_ENUM] and enum not in options.keys():
+                config['obs_include'].append(enum)
+
+        for enum in config['prim_obs_include']:
+            if enum not in config['obs_include']:
+                config['obs_include'].append(enum)
+
     prim_dims = OrderedDict({})
     config['prim_dims'] = prim_dims
-    options = prob.get_prim_choices(task_list)
     ind = len(task_list)
     for enum in options:
         if enum == utils.TASK_ENUM: continue

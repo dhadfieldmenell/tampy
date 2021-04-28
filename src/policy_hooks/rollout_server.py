@@ -41,6 +41,7 @@ class RolloutServer(Server):
         self.fail_mode = hyperparams['fail_mode']
         self.current_id = 0
         self.cur_step = 0
+        self.ff_iters = self._hyperparams['warmup_iters']
         self.label_type = 'rollout'
         self.adj_eta = False
         self.run_hl_test = hyperparams.get('run_hl_test', False)
@@ -375,12 +376,11 @@ class RolloutServer(Server):
 
     def run(self):
         step = 0
-        ff_iters = self._hyperparams['warmup_iters']
         self.agent.hl_pol = False
         while not self.stopped:
             step += 1
             cont_samples = self.agent.get_cont_samples()
-            if self._n_plans <= ff_iters:
+            if self._n_plans <= self.ff_iters:
                 n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']
                 self._n_plans = n_plans.value
 
@@ -389,10 +389,12 @@ class RolloutServer(Server):
                 self.agent.reset(0)
                 n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans'].value
                 save_video = self.id.find('test') >= 0
-                self.test_hl(save_video=save_video)
+                val, path = self.test_hl(save_video=save_video)
+                if self._n_plans >= self.ff_iters:
+                    self.send_to_label(path, val > 0)
 
             if self.run_hl_test: continue
-            if self._n_plans < ff_iters: continue
+            if self._n_plans < self.ff_iters: continue
 
             self.set_policies()
             node = self.pop_queue(self.rollout_queue)
@@ -425,6 +427,9 @@ class RolloutServer(Server):
         x0 = node.x0
         targets = node.targets
         val, path = self.rollout_supervisor.rollout(x0, targets, node)
+        if self._n_plans >= self.ff_iters:
+            self.send_to_label(path, val > 0)
+
         if self.id.find('r0'):
             self.save_video(path, val > 0, lab='_rollout')
 
@@ -479,7 +484,6 @@ class RolloutServer(Server):
             path.append(s)
         self.eta = old_eta
         self.log_path(path, lab)
-        self.send_to_label(path, val > 0)
         return val, path
 
     def check_failed_likelihoods(self):

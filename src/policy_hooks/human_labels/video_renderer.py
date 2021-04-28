@@ -157,6 +157,14 @@ class VideoRenderer:
         render_thread.start()
 
 
+    def show_transition(self):
+        if self.v is not None: self.v.close()
+        v = Im()
+        v.txtshow('Inputs saved; loading next trajectory')
+        time.sleep(0.3)
+        v.close()
+
+
     def get_time(self):
         return self.cur_t
 
@@ -192,10 +200,10 @@ class VideoRenderer:
             v.check_input()
             if v._rec_input:
                 keystroke = v.last_keystroke
-                v.close()
-                v = Im()
-                v.txtshow('Found user input {}'.format(keystroke))
-                time.sleep(0.1)
+                #v.close()
+                #v = Im()
+                #v.txtshow('Found user input {}'.format(keystroke))
+                #time.sleep(0.1)
                 break
             sleep_time = max(0, self.sleep_time-render_time)
             time.sleep(sleep_time)

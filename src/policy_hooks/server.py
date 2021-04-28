@@ -205,8 +205,10 @@ class Server(object):
         # rospy.signal_shutdown('Received signal to terminate.')
 
 
-    def spawn_problem(self):
-        x0, targets = self.new_problem()
+    def spawn_problem(self, x0=None, targets=None):
+        if x0 is None or targets is None:
+            x0, targets = self.new_problem()
+
         initial, goal = self.agent.get_hl_info(x0, targets)
         problem = list(self.agent.plans.values())[0].prob
         domain = list(self.agent.plans.values())[0].domain
@@ -572,7 +574,8 @@ class Server(object):
     def send_to_label(self, rollout, suc, tdelta=4):
         if not self.config['label_server'] \
            or not len(rollout) \
-           or not self.render: return
+           or not self.render \
+           or not self.agent.policies_initialized(): return
 
         targets = rollout[-1].targets
         vid = self._gen_video(rollout, tdelta=tdelta)

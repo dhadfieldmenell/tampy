@@ -374,6 +374,7 @@ def argsparser():
     parser.add_argument('-soft', '--soft', action='store_true', default=False)
     parser.add_argument('-eta', '--eta', type=float, default=5.)
     parser.add_argument('-add_noop', '--add_noop', type=int, default=0)
+    parser.add_argument('-flat', '--flat', action='store_true', default=False)
     parser.add_argument('-goal_type', '--goal_type', type=str, default='default')
     parser.add_argument('-softev', '--soft_eval', action='store_true', default=False)
     parser.add_argument('-pre', '--check_precond', action='store_true', default=False)
