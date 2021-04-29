@@ -973,10 +973,14 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 smooth_cnts.append((task, n_suc, len(cur_path)))
 
             if rollout and cost == 0:
+                success = True
+                rollout_success = True
                 next_x0 = ref_traj[-1]
                 ref_x0 = next_x0.copy()
                 ref_x0 = self.clip_state(ref_x0)
                 path.append(sample)
+                sample._postsuc = True
+                sample.success = 1. - self.goal_f(0, next_x0, targets)
                 set_params_attrs(plan.params, self.state_inds, ref_x0, act_et, plan=plan)
             else:
                 set_params_attrs(plan.params, self.state_inds, prev_x0, act_st, plan=plan)
