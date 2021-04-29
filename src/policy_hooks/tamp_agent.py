@@ -1017,7 +1017,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             ref_x0 = x0.copy()
             ref_x0 = self.clip_state(ref_x0)
            
-        rollout_success = len(path) and path[-1].success > 0.999
+        rollout_success = len(path) and self.goal_f(0, path[-1].end_state, targets) < 1e-3
         if success:
             self.n_plans_run += 1
 

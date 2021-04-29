@@ -130,10 +130,11 @@ class MotionServer(Server):
         for step in path:
             step.wt = wt
 
-        self.plan_horizons.append(plan.horizon)
-        self.plan_horizons = self.plan_horizons[-5:]
-        self.plan_times.append(end_t-init_t)
-        self.plan_times = self.plan_times[-5:]
+        if success:
+            self.plan_horizons.append(plan.horizon)
+            self.plan_horizons = self.plan_horizons[-5:]
+            self.plan_times.append(end_t-init_t)
+            self.plan_times = self.plan_times[-5:]
 
         self.n_failed += 0. if success else 1.
         n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans']

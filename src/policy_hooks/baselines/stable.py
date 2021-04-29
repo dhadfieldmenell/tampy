@@ -1,4 +1,5 @@
 from stable_baselines import SAC, PPO2
+from stable_baselines.bench.monitor import Monitor
 from stable_baselines.common.vc_env import set_global_seeds, make_vec_env
 from stable_baelines.vev_enc import SubprocVecEnv
 
@@ -21,7 +22,7 @@ def run(config):
 
     envname = 'TAMPEnv-v0'
     register_env(config, name=envname, max_ts=args.episode_timesteps)
-    vec_eenv = make_vec_env(envname, n_envs, vec_env_cls=SubprocVecEnv)
+    vec_env = make_vec_env(envname, n_envs, vec_env_cls=SubprocVecEnv)
 
     model_cls = SAC
     if alg == 'ppo2':
