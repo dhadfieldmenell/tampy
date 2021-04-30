@@ -293,7 +293,8 @@ class RolloutServer(Server):
             targets[self.agent.target_inds['{0}_end_target'.format(obj_name), 'value']] = x0[self.agent.state_inds[obj_name, 'pose']]
 
         if rlen is None: rlen = self.agent.rlen
-        nt = rlen * self.agent.hor
+        hor = self.agent.hor
+        nt = rlen * hor
 
         val, path = self.test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], eta=eta, lab=-5, hor=hor)
         adj_val = val
