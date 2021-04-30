@@ -41,7 +41,7 @@ class AgentEnvWrapper(Env):
         self._max_time = max_ts
         self._cur_time = 0
         self._ret = 0.
-        self.horizon = max_ts
+        self.horizon = agent.hor * agent.rlen
         self.start_t = time.time()
         self.n_step = 0.
         self.log_dir = DIR_KEY + config['master_config']['weight_dir']

@@ -123,7 +123,7 @@ class MotionServer(Server):
                                                                  traj=node.ref_traj, 
                                                                  st=cur_t, 
                                                                  permute=self.permute_hl,
-                                                                 label=node.label,
+                                                                 label=node.nodetype,
                                                                  backup=self.backup,
                                                                  verbose=verbose)
         end_t = time.time()

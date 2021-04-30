@@ -76,6 +76,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.solver = self._hyperparams['solver']
         self.rollout_seed = self._hyperparams['rollout_seed']
         self.num_objs = self._hyperparams['num_objs']
+        self.rlen = 4 + 2 * self.num_objs * len(self.task_list)
+        self.hor = 20
+        self.retime = hyperparams['master_config'].get('retime', False)
+        if self.retime: self.rlen *= 2
         self.init_vecs = self._hyperparams['x0']
         self.x0 = [x[:self.symbolic_bound] for x in self.init_vecs]
         self.targets = self._hyperparams['targets']
@@ -90,7 +94,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.goal_type = self.master_config.get('goal_type', 'default')
         self.dagger_window = self.master_config['dagger_window']
         self._tol = 1e-3
-        self.retime = hyperparams['master_config'].get('retime', False)
         for condition in range(len(self.x0)):
             target_vec = np.zeros((self.target_dim,))
             for target_name in self.targets[condition]:

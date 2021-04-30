@@ -98,6 +98,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         super(NAMOSortingAgent, self).__init__(hyperparams)
 
         self.optimal_pol_cls = optimal_pol
+        self._feasible = True
         for plan in list(self.plans.values()):
             for t in range(plan.horizon):
                 plan.params['obs0'].pose[:,t] = plan.params['obs0'].pose[:,0]
@@ -232,11 +233,16 @@ class NAMOGripAgent(NAMOSortingAgent):
 
     #def run_policy_step(self, u, x, plan, t, obj, grasp=None):
     def run_policy_step(self, u, x):
+        if not self._feasible:
+            return False, 0
+
         self._col = []
         poses = {}
         for pname, aname in self.state_inds:
-            if aname != 'pose' or pname.find('can') < 0: continue
+            if aname != 'pose': continue
+            if pname.find('box') < 0 or pname.find('can') < 0: continue
             poses[pname] = self.mjc_env.get_item_pos(pname)
+
         cmd_theta = u[self.action_inds['pr2', 'theta']][0]
         if ('pr2', 'pose') not in self.action_inds:
             cmd_vel = u[self.action_inds['pr2', 'vel']]
@@ -246,19 +252,16 @@ class NAMOGripAgent(NAMOSortingAgent):
         else:
             cur_theta = x[self.state_inds['pr2', 'theta']][0]
             rel_x, rel_y = u[self.action_inds['pr2', 'pose']]
+            cmd_x, cmd_y = rel_x, rel_y
             if LOCAL_FRAME:
-                cmd_x, cmd_y = np.array([[np.cos(cur_theta), -np.sin(cur_theta)], [np.sin(cur_theta), np.cos(cur_theta)]]).dot([rel_x, rel_y])
-            else:
-                cmd_x, cmd_y = rel_x, rel_y
+                cmd_x, cmd_y = np.array([[np.cos(cur_theta), -np.sin(cur_theta)], \
+                                         [np.sin(cur_theta), np.cos(cur_theta)]]).dot([rel_x, rel_y])
 
         nsteps = int(max(abs(cmd_x), abs(cmd_y)) / self.vel_rat) + 1
         # nsteps = min(nsteps, 10)
         gripper = u[self.action_inds['pr2', 'gripper']][0]
-        if gripper < 0:
-            gripper = -0.1
-        else:
-            gripper = 0.1
-        cur_x, cur_y, _ = self.mjc_env.get_item_pos('pr2') # x[self.state_inds['pr2', 'pose']]
+        gripper = -0.1 if gripper < 0 else 0.1
+        cur_x, cur_y, _ = self.mjc_env.get_item_pos('pr2')
         for n in range(nsteps+1):
             x = cur_x + float(n)/nsteps * cmd_x
             y = cur_y + float(n)/nsteps * cmd_y
@@ -271,11 +274,15 @@ class NAMOGripAgent(NAMOSortingAgent):
 
         new_poses = {}
         for pname, aname in self.state_inds:
-            if aname != 'pose' or pname.find('can') < 0: continue
+            if aname != 'pose': continue
+            if pname.find('box') < 0 or pname.find('can') < 0: continue
             new_poses[pname] = self.mjc_env.get_item_pos(pname)
+
         for pname in poses:
             if np.any(np.abs(poses[pname]-new_poses[pname])) > 5e-2:
                 self._col.append(pname)
+                if pname.find('box') > 0: self._feasible = False
+
         col = 1 if len(self._col) > 0 else 0
         self._rew = self.reward()
         self._ret += self._rew
@@ -484,6 +491,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         self._done = 0.
         self._ret = 0.
         self._rew = 0.
+        self._feasible = True
         self._prev_U = np.zeros((self.hist_len, self.dU))
         self._x_delta = np.zeros((self.hist_len+1, self.dX))
         self._x_delta[:] = x.reshape((1,-1))
@@ -948,4 +956,9 @@ class NAMOGripAgent(NAMOSortingAgent):
                 sample.set(utils.END_POSE_ENUM, rot.dot(vals[ind] - mp_state[self.state_inds['pr2', 'pose']]), t)
                 sample.set(utils.TRUE_POSE_ENUM, vals[ind], t)
         return old_vals
+
+
+    def feasible_state(self, x, targets):
+        return self._feasible
+
 

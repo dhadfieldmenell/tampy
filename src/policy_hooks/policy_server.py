@@ -133,7 +133,7 @@ class PolicyServer(object):
         self.data = data.interleave(self.gen_f, \
                                      cycle_length=4, \
                                      block_length=1)
-        self.data = self.data.prefetch(3)
+        self.data = self.data.prefetch(4)
 
         self.input, self.act, self.prc = self.data.make_one_shot_iterator().get_next()
 
@@ -213,7 +213,9 @@ class PolicyServer(object):
             self.iters += 1
             init_t = time.time()
             self.data_gen.load_data()
+            #print('\n\nTime to get update', time.time() - init_t, self.task)
             self.policy_opt.update(self.task)
+            #print('\n\nTime to run update', time.time() - init_t, self.task)
             #if self.task == 'primitive': print('Time to run update:', time.time() - init_t)
             self.n_updates += 1
             mu, obs, prc = self.data_gen.get_batch()

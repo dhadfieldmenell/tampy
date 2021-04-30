@@ -2,7 +2,8 @@ import numpy as np
 
 from sco.expr import BoundExpr, QuadExpr, AffExpr
 from pma import backtrack_ll_solver
-from core.util_classes.namo_grip_predicates import RETREAT_DIST, dsafe, opposite_angle, gripdist, ColObjPred
+from core.util_classes.namo_grip_predicates import RETREAT_DIST, dsafe, opposite_angle, \
+                                                   gripdist, ColObjPred, BoxObjPred
 
 class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
@@ -197,13 +198,16 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         if coeff is None:
             coeff = self.col_coeff
 
+        if coeff == 0:
+            return []
+
         objs = []
         robot = plan.params['pr2']
         act = [act for act in plan.actions if act.active_timesteps[0] <= active_ts[0] and act.active_timesteps[1] >= active_ts[1]][0]
         for param in plan.params.values():
-            if param._type != 'Can': continue
+            if param._type not in ['Box', 'Can']: continue
             if act.name.lower().find('transfer') >= 0 and param in act.params: continue
-            expected_param_types = ['Robot', 'Can']
+            expected_param_types = ['Robot', param._type]
             params = [robot, param]
             pred = ColObjPred('obstr', params, expected_param_types, plan.env, coeff=coeff)
             for t in range(active_ts[0], active_ts[1]-1):

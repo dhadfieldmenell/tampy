@@ -222,7 +222,10 @@ class OpenRAVEBody(object):
             elif len(base_pose) == 2:
                 base_pose = np.array(base_pose).flatten()
                 pos = np.concatenate([base_pose, [0]]).flatten()
-                quat = [0, 0, 0, 1]
+                if len(rotation) == 1:
+                    rotation = [0., 0., rotation[0]]
+                # quat = [0, 0, 0, 1]
+                quat = T.euler_to_quaternion(rotation, order='xyzw')
             else:
                 pos = base_pose
                 quat = T.euler_to_quaternion(rotation, order='xyzw')

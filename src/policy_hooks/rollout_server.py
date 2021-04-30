@@ -292,11 +292,8 @@ class RolloutServer(Server):
             obj_name = prim_opts[OBJ_ENUM][t]
             targets[self.agent.target_inds['{0}_end_target'.format(obj_name), 'value']] = x0[self.agent.state_inds[obj_name, 'pose']]
 
-        if rlen is None:
-            rlen = 4 + 2 * n * len(self.agent.task_list)
-            if self.agent.retime: rlen *= 2
-        hor = 20
-        nt = rlen * hor
+        if rlen is None: rlen = self.agent.rlen
+        nt = rlen * self.agent.hor
 
         val, path = self.test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], eta=eta, lab=-5, hor=hor)
         adj_val = val
@@ -430,7 +427,7 @@ class RolloutServer(Server):
         if self._n_plans >= self.ff_iters:
             self.send_to_label(path, val > 0)
 
-        if self.id.find('r0'):
+        if self.id.find('r0') >= 0:
             self.save_video(path, val > 0, lab='_rollout')
 
         self.log_path(path, -20)

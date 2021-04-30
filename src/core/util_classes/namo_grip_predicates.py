@@ -3004,6 +3004,10 @@ class ColObjPred(CollisionPredicate):
         return j.T.dot(j)
 
 
+class BoxObjPred(CollisionPredicate):
+    pass
+
+
 class DoorColObjPred(CollisionPredicate):
     def __init__(self, name, params, expected_param_types, env=None, coeff=1e3, debug=False):
         self._env = env
