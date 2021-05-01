@@ -815,8 +815,9 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                         print(('Combining', yv))
 
                     ci = 'sd' # if witherr else None
+                    err_style='band'
                     if sns_plot is None:
-                        sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=style, kind='line', data=df, markers=False, dashes=dashes, ci=ci, n_boot=100)
+                        sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=style, kind='line', data=df, markers=False, dashes=dashes, ci=ci, n_boot=100, err_style=err_style)
                         sns_plot.fig.set_figwidth(10)
                         sns_plot._legend.remove()
                         # sns_plot.fig.get_axes()[0].legend(loc=(0.0, -0.5), prop={'size': 12})
@@ -824,7 +825,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                     else:
                         l, b, w, h = sns_plot.fig.axes[-1]._position.bounds
                         sns_plot.fig.add_axes((l+w+0.1, b, w, h))
-                        sub_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=style, kind='line', data=df, legend=False, ax=sns_plot.fig.axes[-1], dashes=dashes, markers=False, ci=ci)
+                        sub_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=style, kind='line', data=df, legend=False, ax=sns_plot.fig.axes[-1], dashes=dashes, markers=False, ci=ci, n_boot=100, err_style=err_style)
                     sns_plot.fig.axes[-1].set_title('{0} vs {1}'.format(xv, cur_y), size=14)
                     if xlim is not None: sns_plot.fig.axes[-1].set(xlim=xlim[xind])
                     if ylim is not None:
@@ -856,7 +857,10 @@ def gen_label(exp_dir, label_vars=[], split_runs=False, run_ind=0):
 
     for v in label_vars:
         if v not in args: continue
-        label += ' {0}: {1}'.format(v, str(args[v]).replace('_', ' '))
+        if v == 'descr':
+            label += '{0}'.format(str(args[v]).replace('_', ' '))
+        else:
+            label += ' {0}: {1}'.format(v, str(args[v]).replace('_', ' '))
 
     if split_runs: label += ' - run {0}'.format(run_ind)
     return label
@@ -968,11 +972,12 @@ if __name__ == '__main__':
     while not terminate:
         if not perpetual:
             terminate = True
-        gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=180, window=200, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_{}'.format(keywords[0]))
+        gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=600, window=500, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_{}'.format(keywords[0]))
         gen_data_plots(xvar='number of plans', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=10, window=100, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_nplans_{}'.format(keywords[0]))
-        gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=True, include=include, inter=120, window=200, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='splitendsucc_{}'.format(keywords[0]))
+        #gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=True, include=include, inter=120, window=200, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='splitendsucc_{}'.format(keywords[0]))
 
-        gen_data_plots(xvar='time', yvar=['optimization time', 'plan length', 'opt duration per ts'], keywords=keywords, lab='motion', label_vars=['descr'], separate=True, keyind=5, ylabel='move_policy_successes', exclude=exclude, split_runs=False, include=include, inter=5, window=50, fname='tampspeedup') 
+        gen_data_plots(xvar='time', yvar=['optimization time', 'plan length', 'opt duration per ts'], keywords=keywords, lab='motion', label_vars=['descr'], separate=True, keyind=5, ylabel='move_policy_successes', exclude=exclude, split_runs=False, include=include, inter=600, window=500, fname='tampspeedup') 
+        gen_data_plots(xvar='time', yvar=['episode return'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=600, window=500, fname='endreturn_{}'.format(keywords[0]))
 
         gen_data_plots(xvar='time', yvar=['reg_val', 'loss_ratio', 'any target', 'subgoals anywhere'], keywords=keywords, lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='{}primcurve'.format(keywords[0]))
         gen_data_plots(xvar='time', yvar=['reg_val'], keywords=keywords, lab='control', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='{}ctrlcurve'.format(keywords[0]))
