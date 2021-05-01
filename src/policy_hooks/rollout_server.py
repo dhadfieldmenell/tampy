@@ -316,7 +316,11 @@ class RolloutServer(Server):
         ncols = 1. if len(path) >1 and any([len(np.where(sample.col_ts > 0.99)[0]) > 3 for sample in path[:-1]]) else 0. # np.max([np.max(sample.col_ts) for sample in path])
         plan_suc_rate = np.nan if self.agent.n_plans_run == 0 else float(self.agent.n_plans_suc_run) / float(self.agent.n_plans_run)
         n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans'].value
-        ret = self.agent._ret + val * (nt - np.sum([s.T for s in path]))
+        rew = self.agent.reward()
+        ret = (self.agent._ret + rew * (nt - np.sum([s.T for s in path]))) / nt
+        if rew > 0:
+            ret += (rew * (nt - np.sum([s.T for s in path]))) / nt
+
         s.append((val,
                   len(path), \
                   true_disp, \
@@ -339,6 +343,7 @@ class RolloutServer(Server):
             s[0] = s[0] + (0,)
         s[0] = s[0] + (adj_val,)
         s[0] = s[0] + (ret,)
+        s[0] = s[0] + (rew,)
         if ckpt_ind is not None:
             s[0] = s[0] + (ckpt_ind,)
         res.append(s[0])

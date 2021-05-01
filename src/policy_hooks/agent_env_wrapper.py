@@ -68,22 +68,23 @@ class AgentEnvWrapper(Env):
         obs = s.get_prim_obs().flatten()
         self.cur_state = x
         targets = self.agent.target_vecs[0]
-        reward = self.agent.reward(x, targets)
+        reward = self.agent.reward(x, targets) / self.horizon
         goal = self.agent.goal_f(x, targets=targets)
         if self._reset_since_goal and goal == 0:
             self.n_goal += 1
             self._reset_since_goal = False
-        done = goal == 0 or self._cur_time >= self._max_time
+        done = goal == 0 or self._cur_time >= self.horizon
         if done and self._reset_since_done:
-            reward += (1.-goal) * (self._max_time - self_cur_time - 1)
+            reward += self.reward() * (self.horizon - self_cur_time - 1)
             self._ret += reward
             self.n_runs += 1
             self._reset_since_done = False
-            res = [np.zeros(20)]
+            res = [np.zeros(21)]
             next_pt = [res]
             res[0][0] = 1.-goal
             res[0][3] = time.time() - start_t
             res[0][18] = self._ret
+            res[0][19] = self.agent.reward()
             self.data.append(next_pt)
         elif not self._reset_since_done:
             reward = 0.
