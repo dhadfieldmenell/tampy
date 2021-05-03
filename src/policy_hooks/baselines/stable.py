@@ -48,20 +48,22 @@ def run(config):
     if alg == 'sac':
         from stable_baselines.sac import MlpPolicy, CnnPolicy
         model_cls = SAC
+        model = model_cls(policy_cls, vec_env, verbose=1)
     elif alg == 'ddpg':
         from stable_baselines import DDPG
         from stable_baselines.ddpg.policies import MlpPolicy, CnnPolicy
         n_actions = eval_env.action_space.shape[-1]
         action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=float(0.5) * np.ones(n_actions))
         model_class = DDPG
+        model = model_cls(policy_cls, vec_env, verbose=1)
     else:
         from stable_baselines.common.policies import MlpPolicy, CnnPolicy
+        model = model_cls(policy_cls, vec_env, verbose=1, cliprange_vf=-1, n_steps=eval_env.horizon)
 
     policy_cls = MlpPolicy
     if config['add_hl_image'] or config['add_image']:
         policy_cls = CnnPolicy
 
-    model = model_cls(policy_cls, vec_env, verbose=1)
     model.learn(total_timesteps=args.total_timesteps, callback=eval_callback)
     model.save(args.descr)
 
@@ -126,7 +128,7 @@ class EvalAgentCallback(EventCallback):
                                                                render=self.render,
                                                                deterministic=self.deterministic,
                                                                return_episode_rewards=True)
-            print('Finished eval in {} seconds, saving...'.format(time.time() - init_t))
+            print('Finished eval in {} seconds with mean reward {}, saving...'.format(time.time() - init_t, np.mean(episode_rewards)))
             goals = self.base_env._goal
             self.base_env._goal = []
             mean_reward, std_reward = np.mean(episode_rewards), np.std(episode_rewards)
