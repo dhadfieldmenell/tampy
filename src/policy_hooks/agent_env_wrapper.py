@@ -81,6 +81,7 @@ class AgentEnvWrapper(Env):
         reward = self.agent.reward(x, targets)
         goal = self.agent.goal_f(0, x, targets=targets)
         if self._reset_since_goal and goal == 0:
+            print('\n Env {} reached goal!\n'.format(self._process_id))
             self.n_goal += 1
             self._reset_since_goal = False
         done = goal == 0 or self._cur_time >= self.horizon
@@ -88,9 +89,9 @@ class AgentEnvWrapper(Env):
             self._goal.append(1.-goal)
             self._reset_since_done = False
             if reward > 0:
-                reward *= (self.horizon - self._cur_time)
-        elif not self._reset_since_done:
-            reward = 0.
+                reward *= max(1, 1 + self.horizon - self._cur_time)
+        #elif not self._reset_since_done:
+        #    reward = 0.
 
         self._ret += reward
         info = {'cur_state': x, 'goal': 1-goal}
