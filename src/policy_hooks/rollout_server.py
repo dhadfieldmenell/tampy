@@ -337,6 +337,7 @@ class RolloutServer(Server):
         s[0] = s[0] + (adj_val,)
         s[0] = s[0] + (ret,)
         s[0] = s[0] + (rew,)
+        #s[0] = s[0] + (-np.log(rew+1e-8),)
         if ckpt_ind is not None:
             s[0] = s[0] + (ckpt_ind,)
         res.append(s[0])
