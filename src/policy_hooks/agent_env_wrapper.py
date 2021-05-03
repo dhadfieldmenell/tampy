@@ -54,6 +54,7 @@ class AgentEnvWrapper(Env):
         self.n_step = 0.
         self.log_dir = DIR_KEY + config['weight_dir']
         self._rollout_data = []
+        self.config = config
 
         self.action_space = spaces.Box(-4, 4, [self.agent.dU], dtype='float32')
         self.observation_space = spaces.Box(-3e2, 3e2, [self.agent.dPrim], dtype='float32')
@@ -101,6 +102,7 @@ class AgentEnvWrapper(Env):
         next_pt = [res]
         res[0][0] = goal
         res[0][3] = time.time() - self.start_t
+        res[0][4] = self.config['num_objs']
         res[0][18] = reward
         res[0][19] = self.agent.reward()
         self._rollout_data.append(next_pt)
