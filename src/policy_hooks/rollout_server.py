@@ -312,9 +312,7 @@ class RolloutServer(Server):
         plan_suc_rate = np.nan if self.agent.n_plans_run == 0 else float(self.agent.n_plans_suc_run) / float(self.agent.n_plans_run)
         n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans'].value
         rew = self.agent.reward()
-        ret = (self.agent._ret + rew * (nt - np.sum([s.T for s in path]))) / nt
-        if rew > 0:
-            ret += (rew * (nt - np.sum([s.T for s in path]))) / nt
+        ret = (self.agent._ret + rew * (nt - np.sum([s.T for s in path]))) #/ nt
 
         s.append((val,
                   len(path), \

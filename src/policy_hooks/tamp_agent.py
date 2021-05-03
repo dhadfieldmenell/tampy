@@ -1527,5 +1527,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             targinds = self.target_inds['{}_end_target'.format(opt), 'value']
             rew -= np.linalg.norm(x[xinds]-targets[targinds])
 
+        rew = np.exp(rew)
         return rew
 

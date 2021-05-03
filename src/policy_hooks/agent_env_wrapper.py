@@ -77,7 +77,7 @@ class AgentEnvWrapper(Env):
         obs = self.dummy_sample.get_prim_obs(t=0).flatten()
         self.cur_state = x
         targets = self.agent.target_vecs[0]
-        reward = self.agent.reward(x, targets) / self.horizon
+        reward = self.agent.reward(x, targets)
         goal = self.agent.goal_f(0, x, targets=targets)
         if self._reset_since_goal and goal == 0:
             self.n_goal += 1
@@ -102,7 +102,7 @@ class AgentEnvWrapper(Env):
         res[0][0] = goal
         res[0][3] = time.time() - self.start_t
         res[0][18] = reward
-        res[0][19] = self.agent.reward() / self.horizon
+        res[0][19] = self.agent.reward()
         self._rollout_data.append(next_pt)
 
 

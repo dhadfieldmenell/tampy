@@ -39,7 +39,7 @@ def run(config):
 
     eval_env = AgentEnvWrapper(config=config, max_ts=args.episode_timesteps, process_id='testenv')
     check_env(eval_env)
-    eval_callback = EvalAgentCallback(eval_env, eval_freq=10000)
+    eval_callback = EvalAgentCallback(eval_env, eval_freq=2000)
     #envname = 'TAMPEnv-v0'
     #register_env(config, name=envname, max_ts=args.episode_timesteps)
     vec_env = SubprocVecEnv([make_env(env_fn, i) for i in range(n_envs)])
