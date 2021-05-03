@@ -1,20 +1,30 @@
-for N in 1 2 3 4 5
+for N in 1
 do
-    for T in 2000 3000
+    for S in third
     do
-        mpirun -np 32 python3 -W ignore policy_hooks/run_training.py \
-                -c policy_hooks.namo.hyperparams_v93 \
-                -no 1 -nt 1 \
-                --expert_path tf_saved/namo_objs1_1/gail_data_6 \
-                -baseline gail \
-                --traj_limitation ${T} \
-                --index ${N} \
-                --num_timesteps 5000000 \
-                --episode_timesteps 200\
-                -descr gail_baseline_1obj_${T}_trajectories & 
-        sleep 3h
-        pkill -f run_train -9
-        sleep 5s
+
+
+        python3 -W ignore policy_hooks/run_training.py -c policy_hooks.namo.flathyp \
+                                                       -no 1 -llus 5000  -hlus 5000 \
+                                                       -spl -mask -hln 2 -hldim 96 -lldim 64 \
+                                                       -retime -vel 0.3 -eta 5 -softev \
+                                                       -hist_len 2 -prim_first_wt 20 -lr 0.0002 \
+                                                       -hllr 0.001 -lldec 0.0001 -hldec 0.0004 \
+                                                       -add_noop 0 --permute_hl 1 \
+                                                       -expl_wt 10 -expl_eta 4 \
+                                                       -col_coeff 0.0 \
+                                                       -motion 18 \
+                                                       -rollout 12 \
+                                                       -task 2 \
+                                                       -post -pre \
+                                                       -warm 100 \
+                                                       -run_baseline \
+                                                       -baseline stable \
+                                                       --total_timesteps 100000 \
+                                                       --n_proc 30 \
+                                                       --algo ppo2 \
+                                                       -descr 2d_pickplace_1obj_PPO2_baseline
+
     done
 done
 

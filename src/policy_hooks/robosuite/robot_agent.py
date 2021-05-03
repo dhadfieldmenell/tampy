@@ -125,7 +125,7 @@ class EnvWrapper():
         self._type_cache = {}
         self.sim = env.sim
         self.model = env.mjpy_model
-        self.z_offsets = {'cereal': 0.04, 'milk': 0.03, 'can': 0.02, 'bread': 0.01}
+        self.z_offsets = {'cereal': 0.04, 'milk': 0.02, 'can': 0.03, 'bread': 0.03}
         self.mode = mode
 
     def get_attr(self, obj, attr, euler=False):
@@ -358,6 +358,8 @@ class RobotAgent(TAMPAgent):
             from mujoco_py import MjRenderContextOffscreen
             self.render_context = MjRenderContextOffscreen(self.base_env.sim, device_id=0)
             self.base_env.sim.add_render_context(self.render_context)
+            self.render_context.vopt.geomgroup[0] = 0
+            self.render_context.vopt.geomgroup[1] = 1
             self.base_env.sim._render_context_offscreen.vopt.geomgroup[0] = 0
             self.base_env.sim._render_context_offscreen.vopt.geomgroup[1] = 1
 

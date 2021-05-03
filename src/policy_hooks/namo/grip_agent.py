@@ -257,6 +257,9 @@ class NAMOGripAgent(NAMOSortingAgent):
                 cmd_x, cmd_y = np.array([[np.cos(cur_theta), -np.sin(cur_theta)], \
                                          [np.sin(cur_theta), np.cos(cur_theta)]]).dot([rel_x, rel_y])
 
+        if np.isnan(cmd_x): cmd_x = 0#np.random.normal(0.05)
+        if np.isnan(cmd_y): cmd_y = 0#np.random.normal(0.05)
+        if np.isnan(cmd_theta): cmd_theta = 0#np.random.normal(0.05)
         nsteps = int(max(abs(cmd_x), abs(cmd_y)) / self.vel_rat) + 1
         # nsteps = min(nsteps, 10)
         gripper = u[self.action_inds['pr2', 'gripper']][0]

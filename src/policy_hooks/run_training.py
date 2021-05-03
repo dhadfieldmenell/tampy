@@ -11,7 +11,7 @@ import time
 
 from policy_hooks.multiprocess_main import MultiProcessMain
 
-USE_BASELINES = False
+USE_BASELINES = True
 if USE_BASELINES:
     from policy_hooks.baselines.argparse import argsparser as baseline_argsparser
 
@@ -120,7 +120,7 @@ def run_baseline(args):
     old_file = config['task_map_file']
     config = {'args': args, 'task_map_file': old_file}
     config.update(vars(args))
-    config['source'] = exps_info[ind][ind2]
+    config['source'] = exps_info[0][0]
     config['weight_dir'] = old_dir
     current_id = 0 # setup_dirs(c, args)
 

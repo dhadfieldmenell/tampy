@@ -1,5 +1,4 @@
 import argparse
-from baselines.common.misc_util import boolean_flag
 
 def argsparser(parser=None):
     if parser is None:
@@ -13,8 +12,8 @@ def argsparser(parser=None):
     # Task
     parser.add_argument('--task', type=str, choices=['train', 'evaluate', 'sample'], default='train')
     # for evaluatation
-    boolean_flag(parser, 'stochastic_policy', default=False, help='use stochastic/deterministic policy to evaluate')
-    boolean_flag(parser, 'save_sample', default=False, help='save the trajectories or not')
+    #boolean_flag(parser, 'stochastic_policy', default=False, help='use stochastic/deterministic policy to evaluate')
+    #boolean_flag(parser, 'save_sample', default=False, help='save the trajectories or not')
     #  Mujoco Dataset Configuration
     parser.add_argument('--traj_limitation', type=int, default=-1)
     parser.add_argument('--n_proc', type=int, default=4)
@@ -31,10 +30,11 @@ def argsparser(parser=None):
     parser.add_argument('--adversary_entcoeff', help='entropy coefficiency of discriminator', type=float, default=1e-3)
     # Traing Configuration
     parser.add_argument('--save_per_iter', help='save model every xx iterations', type=int, default=100)
-    parser.add_argument('--num_timesteps', help='number of timesteps per episode', type=int, default=5e6)
+    parser.add_argument('--num_timesteps', help='number of timesteps per episode', type=int, default=5e2)
+    parser.add_argument('--total_timesteps', help='number of timesteps per episode', type=int, default=5e5)
     parser.add_argument('--episode_timesteps', help='number of timesteps per episode', type=int, default=1e2)
     # Behavior Cloning
-    boolean_flag(parser, 'pretrained', default=False, help='Use BC to pretrain')
+    #boolean_flag(parser, 'pretrained', default=False, help='Use BC to pretrain')
     parser.add_argument('--BC_max_iter', help='Max iteration for training BC', type=int, default=1e4)
     return parser
 

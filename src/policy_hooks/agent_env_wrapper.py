@@ -31,9 +31,16 @@ def gen_agent_env(config=None, max_ts=500):
 
 class AgentEnvWrapper(Env):
     metadata = {'render.modes': ['rgb_array', 'human']}
-    def __init__(self, agent=None, config=None, env=None, use_solver=False, seed=1234, max_ts=500):
-        config = load_agent(config)
-        agent = build_agent(config)
+    def __init__(self, agent=None, config=None, env=None, use_solver=False, seed=1234, max_ts=500, process_id=None):
+        if process_id is None:
+            process_id = str(os.getpid())
+        config['id'] = process_id
+        self._process_id = process_id
+        if agent is None:
+            agent_config = load_agent(config)
+            agent = build_agent(agent_config)
+        self._log_dir = DIR_KEY + config['weight_dir'] + '/'
+        self._log_file = self._log_dir + 'AgentEnv{}_hl_test_log.npy'.format(self._process_id)
         self.agent = agent
         self.dummy_sample = Sample(self.agent)
         self._seed = seed
@@ -41,18 +48,20 @@ class AgentEnvWrapper(Env):
         self._max_time = max_ts
         self._cur_time = 0
         self._ret = 0.
+        self._goal = []
         self.horizon = agent.hor * agent.rlen
         self.start_t = time.time()
         self.n_step = 0.
-        self.log_dir = DIR_KEY + config['master_config']['weight_dir']
+        self.log_dir = DIR_KEY + config['weight_dir']
         self._rollout_data = []
 
-        self.action_space = spaces.Box(-10, 10, [self.agent.dU], dtype='float32')
-        self.observation_space = spaces.Box(-1e3, 1e3, [self.agent.dPrim], dtype='float32')
+        self.action_space = spaces.Box(-4, 4, [self.agent.dU], dtype='float32')
+        self.observation_space = spaces.Box(-3e2, 3e2, [self.agent.dPrim], dtype='float32')
         self.cur_state = self.agent.x0[0]
 
         self.n_runs = 0
         self.n_suc = 0
+        self.n_goal = 0
         self._reset_since_goal = True
         self._reset_since_done = True
 
@@ -61,38 +70,44 @@ class AgentEnvWrapper(Env):
 
     def step(self, action):
         self.n_step += 1
+        self._cur_time += 1
         x = self.agent.get_state()
         self.agent.run_policy_step(action, x)
-        s = Sample(self.agent)
         self.agent.fill_sample(0, self.dummy_sample, x[self.agent._x_data_idx[STATE_ENUM]], 0, list(self.agent.plans.keys())[0], fill_obs=True)
-        obs = s.get_prim_obs().flatten()
+        obs = self.dummy_sample.get_prim_obs(t=0).flatten()
         self.cur_state = x
         targets = self.agent.target_vecs[0]
         reward = self.agent.reward(x, targets) / self.horizon
-        goal = self.agent.goal_f(x, targets=targets)
+        goal = self.agent.goal_f(0, x, targets=targets)
         if self._reset_since_goal and goal == 0:
             self.n_goal += 1
             self._reset_since_goal = False
         done = goal == 0 or self._cur_time >= self.horizon
         if done and self._reset_since_done:
-            reward += self.reward() * (self.horizon - self_cur_time - 1)
-            self._ret += reward
-            self.n_runs += 1
+            self._goal.append(1.-goal)
             self._reset_since_done = False
-            res = [np.zeros(21)]
-            next_pt = [res]
-            res[0][0] = 1.-goal
-            res[0][3] = time.time() - start_t
-            res[0][18] = self._ret
-            res[0][19] = self.agent.reward()
-            self.data.append(next_pt)
+            if reward > 0:
+                reward *= (self.horizon - self._cur_time)
         elif not self._reset_since_done:
             reward = 0.
-        else:
-            self._ret += reward
 
+        self._ret += reward
         info = {'cur_state': x, 'goal': 1-goal}
         return obs, reward, done, info
+
+
+    def add_test_info(self, reward, goal):
+        res = [np.zeros(21)]
+        next_pt = [res]
+        res[0][0] = goal
+        res[0][3] = time.time() - self.start_t
+        res[0][18] = reward
+        res[0][19] = self.agent.reward() / self.horizon
+        self._rollout_data.append(next_pt)
+
+
+    def save_log(self):
+        np.save(self._log_file, np.array(self._rollout_data))
 
 
     def reset(self):

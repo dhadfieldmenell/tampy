@@ -277,6 +277,7 @@ class RolloutServer(Server):
         elif self.policy_opt.share_buffers:
             self.policy_opt.read_shared_weights()
 
+        init_t = time.time()
         self.agent.debug = False
         prim_opts = self.agent.prob.get_prim_choices(self.agent.task_list)
         n_targs = list(range(len(prim_opts[OBJ_ENUM])))
@@ -304,12 +305,6 @@ class RolloutServer(Server):
         #    self.adj_eta = False
         true_disp = np.min(np.min([[self.agent.goal_f(0, step.get(STATE_ENUM, t), targets, cont=True) for t in range(step.T)] for step in path]))
         true_val = np.max(np.max([[1-self.agent.goal_f(0, step.get(STATE_ENUM, t), targets) for t in range(step.T)] for step in path]))
-        smallest_tol = 2.
-        for tol in range(1, 20):
-            next_val = self.agent.goal_f(0, path[-1].get(STATE_ENUM, path[-1].T-1), path[-1].targets, tol=tol/10.)
-            if next_val < 0.1:
-                smallest_tol = tol/10.
-                break
         subgoal_suc = 1-self.agent.goal_f(0, np.concatenate([s.get(STATE_ENUM) for s in path]), targets)
         anygoal_suc = 1-self.agent.goal_f(0, np.concatenate([s.get(STATE_ENUM) for s in path]), targets, anywhere=True)
         subgoal_dist = self.agent.goal_f(0, np.concatenate([s.get(STATE_ENUM) for s in path]), targets, cont=True)
@@ -335,7 +330,7 @@ class RolloutServer(Server):
                   subgoal_suc,
                   subgoal_dist,
                   anygoal_suc,
-                  smallest_tol,
+                  time.time()-init_t,
                   n_plans/(time.time()-self.start_t)))
         if len(self.postcond_info):
             s[0] = s[0] + (np.mean(self.postcond_info[-5:]),)

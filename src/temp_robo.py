@@ -97,7 +97,7 @@ import ipdb; ipdb.set_trace()
 bt_ll.DEBUG = True
 openrave_bodies = None
 domain_fname = "../domains/robot_domain/right_robot.domain"
-prob = "../domains/robot_domain/probs/pickplace_prob.prob"
+prob = "../domains/robot_domain/probs/temp_pickplace_prob.prob"
 d_c = main.parse_file_to_dict(domain_fname)
 domain = parse_domain_config.ParseDomainConfig.parse(d_c)
 hls = FFSolver(d_c)
