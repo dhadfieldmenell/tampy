@@ -1517,7 +1517,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return True
 
 
-    def reward(self, x=None, targets=None):
+    def distance_to_goal(self, x=None, targets=None):
         if x is None: x = self.get_state()
         if targets is None: targets = self.target_vecs[0]
         opts = self.prob.get_prim_choices(self.task_list)
@@ -1525,9 +1525,25 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         for opt in opts[OBJ_ENUM]:
             xinds = self.state_inds[opt, 'pose']
             targinds = self.target_inds['{}_end_target'.format(opt), 'value']
-            rew -= np.linalg.norm(x[xinds]-targets[targinds])
+            dist = np.linalg.norm(x[xinds]-targets[targinds])
+            rew -= dist
 
         rew /= len(opts[OBJ_ENUM])
-        rew = np.exp(rew)
+        return -rew
+
+
+    def reward(self, x=None, targets=None, center=False):
+        if x is None: x = self.get_state()
+        if targets is None: targets = self.target_vecs[0]
+        opts = self.prob.get_prim_choices(self.task_list)
+        rew = 0
+        for opt in opts[OBJ_ENUM]:
+            xinds = self.state_inds[opt, 'pose']
+            targinds = self.target_inds['{}_end_target'.format(opt), 'value']
+            dist = np.linalg.norm(x[xinds]-targets[targinds])
+            rew -= dist
+
+        rew /= (self.hor * self.rlen * len(opts[OBJ_ENUM]))
+        #rew = np.exp(rew)
         return rew
 

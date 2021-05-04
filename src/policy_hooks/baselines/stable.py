@@ -27,7 +27,7 @@ def run(config):
     config = new_config
 
     alg = config.get('algo', 'sac').lower()
-    n_envs = config['n_proc']
+    n_envs = config['n_proc'] if alg in ['ppo2'] else 1
 
     def env_fn(process_id=None):
         new_config, config_module = load_config(args, base_config)
@@ -38,8 +38,9 @@ def run(config):
         return env
 
     eval_env = AgentEnvWrapper(config=config, max_ts=args.episode_timesteps, process_id='testenv')
+    eval_vec_env = SubprocVecEnv([make_env(env_fn, i) for i in range(n_envs)], start_method='spawn')
     check_env(eval_env)
-    eval_callback = EvalAgentCallback(eval_env, eval_freq=2000)
+    eval_callback = EvalAgentCallback(eval_vec_env, eval_env, eval_freq=1024)
     #envname = 'TAMPEnv-v0'
     #register_env(config, name=envname, max_ts=args.episode_timesteps)
     vec_env = SubprocVecEnv([make_env(env_fn, i) for i in range(n_envs)])
@@ -67,10 +68,42 @@ def run(config):
         policy_cls = MlpPolicy
         if config['add_hl_image'] or config['add_image']:
             policy_cls = CnnPolicy
-        model = model_cls(policy_cls, vec_env, verbose=1, cliprange_vf=-1, n_steps=eval_env.horizon)
+        model = model_cls(policy_cls, vec_env, verbose=1, cliprange_vf=-1, n_steps=512)
 
+    test_run(eval_vec_env, model)
     model.learn(total_timesteps=args.total_timesteps, callback=eval_callback)
     model.save(args.descr)
+
+
+def test_run(eval_env, model, n_runs=1):
+    init_t = time.time()
+    rews = []
+    rets = []
+    goals = []
+    iters = []
+    dists = []
+    for _ in range(n_runs):
+        obs = eval_env.reset()
+        done = np.zeros(len(obs))
+        ret = np.zeros(len(obs))
+        cur_iter = 0
+        while not np.all(done):
+            action, state = model.predict(obs, state=None, deterministic=True)
+            obs, reward, next_done, _info = eval_env.step(action)
+            done = np.maximum(next_done.astype(int), done)
+            ret += reward
+            cur_iter += 1
+
+        iters.append(cur_iter)
+        for ind in range(len(obs)):
+            goals.append(_info[ind]['goal'])
+            dists.append(_info[ind]['distance'])
+            rews.append(reward[ind])
+            rets.append(ret[ind])
+
+    print('Time to run {}, rew {}, distance {}'.format(time.time() - init_t, np.mean(rets), np.mean(dists)))
+    return rets, rews, goals, dists
+
 
 
 def make_env(env_fn, rank, seed=0):
@@ -84,8 +117,9 @@ def make_env(env_fn, rank, seed=0):
 
 class EvalAgentCallback(EventCallback):
     def __init__(self, eval_env,
+                 base_env,
                  callback_on_new_best=None,
-                 n_eval_episodes=5,
+                 n_eval_episodes=1,
                  eval_freq=1000,
                  log_path=None,
                  best_model_save_path=None,
@@ -99,14 +133,12 @@ class EvalAgentCallback(EventCallback):
         self.last_mean_reward = -np.inf
         self.deterministic = deterministic
         self.render = render
-        self.base_env = eval_env.envs[0] if hasattr(eval_env, 'envs') else eval_env
-        self._last_call = 0.
+        self.base_env = base_env 
+        self._last_call = eval_freq + 1
 
         # Convert to VecEnv for consistency
-        if not isinstance(eval_env, VecEnv):
-            eval_env = DummyVecEnv([lambda: eval_env])
-
-        assert eval_env.num_envs == 1, "You must pass only one environment for evaluation"
+        #if not isinstance(eval_env, VecEnv):
+        #    eval_env = DummyVecEnv([lambda: eval_env])
 
         self.eval_env = eval_env
         self.best_model_save_path = best_model_save_path
@@ -126,20 +158,26 @@ class EvalAgentCallback(EventCallback):
             init_t = time.time()
             print('Running eval...')
             sync_envs_normalization(self.training_env, self.eval_env)
+            print('Time to sync {}'.format(time.time() - init_t))
 
             self.base_env._goal = []
-            episode_rewards, episode_lengths = evaluate_policy(self.model, self.eval_env,
-                                                               n_eval_episodes=self.n_eval_episodes,
-                                                               render=self.render,
-                                                               deterministic=self.deterministic,
-                                                               return_episode_rewards=True)
-            print('Finished eval in {} seconds with mean reward {}, saving...'.format(time.time() - init_t, np.mean(episode_rewards)))
-            goals = self.base_env._goal
+            self.base_env._rews = []
+            rets, rews, goals, dists = test_run(self.eval_env, self.model, self.n_eval_episodes)
+            episode_rewards = rets
+            #episode_rewards, episode_lengths = evaluate_policy(self.model, self.eval_env,
+            #                                                   n_eval_episodes=self.n_eval_episodes,
+            #                                                   render=False,
+            #                                                   deterministic=self.deterministic,
+            #                                                   return_episode_rewards=True)
+            print('Finished eval for {} in {} seconds with mean reward {}, saving...'.format(self.n_eval_episodes, time.time() - init_t, np.mean(episode_rewards)))
+            #goals = self.base_env._goal
+            #rews = self.base_env._rews
             self.base_env._goal = []
-            mean_reward, std_reward = np.mean(episode_rewards), np.std(episode_rewards)
-            mean_ep_length, std_ep_length = np.mean(episode_lengths), np.std(episode_lengths)
+            self.base_env._rews = []
+            #mean_reward, std_reward = np.mean(episode_rewards), np.std(episode_rewards)
+            #mean_ep_length, std_ep_length = np.mean(episode_lengths), np.std(episode_lengths)
             for ind, rew in enumerate(episode_rewards):
-                self.base_env.add_test_info(rew, goals[ind])
+                self.base_env.add_test_info(rew, goals[ind], rews[ind], dists[ind])
             self.base_env.save_log()
 
         return True

@@ -303,7 +303,8 @@ class RolloutServer(Server):
         #    self.adj_eta = True
         #    adj_val, adj_path = self.test_run(x0, targets, rlen, hl=True, soft=True, eta=eta, lab=-10)
         #    self.adj_eta = False
-        true_disp = np.min(np.min([[self.agent.goal_f(0, step.get(STATE_ENUM, t), targets, cont=True) for t in range(step.T)] for step in path]))
+        end_state = path[-1].end_state
+        true_disp = self.agent.distance_to_goal(end_state, targets) #np.min(np.min([[self.agent.goal_f(0, step.get(STATE_ENUM, t), targets, cont=True) for t in range(step.T)] for step in path]))
         true_val = np.max(np.max([[1-self.agent.goal_f(0, step.get(STATE_ENUM, t), targets) for t in range(step.T)] for step in path]))
         subgoal_suc = 1-self.agent.goal_f(0, np.concatenate([s.get(STATE_ENUM) for s in path]), targets)
         anygoal_suc = 1-self.agent.goal_f(0, np.concatenate([s.get(STATE_ENUM) for s in path]), targets, anywhere=True)

@@ -1300,6 +1300,6 @@ class RobotAgent(TAMPAgent):
         return True
 
     
-    def reward(self, x=None, targets=None):
+    def reward(self, x=None, targets=None, center=False):
         return self.base_env.reward()
 

@@ -49,6 +49,7 @@ class AgentEnvWrapper(Env):
         self._cur_time = 0
         self._ret = 0.
         self._goal = []
+        self._rews = []
         self.horizon = agent.hor * agent.rlen
         self.start_t = time.time()
         self.n_step = 0.
@@ -56,7 +57,7 @@ class AgentEnvWrapper(Env):
         self._rollout_data = []
         self.config = config
 
-        self.action_space = spaces.Box(-4, 4, [self.agent.dU], dtype='float32')
+        self.action_space = spaces.Box(-5, 5, [self.agent.dU], dtype='float32')
         self.observation_space = spaces.Box(-3e2, 3e2, [self.agent.dPrim], dtype='float32')
         self.cur_state = self.agent.x0[0]
 
@@ -75,38 +76,41 @@ class AgentEnvWrapper(Env):
         x = self.agent.get_state()
         self.agent.run_policy_step(action, x)
         self.agent.fill_sample(0, self.dummy_sample, x[self.agent._x_data_idx[STATE_ENUM]], 0, list(self.agent.plans.keys())[0], fill_obs=True)
-        obs = self.dummy_sample.get_prim_obs(t=0).flatten()
+        obs = self.dummy_sample.get_prim_obs(t=0).copy()
         self.cur_state = x
         targets = self.agent.target_vecs[0]
-        reward = self.agent.reward(x, targets)
+        reward = self.agent.reward(x, targets, center=True)
+        dist = self.agent.distance_to_goal(x, targets)
         goal = self.agent.goal_f(0, x, targets=targets)
-        if self._reset_since_goal and goal == 0:
+        if goal < 1e-3:
             print('\n Env {} reached goal!\n'.format(self._process_id))
+        if self._reset_since_goal and goal < 1e-3:
             self.n_goal += 1
             self._reset_since_goal = False
-        done = goal == 0 or self._cur_time >= self.horizon
+        done = (goal < 1e-3) or (self._cur_time >= self.horizon)
         if done and self._reset_since_done:
-            self._goal.append(1.-goal)
+            #self._goal.append(1.-goal)
+            #self._rews.append(reward)
             self._reset_since_done = False
             if reward > 0:
                 reward *= max(1, 1 + self.horizon - self._cur_time)
-        #elif not self._reset_since_done:
-        #    reward = 0.
+        elif not self._reset_since_done:
+            reward = 0.
 
         self._ret += reward
-        info = {'cur_state': x, 'goal': 1-goal}
+        info = {'cur_state': x, 'goal': 1.-goal, 'distance': dist}
         return obs, reward, done, info
 
 
-    def add_test_info(self, reward, goal):
+    def add_test_info(self, ret, goal, rew, dist):
         res = [np.zeros(21)]
-        next_pt = [res]
         res[0][0] = goal
+        res[0][2] = dist
         res[0][3] = time.time() - self.start_t
         res[0][4] = self.config['num_objs']
-        res[0][18] = reward
-        res[0][19] = self.agent.reward()
-        self._rollout_data.append(next_pt)
+        res[0][18] = ret
+        res[0][19] = rew
+        self._rollout_data.append(res)
 
 
     def save_log(self):
@@ -123,7 +127,7 @@ class AgentEnvWrapper(Env):
         self.cur_state = self.agent.x0[0]
         x = self.agent.get_state()
         self.agent.fill_sample(0, self.dummy_sample, x[self.agent._x_data_idx[STATE_ENUM]], 0, list(self.agent.plans.keys())[0], fill_obs=True)
-        obs = self.dummy_sample.get_prim_obs(t=0)
+        obs = self.dummy_sample.get_prim_obs(t=0).copy()
         return obs.flatten()
 
 
