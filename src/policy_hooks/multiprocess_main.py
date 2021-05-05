@@ -360,6 +360,9 @@ class MultiProcessMain(object):
         buffers['cont'] = mp.Array(ctypes.c_char, 20 * (2**27))
         buf_sizes['cont'] = mp.Value('i')
         buf_sizes['cont'].value = 0
+        buffers['label'] = mp.Array(ctypes.c_char, 20 * (2**27))
+        buf_sizes['label'] = mp.Value('i')
+        buf_sizes['label'].value = 0
         buf_sizes['n_data'] = mp.Value('i')
         buf_sizes['n_data'].value = 0
         buf_sizes['n_plans'] = mp.Value('i')
