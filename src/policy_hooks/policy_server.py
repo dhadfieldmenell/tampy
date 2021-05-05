@@ -43,7 +43,7 @@ class PolicyServer(object):
         hyperparams['ratios'] = ratios
 
         hyperparams['policy_opt']['scope'] = self.task
-        hyperparams['policy_opt']['load_label'] = hyperparams['classify_label']
+        hyperparams['policy_opt']['load_label'] = hyperparams['classify_labels']
         hyperparams['policy_opt']['split_hl_loss'] = hyperparams['split_hl_loss']
         hyperparams['policy_opt']['gpu_id'] = 0
         hyperparams['policy_opt']['use_gpu'] = 1
