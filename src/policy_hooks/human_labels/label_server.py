@@ -225,9 +225,14 @@ class LabelServer(Server):
                 invalid_input = True
                 print('Invalid search query', res)
 
+        labels = []
         for i, (res, t)  in enumerate(ts[-N:]):
             self.labels.append((res, example[1][t], example[2], example[3], example[-1], len(ts[-N:])-i-1))
             self.labelled.append(((res, t), example))
+            labels.append((res, t))
+
+        if self.classify_labels:
+            self.send_labels(example, labels)
 
         if not self.stopped:
             self.renderer.show_transition()
@@ -284,9 +289,14 @@ class LabelServer(Server):
             cur_t = (a + b) // 2
             st, et = max(0, cur_t - t//2), min(cur_t + t//2, hor)
 
+        labels = []
         for i, t in enumerate(ts[-N:]):
             self.labels.append((res, example[1][t], example[2], example[3], example[-1], len(ts[-N:])-i-1))
             self.labelled.append(((res, t), example))
+            labels.append((res, t))
+
+        if self.classify_labels:
+            self.send_labels(example, labels)
 
 
     def wait_for_data(self):
@@ -324,6 +334,28 @@ class LabelServer(Server):
             return 'ignore'
 
         return 'invalid'
+
+
+    def send_labels(self, pt, labels, wid=40):
+        obs = []
+        mu = []
+        ref_pt = -1
+        for (res, ts) in labels:
+            if res == 'during':
+                ref_pt = ts
+        
+        if ref_pt < 0: return
+        for ts in range(0, min(len(obs), ref_pt+wid)):
+            if ts < ref_pt-wid or ts > ref_pt:
+                mu.append([1,0])
+            else:
+                p = np.exp((ts-ref_pt)/10.)
+                mu.append([1-p, p])
+            obs.append(pt[4][ts])
+
+        labels = np.array(mu)
+        obs = np.array(obs)
+        self.update_labels(labels, obs)
 
 
     def push_states(self):

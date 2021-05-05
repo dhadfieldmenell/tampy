@@ -30,6 +30,7 @@ class TaskServer(Server):
         self.out_queue = self.motion_queue
         self.prob_queue = []
         self.labelled_dir = self._hyperparams.get('reference_dir', None)
+        self.max_labels = self._hyperparams.get('max_label', None)
 
 
     def run(self):
@@ -53,6 +54,9 @@ class TaskServer(Server):
                 ts = pt[-1]
                 if label in ['after', 'during']:
                     probs.append((x, targets))
+        if self.max_labels is not None and len(probs) > self.max_labels:
+            inds = np.random.choice(len(probs), self.max_labels)
+            probs = [probs[i] for i in inds]
         ind = int(self.id[-1])
         ntask = self._hyperparams['num_task']
         nper = len(probs) / ntask

@@ -61,6 +61,8 @@ def spawn_server(cls, hyperparams, load_at_spawn=False):
         hyperparams['policy_opt']['buffer_sizes'] = hyperparams['buffer_sizes']
         if cls is PolicyServer and hyperparams['scope'] is 'cont' and not len(hyperparams['cont_bounds']):
             return
+        if cls is PolicyServer and hyperparams['scope'] is 'label' and not hyperparams['classify_label']:
+            return
 
     server = cls(hyperparams)
     server.run()
@@ -74,13 +76,12 @@ class MultiProcessMain(object):
         self.monitor = True
         self.cpu_use = []
         self.config = config
+        setup_dirs(config, config['args'])
         if load_at_spawn:
-            setup_dirs(config, config['args'])
             task_file = config.get('task_map_file', '')
             self.pol_list = ('control',) if not config['args'].split_nets else tuple(get_tasks(task_file).keys())
             config['main'] = self
         else:
-            setup_dirs(config, config['args'])
             task_file = config.get('task_map_file', '')
             self.pol_list = ('control',) if not config['args'].split_nets else tuple(get_tasks(task_file).keys())
             new_config, config_mod = load_config(config['args'])
@@ -255,6 +256,21 @@ class MultiProcessMain(object):
                 'aux_boundaries': self.config['aux_bounds'],
                 'types': self.task_types,
             },
+            'label_network_params': {
+                'obs_include': self.config['agent']['prim_obs_include'],
+                'obs_image_data': [IM_ENUM, OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
+                'image_width': self.config['image_width'],
+                'image_height': self.config['image_height'],
+                'image_channels': self.config['image_channels'],
+                'sensor_dims': self.sensor_dims,
+                'n_layers': self.config['prim_n_layers'],
+                'num_filters': [32, 32],
+                'filter_sizes': [5, 5],
+                'dim_hidden': self.config['prim_dim_hidden'],
+                'output_boundaries': [(0,2)],
+                'aux_boundaries': self.config['aux_bounds'],
+                'types': self.task_types,
+            },
             'cont_network_params': {
                 'obs_include': self.config['agent']['cont_obs_include'],
                 'obs_image_data': [IM_ENUM, OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
@@ -416,7 +432,7 @@ class MultiProcessMain(object):
 
 
     def create_pol_servers(self, hyperparams):
-        for task in self.pol_list+('primitive', 'cont'):
+        for task in self.pol_list+('primitive', 'cont', 'label'):
             new_hyperparams = copy.copy(hyperparams)
             new_hyperparams['scope'] = task
             new_hyperparams['id'] = task
@@ -665,6 +681,7 @@ class MultiProcessMain(object):
         for task in self.pol_list:
             config['ll_queue'][task] = Queue(maxsize=train_queue_size)
         config['cont_queue'] = Queue(maxsize=train_queue_size)
+        config['label_queue'] = Queue(maxsize=train_queue_size)
 
         config['motion_queue'] = self.queue_manager.PriorityQueue(maxsize=queue_size)
         config['task_queue'] = self.queue_manager.PriorityQueue(maxsize=queue_size)

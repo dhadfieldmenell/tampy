@@ -20,7 +20,7 @@ from policy_hooks.utils.tf_utils import TfSolver
 from policy_hooks.tf_policy import TfPolicy
 
 MAX_UPDATE_SIZE = 10000
-SCOPE_LIST = ['primitive', 'cont']
+SCOPE_LIST = ['primitive', 'cont', 'label']
 
 
 class ControlAttentionPolicyOpt(PolicyOpt):
@@ -58,6 +58,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self._dValObs = dValObs
         self._primBounds = primBounds
         self._contBounds = contBounds if contBounds is not None else []
+        self.load_label = self._hyperparams.get('load_label', False)
         self.task_map = {}
         self.device_string = "/cpu:0"
         if self._hyperparams['use_gpu'] == 1:
@@ -393,6 +394,31 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
                     # Setup the gradients
                     #self.task_map[scope]['grads'] = [tf.gradients(self.task_map[scope]['act_op'][:,u], self.task_map[scope]['obs_tensor'])[0] for u in range(self._dU)]
+        
+        if (self.scope is None or 'label' == self.scope) and self.load_label:
+            with tf.variable_scope('label'):
+                inputs = self.input_layer if 'label' == self.scope else None
+                self.label_eta = tf.placeholder_with_default(1., shape=())
+                tf_map_generator = self._hyperparams['primitive_network_model']
+                self.label_class_tensor = None
+                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, \
+                                                                   dim_output=2, \
+                                                                   batch_size=self.batch_size, \
+                                                                   network_config=self._hyperparams['label_network_params'], \
+                                                                   input_layer=inputs, \
+                                                                   eta=self.label_eta)
+                self.label_obs_tensor = tf_map.get_input_tensor()
+                self.label_precision_tensor = tf_map.get_precision_tensor()
+                self.label_action_tensor = tf_map.get_target_output_tensor()
+                self.label_act_op = tf_map.get_output_op()
+                self.label_feat_op = tf_map.get_feature_op()
+                self.label_loss_scalar = tf_map.get_loss_op()
+                self.label_fc_vars = fc_vars
+                self.label_last_conv_vars = last_conv_vars
+                self.label_aux_losses = tf_map.aux_loss_ops
+
+                # Setup the gradients
+                #self.primitive_grads = [tf.gradients(self.primitive_act_op[:,u], self.primitive_obs_tensor)[0] for u in range(self._dPrim)]
 
 
     def init_solver(self):
@@ -449,9 +475,28 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                                            last_conv_vars=self.task_map[scope]['last_conv_vars'],
                                                            vars_to_opt=vars_to_opt)
 
+        if self.load_label and (self.scope is None or 'label' == self.scope):
+            self.cur_hllr = self._hyperparams['hllr']
+            self.hllr_tensor = tf.Variable(initial_value=self._hyperparams['hllr'], name='hllr')
+            self.cur_dec = self._hyperparams['prim_weight_decay']
+            vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='label/')
+            with tf.variable_scope('label'):
+                self.label_solver = TfSolver(loss_scalar=self.label_loss_scalar,
+                                                   solver_name=self._hyperparams['solver_type'],
+                                                   base_lr=self.hllr_tensor,
+                                                   lr_policy=self._hyperparams['lr_policy'],
+                                                   momentum=self._hyperparams['momentum'],
+                                                   weight_decay=self.dec_tensor,#self._hyperparams['prim_weight_decay'],
+                                                   #weight_decay=self._hyperparams['prim_weight_decay'],
+                                                   fc_vars=self.label_fc_vars,
+                                                   last_conv_vars=self.label_last_conv_vars,
+                                                   vars_to_opt=vars_to_opt,
+                                                   aux_losses=self.label_aux_losses)
+
     def get_policy(self, task):
         if task == 'primitive': return self.prim_policy
         if task == 'cont': return self.cont_policy
+        if task == 'label': return self.label_policy
         return self.task_map[task]['policy']
 
     def init_policies(self, dU):
@@ -485,7 +530,19 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                                         self.sess,
                                                         self.device_string,
                                                         copy_param_scope=None)
-    
+
+        if self.load_label and (self.scope is None or self.scope == 'label'):
+            self.label_policy = TfPolicy(2,
+                                        self.label_obs_tensor,
+                                        self.label_act_op,
+                                        self.label_feat_op,
+                                        np.zeros(2),
+                                        self.sess,
+                                        self.device_string,
+                                        copy_param_scope=None,
+                                        normalize=False)
+ 
+
     def task_acc(self, obs, tgt_mu, prc, piecewise=False, scalar=True):
         acc = []
         task = 'primitive'
@@ -535,6 +592,14 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         for bound in self._primBounds:
             res.append(distr[bound[0]:bound[1]])
         return res
+
+
+    def label_distr(self, obs, eta=1.):
+        if len(obs.shape) < 2:
+            obs = obs.reshape(1, -1)
+
+        distr = self.sess.run(self.label_act_op, feed_dict={self.label_obs_tensor:obs, self.label_eta: eta, self.dec_tensor: self.cur_dec})[0].flatten()
+        return distr
 
 
     def check_task_error(self, obs, mu):

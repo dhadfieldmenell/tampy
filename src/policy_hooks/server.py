@@ -43,6 +43,7 @@ class Server(object):
         self.weight_dir = self.config['weight_dir']
         self.exp_id = self.weight_dir.split('/')[-1]
         label = self.config['label_server']
+        self.classify_labels = self.config['classify_labels']
         if self.config['weight_dir'].find('sawyer') >= 0:
             if self.id.find('moretest') < 0 and \
                self.id.find('0') < 0 and \
@@ -526,6 +527,12 @@ class Server(object):
             self.policy_opt.buf_sizes['n_negative'].value += len(tgt_mu)
 
 
+    def update_label(self, labels, obs):
+        dOpts = len(self.agent.discrete_opts)
+        prc = np.ones((len(labels), dOpts))
+        self.update(obs, labels, prc, np.ones(len(obs)), 'label', 'human', aux=None, x=None)
+
+
     def get_path_data(self, path, n_fixed=0, verbose=False):
         data = []
         for sample in path:
@@ -580,11 +587,12 @@ class Server(object):
         targets = rollout[-1].targets
         vid = self._gen_video(rollout, tdelta=tdelta)
         x = np.concatenate([s.get_X()[::tdelta] for s in rollout])
+        obs = np.concatenate([s.get_prim_obs()[::tdelta] for s in rollout])
         q = self.config['label_in_queue']
         print('Sending rollout to label')
         assert vid is not None
 
-        pt = (vid, x, targets, self.agent.state_inds, suc)
+        pt = (vid, x, targets, self.agent.state_inds, obs, suc)
         self.push_queue(pt, q)
 
 

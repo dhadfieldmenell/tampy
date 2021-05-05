@@ -43,6 +43,7 @@ class PolicyServer(object):
         hyperparams['ratios'] = ratios
 
         hyperparams['policy_opt']['scope'] = self.task
+        hyperparams['policy_opt']['load_label'] = hyperparams['classify_label']
         hyperparams['policy_opt']['split_hl_loss'] = hyperparams['split_hl_loss']
         hyperparams['policy_opt']['gpu_id'] = 0
         hyperparams['policy_opt']['use_gpu'] = 1
@@ -60,11 +61,13 @@ class PolicyServer(object):
             self.in_queue = hyperparams['hl_queue']
         elif self.task == 'cont':
             self.in_queue = hyperparams['cont_queue']
+        elif self.task == 'label':
+            self.in_queue = hyperparams['label_queue']
         else:
             self.in_queue = hyperparams['ll_queue'][self.task]
 
         self.batch_size = hyperparams['batch_size']
-        normalize = self.task not in ['cont', 'primitive']
+        normalize = self.task not in ['cont', 'primitive', 'label']
         feed_prob = hyperparams['end_to_end_prob']
         in_inds, out_inds = None, None
         if len(self.continuous_opts):
@@ -123,16 +126,24 @@ class PolicyServer(object):
         self.load_f = lambda x: tf.data.Dataset.from_generator(self.data_gen.gen_load, \
                                                          output_types=tf.int32, \
                                                          args=())
-        data = data.interleave(self.load_f, \
-                                 cycle_length=4, \
-                                 block_length=1)
+        #data = data.interleave(self.load_f, \
+        #                         cycle_length=4, \
+        #                         block_length=1)
         self.gen_f = lambda x: tf.data.Dataset.from_generator(self.data_gen.gen_items, \
                                                          output_types=(tf.float32, tf.float32, tf.float32), \
                                                          output_shapes=(tf.TensorShape([None, dO]), tf.TensorShape([None, dU]), precShape),
                                                          args=(x,))
-        self.data = data.interleave(self.gen_f, \
-                                     cycle_length=4, \
-                                     block_length=1)
+
+        try:
+            self.data = data.interleave(self.gen_f, \
+                                         cycle_length=4, \
+                                         block_length=1, \
+                                         num_parallel_calls=4)
+        except:
+            self.data = data.interleave(self.gen_f, \
+                                         cycle_length=4, \
+                                         block_length=1)
+
         self.data = self.data.prefetch(4)
 
         self.input, self.act, self.prc = self.data.make_one_shot_iterator().get_next()
@@ -213,10 +224,9 @@ class PolicyServer(object):
             self.iters += 1
             init_t = time.time()
             self.data_gen.load_data()
-            #print('\n\nTime to get update', time.time() - init_t, self.task)
+            #if self.task == 'primitive': print('\nTime to get update:', time.time() - init_t, '\n')
             self.policy_opt.update(self.task)
-            #print('\n\nTime to run update', time.time() - init_t, self.task)
-            #if self.task == 'primitive': print('Time to run update:', time.time() - init_t)
+            #if self.task == 'primitive': print('\nTime to run update:', time.time() - init_t, '\n')
             self.n_updates += 1
             mu, obs, prc = self.data_gen.get_batch()
             if len(mu):
@@ -264,6 +274,7 @@ class PolicyServer(object):
                     pp_info = pprint.pformat(info, depth=60)
                     f.write(str(pp_info))
                     f.write('\n\n')
+            #if self.task == 'primitive': print('\nTime to finish update:', time.time() - init_t, '\n')
         self.policy_opt.sess.close()
 
 
