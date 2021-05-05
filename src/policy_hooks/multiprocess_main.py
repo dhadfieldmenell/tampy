@@ -61,7 +61,7 @@ def spawn_server(cls, hyperparams, load_at_spawn=False):
         hyperparams['policy_opt']['buffer_sizes'] = hyperparams['buffer_sizes']
         if cls is PolicyServer and hyperparams['scope'] is 'cont' and not len(hyperparams['cont_bounds']):
             return
-        if cls is PolicyServer and hyperparams['scope'] is 'label' and not hyperparams['classify_label']:
+        if cls is PolicyServer and hyperparams['scope'] is 'label' and not hyperparams['classify_labels']:
             return
 
     server = cls(hyperparams)
