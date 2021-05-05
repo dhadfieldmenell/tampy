@@ -1837,22 +1837,22 @@ class InGripperRight(InGripper):
 
 class NearGripper(InGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.coeff = 1e-2
-        self.rot_coeff = 4e-3
+        self.coeff = const.NEAR_GRIP_COEFF
+        self.rot_coeff = const.NEAR_GRIP_ROT_COEFF
         super(NearGripper, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
 class NearGripperLeft(InGripperLeft):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.coeff = 1.4e-2
-        self.rot_coeff = 4e-3
+        self.coeff = const.NEAR_GRIP_COEFF
+        self.rot_coeff = const.NEAR_GRIP_COEFF
         super(NearGripperLeft, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
 class NearGripperRight(InGripperRight):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.coeff = 1.4e-2
-        self.rot_coeff = 4e-3
+        self.coeff = const.NEAR_GRIP_COEFF
+        self.rot_coeff = const.NEAR_GRIP_ROT_COEFF
         super(NearGripperRight, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
@@ -2227,13 +2227,13 @@ class ApproachRot(EEReachableRot):
 
 class NearApproach(EEReachable):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.coeff = 1e-2
+        self.coeff = const.NEAR_APPROACH_COEFF
         super(NearApproach, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
 class NearApproachRot(EEReachable):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.coeff = 1e-2
+        self.coeff = const.NEAR_APPROACH_ROT_COEFF
         super(NearApproachRot, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
@@ -2259,7 +2259,7 @@ class EEReachableLeftRot(EEReachableRot):
 
 class EEAtLeftRot(EEReachableRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
-        self.coeff = 4e-3
+        self.coeff = const.NEAR_APPROACH_ROT_COEFF
         self.arm = "left"
         super(EEReachableLeftRot, self).__init__(name, params, expected_param_types, (0, 0), env, debug)
 
@@ -2273,7 +2273,7 @@ class ApproachLeft(EEReachableLeft):
 
 class EEAtXYLeft(EEReachableLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.coeff = 1e-2
+        self.coeff = const.EEATXY_COEFF
         super(EEAtXYLeft, self).__init__(name, params, expected_param_types, env, debug, 0)
         self.mask = np.array([1., 1., 0.]).reshape((3,1))
         self.approach_dist = const.GRASP_DIST
@@ -2284,7 +2284,7 @@ class EEAtXYLeft(EEReachableLeft):
 class NearApproachLeft(ApproachLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         # self.f_tol = 0.04
-        self.coeff = 1e-2
+        self.coeff = const.NEAR_APPROACH_COEFF
         super(NearApproachLeft, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
@@ -2299,7 +2299,7 @@ class ApproachLeftRot(EEReachableLeftRot):
 class NearApproachLeftRot(ApproachLeftRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         # self.f_tol = 0.04
-        self.coeff = 5e-3
+        self.coeff = const.NEAR_APPROACH_ROT_COEFF
         super(NearApproachLeftRot, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
@@ -2326,7 +2326,7 @@ class EEReachableRightRot(EEReachableRot):
 class EEAtRightRot(EEReachableRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
         self.arm = "right"
-        self.coeff = 4e-3
+        self.coeff = const.NEAR_APPROACH_ROT_COEFF
         super(EEAtRightRot, self).__init__(name, params, expected_param_types, (0, 0), env, debug)
 
 class ApproachRight(EEReachableRight):
@@ -2340,7 +2340,7 @@ class ApproachRight(EEReachableRight):
 class NearApproachRight(ApproachRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         #self.f_tol = 0.04
-        self.coeff = 1e-2
+        self.coeff = const.NEAR_APPROACH_COEFF
         super(NearApproachRight, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
@@ -2355,13 +2355,13 @@ class ApproachRightRot(EEReachableRightRot):
 class NearApproachRightRot(ApproachRightRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         # self.f_tol = 0.04
-        self.coeff = 4e-3
+        self.coeff = const.NEAR_APPROACH_ROT_COEFF
         super(NearApproachRightRot, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
 class EEAtXYRight(EEReachableRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.coeff = 1e-2
+        self.coeff = const.EEATXY_COEFF
         super(EEAtXYRight, self).__init__(name, params, expected_param_types, env=env, debug=debug, steps=0)
         self.mask = np.array([1., 1., 0.]).reshape((3,1))
         self.approach_dist = const.GRASP_DIST

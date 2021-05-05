@@ -1868,6 +1868,7 @@ class NAMOSortingAgent(TAMPAgent):
 
 
     def reward(self, x=None, targets=None, center=False):
+        MAX_DIST = 20
         if x is None: x = self.get_state()
         if targets is None: targets = self.target_vecs[0]
         opts = self.prob.get_prim_choices(self.task_list)
@@ -1877,11 +1878,11 @@ class NAMOSortingAgent(TAMPAgent):
             xinds = self.state_inds[opt, 'pose']
             targinds = self.target_inds['{}_end_target'.format(opt), 'value']
             dist = np.linalg.norm(x[xinds]-targets[targinds])
-            rew -= dist
+            rew -= np.minimum(MAX_DIST, dist)
             if center and dist > NEAR_TOL:
-                rew -= np.linalg.norm(x[xinds]-x[eeinds])
+                rew -= np.minimum(MAX_DIST, np.linalg.norm(x[xinds]-x[eeinds]))
 
-        rew /= (self.hor * self.rlen * len(opts[OBJ_ENUM]))
+        #rew /= (self.hor * self.rlen * len(opts[OBJ_ENUM]))
         #rew = np.exp(rew)
         return rew
 

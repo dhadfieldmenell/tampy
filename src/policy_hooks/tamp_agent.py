@@ -29,6 +29,7 @@ from core.util_classes.namo_predicates import dsafe
 from policy_hooks.agent import Agent
 from policy_hooks.sample import Sample
 from policy_hooks.sample_list import SampleList
+from policy_hooks.save_video import save_video
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.utils.tamp_eval_funcs import *
@@ -120,6 +121,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self._rew = 0.
         self._n_steps = 0.
         self.current_cond = 0
+        self.cur_vid_id = 0
         opts = self._hyperparams['prob'].get_prim_choices(self.task_list)
         self.discrete_opts = [enum for enum, enum_opts in opts.items() if hasattr(enum_opts, '__len__')]
         self.continuous_opts = [enum for enum, enum_opts in opts.items() if not hasattr(enum_opts, '__len__')]
@@ -1546,4 +1548,45 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         rew /= (self.hor * self.rlen * len(opts[OBJ_ENUM]))
         #rew = np.exp(rew)
         return rew
+
+
+    def save_video(self, rollout, savedir, success=None, ts=None, lab='', annotate=True, st=0):
+        init_t = time.time()
+        old_h = self.image_height
+        old_w = self.image_width
+        self.image_height = 256
+        self.image_width = 256
+        suc_flag = ''
+        cam_ids = self.config['master_config'].get('visual_cameras', [self.camera_id])
+        if success is not None:
+            suc_flag = 'success' if success else 'fail'
+        fname = savedir + '/{0}_{1}_{2}_{3}_{4}.npy'.format(self.process_id, self.cur_vid_id, suc_flag, lab, str(cam_ids)[1:-1].replace(' ', ''))
+        self.cur_vid_id += 1
+        buf = []
+        for step in rollout:
+            old_vec = self.target_vecs[0]
+            if hasattr(step, '__len__'):
+                ts_range = range(0, len(step))
+                xs = step
+            else:
+                if not step.draw: continue
+                self.target_vecs[0] = step.targets
+                if ts is None: 
+                    ts_range = range(st, step.T)
+                else:
+                    ts_range = range(ts[0], ts[1])
+                xs = step.get_X()
+            st = 0
+
+            for t in ts_range:
+                ims = []
+                for ind, cam_id in enumerate(cam_ids):
+                    ims.append(self.get_image(xs[t], cam_id=cam_id))
+                im = np.concatenate(ims, axis=1)
+                buf.append(im)
+            self.target_vecs[0] = old_vec
+        save_video(fname, dname=self.config['master_config']['descr'], arr=np.array(buf), savepath=savedir)
+        self.image_height = old_h
+        self.image_width = old_w
+
 

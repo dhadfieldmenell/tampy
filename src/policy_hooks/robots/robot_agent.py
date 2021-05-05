@@ -150,95 +150,6 @@ class RobotAgent(TAMPAgent):
         im = self.mjc_env.render(camera_id=cam_id, height=self.image_height, width=self.image_width, view=False, overlays=(textover1, textover2))
         return im
 
-    def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None):
-        assert not np.any(np.isnan(state))
-        start_t = time.time()
-        x0 = state[self._x_data_idx[STATE_ENUM]].copy()
-        task = tuple(task)
-        if self.discrete_prim:
-            plan = self.plans[task]
-        else:
-            plan = self.plans[task[0]]
-        for (param, attr) in self.state_inds:
-            if plan.params[param].is_symbol(): continue
-            getattr(plan.params[param], attr)[:,0] = x0[self.state_inds[param, attr]]
-
-        base_t = 0
-        self.T = plan.horizon if hor is None else hor
-        sample = Sample(self)
-        sample.init_t = 0
-        col_ts = np.zeros(self.T)
-
-        prim_choices = self.prob.get_prim_choices(self.task_list)
-        target_vec = np.zeros((self.target_dim,))
-
-        set_params_attrs(plan.params, plan.state_inds, x0, 0)
-        for target_name in self.targets[condition]:
-            target = plan.params[target_name]
-            target.value[:,0] = self.targets[condition][target.name]
-            target_vec[self.target_inds[target.name, 'value']] = target.value[:,0]
-
-        cur_state = self.get_state()
-        noise = np.zeros((self.T, self.dU))
-        n_steps = 0
-        end_state = None
-        for t in range(0, self.T):
-            noise_full = np.zeros((self.dU,))
-            self.fill_sample(condition, sample, cur_state, t, task, fill_obs=True)
-            prev_task = task
-            if task_f is not None:
-                sample.task = task
-                task = task_f(sample, t, task)
-                if task not in self.plans:
-                    task = self.task_to_onehot[task[0]]
-                self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
-
-            X = cur_state.copy()
-            cur_noise = noise[t]
-
-            U_full = policy.act(X, sample.get_obs(t=t).copy(), t, cur_noise)
-            U_nogrip = U_full.copy()
-            U_nogrip[self.action_inds['baxter', 'left_gripper']] = 0.
-            if np.all(np.abs(U_nogrip)) < 1e-3:
-                self._noops += 1
-                self.eta_scale = 1. / np.log(self._noops+2)
-            else:
-                self._noops = 0
-                self.eta_scale = 1.
-            assert not np.any(np.isnan(U_full))
-            sample.set(NOISE_ENUM, noise_full, t)
-
-            obs = sample.get_obs(t=t)
-            U_full = np.clip(U_full, -MAX_STEP, MAX_STEP)
-            assert not np.any(np.isnan(U_full))
-            sample.set(ACTION_ENUM, U_full, t)
-            obj = self.prob.get_prim_choices(self.task_list)[OBJ_ENUM][task[1]]
-            suc, col = self.run_policy_step(U_full, cur_state)
-            col_ts[t] = col
-            new_state = self.get_state()
-            if len(self._prev_U): self._prev_U = np.r_[self._prev_U[1:], [U_nogrip]]
-            if len(self._x_delta)-1: self._x_delta = np.r_[self._x_delta[1:], [new_state]]
-            if len(self._prev_task): self._prev_task = np.r_[self._prev_task[1:], [sample.get_prim_out(t=t)]]
-
-
-            #if np.all(np.abs(cur_state - new_state) < 1e-4):
-            #    sample.use_ts[t] = 0
-
-            if n_steps == sample.T:
-                end_state = sample.get_X(t=t)
-
-            cur_state = new_state
-
-        if policy not in self.n_policy_calls:
-            self.n_policy_calls[policy] = 1
-        else:
-            self.n_policy_calls[policy] += 1
-        sample.end_state = new_state # end_state if end_state is not None else sample.get_X(t=self.T-1)
-        sample.task_cost = self.goal_f(condition, sample.end_state)
-        sample.prim_use_ts[:] = sample.use_ts[:]
-        sample.col_ts = col_ts
-        return sample
-
 
     def run_policy_step(self, u, x):
         self._col = []
@@ -281,7 +192,8 @@ class RobotAgent(TAMPAgent):
                 getattr(params[3], ee_attr)[:,0] = getattr(params[0], ee_attr)[:,st]
 
         for tname, attr in self.target_inds:
-            getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
+            if attr == 'value':
+                getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
 
         for pname in plan.params:
             if '{0}_init_target'.format(pname) in plan.params:
@@ -289,6 +201,7 @@ class RobotAgent(TAMPAgent):
 
 
     def solve_sample_opt_traj(self, state, task, condition, traj_mean=[], inf_f=None, mp_var=0, targets=[], x_only=False, t_limit=60, n_resamples=10, out_coeff=None, smoothing=False, attr_dict=None):
+        raise Exception('This should not get called')
         success = False
         old_targets = self.target_vecs[condition]
         if not len(targets):
@@ -296,7 +209,8 @@ class RobotAgent(TAMPAgent):
         else:
             self.target_vecs[condition] = targets.copy()
             for tname, attr in self.target_inds:
-                self.targets[condition][tname] = targets[self.target_inds[tname, attr]]
+                if attr == 'value':
+                    self.targets[condition][tname] = targets[self.target_inds[tname, attr]]
 
         x0 = state[self._x_data_idx[STATE_ENUM]]
 
@@ -386,13 +300,19 @@ class RobotAgent(TAMPAgent):
             if aname == 'left_ee_pos':
                 sample.set(LEFT_EE_POS_ENUM, mp_state[inds], t)
                 ee_pose = mp_state[inds]
+                ee_rot = mp_state[self.state_inds[pname, 'left_ee_rot']]
             elif aname == 'right_ee_pos':
                 sample.set(RIGHT_EE_POS_ENUM, mp_state[inds], t)
                 ee_pose = mp_state[inds]
+                ee_rot = mp_state[self.state_inds[pname, 'right_ee_rot']]
             elif aname.find('ee_pos') >= 0:
                 sample.set(EE_ENUM, mp_state[inds], t)
                 ee_pose = mp_state[inds]
+                ee_rot = mp_state[self.state_inds[pname, 'ee_rot']]
 
+        ee_spat = Rotation.from_euler('xyz', ee_rot)
+        ee_quat = T.euler_to_quaternion(ee_rot, 'xyzw')
+        ee_mat = T.quat2mat(ee_quat)
         sample.set(STATE_ENUM, mp_state, t)
         if self.hist_len > 0:
             sample.set(TRAJ_HIST_ENUM, self._prev_U.flatten(), t)
@@ -406,14 +326,15 @@ class RobotAgent(TAMPAgent):
         #sample.set(ONEHOT_TASK_ENUM, onehot_task, t)
         sample.set(DONE_ENUM, np.zeros(1), t)
         sample.set(TASK_DONE_ENUM, np.array([1, 0]), t)
+        robot = self.robot_name
         if RIGHT_ENUM in self.sensor_dims:
-            sample.set(RIGHT_ENUM, mp_state[self.state_inds['baxter', 'right']], t)
+            sample.set(RIGHT_ENUM, mp_state[self.state_inds[robot, 'right']], t)
         if LEFT_ENUM in self.sensor_dims:
-            sample.set(LEFT_ENUM, mp_state[self.state_inds['baxter', 'left']], t)
+            sample.set(LEFT_ENUM, mp_state[self.state_inds[robot, 'left']], t)
         if LEFT_GRIPPER_ENUM in self.sensor_dims:
-            sample.set(LEFT_GRIPPER_ENUM, mp_state[self.state_inds['baxter', 'left_gripper']], t)
+            sample.set(LEFT_GRIPPER_ENUM, mp_state[self.state_inds[robot, 'left_gripper']], t)
         if RIGHT_GRIPPER_ENUM in self.sensor_dims:
-            sample.set(RIGHT_GRIPPER_ENUM, mp_state[self.state_inds['baxter', 'right_gripper']], t)
+            sample.set(RIGHT_GRIPPER_ENUM, mp_state[self.state_inds[robot, 'right_gripper']], t)
 
         prim_choices = self.prob.get_prim_choices(self.task_list)
         if task is not None:
@@ -438,11 +359,13 @@ class RobotAgent(TAMPAgent):
                 obj_name = list(prim_choices[OBJ_ENUM])[task[1]]
                 targ_name = list(prim_choices[TARG_ENUM])[task[2]]
                 for (pname, aname), inds in self.state_inds.items():
-                    if aname.find('left_ee_pos') >= 0:
+                    if aname.find('right_ee_pos') >= 0:
                         obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - mp_state[inds]
                         targ_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[inds]
                         break
                 targ_off_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds[obj_name, 'pose']]
+                obj_quat = T.euler_to_quaternion(mp_state[self.state_inds[obj_name, 'rotation']], 'xyzw')
+                targ_quat = T.euler_to_quaternion(targets[self.target_inds[targ_name, 'rotation']], 'xyzw')
             else:
                 obj_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
                 targ_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
@@ -453,14 +376,32 @@ class RobotAgent(TAMPAgent):
             sample.targ = task[2]
             sample.task_name = self.task_list[task[0]]
 
+            grasp_pt = list(self.plans.values())[0].params[obj_name].geom.grasp_point
             if self.task_list[task[0]].find('grasp') >= 0:
-                sample.set(END_POSE_ENUM, obj_pose, t)
-                #sample.set(END_POSE_ENUM, obj_pose.copy(), t)
+                obj_mat = T.quat2mat(obj_quat)
+                goal_quat = T.mat2quat(obj_mat.dot(ee_mat))
+                rot_off = theta_error(ee_quat, goal_quat)
+                sample.set(END_POSE_ENUM, obj_pose+grasp_pt, t)
+                #sample.set(END_ROT_ENUM, rot_off, t)
+                sample.set(END_ROT_ENUM, mp_state[self.state_inds[obj_name, 'rotation']], t)
+                targ_vec = np.zeros(len(prim_choices[TARG_ENUM]))
+                targ_vec[:] = 1. / len(targ_vec)
+                sample.set(TARG_ENUM, targ_vec, t)
             elif self.task_list[task[0]].find('putdown') >= 0:
-                sample.set(END_POSE_ENUM, targ_pose, t)
-                #sample.set(END_POSE_ENUM, targ_pose.copy(), t)
+                targ_mat = T.quat2mat(targ_quat)
+                goal_quat = T.mat2quat(targ_mat.dot(ee_mat))
+                rot_off = theta_error(ee_quat, targ_quat)
+                #sample.set(END_POSE_ENUM, targ_pose+grasp_pt, t)
+                sample.set(END_POSE_ENUM, targ_off_pose, t)
+                #sample.set(END_ROT_ENUM, rot_off, t)
+                sample.set(END_ROT_ENUM, targets[self.target_inds[targ_name, 'rotation']], t)
             else:
+                obj_mat = T.quat2mat(obj_quat)
+                goal_quat = T.mat2quat(obj_mat.dot(ee_mat))
+                rot_off = theta_error(ee_quat, obj_quat)
                 sample.set(END_POSE_ENUM, obj_pose, t)
+                #sample.set(END_ROT_ENUM, rot_off, t)
+                sample.set(END_ROT_ENUM, mp_state[self.state_inds[obj_name, 'rotation']], t)
 
         sample.condition = cond
         sample.set(TARGETS_ENUM, targets.copy(), t)
@@ -470,10 +411,23 @@ class RobotAgent(TAMPAgent):
         sample.targets = targets.copy()
 
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
+            grasp_pt = list(self.plans.values())[0].params[obj].geom.grasp_point
             sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
             targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
-            sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose, t)
+            sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose+grasp_pt, t)
             sample.set(TARG_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
+
+            obj_spat = Rotation.from_euler('xyz', mp_state[self.state_inds[obj, 'rotation']])
+            obj_quat = T.euler_to_quaternion(mp_state[self.state_inds[obj, 'rotation']], 'xyzw')
+            obj_mat = T.quat2mat(obj_quat)
+            goal_quat = T.mat2quat(obj_mat.dot(ee_mat))
+            rot_off = theta_error(ee_quat, goal_quat)
+            #sample.set(OBJ_ROTDELTA_ENUMS[i], rot_off, t)
+            sample.set(OBJ_ROTDELTA_ENUMS[i], (obj_spat.inv() * ee_spat).as_rotvec(), t)
+            targ_rot_off = theta_error(ee_quat, [0, 0, 0, 1])
+            targ_spat = Rotation.from_euler('xyz', [0., 0., 0.])
+            #sample.set(TARG_ROTDELTA_ENUMS[i], targ_rot_off, t)
+            sample.set(TARG_ROTDELTA_ENUMS[i], (targ_spat.inv() * ee_spat).as_rotvec(), t)
 
         if fill_obs:
             if IM_ENUM in self._hyperparams['obs_include'] or \
@@ -526,9 +480,11 @@ class RobotAgent(TAMPAgent):
         self.reset_to_state(self.x0[m])
 
 
-    def reset_to_state(self, x):
+    def reset_to_state(self, x, full=True):
         mp_state = x[self._x_data_idx[STATE_ENUM]]
         self._done = 0.
+        self._ret = 0.
+        self._rew = 0.
         self._prev_U = np.zeros((self.hist_len, self.dU))
         self._x_delta = np.zeros((self.hist_len+1, self.dX))
         self.eta_scale = 1.
@@ -603,7 +559,8 @@ class RobotAgent(TAMPAgent):
         else:
             old_targets = self.target_vecs[condition]
             for tname, attr in self.target_inds:
-                self.targets[condition][tname] = targets[self.target_inds[tname, attr]]
+                if attr == 'value':
+                    self.targets[condition][tname] = targets[self.target_inds[tname, attr]]
             self.target_vecs[condition] = targets
 
         exclude_targets = []
@@ -618,7 +575,8 @@ class RobotAgent(TAMPAgent):
 
         self.target_vecs[condition] = old_targets
         for tname, attr in self.target_inds:
-            self.targets[condition][tname] = old_targets[self.target_inds[tname, attr]]
+            if attr == 'value':
+                self.targets[condition][tname] = old_targets[self.target_inds[tname, attr]]
         # self.optimal_samples[self.task_list[task[0]]].append(sample)
         return sample
 
@@ -984,11 +942,43 @@ class RobotAgent(TAMPAgent):
         return super(RobotAgent, self).backtrack_solve(plan, anum, n_resamples, rollout)
 
 
+    #def get_inv_cov(self):
+    #    vec = np.ones(self.dU)
+    #    if ('baxter', 'left') in self.action_inds:
+    #        inds = self.action_inds['baxter', 'left']
+    #        lb, ub = list(self.plans.values())[0].params['baxter'].geom.get_joint_limits('left')
+    #        vec[inds] = 1. / (np.array(ub)-np.array(lb))**2
+    #    return np.diag(vec)
+
+
     def get_inv_cov(self):
         vec = np.ones(self.dU)
-        if ('baxter', 'left') in self.action_inds:
-            inds = self.action_inds['baxter', 'left']
-            lb, ub = list(self.plans.values())[0].params['baxter'].geom.get_joint_limits('left')
+        robot = self.robot_name
+        if ('sawyer', 'right') in self.action_inds:
+            return np.eye(self.dU)
+            inds = self.action_inds['sawyer', 'right']
+            lb, ub = list(self.plans.values())[0].params['sawyer'].geom.get_joint_limits('right')
             vec[inds] = 1. / (np.array(ub)-np.array(lb))**2
+            gripinds = self.action_inds['sawyer', 'right_gripper']
+            vec[gripinds] = np.sum(vec[inds]) / 2.
+            vec /= np.linalg.norm(vec)
+        elif ('sawyer', 'right_ee_pos') in self.action_inds and ('sawyer', 'right_ee_rot') in self.action_inds:
+            vecs = np.array([1e1, 1e1, 1e1, 1e-2, 1e-2, 1e-2, 1e0])
         return np.diag(vec)
+
+
+    def clip_state(self, x):
+        x = x.copy()
+        lb, ub = self.robot.geom.get_joint_limits('right')
+        lb = np.array(lb) + 2e-3
+        ub = np.array(ub) - 2e-3
+        for arm in self.robot_arms:
+            jnt_vals = x[self.state_inds[self.robot_name, arm]]
+            x[self.state_inds[self.robot_name, arm]] = np.clip(jnt_vals, lb, ub)
+            cv, ov = self.robot.geom.get_gripper_closed_val(), self.robot.geom.get_gripper_open_val()
+            grip_vals = x[self.state_inds[self.robot_name, '{}_gripper'.format(arm)]]
+            grip_vals = ov if np.mean(np.abs(grip_vals-cv)) > np.mean(np.abs(grip_vals-ov)) else cv
+            x[self.state_inds[self.robot_name, '{}_gripper'.format(arm)]] = grip_vals
+        return x
+
 

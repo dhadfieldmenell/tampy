@@ -40,7 +40,7 @@ def run(config):
     eval_env = AgentEnvWrapper(config=config, max_ts=args.episode_timesteps, process_id='testenv')
     eval_vec_env = SubprocVecEnv([make_env(env_fn, i) for i in range(n_envs)], start_method='spawn')
     check_env(eval_env)
-    eval_callback = EvalAgentCallback(eval_vec_env, eval_env, eval_freq=1024)
+    eval_callback = EvalAgentCallback(eval_vec_env, eval_env, eval_freq=2048)
     #envname = 'TAMPEnv-v0'
     #register_env(config, name=envname, max_ts=args.episode_timesteps)
     vec_env = SubprocVecEnv([make_env(env_fn, i) for i in range(n_envs)])
@@ -75,34 +75,61 @@ def run(config):
     model.save(args.descr)
 
 
-def test_run(eval_env, model, n_runs=1):
+def test_run(eval_env, model, n_runs=1, agent=None):
     init_t = time.time()
     rews = []
     rets = []
     goals = []
     iters = []
     dists = []
+    smallest_dists = []
     for _ in range(n_runs):
         obs = eval_env.reset()
         done = np.zeros(len(obs))
         ret = np.zeros(len(obs))
         cur_iter = 0
+        acts = []
+        xs1 = []
+        xs2 = []
+        xs3 = []
+        obs1 = []
+        state = None
+        closest_dists = -np.ones(len(obs))
         while not np.all(done):
-            action, state = model.predict(obs, state=None, deterministic=True)
+            action, state = model.predict(obs, state=state, deterministic=True)
+            acts.append(np.mean(action, axis=0))
             obs, reward, next_done, _info = eval_env.step(action)
             done = np.maximum(next_done.astype(int), done)
             ret += reward
+            obs1.append(obs)
+            xs1.append(_info[0]['cur_state'])
+            xs2.append(_info[1]['cur_state'])
+            xs3.append(_info[2]['cur_state'])
+            for ind, pt in enumerate(_info):
+                if closest_dists[ind] < 0 or pt['distance'] < closest_dists[ind]:
+                    closest_dists[ind] = pt['distance']
             cur_iter += 1
 
+        if agent is not None:
+            agent.agent.target_vecs[0] = _info[0]['targets']
+            agent.agent.save_video([xs1], agent._vid_dir)
+            agent.agent.target_vecs[0] = _info[1]['targets']
+            agent.agent.save_video([xs2], agent._vid_dir)
+            agent.agent.target_vecs[0] = _info[2]['targets']
+            agent.agent.save_video([xs3], agent._vid_dir)
+        avgact = np.mean(np.abs(acts), axis=0)
         iters.append(cur_iter)
         for ind in range(len(obs)):
             goals.append(_info[ind]['goal'])
             dists.append(_info[ind]['distance'])
             rews.append(reward[ind])
             rets.append(ret[ind])
+            smallest_dists.append(closest_dists[ind])
 
-    print('Time to run {}, rew {}, distance {}'.format(time.time() - init_t, np.mean(rets), np.mean(dists)))
-    return rets, rews, goals, dists
+    #print('\n\n\nRollout:', obs1[::10], '\n\n\n')
+
+    print('Time to run {}, rew {}, distance {} {}, act {}'.format(time.time() - init_t, np.mean(rets), np.mean(dists), np.mean(smallest_dists), avgact))
+    return rets, rews, goals, dists, smallest_dists
 
 
 
@@ -162,7 +189,7 @@ class EvalAgentCallback(EventCallback):
 
             self.base_env._goal = []
             self.base_env._rews = []
-            rets, rews, goals, dists = test_run(self.eval_env, self.model, self.n_eval_episodes)
+            rets, rews, goals, dists, smallest_dists = test_run(self.eval_env, self.model, self.n_eval_episodes, self.base_env)
             episode_rewards = rets
             #episode_rewards, episode_lengths = evaluate_policy(self.model, self.eval_env,
             #                                                   n_eval_episodes=self.n_eval_episodes,
@@ -177,7 +204,7 @@ class EvalAgentCallback(EventCallback):
             #mean_reward, std_reward = np.mean(episode_rewards), np.std(episode_rewards)
             #mean_ep_length, std_ep_length = np.mean(episode_lengths), np.std(episode_lengths)
             for ind, rew in enumerate(episode_rewards):
-                self.base_env.add_test_info(rew, goals[ind], rews[ind], dists[ind])
+                self.base_env.add_test_info(rew, goals[ind], rews[ind], dists[ind], smallest_dists[ind])
             self.base_env.save_log()
 
         return True

@@ -29,7 +29,7 @@ class TaskServer(Server):
         self.in_queue = self.task_queue
         self.out_queue = self.motion_queue
         self.prob_queue = []
-        self.labelled_dir = self._hyperparams.get('labelled_dir', None)
+        self.labelled_dir = self._hyperparams.get('reference_dir', None)
 
 
     def run(self):
@@ -40,6 +40,7 @@ class TaskServer(Server):
 
     def load_labelled_state(self):
         probs = []
+        if self.labelled_dir is None or not len(self.labelled_dir): return
         fnames = os.listdir(self.labelled_dir)
         for fname in fnames:
             if fname.find('npy') < 0: continue

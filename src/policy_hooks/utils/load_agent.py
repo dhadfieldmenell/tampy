@@ -8,7 +8,6 @@ import copy
 import argparse
 from datetime import datetime
 from threading import Thread
-import pprint
 import psutil
 import sys
 import time

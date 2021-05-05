@@ -320,7 +320,7 @@ class RolloutServer(Server):
                   true_disp, \
                   time.time()-self.start_t, \
                   self.config['num_objs'], \
-                  n, \
+                  true_disp, \
                   self.policy_opt.buf_sizes['n_data'].value, \
                   true_val, \
                   ncols, \
