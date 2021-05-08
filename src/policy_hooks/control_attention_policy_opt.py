@@ -58,7 +58,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self._dValObs = dValObs
         self._primBounds = primBounds
         self._contBounds = contBounds if contBounds is not None else []
-        self.load_label = self._hyperparams.get('load_label', False)
+        self.load_label = self._hyperparams['load_label']
         self.task_map = {}
         self.device_string = "/cpu:0"
         if self._hyperparams['use_gpu'] == 1:
@@ -131,6 +131,16 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 self.cont_img_idx = self.cont_img_idx + list(range(i, i+dim))
             else:
                 self.cont_x_idx = self.cont_x_idx + list(range(i, i+dim))
+            i += dim
+
+
+        self.label_x_idx, self.label_img_idx, i = [], [], 0
+        for sensor in self._hyperparams['label_network_params']['obs_include']:
+            dim = self._hyperparams['label_network_params']['sensor_dims'][sensor]
+            if sensor in self._hyperparams['label_network_params']['obs_image_data']:
+                self.label_img_idx = self.label_img_idx + list(range(i, i+dim))
+            else:
+                self.label_x_idx = self.label_x_idx + list(range(i, i+dim))
             i += dim
 
         self.update_count = 0
@@ -598,7 +608,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         if len(obs.shape) < 2:
             obs = obs.reshape(1, -1)
 
-        distr = self.sess.run(self.label_act_op, feed_dict={self.label_obs_tensor:obs, self.label_eta: eta, self.dec_tensor: self.cur_dec})[0].flatten()
+        distr = self.sess.run(self.label_act_op, feed_dict={self.label_obs_tensor:obs, self.label_eta: eta, self.dec_tensor: self.cur_dec})[0]
         return distr
 
 
@@ -630,6 +640,12 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                          self.cont_precision_tensor: tgt_prc,
                          self.dec_tensor: self.cur_dec}
             val_loss = self.cont_solver(feed_dict, self.sess, device_string=self.device_string, train=False)
+        elif task == 'label':
+            feed_dict = {self.label_obs_tensor: obs,
+                         self.label_action_tensor: tgt_mu,
+                         self.label_precision_tensor: tgt_prc,
+                         self.dec_tensor: self.cur_dec}
+            val_loss = self.label_solver(feed_dict, self.sess, device_string=self.device_string, train=False)
         else:
             feed_dict = {self.task_map[task]['obs_tensor']: obs,
                          self.task_map[task]['action_tensor']: tgt_mu,
@@ -644,7 +660,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         start_t = time.time()
         average_loss = 0
         for i in range(self._hyperparams['iterations']):
-            feed_dict = {self.hllr_tensor: self.cur_hllr} if task in ['cont', 'primitive'] else {self.lr_tensor: self.cur_lr}
+            feed_dict = {self.hllr_tensor: self.cur_hllr} if task in ['label', 'cont', 'primitive'] else {self.lr_tensor: self.cur_lr}
             feed_dict[self.dec_tensor] = self.cur_dec
             if task in self.task_map:
                 solver = self.task_map[task]['solver']
@@ -652,6 +668,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 solver = self.primitive_solver
             elif task == 'cont':
                 solver = self.cont_solver
+            elif task == 'label':
+                solver = self.label_solver
             train_loss = solver(feed_dict, self.sess, device_string=self.device_string, train=True)[0]
             average_loss += train_loss
         self.tf_iter += self._hyperparams['iterations']

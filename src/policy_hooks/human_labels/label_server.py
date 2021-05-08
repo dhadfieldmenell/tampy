@@ -185,7 +185,7 @@ class LabelServer(Server):
         self.labels.append((res, example[1][seg_ts[0]], example[2], example[-1]))
 
 
-    def search_query(self, t=10, N=1, max_iters=20, val=False):
+    def search_query(self, t=16, N=1, max_iters=20, val=False):
         print('\nRunning search query...\n')
         example = self.get_example(val)
         if example is None:
@@ -339,23 +339,26 @@ class LabelServer(Server):
     def send_labels(self, pt, labels, wid=40):
         obs = []
         mu = []
-        ref_pt = -1
+        x = []
+        ref_pt = len(pt[1])-1
         for (res, ts) in labels:
             if res == 'during':
                 ref_pt = ts
         
         if ref_pt < 0: return
-        for ts in range(0, min(len(obs), ref_pt+wid)):
+        for ts in range(0, min(len(pt[1]), ref_pt+wid)):
             if ts < ref_pt-wid or ts > ref_pt:
                 mu.append([1,0])
             else:
                 p = np.exp((ts-ref_pt)/10.)
                 mu.append([1-p, p])
             obs.append(pt[4][ts])
+            x.append(pt[1][ts])
 
         labels = np.array(mu)
         obs = np.array(obs)
-        self.update_labels(labels, obs)
+        x = np.array(x)
+        self.update_labels(labels, obs, x)
 
 
     def push_states(self):
@@ -395,7 +398,7 @@ class LabelServer(Server):
             self.load_examples()
             self.push_states()
             if not self.save_only:
-                self.search_query(N=3, t=6)
+                self.search_query(N=3, t=12)
             elif self.n_since_write >= self.max_buffer:
                 self.write_to_file()
             else:

@@ -57,6 +57,9 @@ class PolicyServer(object):
         self.warmup = hyperparams['tf_warmup_iters']
         self.queues = hyperparams['queues']
         self.min_buffer = hyperparams['prim_update_size'] if self.task in ['cont', 'primitive'] else hyperparams['update_size']
+        if self.task == 'label':
+            self.min_buffer = 600
+
         if self.task == 'primitive':
             self.in_queue = hyperparams['hl_queue']
         elif self.task == 'cont':
@@ -116,6 +119,11 @@ class PolicyServer(object):
             dU = max([b[1] for b in self.cont_bounds])
             dP = dU
             precShape = tf.TensorShape([None, dP, dP])
+        elif self.task == 'label':
+            dO = hyperparams['dPrimObs']
+            dU = 2
+            dP = 2
+            precShape = tf.TensorShape([None, dP])
         else:
             dO = hyperparams['dO']
             dU = hyperparams['dU']
@@ -126,9 +134,9 @@ class PolicyServer(object):
         self.load_f = lambda x: tf.data.Dataset.from_generator(self.data_gen.gen_load, \
                                                          output_types=tf.int32, \
                                                          args=())
-        #data = data.interleave(self.load_f, \
-        #                         cycle_length=4, \
-        #                         block_length=1)
+        data = data.interleave(self.load_f, \
+                                 cycle_length=4, \
+                                 block_length=1)
         self.gen_f = lambda x: tf.data.Dataset.from_generator(self.data_gen.gen_items, \
                                                          output_types=(tf.float32, tf.float32, tf.float32), \
                                                          output_shapes=(tf.TensorShape([None, dO]), tf.TensorShape([None, dU]), precShape),
@@ -167,6 +175,8 @@ class PolicyServer(object):
             self.data_gen.data_buf.x_idx = self.policy_opt.prim_x_idx
         elif self.task == 'cont':
             self.data_gen.data_buf.x_idx = self.policy_opt.cont_x_idx
+        elif self.task == 'label':
+            self.data_gen.data_buf.x_idx = self.policy_opt.label_x_idx
         else:
             self.data_gen.data_buf.x_idx = self.policy_opt.x_idx
 
@@ -256,7 +266,7 @@ class PolicyServer(object):
 
             if not self.iters % write_freq:
                 self.policy_opt.write_shared_weights([self.task])
-                if len(self.continuous_opts) and self.task not in ['cont', 'primitive']:
+                if len(self.continuous_opts) and self.task not in ['cont', 'primitive', 'label']:
                     self.policy_opt.read_shared_weights(['cont'])
                     self.data_gen.feed_in_policy = self.policy_opt.cont_policy
 

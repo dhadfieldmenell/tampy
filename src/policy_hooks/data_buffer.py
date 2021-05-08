@@ -1,7 +1,7 @@
 import numpy as np
 
 
-MAX_BUFFER = 40000
+MAX_BUFFER = 25000 # 40000
 MIN_BUFFER = 1000
 
 class DataBuffer(object):
@@ -117,6 +117,7 @@ class DataBuffer(object):
                     p[ind] = 0.
 
         norm = np.sum(p)
+        if norm < 1e-3: return labels[0]
         p = [pt/norm for pt in p]
         return np.random.choice(labels, p=p)
 
@@ -167,7 +168,7 @@ class DataBuffer(object):
             mu = self.mu[label][inds]
             prc = self.prc[label][inds]
             wt = self.wt[label][inds]
-            x = [self.x[label][ind] for ind in inds]
+            x = self.x[label][inds]
             primobs = []
             if self.primobs[label] is not None:
                 primobs = self.primobs[label][inds]
@@ -180,7 +181,8 @@ class DataBuffer(object):
             if val: label = 'VAL_' + label
             return self.lens[label]
         lab_f = lambda l: (not val and l.find('VAL_') < 0) or (val and l.find('VAL_') >= 0)
-        labels = [l for l in self.lens.keys() if lab_f(l) and self.lens[l] >= self._min_sample]
+        min_size = self._min_sample if not val else self.val_ratio * self._min_sample
+        labels = [l for l in self.lens.keys() if lab_f(l) and self.lens[l] >= min_size]
 
         return sum([self.lens[l] for l in labels])
 

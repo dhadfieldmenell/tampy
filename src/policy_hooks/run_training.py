@@ -304,6 +304,7 @@ def argsparser():
     parser.add_argument('-rollout', '--num_rollout', type=int, default=16)
     parser.add_argument('-label', '--label_server', action='store_true', default=False)
     parser.add_argument('-class_label', '--classify_labels', action='store_true', default=False)
+    parser.add_argument('-max_label', '--max_label', type=int, default=-1)
     parser.add_argument('-hist_len', '--hist_len', type=int, default=1)
     parser.add_argument('-task_hist_len', '--task_hist_len', type=int, default=1)
     parser.add_argument('-n_gpu', '--n_gpu', type=int, default=4)

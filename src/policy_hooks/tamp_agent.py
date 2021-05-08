@@ -910,8 +910,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 else:
                     sample.use_ts[last_t:] = 0.
                     sample.prim_use_ts[last_t:] = 0.
-                #cost = self.postcond_cost(sample, task, sample.T-1, x0=x0) if last_t is None else 0
-                cost = self.postcond_cost(sample, task, sample.T-1, x0=x0)
+                cost = self.postcond_cost(sample, task, sample.T-1, x0=x0) if last_t is None else 0
+                #cost = self.postcond_cost(sample, task, sample.T-1, x0=x0)
                 ref_traj, _, labels, _ = self.reverse_retime([sample], (act_st, act_et), label=True, T=last_t)
                 #if cost < 1e-4 and rollout:
                 #    self.optimal_samples[self.task_list[task[0]]].append(sample)
@@ -983,7 +983,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 success = True
                 rollout_success = True
                 #next_x0 = ref_traj[-1]
-                next_x0 = sample.end_state
+                next_x0 = sample.end_state if last_t is None else sample.get_X(t=last_t)
                 ref_x0 = next_x0.copy()
                 ref_x0 = self.clip_state(ref_x0)
                 path.append(sample)

@@ -103,6 +103,7 @@ class Server(object):
         self.ll_queue = hyperparams['ll_queue']
         self.hl_queue = hyperparams['hl_queue']
         self.cont_queue = hyperparams['cont_queue']
+        self.label_queue = hyperparams['label_queue']
 
         self.pol_cls = DummyPolicy
         self.opt_cls = DummyPolicyOpt
@@ -183,6 +184,7 @@ class Server(object):
     def init_policy_opt(self, hyperparams):
         hyperparams['policy_opt']['gpu_id'] = np.random.randint(1,3)
         hyperparams['policy_opt']['use_gpu'] = 1
+        hyperparams['policy_opt']['load_label'] = hyperparams['classify_labels']
         hyperparams['policy_opt']['split_hl_loss'] = hyperparams['split_hl_loss']
         hyperparams['policy_opt']['weight_dir'] = hyperparams['weight_dir'] # + '_trained'
         hyperparams['policy_opt']['scope'] = None
@@ -260,12 +262,14 @@ class Server(object):
         assert not np.any(np.isinf(obs))
         #obs[np.where(np.abs(obs) > 1e10)] = 0
 
-        primobs = [] if task in ['primitive', 'cont'] or self.end2end == 0 else primobs
+        primobs = [] if task in ['primitive', 'cont', 'label'] or self.end2end == 0 else primobs
         data = (obs, mu, prc, wt, aux, primobs, x, task, label)
         if task == 'primitive':
             q = self.hl_queue
         elif task == 'cont':
             q = self.cont_queue
+        elif task == 'label':
+            q = self.label_queue
         else:
             q = self.ll_queue[task] if task in self.ll_queue else self.ll_queue['control']
 
@@ -527,10 +531,11 @@ class Server(object):
             self.policy_opt.buf_sizes['n_negative'].value += len(tgt_mu)
 
 
-    def update_label(self, labels, obs):
+    def update_labels(self, labels, obs, x):
+        assert len(x) > 0
         dOpts = len(self.agent.discrete_opts)
-        prc = np.ones((len(labels), dOpts))
-        self.update(obs, labels, prc, np.ones(len(obs)), 'label', 'human', aux=None, x=None)
+        prc = np.ones((len(labels), 2))
+        self.update(obs, labels, prc, np.ones(len(obs)), 'label', 'human', aux=[], x=x)
 
 
     def get_path_data(self, path, n_fixed=0, verbose=False):
@@ -578,7 +583,7 @@ class Server(object):
             f.write('\n')
 
     
-    def send_to_label(self, rollout, suc, tdelta=4):
+    def send_to_label(self, rollout, suc, tdelta=2):
         if not self.config['label_server'] \
            or not len(rollout) \
            or not self.render \

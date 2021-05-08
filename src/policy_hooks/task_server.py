@@ -29,11 +29,13 @@ class TaskServer(Server):
         self.in_queue = self.task_queue
         self.out_queue = self.motion_queue
         self.prob_queue = []
-        self.labelled_dir = self._hyperparams.get('reference_dir', None)
-        self.max_labels = self._hyperparams.get('max_label', None)
+        self.labelled_dir = self._hyperparams.get('reference_dir', None) + '/'
+        self.max_labels = self._hyperparams.get('max_label', -1)
 
 
     def run(self):
+        if self.labelled_dir is not None:
+            self.load_labelled_state()
         while not self.stopped:
             self.find_task_plan()
             time.sleep(0.01)
@@ -54,20 +56,27 @@ class TaskServer(Server):
                 ts = pt[-1]
                 if label in ['after', 'during']:
                     probs.append((x, targets))
-        if self.max_labels is not None and len(probs) > self.max_labels:
+        if self.max_labels > 0 and len(probs) > self.max_labels:
             inds = np.random.choice(len(probs), self.max_labels)
             probs = [probs[i] for i in inds]
         ind = int(self.id[-1])
         ntask = self._hyperparams['num_task']
-        nper = len(probs) / ntask
+        nper = int(len(probs) / ntask)
         probs = probs[ind*nper:(ind+1)*nper]
         self.prob_queue.extend(probs)
+        print('\n\n\n {} loaded {} labels\n\n'.format(self.id, len(probs)))
 
 
     def find_task_plan(self):
         node = self.pop_queue(self.task_queue)
         if node is None or node.expansions > EXPAND_LIMIT:
-            node = self.spawn_problem()
+            if len(self.prob_queue):
+                x, targets = self.prob_queue.pop()
+                node = self.spawn_problem(x, targets)
+                node.nodetype = 'human'
+                node.label = 'offline human'
+            else:
+                node = self.spawn_problem()
 
         try:
             plan_str = self.agent.hl_solver.run_planner(node.abs_prob, node.domain, node.prefix, label='{}_{}'.format(self.id, self.exp_id))

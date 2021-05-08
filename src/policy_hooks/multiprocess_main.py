@@ -350,17 +350,18 @@ class MultiProcessMain(object):
         #    buffers['control'] = mp.Array(ctypes.c_char, (2**28))
         #    buf_sizes['control'] = mp.Value('i')
         #    buf_sizes['control'].value = 0
+        power = 26
         for task in self.pol_list:
-            buffers[task] = mp.Array(ctypes.c_char, (2**27))
+            buffers[task] = mp.Array(ctypes.c_char, (2**power))
             buf_sizes[task] = mp.Value('i')
             buf_sizes[task].value = 0
-        buffers['primitive'] = mp.Array(ctypes.c_char, 20 * (2**27))
+        buffers['primitive'] = mp.Array(ctypes.c_char, 20 * (2**power))
         buf_sizes['primitive'] = mp.Value('i')
         buf_sizes['primitive'].value = 0
-        buffers['cont'] = mp.Array(ctypes.c_char, 20 * (2**27))
+        buffers['cont'] = mp.Array(ctypes.c_char, 20 * (2**power))
         buf_sizes['cont'] = mp.Value('i')
         buf_sizes['cont'].value = 0
-        buffers['label'] = mp.Array(ctypes.c_char, 20 * (2**27))
+        buffers['label'] = mp.Array(ctypes.c_char, 20 * (2**power))
         buf_sizes['label'] = mp.Value('i')
         buf_sizes['label'].value = 0
         buf_sizes['n_data'] = mp.Value('i')

@@ -20,6 +20,7 @@ class RolloutSupervisor():
         self.check_midcond = check_mid
         self.check_postcond = check_post
         self.check_random = check_random
+        self.classify_labels = hyperparams['classify_labels']
         self.soft = soft
         self.eta = eta
         self.neg_precond = neg_precond
@@ -190,6 +191,9 @@ class RolloutSupervisor():
             #rand_ind = np.random.choice(range(len(self.precond_viols)))
             #train_pts.append(tuple(self.precond_viols[rand_ind]) + (fail_type,))
 
+        if self.classify_labels:
+            train_pts.extend(self.predict_labels(path))
+
         if self.check_postcond:
             fail_type = 'rollout_postcondition_failure'
             for bad_pt in self.postcond_viols[-self.n_pts:]:
@@ -226,7 +230,27 @@ class RolloutSupervisor():
 
         self.parse_train_pts(train_pts, path, targets, node)
         return val, path
- 
+
+
+    def predict_labels(self, path, N=4, wind=5):
+        vals = []
+        pts = []
+        for ind, step in enumerate(path):
+            preds = self.policy_opt.label_distr(step.get_prim_obs())[:,1]
+            vals.append(preds)
+
+        for i in range(N):
+            s = np.argmax([np.max(val) for val in vals])
+            t = np.argmax(vals[s])
+            if vals[s][t] < 1e-2: break
+            vals[s][max(0, t-wind):t+wind] = 0.
+            pts.append((s,t, 'predicted label'))
+            if t-wind < 0 and s > 0:
+                vals[s-1][t-wind:] = 0.
+            if t+wind > len(vals[s]) and s < len(vals)-1:
+                vals[s+1][:t+wind-len(vals[s])] = 0.
+        return pts
+
 
     def get_task(self, state, targets, prev_task, soft=False, eta=None):
         if eta is None: eta = self.eta
