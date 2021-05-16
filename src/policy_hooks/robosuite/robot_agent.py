@@ -350,6 +350,8 @@ class RobotAgent(TAMPAgent):
                 single_object_mode=obj_mode,
                 object_type=self.obj_list[0],
                 ignore_done=True,
+                reward_shaping=True,
+                reward_scale=1.0,
                 render_gpu_device_id=0,
                 initialization_noise={'magnitude': 0.1, 'type': 'gaussian'}
             )
@@ -536,6 +538,7 @@ class RobotAgent(TAMPAgent):
             for n in range(n_steps+1):
                 ctrl = np.r_[targ_pos - self.mjc_env.get_attr('sawyer', 'right'), gripper]
                 self.cur_obs, rew, done, _ = self.base_env.step(ctrl)
+        rew = self.base_env.reward()
         self._rew = rew
         self._ret += rew
         col = 0 # 1 if len(self._col) > 0 else 0

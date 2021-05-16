@@ -12,7 +12,7 @@ This will create a directory titled `tamp_work` in your home directory and initi
 
 Once installed, navigate to `cd ~/tamp_work/tampy/src` and run `python3 verify_namo.py`
 This will solve a two-object placement problem in a two dimensional domain
-If everything works, the output should match: `PLAN FINISHED WITH FAILED PREDIATES:[]`
+If everything works, the output should match: `PLAN FINISHED SUCCESSFULLY`
 
 This should take under a minute to run.
 

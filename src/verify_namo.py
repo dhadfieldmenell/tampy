@@ -49,6 +49,9 @@ plan, descr = p_mod_abs(hl_solver, solver, domain, problem, goal=goal, debug=Tru
 print('\n\n\n\n')
 if plan is None or type(plan) is str:
     print('PLANNING FAILED')
-else:
+elif len(plan.get_failed_preds()):
     print('PLAN FINISHED WITH FAILED PREDICATES: {}'.format(plan.get_failed_preds()))
+else:
+    print('PLAN FINISHED SUCCESSFULLY')
+
 

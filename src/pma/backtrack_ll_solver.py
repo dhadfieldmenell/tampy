@@ -192,6 +192,7 @@ class BacktrackLLSolver(LLSolver):
         else:
             callback_a = None
 
+        success = False
         for rp in robot_poses:
             if type(rs_param) is not list:
                 rp = {rs_param: rp}
@@ -206,7 +207,6 @@ class BacktrackLLSolver(LLSolver):
                         getattr(param, attr)[:, active_ts[1]] = val.flatten()
                 self.child_solver.fixed_objs.append((param, rp[param]))
 
-            success = False
             success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                               active_ts = active_ts, verbose=verbose,
                                               force_init=True, init_traj=init_traj)
@@ -387,8 +387,8 @@ class BacktrackLLSolver(LLSolver):
 
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
         self._update_ll_params()
-        if not success and priority >= 0:
-            success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
+        if priority >= 0:
+            success = success and len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
 
         '''
         if resample:
