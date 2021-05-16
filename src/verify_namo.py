@@ -1,4 +1,6 @@
+import os
 import sys
+
 import main
 domain_file = "../domains/namo_domain/namo_current.domain"
 prob_file = "../domains/namo_domain/namo_probs/verify_2_object.prob"
@@ -9,10 +11,11 @@ from pma import backtrack_ll_solver as bt_ll
 from core.parsing import parse_domain_config, parse_problem_config
 
 
+visual = len(os.environ.get('DISPLAY', '')) > 0
 d_c = main.parse_file_to_dict(domain_file)
 domain = parse_domain_config.ParseDomainConfig.parse(d_c)
 p_c = main.parse_file_to_dict(prob_file)
-problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, env=None, openrave_bodies={}, use_tf=False, sess=None)
+problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, env=None, openrave_bodies={}, use_tf=False, sess=None, visual=visual)
 state = problem.init_state
 solver = NAMOSolver()
 bt_ll.DEBUG = True
