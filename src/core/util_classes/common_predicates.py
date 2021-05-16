@@ -76,8 +76,6 @@ class ExprPredicate(Predicate):
     def lazy_spawn_or_body(self, param, name, geom):
         if param.openrave_body is not None:
             assert geom == param.openrave_body._geom
-            if USE_OPENRAVE:
-                assert self._env == param.openrave_body.env_body.GetEnv()
         else:
             param.openrave_body = OpenRAVEBody(self._env, name, geom)
         return param.openrave_body

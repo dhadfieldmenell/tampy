@@ -15,13 +15,7 @@ import xml.etree.ElementTree as xml
 from sco.expr import *
 
 import core.util_classes.common_constants as const
-if const.USE_OPENRAVE:
-    # import openravepy
-    # from openravepy import RaveCreatePhysicsEngine
-    # import ctrajoptpy
-    pass
-else:
-    import pybullet as P
+import pybullet as P
 
 
 # from gps.agent.agent import Agent

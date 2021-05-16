@@ -18,12 +18,7 @@ from sco.expr import *
 import core.util_classes.common_constants as common_const
 import pma.backtrack_ll_solver as bt_ll
 from pma.pr_graph import *
-if common_const.USE_OPENRAVE:
-    import openravepy
-    from openravepy import RaveCreatePhysicsEngine
-    import ctrajoptpy
-else:
-    import pybullet as p
+import pybullet as p
 
 from core.util_classes.namo_predicates import dsafe
 from policy_hooks.agent import Agent
@@ -143,10 +138,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.task_paths = []
 
         self.n_policy_calls = {}
-        if common_const.USE_OPENRAVE:
-            self._cc = openravepy.RaveCreateCollisionChecker(self.env, "ode")
-            self._cc.SetCollisionOptions(openravepy.CollisionOptions.Contacts)
-            self.env.SetCollisionChecker(self._cc)
         self.n_dirs = self._hyperparams['n_dirs']
         self.seed = 1234
         self.prim_dims = self._hyperparams['prim_dims']

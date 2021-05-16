@@ -12,13 +12,7 @@ import numpy as np
 import xml.etree.ElementTree as xml
 
 import core.util_classes.common_constants as const
-if const.USE_OPENRAVE:
-    # import openravepy
-    # from openravepy import RaveCreatePhysicsEngine
-    # import ctrajoptpy
-    pass
-else:
-    import pybullet as p
+import pybullet as p
 
 
 # from gps.agent.agent import Agent
@@ -222,11 +216,7 @@ class NAMOSortingAgent(TAMPAgent):
             else:
                 p.openrave_body.set_pose(p.pose[:,0])
 
-        if const.USE_OPENRAVE:
-            is_hits, hits = self.env.CheckCollisionRays(rays, None)
-            dists = np.linalg.norm(hits[:,:3]-rays[:,:3], axis=1)
-        else:
-            _, _, hit_frac, hit_pos, hit_normal = p.rayBatchTest(rays[:,:3], rays[:,:3]+rays[:,3:])
+        _, _, hit_frac, hit_pos, hit_normal = p.rayBatchTest(rays[:,:3], rays[:,:3]+rays[:,3:])
 
         assert not np.any(np.isnan(dists)) and not np.any(np.isinf(dists))
         return dists

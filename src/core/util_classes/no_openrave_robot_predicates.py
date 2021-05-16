@@ -8,11 +8,7 @@ from errors_exceptions import PredicateException
 from collections import OrderedDict
 import numpy as np
 
-from core.util_classes.openrave_body import USE_OPENRAVE
-if USE_OPENRAVE:
-    import ctrajoptpy
-else:
-    import pybullet as p
+import pybullet as p
 
 import itertools
 import sys
@@ -27,8 +23,6 @@ class CollisionPredicate(ExprPredicate):
         self._debug = debug
         if self._debug:
             self._env.SetViewer("qtcoin")
-        if USE_OPENRAVE:
-            self._cc = ctrajoptpy.GetCollisionChecker(self._env)
         self.dsafe = dsafe
         self.ind0 = ind0
         self.ind1 = ind1
@@ -58,11 +52,7 @@ class CollisionPredicate(ExprPredicate):
 
         self.set_active_dof_inds(robot_body, reset=False)
         # Setup collision checkers
-        if USE_OPENRAVE:
-            self._cc.SetContactDistance(const.MAX_CONTACT_DISTANCE)
-            collisions = self._cc.BodyVsBody(robot_body.env_body, robot_body.env_body)
-        else:
-            collisions = p.getClosestPoints(robot_body.body_id, robot_body.body_id, const.MAX_CONTACT_DISTANCE)
+        collisions = p.getClosestPoints(robot_body.body_id, robot_body.body_id, const.MAX_CONTACT_DISTANCE)
 
         # Calculate value and jacobian
         col_val, col_jac = self._calc_self_grad_and_val(robot_body, collisions)
@@ -99,14 +89,7 @@ class CollisionPredicate(ExprPredicate):
         obj_body.set_pose(can_pos, can_rot)
 
         # Make sure two body is in the same environment
-        if USE_OPENRAVE:
-            assert robot_body.env_body.GetEnv() == obj_body.env_body.GetEnv()
-            self.set_active_dof_inds(robot_body, reset=False)
-            # Setup collision checkers
-            self._cc.SetContactDistance(const.MAX_CONTACT_DISTANCE)
-            collisions = self._cc.BodyVsBody(robot_body.env_body, obj_body.env_body)
-        else:
-            collisions = p.getClosestPoints(robot_body.body_id, obj_body.body_id, const.MAX_CONTACT_DISTANCE)
+        collisions = p.getClosestPoints(robot_body.body_id, obj_body.body_id, const.MAX_CONTACT_DISTANCE)
         # Calculate value and jacobian
         col_val, col_jac = self._calc_grad_and_val(robot_body, obj_body, collisions)
         # set active dof value back to its original state (For successive function call)
@@ -142,14 +125,7 @@ class CollisionPredicate(ExprPredicate):
         can_body.set_pose(can_pos, can_rot)
         obstr_body.set_pose(obstr_pos, obstr_rot)
         # Make sure two body is in the same environment
-        if USE_OPENRAVE:
-            assert can_body.env_body.GetEnv() == obstr_body.env_body.GetEnv()
-            # Setup collision checkers
-            # self._cc.SetContactDistance(const.MAX_CONTACT_DISTANCE)
-            self._cc.SetContactDistance(np.inf)
-            collisions = self._cc.BodyVsBody(can_body.env_body, obstr_body.env_body)
-        else:
-            collisions = p.getClosestPoints(can_body.body_id, obstr_body.body_id, const.MAX_CONTACT_DISTANCE)
+        collisions = p.getClosestPoints(can_body.body_id, obstr_body.body_id, const.MAX_CONTACT_DISTANCE)
         # Calculate value and jacobian
         col_val, col_jac = self._calc_obj_grad_and_val(can_body, obstr_body, collisions)
         # self._cache[flattened] = (col_val.copy(), col_jac.copy())
@@ -179,13 +155,7 @@ class CollisionPredicate(ExprPredicate):
         obj = self.params[self.ind1]
         obj_body = self._param_to_body[obj]
         obj_body.set_pose(can_pos, can_rot)
-        if USE_OPENRAVE:
-            self.set_active_dof_inds(robot_body, reset=False)
-            self._cc.SetContactDistance(const.MAX_CONTACT_DISTANCE)
-            # setup collision between robot and obstruct
-            collisions1 = self._cc.BodyVsBody(robot_body.env_body, obj_body.env_body)
-        else:
-            collisions1 = p.getClosestPoints(robot_body.body_id, obj_body.body_id, const.MAX_CONTACT_DISTANCE)
+        collisions1 = p.getClosestPoints(robot_body.body_id, obj_body.body_id, const.MAX_CONTACT_DISTANCE)
 
         col_val1, col_jac1 = self._calc_grad_and_val(robot_body, obj_body, collisions1)
 
@@ -193,11 +163,7 @@ class CollisionPredicate(ExprPredicate):
         # find collision between object and object held
         held_body = self._param_to_body[self.obj]
         held_body.set_pose(held_pose, held_rot)
-        if USE_OPENRAVE:
-            self._cc.SetContactDistance(np.inf)
-            collisions2 = self._cc.BodyVsBody(held_body.env_body, obj_body.env_body)
-        else:
-            collisions2 = p.getClosestPoints(held_body.body_id, obj_body.body_id, const.MAX_CONTACT_DISTANCE)
+        collisions2 = p.getClosestPoints(held_body.body_id, obj_body.body_id, const.MAX_CONTACT_DISTANCE)
 
         col_val2, col_jac2 = self._calc_obj_held_grad_and_val(robot_body, held_body, obj_body, collisions2)
 
@@ -305,58 +271,34 @@ class CollisionPredicate(ExprPredicate):
         link_pair_to_col = {}
         for c in collisions:
             # Identify the collision points
-            if USE_OPENRAVE:
-                linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
-                linkAParent, linkBParent = c.GetLinkAParentName(), c.GetLinkBParentName()
-                linkRobot, linkObj = None, None
-                sign = 0
-                if linkAParent == robot_body.name and linkBParent == obj_body.name:
-                    ptRobot, ptObj = c.GetPtA(), c.GetPtB()
-                    linkRobot, linkObj = linkA, linkB
-                    sign = -1
-                elif linkBParent == robot_body.name and linkAParent == obj_body.name:
-                    ptRobot, ptObj = c.GetPtB(), c.GetPtA()
-                    linkRobot, linkObj = linkB, linkA
-                    sign = 1
-                else:
-                    continue
+            linkA, linkB = c.linkIndexA, c.linkIndexB
+            linkAParent, linkBParent = c.bodyUniqueIdA, c.bodyUniqueIdB
+            sign = 0
+            if linkAParent == robot_body.body_id and linkBParent == obj_body.body_id:
+                ptRobot, ptObj = c.positionOnA, c.positionOnB
+                linkRobot, linkObj = linkA, linkB
+                sign = -1
+            elif linkBParent == robot_body.body_id and linkAParent == obj_body.body_id:
+                ptRobot, ptObj = c.positionOnB, c.positionOnA
+                linkRobot, linkObj = linkB, linkA
+                sign = 1
             else:
-                linkA, linkB = c.linkIndexA, c.linkIndexB
-                linkAParent, linkBParent = c.bodyUniqueIdA, c.bodyUniqueIdB
-                sign = 0
-                if linkAParent == robot_body.body_id and linkBParent == obj_body.body_id:
-                    ptRobot, ptObj = c.positionOnA, c.positionOnB
-                    linkRobot, linkObj = linkA, linkB
-                    sign = -1
-                elif linkBParent == robot_body.body_id and linkAParent == obj_body.body_id:
-                    ptRobot, ptObj = c.positionOnB, c.positionOnA
-                    linkRobot, linkObj = linkB, linkA
-                    sign = 1
-                else:
-                    continue
+                continue
 
             if linkRobot not in col_links or linkObj not in obj_links:
                 continue
 
             # Obtain distance between two collision points, and their normal collision vector
-            if USE_OPENRAVE:
-                distance = c.GetDistance()
-                normal = c.GetNormal()
-                # Calculate robot jacobian
-                robot = robot_body.env_body
-                robot_link_ind = robot.GetLink(linkRobot).GetIndex()
-                robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptRobot)
-            else:
-                distance = c.contactDistance
-                normal = c.contactNormalOnB # Pointing towards A
-                n_jnts = p.getNumJoints(robot_body.body_id)
-                jnts = p.getJointStates(list(range(n_jnts)))[0]
-                robot_jac, robot_ang_jac = p.calculateJacobian(robot_body.body_id,
-                                                               linkRobot,
-                                                               ptRobot,
-                                                               objPositions=jnts,
-                                                               objVelocities=np.zeros(n_jnts),
-                                                               objAccelerations=np.zeros(n_jnts))
+            distance = c.contactDistance
+            normal = c.contactNormalOnB # Pointing towards A
+            n_jnts = p.getNumJoints(robot_body.body_id)
+            jnts = p.getJointStates(list(range(n_jnts)))[0]
+            robot_jac, robot_ang_jac = p.calculateJacobian(robot_body.body_id,
+                                                            linkRobot,
+                                                            ptRobot,
+                                                            objPositions=jnts,
+                                                            objVelocities=np.zeros(n_jnts),
+                                                            objAccelerations=np.zeros(n_jnts))
 
             grad = np.zeros((1, self.attr_dim+6))
             grad[:, :self.attr_dim] = np.dot(sign * normal, robot_jac)
@@ -371,10 +313,7 @@ class CollisionPredicate(ExprPredicate):
             # Constructing gradient matrix
             # robot_grad = np.c_[robot_grad, obj_jac]
             # TODO: remove robot.GetLink(linkRobot) from links (added for debugging purposes)
-            if USE_OPENRAVE:
-                link_pair_to_col[(linkRobot, linkObj)] = [self.dsafe - distance, grad, robot.GetLink(linkRobot), robot.GetLink(linkObj)]
-            else:
-                link_pair_to_col[(linkRobot, linkObj)] = [self.dsafe - distance, grad, None, None]
+            link_pair_to_col[(linkRobot, linkObj)] = [self.dsafe - distance, grad, None, None]
             # import ipdb; ipdb.set_trace()
             # if self._debug:
             #     self.plot_collision(ptRobot, ptObj, distance)
@@ -405,56 +344,30 @@ class CollisionPredicate(ExprPredicate):
         link_pair_to_col = {}
         for c in collisions:
             # Identify the collision points
-            if USE_OPENRAVE:
-                linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
-                linkAParent, linkBParent = c.GetLinkAParentName(), c.GetLinkBParentName()
-                linkRobot1, linkRobot2 = None, None
-                sign = 0
-                if linkAParent == robot_body.name and linkBParent == robot_body.name:
-                    ptRobot1, ptRobot2 = c.GetPtA(), c.GetPtB()
-                    linkRobot1, linkRobot2 = linkA, linkB
-                    sign = -1
-                else:
-                    continue
-
-                if not (linkRobot1.startswith('right') or linkRobot1.startswith('left')) or \
-                            linkRobot1 == linkRobot2 or \
-                            linkRobot1.endswith('upper_shoulder') or linkRobot1.endswith('lower_shoulder') or \
-                            linkRobot2.startswith('right') or linkRobot2.startswith('left'):
-                    continue
+            linkA, linkB = c.linkIndexA, c.linkIndexB
+            linkAParent, linkBParent = c.bodyUniqueIdA, c.bodyUniqueIdB
+            sign = 0
+            if linkAParent == robot_body.body_id and linkBParent == obj_body.body_id:
+                ptRobot1, ptRobot2 = c.positionOnA, c.positionOnB
+                linkRobot1, linkRobot2 = linkA, linkB
+                sign = -1
             else:
-                linkA, linkB = c.linkIndexA, c.linkIndexB
-                linkAParent, linkBParent = c.bodyUniqueIdA, c.bodyUniqueIdB
-                sign = 0
-                if linkAParent == robot_body.body_id and linkBParent == obj_body.body_id:
-                    ptRobot1, ptRobot2 = c.positionOnA, c.positionOnB
-                    linkRobot1, linkRobot2 = linkA, linkB
-                    sign = -1
-                else:
-                    continue
+                continue
 
             if linkRobot1 not in col_links or linkRobot2 not in col_links:
                 continue
 
             # Obtain distance between two collision points, and their normal collision vector
-            if USE_OPENRAVE:
-                distance = c.GetDistance()
-                normal = c.GetNormal()
-                # Calculate robot jacobian
-                robot = robot_body.env_body
-                robot_link_ind = robot.GetLink(linkRobot1).GetIndex()
-                robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptRobot1)
-            else:
-                distance = c.contactDistance
-                normal = c.contactNormalOnB # Pointing towards A
-                n_jnts = p.getNumJoints(robot_body.body_id)
-                jnts = p.getJointStates(list(range(n_jnts)))[0]
-                robot_jac, robot_ang_jac = p.calculateJacobian(robot_body.body_id,
-                                                               linkRobot1,
-                                                               ptRobot1,
-                                                               objPositions=jnts,
-                                                               objVelocities=np.zeros(n_jnts),
-                                                               objAccelerations=np.zeros(n_jnts))
+            distance = c.contactDistance
+            normal = c.contactNormalOnB # Pointing towards A
+            n_jnts = p.getNumJoints(robot_body.body_id)
+            jnts = p.getJointStates(list(range(n_jnts)))[0]
+            robot_jac, robot_ang_jac = p.calculateJacobian(robot_body.body_id,
+                                                            linkRobot1,
+                                                            ptRobot1,
+                                                            objPositions=jnts,
+                                                            objVelocities=np.zeros(n_jnts),
+                                                            objAccelerations=np.zeros(n_jnts))
 
             grad = np.zeros((1, self.attr_dim))
             grad[:, :self.attr_dim] = np.dot(sign * normal, robot_jac)
@@ -462,10 +375,7 @@ class CollisionPredicate(ExprPredicate):
             # Constructing gradient matrix
             # robot_grad = np.c_[robot_grad, obj_jac]
             # TODO: remove robot.GetLink(linkRobot) from links (added for debugging purposes)
-            if USE_OPENRAVE:
-                link_pair_to_col[(linkRobot1, linkRobot2)] = [self.dsafe - distance, grad, robot.GetLink(linkRobot1), robot.GetLink(linkRobot2)]
-            else:
-                link_pair_to_col[(linkRobot1, linkRobot2)] = [self.dsafe - distance, grad, None, None]
+            link_pair_to_col[(linkRobot1, linkRobot2)] = [self.dsafe - distance, grad, None, None]
             # import ipdb; ipdb.set_trace()
             # if self._debug:
             #     self.plot_collision(ptRobot, ptObj, distance)
@@ -498,47 +408,26 @@ class CollisionPredicate(ExprPredicate):
         link_pair_to_col = {}
         for c in collisions:
             # Identify the collision points
-            if USE_OPENRAVE:
-                linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
-                linkAParent, linkBParent = c.GetLinkAParentName(), c.GetLinkBParentName()
-                linkObj, linkObstr = None, None
+            linkA, linkB = c.linkIndexA, c.linkIndexB
+            linkAParent, linkBParent = c.bodyUniqueIdA, c.bodyUniqueIdB
+            sign = 0
+            if linkAParent == obj_body.body_id and linkBParent == obstr_body.body_id:
+                ptObj, ptObstr = c.positionOnA, c.positionOnB
+                linkObj, linkObstr = linkA, linkB
+                sign = -1
+            elif linkBParent == obj_body.body_id and linkAParent == obstr_body.body_id:
+                ptObj, ptObstr = c.positionOnB, c.positionOnA
+                linkObj, linkObstr = linkB, linkA
                 sign = 1
-                if linkAParent == obj_body.name and linkBParent == obstr_body.name:
-                    ptObj, ptObstr = c.GetPtA(), c.GetPtB()
-                    linkObj, linkObstr = linkA, linkB
-                    sign = -1
-                elif linkBParent == obj_body.name and linkAParent == obstr_body.name:
-                    ptObj, ptObstr = c.GetPtB(), c.GetPtA()
-                    linkObj, linkObstr = linkB, linkA
-                    sign = 1
-                else:
-                    continue
-                if linkObj not in held_links or linkObstr not in obs_links:
-                    continue
-                # Obtain distance between two collision points, and their normal collision vector
-                distance = c.GetDistance()
-                normal = c.GetNormal()
             else:
-                linkA, linkB = c.linkIndexA, c.linkIndexB
-                linkAParent, linkBParent = c.bodyUniqueIdA, c.bodyUniqueIdB
-                sign = 0
-                if linkAParent == obj_body.body_id and linkBParent == obstr_body.body_id:
-                    ptObj, ptObstr = c.positionOnA, c.positionOnB
-                    linkObj, linkObstr = linkA, linkB
-                    sign = -1
-                elif linkBParent == obj_body.body_id and linkAParent == obstr_body.body_id:
-                    ptObj, ptObstr = c.positionOnB, c.positionOnA
-                    linkObj, linkObstr = linkB, linkA
-                    sign = 1
-                else:
-                    continue
+                continue
 
-                if linkObj not in held_links or linkObstr not in obs_links:
-                    continue
+            if linkObj not in held_links or linkObstr not in obs_links:
+                continue
 
-                # Obtain distance between two collision points, and their normal collision vector
-                distance = c.contactDistance
-                normal = c.contactNormalOnB # Pointing towards A
+            # Obtain distance between two collision points, and their normal collision vector
+            distance = c.contactDistance
+            normal = c.contactNormalOnB # Pointing towards A
 
             col_vec = -sign*normal
             # Calculate object pose jacobian
@@ -592,38 +481,27 @@ class CollisionPredicate(ExprPredicate):
         held_links = self.obj.geom.col_links
         obs_links = self.obstacle.geom.col_links
 
-        if USE_OPENRAVE:
-            body = robot_body.env_body
-            l_manip = body.GetManipulator('left_arm')
-            r_manip = body.GetManipulator('right_arm')
-            l_ee_trans, r_ee_trans = l_manip.GetTransform(), r_manip.GetTransform()
-            l_arm_inds = self.robot.geom.dof_map['lArmPose']
-            r_arm_inds = self.robot.geom.dof_map['rArmPose']
-
-            l_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in l_arm_inds]
-            r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in r_arm_inds]
-        else:
-            # TODO: Make a more generalized approach for any robot
-            l_arm_joints = [31, 32, 33, 34, 35, 37, 38]
-            r_arm_joints = [13, 14, 15, 16, 17, 19, 20]
-            l_anchors = []
-            r_anchors = []
-            for jnt_id in l_arm_joints:
-                info = p.getJointInfo(jnt_id)
-                parent_id = info[-1]
-                parent_frame_pos = info[14]
-                axis = info[13]
-                parent_info = p.getLinkState(robot_body.body_id, parent_id)
-                parent_pos = parent_info[0]
-                l_anchors.append((parent_frame_pos + parent_pos, axis))
-            for jnt_id in r_arm_joints:
-                info = p.getJointInfo(jnt_id)
-                parent_id = info[-1]
-                parent_frame_pos = info[14]
-                axis = info[13]
-                parent_info = p.getLinkState(robot_body.body_id, parent_id)
-                parent_pos = parent_info[0]
-                r_anchors.append((parent_frame_pos + parent_pos, axis))
+        # TODO: Make a more generalized approach for any robot
+        l_arm_joints = [31, 32, 33, 34, 35, 37, 38]
+        r_arm_joints = [13, 14, 15, 16, 17, 19, 20]
+        l_anchors = []
+        r_anchors = []
+        for jnt_id in l_arm_joints:
+            info = p.getJointInfo(jnt_id)
+            parent_id = info[-1]
+            parent_frame_pos = info[14]
+            axis = info[13]
+            parent_info = p.getLinkState(robot_body.body_id, parent_id)
+            parent_pos = parent_info[0]
+            l_anchors.append((parent_frame_pos + parent_pos, axis))
+        for jnt_id in r_arm_joints:
+            info = p.getJointInfo(jnt_id)
+            parent_id = info[-1]
+            parent_frame_pos = info[14]
+            axis = info[13]
+            parent_info = p.getLinkState(robot_body.body_id, parent_id)
+            parent_pos = parent_info[0]
+            r_anchors.append((parent_frame_pos + parent_pos, axis))
 
         l_diff = np.linalg.norm(obj_body.env_body.GetTransform()[:3,3] - l_ee_trans[:3,3])
         r_diff = np.linalg.norm(obj_body.env_body.GetTransform()[:3,3] - r_ee_trans[:3,3])
@@ -634,63 +512,34 @@ class CollisionPredicate(ExprPredicate):
         link_pair_to_col = {}
         for c in collisions:
             # Identify the collision points
-            if USE_OPENRAVE:
-                linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
-                linkAParent, linkBParent = c.GetLinkAParentName(), c.GetLinkBParentName()
-                linkObj, linkObstr = None, None
+            linkA, linkB = c.linkIndexA, c.linkIndexB
+            linkAParent, linkBParent = c.bodyUniqueIdA, c.bodyUniqueIdB
+            sign = 1
+            if linkAParent == robot_body.body_id and linkBParent == obj_body.body_id:
+                ptRobot, ptObj = c.positionOnA, c.positionOnB
+                linkRobot, linkObj = linkA, linkB
+                sign = -1
+            elif linkBParent == robot_body.body_id and linkAParent == obj_body.body_id:
+                ptRobot, ptObj = c.positionOnB, c.positionOnA
+                linkRobot, linkObj = linkB, linkA
                 sign = 1
-                if linkAParent == obj_body.name and linkBParent == obstr_body.name:
-                    ptObj, ptObstr = c.GetPtA(), c.GetPtB()
-                    linkObj, linkObstr = linkA, linkB
-                    sign = -1
-                elif linkBParent == obj_body.name and linkAParent == obstr_body.name:
-                    ptObj, ptObstr = c.GetPtB(), c.GetPtA()
-                    linkObj, linkObstr = linkB, linkA
-                    sign = 1
-                else:
-                    continue
             else:
-                linkA, linkB = c.linkIndexA, c.linkIndexB
-                linkAParent, linkBParent = c.bodyUniqueIdA, c.bodyUniqueIdB
-                sign = 1
-                if linkAParent == robot_body.body_id and linkBParent == obj_body.body_id:
-                    ptRobot, ptObj = c.positionOnA, c.positionOnB
-                    linkRobot, linkObj = linkA, linkB
-                    sign = -1
-                elif linkBParent == robot_body.body_id and linkAParent == obj_body.body_id:
-                    ptRobot, ptObj = c.positionOnB, c.positionOnA
-                    linkRobot, linkObj = linkB, linkA
-                    sign = 1
-                else:
-                    continue
+                continue
 
             if linkObj not in held_links or linkObstr not in obs_links:
                 continue
             # Obtain distance between two collision points, and their normal collision vector
             grad = np.zeros((1, self.attr_dim+12))
-            if USE_OPENRAVE:
-                distance = c.GetDistance()
-                normal = c.GetNormal()
-            else:
-                distance = c.contactDistance
-                normal = c.contactNormalOnB
+            distance = c.contactDistance
+            normal = c.contactNormalOnB
 
             # Calculate robot joint jacobian
-
-            if USE_OPENRAVE:
-                if arm == "left":
-                    l_arm_jac = np.array([np.cross(joint.GetAxis(), ptObj - joint.GetAnchor()) for joint in l_arm_joints]).T.copy()
-                    grad[:, :7] = np.dot(sign * normal, l_arm_jac)
-                elif arm == "right":
-                    r_arm_jac = -np.array([np.cross(joint.GetAxis(), ptObj - joint.GetAnchor()) for joint in r_arm_joints]).T.copy()
-                    grad[:, 8:15] = np.dot(sign * normal, r_arm_jac)
-            else:
-                if arm == "left":
-                    l_arm_jac = np.array([np.cross(a[1], ptObj - a[0]) for a in l_anchors]).T.copy()
-                    grad[:, :7] = np.dot(sign * normal, l_arm_jac)
-                elif arm == "right":
-                    r_arm_jac = -np.array([np.cross(a[1], ptObj - a[0]) for joint in r_anchors]).T.copy()
-                    grad[:, 8:15] = np.dot(sign * normal, r_arm_jac)
+            if arm == "left":
+                l_arm_jac = np.array([np.cross(a[1], ptObj - a[0]) for a in l_anchors]).T.copy()
+                grad[:, :7] = np.dot(sign * normal, l_arm_jac)
+            elif arm == "right":
+                r_arm_jac = -np.array([np.cross(a[1], ptObj - a[0]) for joint in r_anchors]).T.copy()
+                grad[:, 8:15] = np.dot(sign * normal, r_arm_jac)
 
             # Calculate obstruct pose jacobian
             obstr_jac = -sign*normal
@@ -788,11 +637,7 @@ class PosePredicate(ExprPredicate):
         # Setting the poses for forward kinematics to work
         self.set_robot_poses(x, robot_body)
         robot_trans, arm_inds = self.get_robot_info(robot_body, self.arm)
-        if USE_OPENRAVE:
-            body = robot_body.env_body
-            arm_joints = [body.GetJointFromDOFIndex(ind) for ind in arm_inds]
-        else:
-            arm_joints = arm_inds
+        arm_joints = arm_inds
 
         ee_pos, ee_rot = x[-6:-3], x[-3:]
         obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, ee_rot)
@@ -855,19 +700,16 @@ class PosePredicate(ExprPredicate):
         robot_pos = robot_trans[:3, 3]
         obj_pos = np.dot(obj_trans, np.r_[gp, 1])[:3]
         # Calculate the joint jacobian
-        if USE_OPENRAVE:
-            arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos - joint.GetAnchor()) for joint in arm_joints]).T
-        else:
-            arm_jac = []
-            for jnt_id in arm_joints:
-                info = p.getJointInfo(jnt_id)
-                parent_id = info[-1]
-                parent_frame_pos = info[14]
-                axis = info[13]
-                parent_info = p.getLinkState(robot_body.body_id, parent_id)
-                parent_pos = parent_info[0]
-                arm_jac.apend(np.cross(axis, robot_pos - (parent_pos + parent_frame_pos)))
-            arm_jac = np.array(arm_jac).T
+        arm_jac = []
+        for jnt_id in arm_joints:
+            info = p.getJointInfo(jnt_id)
+            parent_id = info[-1]
+            parent_frame_pos = info[14]
+            axis = info[13]
+            parent_info = p.getLinkState(robot_body.body_id, parent_id)
+            parent_pos = parent_info[0]
+            arm_jac.apend(np.cross(axis, robot_pos - (parent_pos + parent_frame_pos)))
+        arm_jac = np.array(arm_jac).T
         # Calculate jacobian for the robot base
         base_jac = np.cross(np.array([0, 0, 1]), robot_pos).reshape((3,1))
         # Calculate object jacobian
@@ -937,19 +779,16 @@ class PosePredicate(ExprPredicate):
             obj_dir = np.dot(obj_trans[:3,:3], local_dir)
             world_dir = robot_trans[:3,:3].dot(local_dir)
             # computing robot's jacobian
-            if USE_OPENRAVE:
-                arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), world_dir)) for joint in arm_joints]).T.copy()
-            else:
-                arm_jac = []
-                for jnt_id in arm_joints:
-                    info = p.getJointInfo(jnt_id)
-                    parent_id = info[-1]
-                    parent_frame_pos = info[14]
-                    axis = info[13]
-                    parent_info = p.getLinkState(robot_body.body_id, parent_id)
-                    parent_pos = parent_info[0]
-                    arm_jac.apend(np.dot(obj_dir, np.cross(axis, world_dir)))
-                arm_jac = np.array(arm_jac).T
+            arm_jac = []
+            for jnt_id in arm_joints:
+                info = p.getJointInfo(jnt_id)
+                parent_id = info[-1]
+                parent_frame_pos = info[14]
+                axis = info[13]
+                parent_info = p.getLinkState(robot_body.body_id, parent_id)
+                parent_pos = parent_info[0]
+                arm_jac.apend(np.dot(obj_dir, np.cross(axis, world_dir)))
+            arm_jac = np.array(arm_jac).T
 
             arm_jac = arm_jac.reshape((1, len(arm_joints)))
             base_jac = np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir)))
@@ -1027,19 +866,16 @@ class PosePredicate(ExprPredicate):
         world_dir = world_dir/np.linalg.norm(world_dir)
         sign = np.sign(np.dot(obj_dir, world_dir))
         # computing robot's jacobian
-        if USE_OPENRAVE:
-            arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), sign * world_dir)) for joint in arm_joints]).T.copy()
-        else:
-            arm_jac = []
-            for jnt_id in arm_joints:
-                info = p.getJointInfo(jnt_id)
-                parent_id = info[-1]
-                parent_frame_pos = info[14]
-                axis = info[13]
-                parent_info = p.getLinkState(robot_body.body_id, parent_id)
-                parent_pos = parent_info[0]
-                arm_jac.apend(np.dot(obj_dir, np.cross(axis, sign * world_dir)))
-            arm_jac = np.array(arm_jac).T
+        arm_jac = []
+        for jnt_id in arm_joints:
+            info = p.getJointInfo(jnt_id)
+            parent_id = info[-1]
+            parent_frame_pos = info[14]
+            axis = info[13]
+            parent_info = p.getLinkState(robot_body.body_id, parent_id)
+            parent_pos = parent_info[0]
+            arm_jac.apend(np.dot(obj_dir, np.cross(axis, sign * world_dir)))
+        arm_jac = np.array(arm_jac).T
 
         arm_jac = arm_jac.reshape((1, len(arm_joints)))
         base_jac = sign*np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir))).reshape((1,1))
@@ -1068,12 +904,8 @@ class PosePredicate(ExprPredicate):
 
         l_ee_trans, l_arm_inds = self.get_robot_info(robot_body, 'left')
         r_ee_trans, r_arm_inds = self.get_robot_info(robot_body, 'right')
-        if USE_OPENRAVE:
-            l_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in l_arm_inds]
-            r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in r_arm_inds]
-        else:
-            l_arm_joints = l_arm_inds
-            r_arm_joints = r_arm_inds
+        l_arm_joints = l_arm_inds
+        r_arm_joints = r_arm_inds
 
         rel_pt = np.array([0,2*const.BASKET_OFFSET,0])
         # rel_pt = np.array([0, 2*const.BASKET_NARROW_OFFSET,0])
@@ -1104,41 +936,36 @@ class PosePredicate(ExprPredicate):
         self.set_robot_poses(x, robot_body)
 
         l_ee_trans, l_arm_inds = self.get_robot_info(robot_body, 'left')
-        l_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in l_arm_inds] if USE_OPENRAVE else l_arm_inds
+        l_arm_joints = l_arm_inds
         r_ee_trans, r_arm_inds = self.get_robot_info(robot_body, 'right')
-        r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in r_arm_inds] if USE_OPENRAVE else r_arm_inds
+        r_arm_joints = r_arm_inds
         # left_arm_focused
         rel_pt = np.array([0,2*const.BASKET_OFFSET,0])
         # rel_pt = np.array([0,2*const.BASKET_NARROW_OFFSET,0])
         robot_pos = l_ee_trans[:3, 3]
         obj_pos = np.dot(r_ee_trans, np.r_[rel_pt, 1])[:3]
 
+        l_arm_jac = []
+        for jnt_id in l_arm_joints:
+            info = p.getJointInfo(jnt_id)
+            parent_id = info[-1]
+            parent_frame_pos = info[14]
+            axis = info[13]
+            parent_info = p.getLinkState(robot_body.body_id, parent_id)
+            parent_pos = parent_info[0]
+            l_arm_jac.apend(np.cross(axis, robot_pos - (parent_pos + parent_frame_pos)))
+        l_arm_jac = np.array(l_arm_jac).T
 
-        if USE_OPENRAVE:
-            l_arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos - joint.GetAnchor()) for joint in l_arm_joints]).T.copy()
-            r_arm_jac = -np.array([np.cross(joint.GetAxis(), obj_pos - joint.GetAnchor()) for joint in r_arm_joints]).T.copy()
-        else:
-            l_arm_jac = []
-            for jnt_id in l_arm_joints:
-                info = p.getJointInfo(jnt_id)
-                parent_id = info[-1]
-                parent_frame_pos = info[14]
-                axis = info[13]
-                parent_info = p.getLinkState(robot_body.body_id, parent_id)
-                parent_pos = parent_info[0]
-                l_arm_jac.apend(np.cross(axis, robot_pos - (parent_pos + parent_frame_pos)))
-            l_arm_jac = np.array(l_arm_jac).T
-
-            r_arm_jac = []
-            for jnt_id in r_arm_joints:
-                info = p.getJointInfo(jnt_id)
-                parent_id = info[-1]
-                parent_frame_pos = info[14]
-                axis = info[13]
-                parent_info = p.getLinkState(robot_body.body_id, parent_id)
-                parent_pos = parent_info[0]
-                r_arm_jac.apend(np.cross(axis, obj_pos - (parent_pos + parent_frame_pos)))
-            r_arm_jac = -np.array(r_arm_jac).T
+        r_arm_jac = []
+        for jnt_id in r_arm_joints:
+            info = p.getJointInfo(jnt_id)
+            parent_id = info[-1]
+            parent_frame_pos = info[14]
+            axis = info[13]
+            parent_info = p.getLinkState(robot_body.body_id, parent_id)
+            parent_pos = parent_info[0]
+            r_arm_jac.apend(np.cross(axis, obj_pos - (parent_pos + parent_frame_pos)))
+        r_arm_jac = -np.array(r_arm_jac).T
 
         l_pos_jac = np.hstack([l_arm_jac, np.zeros((3,1)), r_arm_jac, np.zeros((3, 8))])
         # right_arm_focused
@@ -1147,31 +974,27 @@ class PosePredicate(ExprPredicate):
         robot_pos = r_ee_trans[:3, 3]
         obj_pos = np.dot(l_ee_trans, np.r_[rel_pt, 1])[:3]
 
-        if USE_OPENRAVE:
-            l_arm_jac = -np.array([np.cross(joint.GetAxis(), obj_pos - joint.GetAnchor()) for joint in l_arm_joints]).T.copy()
-            r_arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos - joint.GetAnchor()) for joint in r_arm_joints]).T.copy()
-        else:
-            l_arm_jac = []
-            for jnt_id in l_arm_joints:
-                info = p.getJointInfo(jnt_id)
-                parent_id = info[-1]
-                parent_frame_pos = info[14]
-                axis = info[13]
-                parent_info = p.getLinkState(robot_body.body_id, parent_id)
-                parent_pos = parent_info[0]
-                l_arm_jac.apend(np.cross(axis, obj_pos - (parent_pos + parent_frame_pos)))
-            l_arm_jac = -np.array(l_arm_jac).T
+        l_arm_jac = []
+        for jnt_id in l_arm_joints:
+            info = p.getJointInfo(jnt_id)
+            parent_id = info[-1]
+            parent_frame_pos = info[14]
+            axis = info[13]
+            parent_info = p.getLinkState(robot_body.body_id, parent_id)
+            parent_pos = parent_info[0]
+            l_arm_jac.apend(np.cross(axis, obj_pos - (parent_pos + parent_frame_pos)))
+        l_arm_jac = -np.array(l_arm_jac).T
 
-            r_arm_jac = []
-            for jnt_id in r_arm_joints:
-                info = p.getJointInfo(jnt_id)
-                parent_id = info[-1]
-                parent_frame_pos = info[14]
-                axis = info[13]
-                parent_info = p.getLinkState(robot_body.body_id, parent_id)
-                parent_pos = parent_info[0]
-                r_arm_jac.apend(np.cross(axis, robot_pos - (parent_pos + parent_frame_pos)))
-            r_arm_jac = np.array(r_arm_jac).T
+        r_arm_jac = []
+        for jnt_id in r_arm_joints:
+            info = p.getJointInfo(jnt_id)
+            parent_id = info[-1]
+            parent_frame_pos = info[14]
+            axis = info[13]
+            parent_info = p.getLinkState(robot_body.body_id, parent_id)
+            parent_pos = parent_info[0]
+            r_arm_jac.apend(np.cross(axis, robot_pos - (parent_pos + parent_frame_pos)))
+        r_arm_jac = np.array(r_arm_jac).T
 
         r_pos_jac = np.hstack([l_arm_jac, np.zeros((3,1)), r_arm_jac, np.zeros((3, 8))])
 

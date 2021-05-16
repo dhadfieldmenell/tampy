@@ -15,10 +15,7 @@ import xml.etree.ElementTree as xml
 from sco.expr import *
 
 import core.util_classes.common_constants as const
-if const.USE_OPENRAVE:
-    pass
-else:
-    import pybullet as P
+import pybullet as P
 
 
 from gps.agent.agent_utils import generate_noise
@@ -235,16 +232,10 @@ class NAMOGripAgent(NAMOSortingAgent):
             plan.params[name].openrave_body.set_pose([0, 0, -5])
 
 
-        if const.USE_OPENRAVE:
-            is_hits, hits = self.env.CheckCollisionRays(rays, None)
-            dists = np.linalg.norm(hits[:,:2]-rays[:,:2], axis=1)
-            for i in range(len(is_hits)):
-                dists[i] = dists[i] if is_hits[i] else LIDAR_DIST
-        else:
-            P.stepSimulation()
-            # _, _, hit_frac, hit_pos, hit_normal = P.rayTestBatch(rays[:,:3], rays[:,:3]+rays[:,3:])
-            hits = P.rayTestBatch(rays[:,:3], rays[:,:3]+rays[:,3:])
-            dists = LIDAR_DIST * np.array([h[2] for h in hits])
+        P.stepSimulation()
+        # _, _, hit_frac, hit_pos, hit_normal = P.rayTestBatch(rays[:,:3], rays[:,:3]+rays[:,3:])
+        hits = P.rayTestBatch(rays[:,:3], rays[:,:3]+rays[:,3:])
+        dists = LIDAR_DIST * np.array([h[2] for h in hits])
 
         # dists[np.abs(dists) > LIDAR_DIST] = LIDAR_DIST
         # dists[not np.array(is_hits)] = LIDAR_DIST

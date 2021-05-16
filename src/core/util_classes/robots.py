@@ -1,11 +1,8 @@
 from collections import OrderedDict
 import core.util_classes.common_constants as const
 
-if const.USE_OPENRAVE:
-    from openravepy import IkParameterizationType, databases
-else:
-    import pybullet as p
-    from baxter_gym.util_classes.ik_controller import *
+import pybullet as p
+from baxter_gym.util_classes.ik_controller import *
 
 import numpy as np
 

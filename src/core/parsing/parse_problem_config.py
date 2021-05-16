@@ -2,11 +2,7 @@ from core.internal_repr import state
 from core.internal_repr import problem
 from errors_exceptions import ProblemConfigException
 
-from core.util_classes.common_constants import USE_OPENRAVE
-if USE_OPENRAVE:
-    from openravepy import Environment
-else:
-    import pybullet as P
+import pybullet as P
 
 import os
 try:
@@ -25,17 +21,14 @@ class ParseProblemConfig(object):
         # create parameter objects
         params = {}
         if env is None:
-            if USE_OPENRAVE:
-                env = Environment()
-            else:
-                #try:
-                #    P.disconnect()
-                #except:
-                #    pass
-                if not P.getConnectionInfo()['isConnected']:
-                    server = P.GUI if visual else P.DIRECT
-                    env = P.connect(server)
-                    P.resetSimulation()
+            #try:
+            #    P.disconnect()
+            #except:
+            #    pass
+            if not P.getConnectionInfo()['isConnected']:
+                server = P.GUI if visual else P.DIRECT
+                env = P.connect(server)
+                P.resetSimulation()
 
         if "Objects" not in problem_config or not problem_config["Objects"]:
             raise ProblemConfigException("Problem file needs objects.")

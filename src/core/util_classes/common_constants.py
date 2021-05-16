@@ -8,7 +8,6 @@ This file is refferenced in:
     common_predicates
 """
 
-USE_OPENRAVE = const.USE_OPENRAVE
 
 """
 Constants used in robot_predicates

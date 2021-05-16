@@ -1,6 +1,5 @@
 from core.internal_repr.predicate import Predicate
 from core.internal_repr.plan import Plan
-from core.util_classes.common_constants import USE_OPENRAVE
 from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.namo_predicates import NEAR_TOL
 from core.util_classes.openrave_body import OpenRAVEBody
@@ -14,10 +13,7 @@ import os
 import sys
 import traceback
 
-if USE_OPENRAVE:
-    import ctrajoptpy
-else:
-    import pybullet as p
+import pybullet as p
 
 from collections import OrderedDict
 
@@ -298,9 +294,6 @@ class CollisionPredicate(ExprPredicate):
         self._debug = debug
         # if self._debug:
         #     self._env.SetViewer("qtcoin")
-        if USE_OPENRAVE:
-            self._cc = ctrajoptpy.GetCollisionChecker(self._env)
-
         self.dsafe = dsafe
         self.ind0 = ind0
         self.ind1 = ind1
@@ -429,13 +422,7 @@ class CollisionPredicate(ExprPredicate):
         #if self.check_aabb:
         #    vals, jacs = self._check_robot_aabb(b0, b1)
 
-        if USE_OPENRAVE:
-            assert b0.env_body.GetEnv() == b1.env_body.GetEnv()
-
-            self._cc.SetContactDistance(np.Inf)
-            collisions = self._cc.BodyVsBody(b0.env_body, b1.env_body)
-        else:
-            collisions = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
+        collisions = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
 
         col_val, jac01 = self._calc_grad_and_val(p0.name, p1.name, pose0, pose1, collisions)
         final_val = col_val
@@ -482,38 +469,23 @@ class CollisionPredicate(ExprPredicate):
         b0 = self._param_to_body[p0]
         b1 = self._param_to_body[p1]
         for i, c in enumerate(collisions):
-            if USE_OPENRAVE:
-                linkA = c.GetLinkAParentName()
-                linkB = c.GetLinkBParentName()
-
-                if linkA == name0 and linkB == name1:
-                    pt0 = c.GetPtA()
-                    pt1 = c.GetPtB()
-                elif linkB == name0 and linkA == name1:
-                    pt0 = c.GetPtB()
-                    pt1 = c.GetPtA()
-                else:
-                    continue
-
-                distance = c.GetDistance()
-                normal = c.GetNormal()
+            linkA, linkB = c[3], c[4]
+            linkAParent, linkBParent = c[1], c[2]
+            sign = 0
+            if linkAParent == b0.body_id and linkBParent == b1.body_id:
+                pt0, pt1 = c[5], c[6]
+                linkRobot, linkObj = linkA, linkB
+                sign = -1
+            elif linkBParent == b0.body_id and linkAParent == b1.body_id:
+                pt1, pt0 = c[5], c[6]
+                linkRobot, linkObj = linkB, linkA
+                sign = 1
             else:
-                linkA, linkB = c[3], c[4]
-                linkAParent, linkBParent = c[1], c[2]
-                sign = 0
-                if linkAParent == b0.body_id and linkBParent == b1.body_id:
-                    pt0, pt1 = c[5], c[6]
-                    linkRobot, linkObj = linkA, linkB
-                    sign = -1
-                elif linkBParent == b0.body_id and linkAParent == b1.body_id:
-                    pt1, pt0 = c[5], c[6]
-                    linkRobot, linkObj = linkB, linkA
-                    sign = 1
-                else:
-                    continue
+                continue
 
-                distance = c[8] # c.contactDistance
-                normal = np.array(c[7]) # c.contactNormalOnB # Pointing towards A
+            distance = c[8] # c.contactDistance
+            normal = np.array(c[7]) # c.contactNormalOnB # Pointing towards A
+
             results.append((pt0, pt1, distance))
             vals[i, 0] = self.dsafe - distance
             jacs[i, :2] = -1*normal[:2]
@@ -1839,13 +1811,7 @@ class ObstructsHolding(CollisionPredicate):
         pose0, pose1 = self.set_pos(x[:6])
         aabb_vals = np.zeros((self.n_cols,1))
         aabb_jacs = np.zeros((self.n_cols,4))
-        if USE_OPENRAVE:
-            assert b0.env_body.GetEnv() == b1.env_body.GetEnv()
-
-            self._cc.SetContactDistance(np.Inf)
-            collisions1 = self._cc.BodyVsBody(b0.env_body, b1.env_body)
-        else:
-            collisions1 = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
+        collisions1 = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
 
         col_val1, jac01 = self._calc_grad_and_val(self.r.name, self.obstr.name, pose_r, pose_obstr, collisions1)
 
@@ -1863,10 +1829,7 @@ class ObstructsHolding(CollisionPredicate):
             pose_held = x[6:8]
             b2.set_pose(pose_held)
 
-            if USE_OPENRAVE:
-                collisions2 = self._cc.BodyVsBody(b2.env_body, b1.env_body)
-            else:
-                collisions2 = p.getClosestPoints(b2.body_id, b1.body_id, contact_dist)
+            collisions2 = p.getClosestPoints(b2.body_id, b1.body_id, contact_dist)
 
             col_val2, jac21 = self._calc_grad_and_val(self.held.name, self.obstr.name, pose_held, pose_obstr, collisions2)
 

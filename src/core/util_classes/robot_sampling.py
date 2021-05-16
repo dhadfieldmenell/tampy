@@ -5,13 +5,7 @@ from core.util_classes.items import Item
 from core.util_classes.robots import Robot
 import core.util_classes.transform_utils as T
 
-from core.util_classes.openrave_body import USE_OPENRAVE
 from functools import reduce
-if USE_OPENRAVE:
-    from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, \
-                           IkFilterOptions, Environment, Planner, RaveCreatePlanner, \
-                           RaveCreateTrajectory, matrixFromAxisAngle, CollisionReport, \
-                           RaveCreateCollisionChecker
 import core.util_classes.baxter_constants as const
 from collections import OrderedDict
 from sco.expr import Expr

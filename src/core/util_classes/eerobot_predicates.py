@@ -8,11 +8,7 @@ from collections import OrderedDict
 import numpy as np
 from core.util_classes import robot_sampling
 
-from core.util_classes.openrave_body import USE_OPENRAVE
-if USE_OPENRAVE:
-    import ctrajoptpy
-else:
-    import pybullet as p
+import pybullet as p
 
 import itertools
 import sys
