@@ -72,15 +72,15 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 target = act.params[2]
                 grasp = act.params[5]
                 target_rot = -np.arctan2(target.value[0,0] - oldx, target.value[1,0] - oldy)
+                if target.value[1] > 1.7:
+                    target_rot = max(min(target_rot, np.pi/4), -np.pi/4)
                 while target_rot < old_rot:
                     target_rot += 2*np.pi
                 while target_rot > old_rot:
                     target_rot -= 2*np.pi
                 if np.abs(target_rot-old_rot) > np.abs(target_rot-old_rot+2*np.pi): target_rot += 2*np.pi
-                # if np.abs(target_rot) > np.pi/2.:
-                #    target_rot = opposite_angle(target_rot)
+
                 dist = gripdist + dsafe
-                target_pos = target.value - [[-dist*np.sin(-target_rot)], [dist*np.cos(-target_rot)]]
                 target_pos = target.value - [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
                 robot_pose.append({'pose': target_pos, 'gripper': np.array([[0.1]]), 'theta': np.array([[target_rot]])})
                 # robot_pose.append({'pose': target_pos + grasp.value, 'gripper': np.array([[-1.]])})
@@ -95,7 +95,6 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                     target_rot -= 2*np.pi
                 if np.abs(target_rot-old_rot) > np.abs(target_rot-old_rot+2*np.pi): target_rot += 2*np.pi
                 dist = -gripdist - dsafe
-                target_pos = target.value + [[-dist*np.sin(-target_rot)], [dist*np.cos(-target_rot)]]
                 target_pos = target.value + [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
                 robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[target_rot]])})
             elif act.name == 'place':

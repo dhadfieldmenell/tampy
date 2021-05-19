@@ -58,7 +58,7 @@ class MoveTo(Action):
         self.args = '(?robot - Robot ?can - Can ?target - Target ?sp - RobotPose ?gp - RobotPose ?g - Grasp ?end - Target)' 
         self.pre = [\
                 ('(At ?can ?target)', '0:0'),
-                ('(At ?can ?target)', '1:{}'.format(et-1)),
+                ('(At ?can ?target)', '{}:{}'.format(1, et)),
                 # ('(forall (?w - Obstacle) (not (Collides ?can ?w)))', '0:0'),
                 ('(forall (?obj - Can) (not (NearGraspAngle ?robot ?obj)))', '0:0'),
                 # ('(forall (?w - Obstacle) (not (CanGraspCollides ?can ?w ?g)))', '0:0'),
@@ -74,7 +74,7 @@ class MoveTo(Action):
         ]
         self.eff = [\
                 ('(NearGraspAngle ?robot ?can)', '{0}:{1}'.format(et, et)),
-                ('(InGraspAngle ?robot ?can)', '{0}:{0}'.format(et)),
+                ('(InGraspAngle ?robot ?can)', '{0}:{1}'.format(et, et)),
                 ('(forall (?obj - Can / ?can) (not (NearGraspAngle ?robot ?obj)))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
                 ('(StationaryRot ?robot)', '{0}:{1}'.format(et-4, et-1)),
@@ -91,6 +91,8 @@ class Transfer(Action):
         self.pre = [\
                 ('(At ?c ?init)', '0:0'),
                 ('(forall (?obj - Can) (not (AtInit ?obj ?t)))', '0:-1'),
+                ('(forall (?obj - Can) (not (At ?obj ?t)))', '0:0'),
+                ('(forall (?obj - Can) (not (Near ?obj ?t)))', '0:0'),
                 #('(forall (?w - Obstacle) (not (Collides ?c ?w)))', '0:0'),
                 #('(At ?c ?init)', '1:1'),
                 #('(StationaryRot ?robot)', '0:0'),
@@ -98,15 +100,15 @@ class Transfer(Action):
                 #('(forall (?obj - Can) (not (TargetCanGraspCollides ?t ?obj ?g)))', '0:0'),
                 #('(forall (?w - Obstacle) (not (TargetGraspCollides ?t ?w ?g)))', '0:0'),
                 ('(NearGraspAngle ?robot ?c)', '0:0'),
-                ('(NearGraspAngle ?robot ?c)', '1:{}'.format(et-1)),
+                #('(NearGraspAngle ?robot ?c)', '1:{}'.format(et-1)),
+                ('(NearGraspAngle ?robot ?c)', '{}:{}'.format(et, et)),
                 #('(InGraspAngle ?robot ?c)', '0:1'),
                 ('(forall (?obj - Can) (not (Near ?obj ?t)))', '0:0'),
                 # ('(not (GripperClosed ?robot))', '0:0'),
                 ('(GripperClosed ?robot)', '1:{0}'.format(et-1)),
                 # ('(InGraspAngle ?robot ?c)', '1:{0}'.format(et-1)),
                 #('(InGraspAngle ?robot ?c)', '1:{0}'.format(1)),
-                ('(InGraspAngle ?robot ?c)', '{0}:{0}'.format(et-1)),
-                ('(NearGraspAngle ?robot ?c)', '{0}:{0}'.format(et-1)),
+                ('(InGraspAngle ?robot ?c)', '{0}:{0}'.format(et)),
                 ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?t ?t ?obj ?c)))', '0:{0}'.format(0)),
                 ('(forall (?obj - Can) (not (WideObstructsHolding ?robot ?t ?t ?obj ?c)))', '2:{0}'.format(et-2)),
                 ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?t ?t ?obj ?c)))', '1:{0}'.format(et-2)),
@@ -123,11 +125,12 @@ class Transfer(Action):
                ]
 
         self.eff = [\
-                ('(forall (?obj - Can / ?c) (not (NearGraspAngle ?robot ?obj)))', '0:0'),
                 ('(At ?c ?t)', '{0}:{1}'.format(et, et)),
                 ('(forall (?obj - Can / ?c) (not (NearGraspAngle ?robot ?obj)))', '{0}:{1}'.format(et, et-1)),
                 #('(NearGraspAngle ?robot ?c)', '{0}:{0}'.format(et)),
                 ('(Near ?c ?t)', '{0}:{0}'.format(et)),
+                ('(forall (?targ - Target / ?t) (not (Near ?c ?targ)))', '{}:{}'.format(et,et-1)),
+                ('(forall (?targ - Target / ?t) (not (At ?c ?targ)))', '{}:{}'.format(et,et-1)),
                 ('(not (Near ?c ?init))', '{0}:{1}'.format(et, et-1)),
                 ('(not (At ?c ?init))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can) (not (Obstructs ?robot ?obj ?obj ?c)))', '{0}:{1}'.format(et, et-1)),
@@ -146,7 +149,7 @@ class Place(Action):
         self.pre = [\
                 ('(At ?c ?t)', '0:-1'),
                 ('(Near ?c ?t)', '0:0'),
-                ('(At ?c ?t)', '1:1'),
+                ('(At ?c ?t)', '1:{}'.format(et)),
                 # ('(forall (?obj - Can) (not (TargetCanGraspCollides ?t ?obj ?g)))', '0:0'),
                 # ('(forall (?w - Obstacle) (not (TargetGraspCollides ?t ?w ?g)))', '0:0'),
                 ('(NearGraspAngle ?robot ?c)', '0:0'),

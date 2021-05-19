@@ -805,7 +805,7 @@ class NAMOGripAgent(NAMOSortingAgent):
 
         for pname in plan.params:
             if '{0}_init_target'.format(pname) in plan.params:
-                plan.params['{0}_init_target'.format(pname)].value[:,0] = plan.params[pname].pose[:,st]
+                plan.params['{0}_init_target'.format(pname)].value[:,0] = plan.params[pname].pose[:,0]
 
 
     def goal(self, cond, targets=None):

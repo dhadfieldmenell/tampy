@@ -108,6 +108,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         #    self.task_to_onehot[task] = i
         self.sensor_dims = self._hyperparams['sensor_dims']
         self.discrete_prim = self._hyperparams.get('discrete_prim', True)
+        self.swap = self._hyperparams['master_config']['swap']
 
         self.policies = {task: None for task in self.task_list}
         self._get_hl_plan = self._hyperparams['get_hl_plan']
@@ -122,6 +123,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self._n_steps = 0.
         self.current_cond = 0
         self.cur_vid_id = 0
+        self.prim_choices = self._hyperparams['prob'].get_prim_choices(self.task_list)
         opts = self._hyperparams['prob'].get_prim_choices(self.task_list)
         self.discrete_opts = [enum for enum, enum_opts in opts.items() if hasattr(enum_opts, '__len__')]
         self.continuous_opts = [enum for enum, enum_opts in opts.items() if not hasattr(enum_opts, '__len__')]
@@ -579,6 +581,18 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.x0[cond] = self.init_vecs[cond][:self.symbolic_bound]
         self.target_vecs[cond] = np.zeros((self.target_dim,))
         prim_choices = self.prob.get_prim_choices(self.task_list)
+        if self.swap:
+            objs = self.prim_choices[OBJ_ENUM]
+            inds = list(range(len(objs)))
+            for i in range(len(objs)):
+                ind = inds.pop(np.random.randint(len(objs)))
+                if i == ind:
+                    inds.append(ind)
+                    continue
+                pos1_inds = self.state_inds[objs[i], 'pose']
+                targ = '{}_end_target'.format(objs[ind])
+                pos2_inds = self.target_inds[targ, 'value']
+                self.init_vecs[cond][pos1_inds] = self.targets[cond][targ]
         if OBJ_ENUM in prim_choices and curric_step > 0:
             i = 0
             inds = np.random.permutation(list(range(len(prim_choices[OBJ_ENUM]))))
@@ -877,6 +891,13 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         else:
             perm_tasks = tasks
             perm_targets = targets
+        
+        for param in plan.params.values():
+            targ = '{}_init_target'.format(param.name)
+            if targ in plan.params:
+                plan.params[targ].value[:,0] = param.pose[:,0]
+                if hasattr(param, 'rotation'):
+                    plan.params[targ].rotation[:,0] = param.rotation[:,0]
 
         smooth_cnts = []
         self.reset_to_state(x0)
@@ -1225,8 +1246,12 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 s._postsuc = True
                 if save: self.optimal_samples[self.task_list[task[0]]].append(s)
             else:
+                x1 = path[0].get_X(t=0)
+                x2 = path[-1].end_state
                 s._postsuc = False
-                if save: print('Ran opt path w/postcond failure?', task, self.process_id)
+                cost = self.postcond_cost(end_s, task, end_s.T-1, debug=True, x0=base_x0, tol=1e-3)
+                state_dict = {(pname, aname): (x1[self.state_inds[pname, aname]], x2[self.state_inds[pname, aname]], plan.params[pname].pose[:,st], plan.params[pname].pose[:,et]) for (pname, aname) in self.state_inds}
+                if save: print('Ran opt path w/postcond failure?', task, plan.actions[anum], state_dict, self.process_id)
 
         static_x0 = x0.copy()
         static_hist = self._x_delta.copy()
@@ -1491,7 +1516,17 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
 
     def get_random_initial_state_vec(self, config, plans, dX, state_inds, n=1):
-        return self.prob.get_random_initial_state_vec(config, plans, dX, state_inds, n)
+        xs, targets = self.prob.get_random_initial_state_vec(config, plans, dX, state_inds, n)
+        if self.swap:
+            objs = self.prim_choices[OBJ_ENUM]
+            inds = np.random.permutation(len(objs))
+            for i, ind in enumerate(inds):
+                if i == ind: continue
+                pos1_inds = self.state_inds[objs[i], 'pose']
+                targ = '{}_end_target'.format(objs[ind])
+                pos2_inds = self.target_inds[targ, 'value']
+                xs[0][pos1_inds] = targets[0][targ]
+        return xs, targets
 
     
     def clip_state(self, x):

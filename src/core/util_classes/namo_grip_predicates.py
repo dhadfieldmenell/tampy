@@ -310,6 +310,7 @@ class CollisionPredicate(ExprPredicate):
         self.check_aabb = False
 
         super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=active_range, priority=priority)
+        self._init_include = False
 
     def test(self, time, negated=False, tol=1e-4):
         # This test is overwritten so that collisions can be calculated correctly
@@ -642,6 +643,7 @@ class At(ExprPredicate):
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        self._init_include = False
 
 class AtNEq(ExprPredicate):
 
@@ -718,6 +720,7 @@ class Near(At):
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+        self._init_include = False
 
 class RobotNearTarget(At):
 
@@ -1473,13 +1476,15 @@ class Obstructs(CollisionPredicate):
         else:
             disp = (disp + new_disp) / 2.
 
+        disp /= (np.linalg.norm(disp) + 1e-5)
         if disp[0] == 0:
             orth = np.array([1., 0.])
         elif disp[1] == 0:
             orth = np.array([0., 1.])
         else:
             orth = np.array([1./disp[0], -1./disp[1]])
-        disp += 1e-5
+        disp += np.random.normal(0, 0.2, (2,))
+        disp += 1e-7
 
         st = max(max(time-3,0), act.active_timesteps[0])
         et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
@@ -1495,7 +1500,7 @@ class Obstructs(CollisionPredicate):
         orth = orth / np.linalg.norm(orth)
 
         # rdisp = -(self.c.geom.radius + self.r.geom.radius + self.dsafe + 1e-1) * disp / np.linalg.norm(disp)
-        rdist = np.random.uniform(0, 0.2)
+        rdist = np.random.uniform(0, 0.6)
         rdisp = -(self.c.geom.radius + self.r.geom.radius + self.dsafe + rdist) * disp / np.linalg.norm(disp)
         orth = rdisp # + np.random.uniform(0.05, 0.2) * orth
         # orth *= np.random.uniform(0.7, 1.5) * (self.c.geom.radius + self.r.geom.radius + self.dsafe)
@@ -1753,13 +1758,15 @@ class ObstructsHolding(CollisionPredicate):
         disp1 = self.obstr.pose[:, time] - self.held.pose[:,time]
         disp2 = self.obstr.pose[:, time] - self.r.pose[:,time]
         disp = disp1 if np.linalg.norm(disp1) < np.linalg.norm(disp2) else disp2
+        disp /= np.linalg.norm(disp) + 1e-7
         if disp[0] == 0:
             orth = np.array([1., 0.])
         elif disp[1] == 0:
             orth = np.array([0., 1.])
         else:
             orth = np.array([1./disp[0], -1./disp[1]])
-        disp += 1e-4
+        #disp += np.random.normal(0, 0.5, (2,))
+        disp += 1e-7
 
         st = max(max(time-3,0), act.active_timesteps[0])
         et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
@@ -1768,14 +1775,15 @@ class ObstructsHolding(CollisionPredicate):
         d1, d2 = long_disp.dot(orth), long_disp.dot(-orth)
         x = self.get_param_vector(time).flatten()
         if d1 > d2:
-            w1, w2 = 0.1, 0.9
+            w1, w2 = 0.2, 0.8
         else:
-            w1, w2 = 0.9, 0.1
+            w1, w2 = 0.8, 0.2
         orth *= np.random.choice([-1., 1.], p=[w1, w2])
         orth = orth / np.linalg.norm(orth)
 
-        rdisp = -(self.obstr.geom.radius + self.held.geom.radius + self.dsafe + 1e-1) * disp / np.linalg.norm(disp)
-        orth = rdisp # + np.random.uniform(0.2, 0.5) * orth
+        rdist = np.random.uniform(0, 0.6)
+        rdisp = -(self.obstr.geom.radius + self.held.geom.radius + self.dsafe + rdist) * disp / np.linalg.norm(disp)
+        orth = rdisp + np.random.uniform(0., 0.7) * orth
         # orth *= np.random.uniform(1.2, 1.8) * (self.obstr.geom.radius + self.r.geom.radius)
         # orth += np.random.uniform([-0.15, 0.15], [-0.15, 0.15])
 
@@ -1941,7 +1949,7 @@ class InGraspAngle(ExprPredicate):
         self.dist = 0.
         self.dsafe = dsafe
         self.gripdist = gripdist
-        self.coeff = 0.1
+        self.coeff = 0.12
         if self.r.is_symbol():
             k = 'value'
         else:
@@ -1961,6 +1969,7 @@ class InGraspAngle(ExprPredicate):
         e = EqExpr(angle_expr, np.zeros((1,1)))
 
         super(InGraspAngle, self).__init__(name, e, attr_inds, params, expected_param_types, priority=1)
+        self._init_include = False
 
 
     def f(self, x):
@@ -1999,33 +2008,34 @@ class InGraspAngle(ExprPredicate):
 
         act = plan.actions[a]
         x = self.get_param_vector(time).flatten()
-        theta = np.arctan2(*(x[3:5]-x[:2]))
-        rot = np.array([[np.cos(-x[2]), -np.sin(-x[2])],
-                        [np.sin(-x[2]),  np.cos(-x[2])]])
+        theta = -np.arctan2(*(x[3:5]-x[:2]))
+        rot = np.array([[np.cos(theta), -np.sin(theta)],
+                        [np.sin(theta),  np.cos(theta)]])
         disp = rot.dot([0, -gripdist-dsafe])
         offset = (x[3:5] + disp) - x[:2]
         new_robot_pose = x[:2] + offset / 2.
-        new_can_pose = x[3:5] - offset #/ 2.
+        new_can_pose = x[3:5] - offset / 2.
         # new_robot_pose = x[:2] + offset
         # new_can_pose = x[3:5]
         nsteps = 0
         st = max(max(time-nsteps,1), act.active_timesteps[0]+1)
-        et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1])
+        et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1]+1)
         ref_st = max(max(time-nsteps,0), act.active_timesteps[0])
         ref_et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1])
         add_to_attr_inds_and_res(time, attr_inds, res, self.can, [('pose', new_can_pose)])
-        # add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('pose', new_robot_pose)])
+        add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('pose', new_robot_pose), ('theta', [theta])])
         for i in range(st, et):
             dist =float(np.abs(i - time))
             if i <= time:
                 inter_rp = (dist / nsteps) * self.r.pose[:, ref_st] + ((nsteps - dist) / nsteps) * new_robot_pose
+                inter_theta = (dist / nsteps) * self.r.theta[:, ref_st] + ((nsteps - dist) / nsteps) * theta
                 inter_cp = (dist / nsteps) * self.can.pose[:, ref_st] + ((nsteps - dist) / nsteps) * new_can_pose
             else:
                 inter_rp = (dist / nsteps) * self.r.pose[:, ref_et] + ((nsteps - dist) / nsteps) * new_robot_pose
+                inter_theta = (dist / nsteps) * self.r.theta[:, ref_et] + ((nsteps - dist) / nsteps) * theta
                 inter_cp = (dist / nsteps) * self.can.pose[:, ref_et] + ((nsteps - dist) / nsteps) * new_can_pose
-            inter_theta = np.array([np.arctan2(*(inter_cp - inter_rp))])
 
-            # add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp),( 'theta', inter_theta)])
+            add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp), ('theta', inter_theta)])
             add_to_attr_inds_and_res(i, attr_inds, res, self.can, [('pose', inter_cp)])
         # print(new_robot_pose, new_can_pose, x)
         return res, attr_inds
@@ -2802,6 +2812,7 @@ class ThetaDirValid(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.r, = params
         self.forward, self.reverse = False, False
+        self.coeff = 1e0
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int)),
                                            ("theta", np.array([0], dtype=np.int)),
                                            ("vel", np.array([0], dtype=np.int))]),
@@ -2815,7 +2826,7 @@ class ThetaDirValid(ExprPredicate):
         cur_tensor = get_tf_graph('thetadir_tf_both')
         if self.forward: cur_tensor = get_tf_graph('thetadir_tf_off')
         if self.reverse: cur_tensor = get_tf_graph('thetadir_tf_opp')
-        return np.array([TF_SESS[0].run(cur_tensor, feed_dict={get_tf_graph('thetadir_tf_in'): x})])
+        return self.coeff * np.array([TF_SESS[0].run(cur_tensor, feed_dict={get_tf_graph('thetadir_tf_in'): x})])
 
     def grad(self, x):
         cur_grads = get_tf_graph('thetadir_tf_grads')
@@ -2824,7 +2835,7 @@ class ThetaDirValid(ExprPredicate):
         v = TF_SESS[0].run(cur_grads, feed_dict={get_tf_graph('thetadir_tf_in'): x}).T
         v[np.isnan(v)] = 0.
         v[np.isinf(v)] = 0.
-        return v
+        return self.coeff*v
 
     def resample(self, negated, time, plan):
         res = OrderedDict()
@@ -2915,7 +2926,7 @@ class ColObjPred(CollisionPredicate):
                                self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom)}
 
         self.rs_scale = RS_SCALE
-        self.radius = self.c.geom.radius + 2.
+        self.radius = self.c.geom.radius + 2.5
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 

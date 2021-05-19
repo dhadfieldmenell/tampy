@@ -1434,6 +1434,15 @@ class NAMOSortingAgent(TAMPAgent):
     def replace_cond(self, cond, curric_step=-1):
         self.init_vecs[cond], self.targets[cond] = self.prob.get_random_initial_state_vec(self.config, self.targets, self.dX, self.state_inds, 1)
         self.init_vecs[cond], self.targets[cond] = self.init_vecs[cond][0], self.targets[cond][0]
+        if self.swap:
+            objs = self.prim_choices[OBJ_ENUM]
+            inds = np.random.permutation(len(objs))
+            for i, ind in enumerate(inds):
+                if i == ind: continue
+                pos1_inds = self.state_inds[objs[i], 'pose']
+                targ = '{}_end_target'.format(objs[ind])
+                pos2_inds = self.target_inds[targ, 'value']
+                self.init_vecs[cond][pos1_inds] = self.targets[cond][targ]
         if self.master_config['easy']:
             self.init_vecs[cond][self.state_inds['pr2', 'pose']] = [0, -2.]
             for pname, aname in self.state_inds:
@@ -1456,31 +1465,8 @@ class NAMOSortingAgent(TAMPAgent):
         self.x0[cond] = self.init_vecs[cond][:self.symbolic_bound]
         self.target_vecs[cond] = np.zeros((self.target_dim,))
         prim_choices = self.prob.get_prim_choices(self.task_list)
-        if OBJ_ENUM in prim_choices and curric_step > 0:
-            i = 0
-            step = (curric_step + 1) // 2
-            inds = np.random.permutation(list(range(len(prim_choices[OBJ_ENUM]))))
-            for j in inds:
-                obj = prim_choices[OBJ_ENUM][j]
-                if '{0}_end_target'.format(obj) not in self.targets[cond]: continue
-                if i >= len(prim_choices[OBJ_ENUM]) - step: break
-                self.x0[cond][self.state_inds[obj, 'pose']] = self.targets[cond]['{0}_end_target'.format(obj)]
-                i += 1
-            if curric_step % 2 and step <= len(prim_choices[OBJ_ENUM]):
-                grasp = np.array([0, -0.601])
-                if GRASP_ENUM in prim_choices:
-                    g = np.random.randint(len(prim_choices[GRASP_ENUM]))
-                    grasp = self.set_grasp(grasp, g)
-
-                self.x0[cond][self.state_inds['pr2', 'pose']] = self.x0[cond][self.state_inds['can{0}'.format(inds[len(prim_choices[OBJ_ENUM]) - step]), 'pose']] + grasp
-
-
         for target_name in self.targets[cond]:
             self.target_vecs[cond][self.target_inds[target_name, 'value']] = self.targets[cond][target_name]
-        only_goal = np.concatenate([self.target_vecs[cond][self.target_inds['{0}_end_target'.format(o), 'value']] for o in prim_choices[OBJ_ENUM]])
-        onehot_goal = self.onehot_encode_goal(only_goal)
-
-        nt = len(prim_choices[TARG_ENUM])
 
 
     def goal(self, cond, targets=None):
@@ -1706,7 +1692,7 @@ class NAMOSortingAgent(TAMPAgent):
             l.append(0)
             if hasattr(prim_choices[enum], '__len__'):
                 for i, opt in enumerate(prim_choices[enum]):
-                    if opt in [p.name for p in action.params]:
+                    if opt.lower() in [p.name.lower() for p in action.params][:-1]:
                         l[-1] = i
                         break
             else:

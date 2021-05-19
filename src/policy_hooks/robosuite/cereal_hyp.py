@@ -16,7 +16,7 @@ from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.traj_opt_pi2 import TrajOptPI2
 from core.util_classes.namo_grip_predicates import ATTRMAP
-import policy_hooks.robosuite.pick_prob as prob
+import policy_hooks.robosuite.cereal_prob as prob
 prob.NUM_OBJS = NUM_OBJS
 prob.NUM_TARGS = NUM_TARGS
 from policy_hooks.policy_mp_prior_gmm import PolicyMPPriorGMM
@@ -262,7 +262,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                         utils.END_POSE_ENUM,
                         utils.END_ROT_ENUM,
                         utils.RIGHT_ENUM,
-                        utils.RIGHT_GRIPPER_ENUM,
+                        #utils.RIGHT_GRIPPER_ENUM,
                         # utils.DONE_ENUM,
                         ],
         'prim_obs_include': [
