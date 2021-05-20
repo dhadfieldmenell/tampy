@@ -2281,6 +2281,17 @@ class EEAtXYLeft(EEReachableLeft):
     def get_rel_pt(self, rel_step):
         return np.zeros(3)
 
+class EEAtXZLeft(EEReachableLeft):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.coeff = const.EEATXY_COEFF
+        self.axis = np.array([0., -1., 0.])
+        super(EEAtXZLeft, self).__init__(name, params, expected_param_types, env, debug, 0)
+        self.mask = np.array([1., 0., 1.]).reshape((3,1))
+        self.approach_dist = const.GRASP_DIST
+
+    def get_rel_pt(self, rel_step):
+        return np.zeros(3)
+
 class NearApproachLeft(ApproachLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         # self.f_tol = 0.04
@@ -2364,6 +2375,17 @@ class EEAtXYRight(EEReachableRight):
         self.coeff = const.EEATXY_COEFF
         super(EEAtXYRight, self).__init__(name, params, expected_param_types, env=env, debug=debug, steps=0)
         self.mask = np.array([1., 1., 0.]).reshape((3,1))
+        self.approach_dist = const.GRASP_DIST
+
+    def get_rel_pt(self, rel_step):
+        return np.zeros(3)
+
+class EEAtXZRight(EEReachableRight):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.coeff = const.EEATXY_COEFF
+        self.axis = np.array([0., -1., 0.])
+        super(EEAtXZRight, self).__init__(name, params, expected_param_types, env, debug, 0)
+        self.mask = np.array([1., 0., 1.]).reshape((3,1))
         self.approach_dist = const.GRASP_DIST
 
     def get_rel_pt(self, rel_step):

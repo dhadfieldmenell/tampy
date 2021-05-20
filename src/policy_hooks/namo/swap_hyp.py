@@ -285,7 +285,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.OBJ_POSE_ENUM: 2,
                 utils.TARG_POSE_ENUM: 2,
                 utils.LIDAR_ENUM: N_DIRS,
-                utils.MJC_SENSOR_ENUM: 43,
+                utils.MJC_SENSOR_ENUM: 65,
                 utils.EE_ENUM: 2,
                 utils.END_POSE_ENUM: 2,
                 utils.GRIPPER_ENUM: 1,

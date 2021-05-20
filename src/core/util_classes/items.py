@@ -170,6 +170,7 @@ class Door(Item):
     def __init__(self, door_type):
         import baxter_gym
         super(Door, self).__init__()
+        self.initialized = False
         self._type = "door"
         if door_type.lower() == 'desk_drawer':
             xml_path = baxter_gym.__path__[0] + '/robot_info/robodesk/desk_drawer.xml'
@@ -178,6 +179,17 @@ class Door(Item):
         else:
             raise NotImplementedError()
 
-        self.xml_path = xml_path
+        self.shape = xml_path
 
+    def setup(self, robot=None):
+        if self.initialized: return
+
+        import pybullet as P
+        self.initialized = True
+        self.id = p.loadMJCF(self.shape)
+        if type(self.id) is not int:
+            for i in range(len(self.id)):
+                if p.getNumJoints(self.id[i]) > 0:
+                    self.id = self.id[i]
+                    break
 
