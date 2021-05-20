@@ -474,7 +474,7 @@ class FFSolver(HLSolver):
             try:
                 plan = [x for x in map(str.strip, s.split("found legal plan as follows")[1].split("time")[0].replace("step", "").split("\n")) if x]
             except:
-                print(('Error in filter for', s, fprefix))
+                print('Error in filter for', s, fprefix, '\n\n', abs_prob, '\n\n')
                 plan = Plan.IMPOSSIBLE
 
         if CLEANUP: 

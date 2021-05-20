@@ -792,9 +792,12 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 if state is not None:
                     getattr(plan.params[pname], aname)[:,st] = state[self.state_inds[pname, aname]]
                 init_t = '{0}_init_target'.format(pname)
-                if init_t in plan.params and st == 0:
-                    plan.params[init_t].value[:,0] = plan.params[pname].pose[:,st]
+                if init_t in plan.params:
+                    if st == 0: plan.params[init_t].value[:,0] = plan.params[pname].pose[:,st]
+                    at_pred = '(At {0} {1}) '.format(pname, init_t)
                     near_pred = '(Near {0} {1}) '.format(pname, init_t)
+                    if at_pred not in initial:
+                        initial.append(at_pred)
                     if near_pred not in initial:
                         initial.append(near_pred)
             for pname, aname in self.target_inds:

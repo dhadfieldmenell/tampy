@@ -206,10 +206,15 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         for param in plan.params.values():
             if param._type not in ['Box', 'Can']: continue
             if act.name.lower().find('transfer') >= 0 and param in act.params: continue
+            if act.name.lower().find('place') >= 0 and param in act.params: continue
             expected_param_types = ['Robot', param._type]
             params = [robot, param]
             pred = ColObjPred('obstr', params, expected_param_types, plan.env, coeff=coeff)
-            for t in range(active_ts[0], active_ts[1]-1):
+            for t in range(active_ts[0], active_ts[1]):
+                if act.name.lower().find('move') >= 0 \
+                   and param in act.params \
+                   and t >= act.active_timesteps[1]-3: continue
+
                 var = self._spawn_sco_var_for_pred(pred, t)
                 bexpr = BoundExpr(pred.neg_expr.expr, var)
                 objs.append(bexpr)

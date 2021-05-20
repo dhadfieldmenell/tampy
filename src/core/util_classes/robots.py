@@ -393,6 +393,29 @@ class Sawyer(Robot):
                                    'right_l6', 'gripper_base'])
 
 
+class Panda(Robot):
+    """
+    Defines geometry used in the Baxter domain.
+    """
+    def __init__(self):
+        self._type = "panda"
+        panda_shape = robodesk.__path__[0] + "assets/panda.xml"
+        super(Panda, self).__init__(panda_shape)
+
+        self.jnt_names = {'right': ['panda0_joint1', 'panda0_joint2', 'panda0_joint3', 
+                                    'panda0_joint4', 'panda0_joint5', 'panda0_joint6',
+                                    'panda0_joint7'],
+                          'right_gripper': ['panda0_finger_joint1', 'panda0_finger_joint2'],
+                          }
+        self.ee_link_names = {'right': 'right_gripper'}
+        self.arms = ['right']
+        self.ee_attrs = ['right_ee_pos', 'right_ee_rot']
+        self.arm_bnds = {'right': (0,7)}
+        self.col_link_names = set(['panda0_link0', 'panda0_link1', 'panda0_link2', 'panda0_link3',
+                                   'panda0_link4', 'panda0_link5', 'panda0_link6', 'panda0_link7', 
+                                   'panda0_leftfinger', 'panda0_rightfinger'])
+
+
 class HSR(Robot):
     """
     Defines geometry used in the HSR domain.

@@ -739,8 +739,8 @@ def setup_dirs(c, args):
     c['weight_dir'] = c['weight_dir']+'_{0}'.format(current_id)
     dir_name = ''
     dir_name2 = ''
-    sub_dirs = [DIR_KEY] + c['weight_dir'].split('/')
-    sub_dirs2 = ['tf_saved/'] + c['weight_dir'].split('/')
+    sub_dirs = [DIR_KEY] + c['weight_dir'].split('/') + ['rollout_logs']
+    sub_dirs2 = ['tf_saved/'] + c['weight_dir'].split('/') + ['rollout_logs']
 
     try:
         from mpi4py import MPI

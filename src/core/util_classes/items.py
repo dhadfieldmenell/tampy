@@ -165,3 +165,19 @@ class Basket(Item):
         self.up_right_rot = [0, 0, 1.57]
 
         # self.col_links = set(['long_1', 'long_2', 'short_1', 'short_2', 'bottom'])
+
+class Door(Item):
+    def __init__(self, door_type):
+        import baxter_gym
+        super(Door, self).__init__()
+        self._type = "door"
+        if door_type.lower() == 'desk_drawer':
+            xml_path = baxter_gym.__path__[0] + '/robot_info/robodesk/desk_drawer.xml'
+        elif door_type.lower() == 'desk_shelf':
+            xml_path = baxter_gym.__path__[0] + '/robot_info/robodesk/desk_shelf.xml'
+        else:
+            raise NotImplementedError()
+
+        self.xml_path = xml_path
+
+

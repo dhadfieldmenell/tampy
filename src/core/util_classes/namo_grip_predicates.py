@@ -637,7 +637,8 @@ class At(ExprPredicate):
         attr_inds = OrderedDict([(self.can, [("pose", np.array([0,1], dtype=np.int))]),
                                  (self.targ, [("value", np.array([0,1], dtype=np.int))])])
 
-        A = np.c_[np.eye(2), -np.eye(2)]
+        self.coeff = 1e-2
+        A = self.coeff * np.c_[np.eye(2), -np.eye(2)]
         b = np.zeros((2, 1))
         val = np.zeros((2, 1))
         aff_e = AffExpr(A, b)
@@ -1775,15 +1776,15 @@ class ObstructsHolding(CollisionPredicate):
         d1, d2 = long_disp.dot(orth), long_disp.dot(-orth)
         x = self.get_param_vector(time).flatten()
         if d1 > d2:
-            w1, w2 = 0.2, 0.8
+            w1, w2 = 0.5, 0.5
         else:
-            w1, w2 = 0.8, 0.2
+            w1, w2 = 0.5, 0.5
         orth *= np.random.choice([-1., 1.], p=[w1, w2])
         orth = orth / np.linalg.norm(orth)
 
-        rdist = np.random.uniform(0, 0.6)
+        rdist = np.random.uniform(0.2, 1.0)
         rdisp = -(self.obstr.geom.radius + self.held.geom.radius + self.dsafe + rdist) * disp / np.linalg.norm(disp)
-        orth = rdisp + np.random.uniform(0., 0.7) * orth
+        orth = rdisp + np.random.uniform(0.1, 0.6) * orth
         # orth *= np.random.uniform(1.2, 1.8) * (self.obstr.geom.radius + self.r.geom.radius)
         # orth += np.random.uniform([-0.15, 0.15], [-0.15, 0.15])
 
@@ -1949,7 +1950,7 @@ class InGraspAngle(ExprPredicate):
         self.dist = 0.
         self.dsafe = dsafe
         self.gripdist = gripdist
-        self.coeff = 0.12
+        self.coeff = 0.1
         if self.r.is_symbol():
             k = 'value'
         else:
@@ -1970,6 +1971,7 @@ class InGraspAngle(ExprPredicate):
 
         super(InGraspAngle, self).__init__(name, e, attr_inds, params, expected_param_types, priority=1)
         self._init_include = False
+        self._rollout = False
 
 
     def f(self, x):
@@ -2013,8 +2015,12 @@ class InGraspAngle(ExprPredicate):
                         [np.sin(theta),  np.cos(theta)]])
         disp = rot.dot([0, -gripdist-dsafe])
         offset = (x[3:5] + disp) - x[:2]
-        new_robot_pose = x[:2] + offset / 2.
-        new_can_pose = x[3:5] - offset / 2.
+        if time == plan.actions[a].active_timesteps[1]:
+            new_robot_pose = x[:2] + offset
+            new_can_pose = x[3:5]
+        else:
+            new_robot_pose = x[:2] + offset / 2.
+            new_can_pose = x[3:5] - offset / 2.
         # new_robot_pose = x[:2] + offset
         # new_can_pose = x[3:5]
         nsteps = 0
@@ -2023,7 +2029,7 @@ class InGraspAngle(ExprPredicate):
         ref_st = max(max(time-nsteps,0), act.active_timesteps[0])
         ref_et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1])
         add_to_attr_inds_and_res(time, attr_inds, res, self.can, [('pose', new_can_pose)])
-        add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('pose', new_robot_pose), ('theta', [theta])])
+        add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('pose', new_robot_pose), ('theta', np.array([theta]))])
         for i in range(st, et):
             dist =float(np.abs(i - time))
             if i <= time:
