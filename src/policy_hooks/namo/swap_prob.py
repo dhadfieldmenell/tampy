@@ -51,16 +51,16 @@ END_TARGETS.extend([(2.8, 2.),
                    (-2.8, 2.),
                    (6.4, 2.),
                    (-6.4, 2.),
-                   (1., 2.),
-                   (-1., 2.),
-                   (-4.6, 2.),
-                   (4.6, 2.),
+                   (2.8, -8.),
+                   (-2.8, -8.),
+                   (6.4, -8.),
+                   (-6.4, -8.),
                    ])
 n_aux = 4
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25
 #possible_can_locs.extend(list(itertools.product(list(range(-60, 60, 2)), list(range(-70, -20, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-70, 70, 2)), list(range(-70, -20, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-90, 90, 2)), list(range(-60, -10, 2)))))
 
 
 for i in range(len(possible_can_locs)):
@@ -185,6 +185,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         for o in range(config['num_objs']):
             x0[state_inds['can{0}'.format(o), 'pose']] = locs[o+1]
         x0[state_inds['pr2', 'gripper']] = -0.1
+        x0[state_inds['pr2', 'theta']] = np.random.uniform(-np.pi, np.pi)
         x0s.append(x0)
         if FIX_TARGETS:
             targ_range = list(range(config['num_objs'] - config['num_targs']))
