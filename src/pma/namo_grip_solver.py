@@ -74,6 +74,9 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 target_rot = -np.arctan2(target.value[0,0] - oldx, target.value[1,0] - oldy)
                 if target.value[1] > 1.7:
                     target_rot = max(min(target_rot, np.pi/4), -np.pi/4)
+                elif target.value[1] < -7.7 and np.abs(target_rot) < 3*np.pi/4:
+                    target_rot = np.sign(target_rot) * 3*np.pi/4
+
                 while target_rot < old_rot:
                     target_rot += 2*np.pi
                 while target_rot > old_rot:
@@ -88,7 +91,11 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 target = act.params[4]
                 grasp = act.params[5]
                 target_rot = -np.arctan2(target.value[0,0] - oldx, target.value[1,0] - oldy)
-                target_rot = max(min(target_rot, np.pi/4), -np.pi/4)
+                if target.value[1] > 1.7:
+                    target_rot = max(min(target_rot, np.pi/4), -np.pi/4)
+                elif target.value[1] < -7.7 and np.abs(target_rot) < 3*np.pi/4:
+                    target_rot = np.sign(target_rot) * 3*np.pi/4
+
                 while target_rot < old_rot:
                     target_rot += 2*np.pi
                 while target_rot > old_rot:
@@ -205,6 +212,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         act = [act for act in plan.actions if act.active_timesteps[0] <= active_ts[0] and act.active_timesteps[1] >= active_ts[1]][0]
         for param in plan.params.values():
             if param._type not in ['Box', 'Can']: continue
+            if param in act.params: continue
             if act.name.lower().find('transfer') >= 0 and param in act.params: continue
             if act.name.lower().find('place') >= 0 and param in act.params: continue
             expected_param_types = ['Robot', param._type]
@@ -213,7 +221,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             for t in range(active_ts[0], active_ts[1]):
                 if act.name.lower().find('move') >= 0 \
                    and param in act.params \
-                   and t >= act.active_timesteps[1]-3: continue
+                   and t >= act.active_timesteps[1]-4: continue
 
                 var = self._spawn_sco_var_for_pred(pred, t)
                 bexpr = BoundExpr(pred.neg_expr.expr, var)

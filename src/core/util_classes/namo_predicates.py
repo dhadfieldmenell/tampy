@@ -7,7 +7,7 @@ from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 import numpy as np
 import tensorflow as tf
 
-from core.util_classes.common_constants import USE_OPENRAVE
+USE_OPENRAVE = False
 if USE_OPENRAVE:
     import ctrajoptpy
 else:

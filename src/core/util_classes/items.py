@@ -12,6 +12,15 @@ class Item(object):
         return [self._type, self._base_type]
 
 
+class XMLItem(Item):
+    def __init__(self, shape):
+        super(XMLItem, self).__init__()
+        self.initialized = False
+        self._type = "xml_item"
+        self._base_type = "xml_item"
+        self.shape = shape
+        self.grasp_point = [0., 0., 0.]
+
 """
 Object defined for NAMO Domain
 """
@@ -166,20 +175,26 @@ class Basket(Item):
 
         # self.col_links = set(['long_1', 'long_2', 'short_1', 'short_2', 'bottom'])
 
-class Door(Item):
+class Door(XMLItem):
     def __init__(self, door_type):
         import baxter_gym
-        super(Door, self).__init__()
-        self.initialized = False
-        self._type = "door"
         if door_type.lower() == 'desk_drawer':
-            xml_path = baxter_gym.__path__[0] + '/robot_info/robodesk/desk_drawer.xml'
+            shape = baxter_gym.__path__[0] + '/robot_info/robodesk/desk_drawer.xml'
+            self.handle_pos = [0., -0.36, 0.01]
+            self.closed_val = 0.
+            self.open_val = -0.48
+            self.open_dir = [0., -1., 0.]
         elif door_type.lower() == 'desk_shelf':
-            xml_path = baxter_gym.__path__[0] + '/robot_info/robodesk/desk_shelf.xml'
+            shape = baxter_gym.__path__[0] + '/robot_info/robodesk/desk_shelf.xml'
+            self.handle_pos = [-0.3, -0.07, 0.935]
+            self.closed_val = 0.
+            self.open_val = 0.6
+            self.open_dir = [1., 0., 0.]
         else:
             raise NotImplementedError()
 
-        self.shape = xml_path
+        super(Door, self).__init__(shape)
+        self._type = "door"
 
     def setup(self, robot=None):
         if self.initialized: return
@@ -192,4 +207,20 @@ class Door(Item):
                 if p.getNumJoints(self.id[i]) > 0:
                     self.id = self.id[i]
                     break
+
+        njnt = p.getNumJoints(self.id)
+        for jnt in range(njnt):
+            info = p.getJointInfo(self.id, jnt)
+            if info[2] != p.JOINT_FIXED:
+                self.hinge = info[1]
+                self.hinge_jnt = jnt
+                if info[2] == p.JOINT_REVOLUTE:
+                    self.hinge_type = 'revolute'
+                elif info[2] == p.JOINT_PRISMATIC:
+                    self.hinge_type = 'prismatic'
+                else:
+                    raise NotImplementedError('Doors must have only hinge or sliding joints')
+                break
+
+        return self.id
 

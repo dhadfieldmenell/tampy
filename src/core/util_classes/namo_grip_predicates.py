@@ -1782,9 +1782,9 @@ class ObstructsHolding(CollisionPredicate):
         orth *= np.random.choice([-1., 1.], p=[w1, w2])
         orth = orth / np.linalg.norm(orth)
 
-        rdist = np.random.uniform(0.2, 1.0)
+        rdist = np.random.uniform(0., 0.6)
         rdisp = -(self.obstr.geom.radius + self.held.geom.radius + self.dsafe + rdist) * disp / np.linalg.norm(disp)
-        orth = rdisp + np.random.uniform(0.1, 0.6) * orth
+        orth = rdisp + np.random.uniform(0., 0.6) * orth
         # orth *= np.random.uniform(1.2, 1.8) * (self.obstr.geom.radius + self.r.geom.radius)
         # orth += np.random.uniform([-0.15, 0.15], [-0.15, 0.15])
 
@@ -2028,7 +2028,8 @@ class InGraspAngle(ExprPredicate):
         et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1]+1)
         ref_st = max(max(time-nsteps,0), act.active_timesteps[0])
         ref_et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1])
-        add_to_attr_inds_and_res(time, attr_inds, res, self.can, [('pose', new_can_pose)])
+        attr_key = 'value' if self.can.is_symbol() else 'pose'
+        add_to_attr_inds_and_res(time, attr_inds, res, self.can, [(attr_key, new_can_pose)])
         add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('pose', new_robot_pose), ('theta', np.array([theta]))])
         for i in range(st, et):
             dist =float(np.abs(i - time))
@@ -2042,7 +2043,7 @@ class InGraspAngle(ExprPredicate):
                 inter_cp = (dist / nsteps) * self.can.pose[:, ref_et] + ((nsteps - dist) / nsteps) * new_can_pose
 
             add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp), ('theta', inter_theta)])
-            add_to_attr_inds_and_res(i, attr_inds, res, self.can, [('pose', inter_cp)])
+            add_to_attr_inds_and_res(i, attr_inds, res, self.can, [(attr_key, inter_cp)])
         # print(new_robot_pose, new_can_pose, x)
         return res, attr_inds
 
@@ -2153,7 +2154,7 @@ class ApproachGraspAngle(InGraspAngle):
 class NearGraspAngle(InGraspAngle):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(NearGraspAngle, self).__init__(name, params, expected_param_types,env, sess, debug)
-        self.coeff = 5e-3
+        self.coeff = 2e-2
         self._rollout = True
 
 class TargNearGraspAngle(NearGraspAngle):

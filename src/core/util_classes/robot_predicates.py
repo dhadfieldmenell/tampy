@@ -8,11 +8,7 @@ from collections import OrderedDict
 import numpy as np
 from core.util_classes import robot_sampling
 
-from core.util_classes.openrave_body import USE_OPENRAVE
-if USE_OPENRAVE:
-    import ctrajoptpy
-else:
-    import pybullet as p
+import pybullet as p
 
 import itertools
 import sys
@@ -1637,6 +1633,30 @@ class StationaryNEq(ExprPredicate):
         super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
         self.spacial_anchor = False
 
+class StationaryXZ(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 1
+        self.obj,  = params
+        attr_inds = OrderedDict([(self.obj, [("pose", np.array([0,2], dtype=np.int))])])
+
+        A = np.c_[np.eye(4), -np.eye(4)]
+        b, val = np.zeros((4, 1)), np.zeros((4, 1))
+        e = EqExpr(AffExpr(A, b), val)
+        super(StationaryXZ, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+        self.spacial_anchor = False
+
+class StationaryYZ(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 1
+        self.obj,  = params
+        attr_inds = OrderedDict([(self.obj, [("pose", np.array([1,2], dtype=np.int))])])
+
+        A = np.c_[np.eye(4), -np.eye(4)]
+        b, val = np.zeros((4, 1)), np.zeros((4, 1))
+        e = EqExpr(AffExpr(A, b), val)
+        super(StationaryYZ, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+        self.spacial_anchor = False
+
 class GraspValid(ExprPredicate):
     """
         Format: GraspValid EEPose Target
@@ -1657,6 +1677,60 @@ class GraspValid(ExprPredicate):
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         super(GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
+        self.spacial_anchor = True
+
+
+class SlideDoorAt(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        assert params[1].geom.hinge_type == 'prismatic'
+        self.handle, self.door = params
+        ind = 0
+        for val in self.door.open_dir:
+            if val != 0: break
+            ind += 1
+
+        attr_inds = OrderedDict([(self.handle, [("pose", np.array([0, 1, 2], dtype=np.int))]),
+                                 (self.door, [("pose", np.array([0, 1, 2], dtype=np.int)),
+                                                ("hinge", np.array([0], dtype=np.int))])])
+
+        A = np.zeros((3,7))
+        for i in range(3):
+            A[i, i] = 1.
+            A[i, 3+i] = -1.
+            if i == ind:
+                A[-1] = -1.
+
+        b = -np.array(self.door.geom.hinge_pos).reshape((-1,1))
+        val = np.zeros((1,1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
+        self.spacial_anchor = True
+
+
+class SlideDoorOpen(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        assert params[1].geom.hinge_type == 'prismatic'
+        self.handle, self.door = params
+        ind = 0
+        for val in self.door.open_dir:
+            if val != 0: break
+            ind += 1
+
+        attr_inds = OrderedDict([(self.handle, [("pose", np.array([ind], dtype=np.int))]),
+                                 (self.door, [("pose", np.array([ind], dtype=np.int)),
+                                                ("hinge", np.array([0], dtype=np.int))])])
+
+        self.coeff = 1e-1
+        A = self.coeff*np.array([[1., -1., 0.], [0., 0., 1.]])
+        open_val = self.door.geom.open_val
+        b = self.coeff*np.array([[-self.door.geom.hinge_pos[ind]-open_val], [-open_val]])
+        val = np.zeros((2,1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.spacial_anchor = True
 
 
@@ -2281,16 +2355,17 @@ class EEAtXYLeft(EEReachableLeft):
     def get_rel_pt(self, rel_step):
         return np.zeros(3)
 
-class EEAtXZLeft(EEReachableLeft):
+class EEAtXZLeft(EEAtXYLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.coeff = const.EEATXY_COEFF
         self.axis = np.array([0., -1., 0.])
         super(EEAtXZLeft, self).__init__(name, params, expected_param_types, env, debug, 0)
         self.mask = np.array([1., 0., 1.]).reshape((3,1))
-        self.approach_dist = const.GRASP_DIST
 
-    def get_rel_pt(self, rel_step):
-        return np.zeros(3)
+class EEAtYZLeft(EEAtXYLeft):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.axis = np.array([-1., 0, 0.])
+        super(EEAtXZLeft, self).__init__(name, params, expected_param_types, env, debug, 0)
+        self.mask = np.array([0., 1., 1.]).reshape((3,1))
 
 class NearApproachLeft(ApproachLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
@@ -2380,16 +2455,17 @@ class EEAtXYRight(EEReachableRight):
     def get_rel_pt(self, rel_step):
         return np.zeros(3)
 
-class EEAtXZRight(EEReachableRight):
+class EEAtXZRight(EEAtXYRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.coeff = const.EEATXY_COEFF
         self.axis = np.array([0., -1., 0.])
         super(EEAtXZRight, self).__init__(name, params, expected_param_types, env, debug, 0)
         self.mask = np.array([1., 0., 1.]).reshape((3,1))
-        self.approach_dist = const.GRASP_DIST
 
-    def get_rel_pt(self, rel_step):
-        return np.zeros(3)
+class EEAtYZRight(EEAtXYRight):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.axis = np.array([-1., 0., 0.])
+        super(EEAtXZRight, self).__init__(name, params, expected_param_types, env, debug, 0)
+        self.mask = np.array([0., 1., 1.]).reshape((3,1))
 
 class EEReachableLeftInv(EEReachableLeft):
     def get_rel_pt(self, rel_step):
@@ -2683,7 +2759,8 @@ class RCollides(CollisionPredicate):
 
         self.coeff = -const.RCOLLIDE_COEFF
         self.neg_coeff = const.RCOLLIDE_COEFF
-        attrs = {self.robot: self.robot.geom.arms + self.robot.geom.grippers + ['pose']}
+        attrs = {self.robot: self.robot.geom.arms + self.robot.geom.grippers + ['pose'], \
+                 self.obstacle: ['pose', 'rotation']}
         attr_inds, attr_dim = init_robot_pred(self, self.robot, [self.obstacle], attrs=attrs)
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
                                self.obstacle: self.lazy_spawn_or_body(self.obstacle, self.obstacle.name, self.obstacle.geom)}
