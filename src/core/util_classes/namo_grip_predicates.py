@@ -1596,7 +1596,6 @@ def sample_pose(plan, pose, robot, rs_scale):
         # print "no targets", pose
         val = np.random.normal(pose.value[:, 0], scale=rs_scale)[:, None]
     else:
-        # import pdb; pdb.set_trace()
         raise NotImplementedError
     # print pose, val
     pose.value = val
@@ -1630,7 +1629,6 @@ def sample_pose(plan, pose, robot, rs_scale):
     # v = viewer.OpenRAVEViewer.create_viewer()
     # v.draw_plan_ts(p, 0)
     # print pose.value, val
-    # import pdb; pdb.set_trace()
 
 
 

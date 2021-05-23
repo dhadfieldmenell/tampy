@@ -7,6 +7,7 @@ from core.util_classes.robots import Robot, PR2, Baxter, Washer, HSR
 from core.util_classes.items import Can, Table, Box
 import numpy as np
 import time, os, os.path as osp, shutil, scipy.misc, subprocess
+import pybullet as P
 
 
 class Viewer(object):
@@ -21,7 +22,6 @@ class GridWorldViewer(Viewer):
         pass
 
 class OpenRAVEViewer(Viewer):
-
     _viewer = None
 
     def __init__(self, env = None):
@@ -216,8 +216,18 @@ class OpenRAVEViewer(Viewer):
                 continue
 
 class PyBulletViewer(Viewer):
-    def __init__(self, envid=None):
-        assert PyBulletViewer._viewer == None
+    def __init__(self, envid=None, visual=None):
+        if envid is None:
+            # If a visual doesn't yet exist, make one by chcking the Display
+            if visual is None:
+                visual = len(os.environ.get('DISPLAY', '')) > 0
+            if not P.getConnectionInfo()['isConnected']:
+                server = P.GUI if visual else P.DIRECT
+                envid = P.connect(server)
+                P.resetSimulation()
+
+        self.visual = visual
+        self.env = envid
         self.name_to_rave_body = {}
         PyBulletViewer._viewer = self
 
@@ -231,10 +241,10 @@ class PyBulletViewer(Viewer):
         # if reset and PybulletViewer._viewer != None:
         #     ## close the old viewer to avoid a threading error
         #     PybulletViewer._viewer = None
-        if PybulletViewer._viewer == None:
-            return PybulletViewer(env)
-        PybulletViewer._viewer.clear()
-        return PybulletViewer._viewer
+        if PyBulletViewer._viewer == None:
+            return PyBulletViewer(env)
+        PyBulletViewer._viewer.clear()
+        return PyBulletViewer._viewer
 
     def lazy_spawn_or_body(self, param, name, geom):
         if param.openrave_body is None:

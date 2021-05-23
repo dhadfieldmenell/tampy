@@ -1,6 +1,5 @@
 import os
 import sys
-
 import main
 domain_file = "../domains/namo_domain/namo_current.domain"
 prob_file = "../domains/namo_domain/namo_probs/verify_2_object.prob"
@@ -9,13 +8,16 @@ from pma.hl_solver import *
 from pma.pr_graph import *
 from pma import backtrack_ll_solver as bt_ll
 from core.parsing import parse_domain_config, parse_problem_config
+from core.util_classes.viewer import PyBulletViewer
 
+# Create a PyBulletViewer for viz purposes
+pbv = PyBulletViewer()
+pbv = pbv.create_viewer()
 
-visual = len(os.environ.get('DISPLAY', '')) > 0
 d_c = main.parse_file_to_dict(domain_file)
 domain = parse_domain_config.ParseDomainConfig.parse(d_c)
 p_c = main.parse_file_to_dict(prob_file)
-problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, env=None, openrave_bodies={}, use_tf=False, sess=None, visual=visual)
+problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, env=pbv.env, openrave_bodies={}, use_tf=False, sess=None)
 state = problem.init_state
 solver = NAMOSolver()
 bt_ll.DEBUG = True
@@ -46,13 +48,19 @@ state.params['can0_init_target'].value[:,0] = can0_pose
 state.params['can1'].pose[:,0] = can1_pose
 state.params['can1_init_target'].value[:,0] = can1_pose
 goal = '(and (Near can0 end_target_3) (Near can1 end_target_4))'
+
+# Call p_mod_abs to find a plan given the above described problem.
 plan, descr = p_mod_abs(hl_solver, solver, domain, problem, goal=goal, debug=True, n_resamples=10)
+
+# Visualize the resulting plan as an animation:
+# pbv.draw_plan(plan) # This led to extremely strange and unintelligeble output
+pbv.animate_plan(plan)
+
 print('\n\n\n\n')
+
 if plan is None or type(plan) is str:
     print('PLANNING FAILED')
 elif len(plan.get_failed_preds()):
     print('PLAN FINISHED WITH FAILED PREDICATES: {}'.format(plan.get_failed_preds()))
 else:
     print('PLAN FINISHED SUCCESSFULLY')
-
-

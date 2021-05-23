@@ -9,7 +9,6 @@ from .prg_search_node import HLSearchNode, LLSearchNode
 """
 Many methods called in p_mod_abs have detailed documentation.
 """
-#def p_mod_abs(domain_config, problem_config, solvers_config, suggester = None, max_iter=100, debug = False):
 def p_mod_abs(hl_solver, ll_solver, domain, problem, initial=None, goal=None, suggester = None, max_iter=25, debug = False, label='', n_resamples=5, smoothing=False):
     #hl_solver, ll_solver = ParseSolversConfig.parse(solvers_config, domain_config)
     #domain = ParseDomainConfig.parse(domain_config)

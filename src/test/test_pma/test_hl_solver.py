@@ -30,7 +30,6 @@ class TestHLSolver(unittest.TestCase):
 
     #     # testing preconditions, they shouldn't effect the HLState
     #     pre_robotat_init = moveto_preds[0]
-    #     import pdb; pdb.set_trace()
     #     self.assertTrue(hl_state.get_rep(pre_robotat_init['pred'])
     #                     in hl_state._pred_dict)
     #     hl_state.add_pred_from_dict(pre_robotat_init)

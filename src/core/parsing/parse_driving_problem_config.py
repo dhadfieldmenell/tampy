@@ -60,9 +60,6 @@ class ParseDrivingProblemConfig(object):
                         raise ProblemConfigException("'%s' is not an object in problem file."%obj_name)
                     params[obj_name][k] = [x.replace("[", "(").replace("]", ")") for x in v]
             for obj_name, attr_dict in list(params.items()):
-                # assert "pose" in attr_dict or "value" in attr_dict
-                if "pose" not in attr_dict and "value" not in attr_dict:
-                    import pdb; pdb.set_trace()
                 o_type = attr_dict["_type"][0]
                 name = attr_dict["name"][0]
                 if 'geom' in attr_dict:

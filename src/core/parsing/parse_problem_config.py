@@ -2,8 +2,6 @@ from core.internal_repr import state
 from core.internal_repr import problem
 from errors_exceptions import ProblemConfigException
 
-import pybullet as P
-
 import os
 try:
     import tensorflow as tf
@@ -20,15 +18,6 @@ class ParseProblemConfig(object):
     def parse(problem_config, domain, env=None, openrave_bodies={}, reuse_params=None, initial=None, visual=False, use_tf=False, sess=None):
         # create parameter objects
         params = {}
-        if env is None:
-            #try:
-            #    P.disconnect()
-            #except:
-            #    pass
-            if not P.getConnectionInfo()['isConnected']:
-                server = P.GUI if visual else P.DIRECT
-                env = P.connect(server)
-                P.resetSimulation()
 
         if "Objects" not in problem_config or not problem_config["Objects"]:
             raise ProblemConfigException("Problem file needs objects.")
@@ -66,9 +55,6 @@ class ParseProblemConfig(object):
                 params = reuse_params
             else:
                 for obj_name, attr_dict in list(params.items()):
-                    # assert "pose" in attr_dict or "value" in attr_dict
-                    if "pose" not in attr_dict and "value" not in attr_dict:
-                        import pdb; pdb.set_trace()
                     o_type = attr_dict["_type"][0]
                     name = attr_dict["name"][0]
                     try:

@@ -299,6 +299,7 @@ class FFSolver(HLSolver):
         actions = self._spawn_actions(plan_str, domain, params,
                                       plan_horizon, concr_prob, openrave_env,
                                       initial)
+        
         plan = Plan(params, actions, plan_horizon, openrave_env, sess=sess)
         plan.start = concr_prob.start_action
         plan.prob = concr_prob
@@ -351,13 +352,14 @@ class FFSolver(HLSolver):
             plan_horizon: planning horizon for the entire plan. (Integer)
             concr_prob: problem that defines initial state and goal configuration.
                         (internal_repr/problem)
-            env: Openrave Environment for planning (openravepy/Environment)
+            env: int corresponding to the environment
         Return:
             list of actions to plan over (List(internal_repr/action))
         """
         actions = []
         curr_h = 0
         hl_state = HLState(concr_prob.init_state.preds)
+        
         for action_str in plan_str:
             spl = action_str.split()
             step = int(spl[0].split(":")[0])
@@ -427,21 +429,18 @@ class FFSolver(HLSolver):
                         # arg_names_of_type = [k for k, v in params.items() if v.get_type() == p_type and k not in bound_names]
                         arg_names_of_type = [k for k, v in list(params.items()) if p_type in v.get_type(True) and k not in excl]
                         arg_valuations = [val + [(name, p_type)] for name in arg_names_of_type for val in arg_valuations]
+
                 for val in arg_valuations:
                     val, types = list(zip(*val))
-                    #try:
-                    #    assert list(types) == pred_schema.expected_params, "Expected params from schema don't match types! Bad task planner output."
-                    #except:
-                    #    import ipdb; ipdb.set_trace()
-                    # if list(types) != pred_schema.expected_params:
-                    #     import pdb; pdb.set_trace()
                     pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params, env=env)
                     ts = (p_d["active_timesteps"][0] + curr_h, p_d["active_timesteps"][1] + curr_h)
                     preds.append({"negated": p_d["negated"], "hl_info": p_d["hl_info"], "active_timesteps": ts, "pred": pred})
+                                
             # updating hl_state
             hl_state.update(preds)
             actions.append(Action(step, a_name, (curr_h, curr_h + a_schema.horizon - 1), [params[arg] for arg in a_args], preds))
             curr_h += a_schema.horizon - 1
+
         return actions
 
 

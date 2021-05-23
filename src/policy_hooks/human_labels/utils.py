@@ -6,7 +6,6 @@ import time
 import gym
 import numpy as np
 import pyglet
-import pdb
 import sys
 
 from drlhp.deprecated.a2c.common.atari_wrappers import wrap_deepmind

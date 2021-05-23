@@ -1,13 +1,9 @@
 import numpy as np
 from math import cos, sin, atan2
-
 import core.util_classes.common_constants as const
-
 import pybullet as P
 import core.util_classes.transform_utils as T
-
 from core.util_classes.robots import Robot, PR2, Baxter, Washer, NAMO
-
 from core.util_classes.items import Item, Box, Can, BlueCan, RedCan, Circle, BlueCircle, RedCircle, GreenCircle, Obstacle, Wall, Table, Basket
 
 WALL_THICKNESS = 1
@@ -43,7 +39,7 @@ class OpenRAVEBody(object):
         for info in visual_infos:
             link_index = info[1]
             link_rgba = info[7]
-            P.changeVisualShape(self.body_id, link_index, link_rgba[:3]+[transparency])
+            P.changeVisualShape(self.body_id, link_index, rgbaColor=link_rgba[:3]+tuple([transparency]))
 
     def _add_robot(self, geom):
         if not geom.is_initialized():

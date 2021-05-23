@@ -248,8 +248,6 @@ class NAMOSolver(LLSolver):
         rs_param._free_attrs['value'][:] = 0
 
         targets = plan.get_param('InContact', 2, {1:rs_param}, negated=False)
-        if len(targets) > 1:
-            import pdb; pdb.set_trace()
 
         if callback is not None:
             callback_a = lambda: callback(a)
@@ -447,7 +445,6 @@ class NAMOSolver(LLSolver):
             ## no resample defined for that pred
             if val is not None: break
         if val is None:
-            # import pdb; pdb.set_trace()
             return []
 
         t_local = t
