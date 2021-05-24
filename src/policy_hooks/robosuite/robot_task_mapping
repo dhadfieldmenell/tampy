@@ -1,18 +1,18 @@
 {
     'move_to_grasp_right': [
-        '0: MOVE_TO_GRASP_RIGHT SAWYER {0} {0}_INIT_TARGET ROBOT_INIT_POSE ROBOT_END_POSE',
+        '0: MOVE_TO_GRASP_RIGHT SAWYER {0} {0}_INIT_TARGET',
     ],
 
     'move_to_putdown_right': [
-        '0: MOVE_TO_PUTDOWN_RIGHT SAWYER {1} {0} ROBOT_INIT_POSE ROBOT_END_POSE'
+        '0: MOVE_TO_PUTDOWN_RIGHT SAWYER {1} {0}'
     ],
 
    'grasp_right': [
-        '0: GRASP_RIGHT SAWYER {0} {0}_INIT_TARGET ROBOT_INIT_POSE ROBOT_END_POSE',
+        '0: GRASP_RIGHT SAWYER {0} {0}_INIT_TARGET',
     ],
 
     'putdown_right': [
-        '0: PUTDOWN_RIGHT SAWYER {1} {0} ROBOT_INIT_POSE ROBOT_END_POSE'
+        '0: PUTDOWN_RIGHT SAWYER {1} {0}'
     ],
 
 };
