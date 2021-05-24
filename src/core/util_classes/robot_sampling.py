@@ -5,13 +5,7 @@ from core.util_classes.items import Item
 from core.util_classes.robots import Robot
 import core.util_classes.transform_utils as T
 
-from core.util_classes.openrave_body import USE_OPENRAVE
 from functools import reduce
-if USE_OPENRAVE:
-    from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, \
-                           IkFilterOptions, Environment, Planner, RaveCreatePlanner, \
-                           RaveCreateTrajectory, matrixFromAxisAngle, CollisionReport, \
-                           RaveCreateCollisionChecker
 import core.util_classes.baxter_constants as const
 from collections import OrderedDict
 from sco.expr import Expr
@@ -917,7 +911,7 @@ def resample_obstructs(pred, negated, t, plan):
     r_geom, obj_geom = rave_body._geom, obs_body._geom
     dof_map = {arm: getattr(robot, arm)[:,t] for arm in r_geom.arms}
     for gripper in r_geom.grippers: dof_map[gripper] = getattr(robot, gripper)[:,t]
-    rave_body.set_pose(robot.pose[:,t])
+    rave_body.set_pose(robot.pose[:,t], robot.rotation[:,t])
 
     for param in list(plan.params.values()):
         if not param.is_symbol() and param != robot:
@@ -1372,7 +1366,7 @@ def test_resample_order(attr_inds, res):
 
 
 #@profile
-def resample_eereachable(pred, negated, t, plan, inv=False):
+def resample_eereachable(pred, negated, t, plan, inv=False, use_pos=True, use_rot=True, rel=True):
     attr_inds, res = OrderedDict(), OrderedDict()
     robot, robot_body = pred.robot, pred._param_to_body[pred.robot]
     if hasattr(pred, 'obj'):
@@ -1386,6 +1380,7 @@ def resample_eereachable(pred, negated, t, plan, inv=False):
     if not len(acts): return None, None
     act = acts[0]
     a_st, a_et = act.active_timesteps
+
     arm = pred.arm
     targ_quat = T.euler_to_quaternion(targ_rot, 'xyzw')
     gripper_axis = robot.geom.get_gripper_axis(pred.arm)
@@ -1393,15 +1388,29 @@ def resample_eereachable(pred, negated, t, plan, inv=False):
     robot_mat = T.quat2mat(quat)
     obj_mat = T.quat2mat(targ_quat)
     quat = T.mat2quat(obj_mat.dot(robot_mat))
-    #robot_body.set_dof({arm: getattr(robot, arm)[:,t]})
-    robot_body.set_dof({pred.arm: np.zeros(len(robot.geom.jnt_names[pred.arm]))})
-    #info = robot_body.fwd_kinematics(arm)
-    #pos, quat = info['pos'], info['quat']
+    robot_body.set_pose(robot.pose[:,t], robot.rotation[:,t])
+    robot_body.set_dof({arm: getattr(robot, arm)[:,t]})
+    cur_info = robot_body.fwd_kinematics(arm)
+    cur_pos, cur_quat = info['pos'], info['quat']
+
     st, et = pred.active_range
     for ts in range(max(a_st, t+st), min(a_et-1, t+et)):
-        dist = pred.approach_dist if ts <= t else pred.retreat_dist
-        vec = -pred.rel_pt - dist * np.abs(t-ts) * pred.axis
-        ik = robot_body.get_ik_from_pose(targ_pos+vec, quat, arm)
+        if use_pos:
+            dist = pred.approach_dist if ts <= t else pred.retreat_dist
+            vec = -pred.rel_pt - dist * np.abs(t-ts) * pred.axis
+            mask = pred.mask
+            if rel:
+                vec = obj_mat.dot(vec)
+                mask = obj_mat.dot(mask)
+            targ_pos = targ_pos+vec
+            for ind, val in enumertae(mask):
+                if np.abs(val) < 1e-1:
+                    targ_pos[ind] = cur_pos[ind]
+        else:
+            targ_pos = np.array(cur_pos)
+
+        quat = quat if use_rot else cur_quat
+        ik = robot_body.get_ik_from_pose(targ_pos, quat, arm)
         add_to_attr_inds_and_res(ts, attr_inds, res, robot, [(arm, np.array(ik).flatten())])
     return res, attr_inds
 

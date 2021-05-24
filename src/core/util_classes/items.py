@@ -1,3 +1,5 @@
+import pybullet as p
+
 class Item(object):
     """
     Base class of every Objects in environment
@@ -20,6 +22,9 @@ class XMLItem(Item):
         self._base_type = "xml_item"
         self.shape = shape
         self.grasp_point = [0., 0., 0.]
+
+    def is_initialized(self):
+        return self.initialized
 
 """
 Object defined for NAMO Domain
@@ -119,7 +124,7 @@ class Sphere(Item):
         super(Sphere, self).__init__()
         self.color = "blue"
         self._type = "sphere"
-        self.radius = radius
+        self.radius = float(radius)
 
 class Obstacle(Item):
     """

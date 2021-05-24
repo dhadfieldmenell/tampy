@@ -65,7 +65,8 @@ class OpenRAVEBody(object):
             eval(fun_name)(geom)
         except Exception as e:
             print('Could not add', geom._type, e)
-            self._add_obj(geom)
+            raise e
+            #self._add_obj(geom)
 
     def _add_circle(self, geom):
         color = [1,0,0]
@@ -91,35 +92,36 @@ class OpenRAVEBody(object):
         self.col_body_id = P.createCollisionShape(shapeType=P.GEOM_CYLINDER, radius=geom.radius, height=geom.height)
         self.body_id = P.createMultiBody(1, self.col_body_id)
 
-    def _add_obstacle(self, geom):
-        obstacles = np.matrix('-0.576036866359447, 0.918128654970760, 1;\
-                        -0.806451612903226,-1.07017543859649, 1;\
-                        1.01843317972350,-0.988304093567252, 1;\
-                        0.640552995391705,0.906432748538011, 1;\
-                        -0.576036866359447, 0.918128654970760, -1;\
-                        -0.806451612903226,-1.07017543859649, -1;\
-                        1.01843317972350,-0.988304093567252, -1;\
-                        0.640552995391705,0.906432748538011, -1')
+    #def _add_obstacle(self, geom):
+    #    obstacles = np.matrix('-0.576036866359447, 0.918128654970760, 1;\
+    #                    -0.806451612903226,-1.07017543859649, 1;\
+    #                    1.01843317972350,-0.988304093567252, 1;\
+    #                    0.640552995391705,0.906432748538011, 1;\
+    #                    -0.576036866359447, 0.918128654970760, -1;\
+    #                    -0.806451612903226,-1.07017543859649, -1;\
+    #                    1.01843317972350,-0.988304093567252, -1;\
+    #                    0.640552995391705,0.906432748538011, -1')
 
-        body = RaveCreateKinBody(self._env, '')
-        vertices = np.array(obstacles)
-        indices = np.array([[0, 1, 2], [2, 3, 0], [4, 5, 6], [6, 7, 4], [0, 4, 5],
-                            [0, 1, 5], [1, 2, 5], [5, 6, 2], [2, 3, 6], [6, 7, 3],
-                            [0, 3, 7], [0, 4, 7]])
-        body.InitFromTrimesh(trimesh=TriMesh(vertices, indices), draw=True)
-        body.SetName(self.name)
-        for link in body.GetLinks():
-            for geom in link.GetGeometries():
-                geom.SetDiffuseColor((.9, .9, .9))
-        self.env_body = body
-        self._env.AddKinBody(body)
+    #    body = RaveCreateKinBody(self._env, '')
+    #    vertices = np.array(obstacles)
+    #    indices = np.array([[0, 1, 2], [2, 3, 0], [4, 5, 6], [6, 7, 4], [0, 4, 5],
+    #                        [0, 1, 5], [1, 2, 5], [5, 6, 2], [2, 3, 6], [6, 7, 3],
+    #                        [0, 3, 7], [0, 4, 7]])
+    #    body.InitFromTrimesh(trimesh=TriMesh(vertices, indices), draw=True)
+    #    body.SetName(self.name)
+    #    for link in body.GetLinks():
+    #        for geom in link.GetGeometries():
+    #            geom.SetDiffuseColor((.9, .9, .9))
+    #    self.env_body = body
+    #    self._env.AddKinBody(body)
 
     def _add_box(self, geom):
         self.col_body_id = P.createCollisionShape(shapeType=P.GEOM_BOX, halfExtents=geom.dim)
         self.body_id = P.createMultiBody(1, self.col_body_id)
 
     def _add_sphere(self, geom):
-        self.body_id = P.createCollisionShape(shapeType=P.GEOM_SPHERE, radius=geom.radius)
+        self.col_body_id = P.createCollisionShape(shapeType=P.GEOM_SPHERE, radius=geom.radius)
+        self.body_id = P.createMultiBody(1, self.col_body_id)
 
     def _add_door(self, geom):
         self.body_id, self.col_body_id = OpenRAVEBody.create_door(self._env, geom.length)
@@ -127,20 +129,20 @@ class OpenRAVEBody(object):
     def _add_wall(self, geom):
         self.body_id = OpenRAVEBody.create_wall(self._env, geom.wall_type)
 
-    def _add_obj(self, geom):
-        self.env_body = self._env.ReadKinBodyXMLFile(geom.shape)
-        self.env_body.SetName(self.name)
-        self._env.Add(self.env_body)
+    #def _add_obj(self, geom):
+    #    self.env_body = self._env.ReadKinBodyXMLFile(geom.shape)
+    #    self.env_body.SetName(self.name)
+    #    self._env.Add(self.env_body)
 
-    def _add_table(self, geom):
-        self.env_body = OpenRAVEBody.create_table(self._env, geom)
-        self.env_body.SetName(self.name)
-        self._env.Add(self.env_body)
+    #def _add_table(self, geom):
+    #    self.env_body = OpenRAVEBody.create_table(self._env, geom)
+    #    self.env_body.SetName(self.name)
+    #    self._env.Add(self.env_body)
 
-    def _add_basket(self, geom):
-        self.env_body = self._env.ReadKinBodyXMLFile(geom.shape)
-        self.env_body.SetName(self.name)
-        self._env.Add(self.env_body)
+    #def _add_basket(self, geom):
+    #    self.env_body = self._env.ReadKinBodyXMLFile(geom.shape)
+    #    self.env_body.SetName(self.name)
+    #    self._env.Add(self.env_body)
 
     def set_pose(self, base_pose, rotation = [0, 0, 0]):
         trans = None
@@ -541,18 +543,18 @@ class OpenRAVEBody(object):
         quat /= np.linalg.norm(quat)
         return quat
 
-    @staticmethod
-    def get_ik_transform(pos, rot, right_arm = True):
-        trans = OpenRAVEBody.transform_from_obj_pose(pos, rot)
-        # Openravepy flip the rotation axis by 90 degree, thus we need to change it back
-        if right_arm:
-            quat = T.euler_to_quaternion([0, np.pi/2, 0], order='xyzw')
-        else:
-            quat = T.euler_to_quaternion([0, -np.pi/2, 0], order='xyzw')
-        rot_mat = T.pose2mat([[0, 0, 0], quat])
-        trans_mat = trans[:3, :3].dot(rot_mat[:3, :3])
-        trans[:3, :3] = trans_mat
-        return trans
+    #@staticmethod
+    #def get_ik_transform(pos, rot, right_arm = True):
+    #    trans = OpenRAVEBody.transform_from_obj_pose(pos, rot)
+    #    # Openravepy flip the rotation axis by 90 degree, thus we need to change it back
+    #    if right_arm:
+    #        quat = T.euler_to_quaternion([0, np.pi/2, 0], order='xyzw')
+    #    else:
+    #        quat = T.euler_to_quaternion([0, -np.pi/2, 0], order='xyzw')
+    #    rot_mat = T.pose2mat([[0, 0, 0], quat])
+    #    trans_mat = trans[:3, :3].dot(rot_mat[:3, :3])
+    #    trans[:3, :3] = trans_mat
+    #    return trans
 
     def get_link_pose(self, link_id, euler=True):
         info = p.getLinkState(self.body_id, link_id)

@@ -1,38 +1,32 @@
 import copy
+import ctypes
+import pickle as pickle
 import sys
 import time
 import traceback
+import xml.etree.ElementTree as xml
 
-import pickle as pickle
-
-import ctypes
+import matplotlib.pyplot as plt
 
 import numpy as np
 import scipy.interpolate
 from scipy.spatial.transform import Rotation
 
-import xml.etree.ElementTree as xml
-
-from sco.expr import *
+import pybullet as P
+import robodesk
 
 import core.util_classes.common_constants as const
-import pybullet as P
-
-
 import core.util_classes.items as items
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
 import core.util_classes.transform_utils as T
-
 from pma.robodesk_solver import REF_JNTS
-
 from policy_hooks.agent import Agent
 from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.tamp_agent import TAMPAgent
 
-import robodesk
 
 STEP = 0.1
 NEAR_TOL = 0.05
@@ -111,7 +105,7 @@ class EnvWrapper():
         self.physics = env.physics
         self.model = self.physics.model
         self.mode = mode
-        self.upright_rot = Rotation.from_euler([1.57, 0., 0.])
+        self.upright_rot = Rotation.from_euler('xyz', [1.57, 0., 0.])
         self.upright_rot_inv = self.upright_rot.inv()
 
 
@@ -346,6 +340,7 @@ class RobotAgent(TAMPAgent):
         self.panda = list(self.plans.values())[0].params['panda']
         self.mjc_env = EnvWrapper(self.base_env, self.panda, self.ctrl_mode)
         self.check_col = hyperparams['master_config'].get('check_col', True)
+        self.use_glew = False
         self.camera_id = 1
         self.main_camera_id = 0
         no = self._hyperparams['num_objs']
@@ -1027,8 +1022,6 @@ class RobotAgent(TAMPAgent):
             targ = targets[i:i+3]
             vec = self.check_target(targ)
             vecs.append(vec)
-        if debug:
-            print(('Encoded {0} as {1} {2}'.format(targets, vecs, self.prob.END_TARGETS)))
         return np.concatenate(vecs)
 
 
@@ -1215,4 +1208,78 @@ class RobotAgent(TAMPAgent):
     
     def reward(self, x=None, targets=None, center=False):
         return self.base_env.reward()
+
+
+    def add_viewer(self):
+        if self._viewer is not None: return
+        self.cur_im = np.zeros((self.image_height, self.image_width, 3))
+        self._launch_viewer(self.image_width, self.image_height)
+
+
+    def _launch_viewer(self, width, height, title='Main'):
+        self._matplot_view_thread = None
+        if self.use_glew:
+            from dm_control.viewer import viewer
+            from dm_control.viewer import views
+            from dm_control.viewer import gui
+            from dm_control.viewer import renderer
+            self._renderer = renderer.NullRenderer()
+            self._render_surface = None
+            self._viewport = renderer.Viewport(width, height)
+            self._window = gui.RenderWindow(width, height, title)
+            self._viewer = viewer.Viewer(
+                self._viewport, self._window.mouse, self._window.keyboard)
+            self._viewer_layout = views.ViewportLayout()
+            self._viewer.render()
+        else:
+            self._viewer = None
+            self._matplot_im = None
+            self._run_matplot_view()
+
+
+    def _reload_viewer(self):
+        if self._viewer is None or not self.use_glew: return
+
+        if self._render_surface:
+          self._render_surface.free()
+
+        if self._renderer:
+          self._renderer.release()
+
+        self._render_surface = render.Renderer(
+            max_width=_MAX_FRONTBUFFER_SIZE, max_height=_MAX_FRONTBUFFER_SIZE)
+        self._renderer = renderer.OffScreenRenderer(
+            self.physics.model, self._render_surface)
+        self._renderer.components += self._viewer_layout
+        self._viewer.initialize(
+            self.physics, self._renderer, touchpad=False)
+        self._viewer.zoom_to_scene()
+
+
+    def render_viewer(self, pixels):
+        if self.use_glew:
+            with self._window._context.make_current() as ctx:
+                ctx.call(
+                    self._window._update_gui_on_render_thread, self._window._context.window, pixels)
+            self._window._mouse.process_events()
+            self._window._keyboard.process_events()
+        else:
+            if self._matplot_im is not None:
+                self._matplot_im.set_data(pixels)
+                plt.draw()
+
+
+    def _run_matplot_view(self):
+        self._matplot_view_thread = Thread(target=self._launch_matplot_view)
+        self._matplot_view_thread.daemon = True
+        self._matplot_view_thread.start()
+
+
+    def _launch_matplot_view(self):
+        try:
+            self._matplot_im = plt.imshow(self.cur_im)
+            plt.show()
+        except TclError:
+            print('\nCould not find display to launch viewer (this does not affect the ability to render images)\n')
+
 
