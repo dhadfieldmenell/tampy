@@ -36,37 +36,38 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         old_arm_pose = getattr(robot, arm)[:, start_ts].copy()
 
-        gripper_axis = robot.geom.get_gripper_axis(arm)
-        target_axis = [0, 0, -1]
-        quat = OpenRAVEBody.quat_from_v1_to_v2(gripper_axis, target_axis)
-        euler = obj.rotation[:,ts[0]] if not obj.is_symbol() else obj.rotation[:,0]
-        obj_quat = T.euler_to_quaternion(euler, 'xyzw')
-        robot_mat = T.quat2mat(quat)
-        obj_mat = T.quat2mat(obj_quat)
-        quat = T.mat2quat(obj_mat.dot(robot_mat))
-
-        offset = obj_geom.grasp_point if hasattr(obj_geom, 'grasp_point') else np.zeros(3)
-        if rel_pos:
-            disp = disp + offset
-            disp = obj_mat.dot(disp)
-
-        if obj.is_symbol():
-            target_loc = obj.value[:, 0] + disp
-        else:
-            target_loc = obj.pose[:, start_ts] + disp
-
         iks = []
         attempt = 0
-        robot_body.set_pose(robot.pose[:,ts[0]], robot.rotation[:,ts[0]])
-        robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
-        #robot_body.set_dof({arm: REF_JNTS})
-
         while not len(iks) and attempt < 20:
-            if rand:
-                target_loc += np.clip(np.random.normal(0, 0.015, 3), -0.03, 0.03)
+            off_mat = np.eye(3) if attempt == 0 else T.quat2mat(T.euler_to_quaternion([np.random.uniform(-np.pi/8, np.pi/8), 0., 0.], 'xyzw'))
+            euler = obj.rotation[:,ts[0]] if not obj.is_symbol() else obj.rotation[:,0]
+            obj_quat = T.euler_to_quaternion(euler, 'xyzw')
+            obj_mat = off_mat.dot(T.quat2mat(obj_quat))
+            gripper_axis = robot.geom.get_gripper_axis(arm)
+            target_axis = [0, 0, -1]
+            quat = OpenRAVEBody.quat_from_v1_to_v2(gripper_axis, target_axis)
+            robot_mat = T.quat2mat(quat)
+            quat = T.mat2quat(obj_mat.dot(robot_mat))
+
+            offset = obj_geom.grasp_point if hasattr(obj_geom, 'grasp_point') else np.zeros(3)
+            cur_disp = disp + offset
+            if rel_pos:
+                cur_disp = obj_mat.dot(cur_disp)
+
+            if obj.is_symbol():
+                target_loc = obj.value[:, 0] + cur_disp
+            else:
+                target_loc = obj.pose[:, start_ts] + cur_disp
+
+            robot_body.set_pose(robot.pose[:,ts[0]], robot.rotation[:,ts[0]])
+            robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
+            #robot_body.set_dof({arm: REF_JNTS})
 
             iks = robot_body.get_ik_from_pose(target_loc, quat, arm)
-            rand = not len(iks)
+            robot_body.set_dof({arm: iks})
+            info = robot_body.fwd_kinematics(arm)
+            #if np.linalg.norm(target_loc-info['pos']) > 5e-2:
+            #    iks = []
             attempt += 1
 
         if not len(iks): return None
