@@ -895,12 +895,12 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             perm_tasks = tasks
             perm_targets = targets
         
-        for param in plan.params.values():
-            targ = '{}_init_target'.format(param.name)
-            if targ in plan.params:
-                plan.params[targ].value[:,0] = param.pose[:,0]
-                if hasattr(param, 'rotation'):
-                    plan.params[targ].rotation[:,0] = param.rotation[:,0]
+        #for param in plan.params.values():
+        #    targ = '{}_init_target'.format(param.name)
+        #    if targ in plan.params:
+        #        plan.params[targ].value[:,0] = param.pose[:,0]
+        #        if hasattr(param, 'rotation'):
+        #            plan.params[targ].rotation[:,0] = param.rotation[:,0]
 
         smooth_cnts = []
         self.reset_to_state(x0)
@@ -1022,7 +1022,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 try:
                     success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=ref_traj, st=act_st)
                 except AttributeError as e:
-                    print(('Opt Exception in full solve for', x0, task, plan.actions[a]), st)
+                    print(('Opt Exception in full solve for', x0, task, plan.actions[a]), e, st)
                     success = False
                 except Exception as e:
                     traceback.print_exception(*sys.exc_info())
