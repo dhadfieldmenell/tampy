@@ -166,6 +166,12 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
            a_name.find('lift') >= 0:
             rel_pos = False
 
+        disp = np.array([0., 0., const.GRASP_DIST])
+        if a_name.find('move') < 0 and \
+            (a_name.find('hold') >= 0 or \
+            a_name.find('slide') >= 0):
+            disp = np.zeros(3)
+
         rand = False
         if next_act is not None:
             next_obj = next_act.params[1]
@@ -185,7 +191,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         ### Sample poses
         for i in range(resample_size):
             ### Cases for when behavior can be inferred from current action
-            pose = self.vertical_gripper(robot, arm, obj, obj_geom, gripper_open, (st, et), rand=(rand or (i>0)), null_zero=zero_null, rel_pos=rel_pos)
+            pose = self.vertical_gripper(robot, arm, obj, obj_geom, gripper_open, (st, et), rand=(rand or (i>0)), null_zero=zero_null, rel_pos=rel_pos, disp=disp)
 
             ### Cases for when behavior cannot be inferred from current action
             #elif next_act is None:
