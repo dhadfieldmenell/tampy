@@ -200,7 +200,9 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             #else:
             #    pose = self.vertical_gripper(robot, next_arm, next_obj, next_obj_geom, next_gripper_open, (next_st, next_et), rand=(rand or (i>0)), rel_pos=next_rel_pos)
 
-            if a_name.find('grasp') >= 0 and a_name.find('move') < 0:
+            if a_name.find('move') < 0 and \
+                (a_name.find('grasp') >= 0 or \
+                a_name.find('lift') >= 0):
                 obj = act.params[1]
                 targ = act.params[2]
                 pose = {robot: pose, obj: self.obj_in_gripper(pose['{}_ee_pos'.format(arm)], targ.rotation[:,0], obj)}

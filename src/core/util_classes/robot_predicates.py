@@ -3285,8 +3285,8 @@ class LiftedAboveTable(ExprPredicate):
 
 class Lifted(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
-        assert len(params) == 1
-        self.obj,  = params
+        assert len(params) == 2
+        self.obj, self.robot = params
         attr_inds = OrderedDict([(self.obj, [("pose", np.array([2], dtype=np.int))])])
             
         A = np.array([[-1.]])
