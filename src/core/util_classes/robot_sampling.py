@@ -1391,7 +1391,7 @@ def resample_eereachable(pred, negated, t, plan, inv=False, use_pos=True, use_ro
     robot_body.set_pose(robot.pose[:,t], robot.rotation[:,t])
     robot_body.set_dof({arm: getattr(robot, arm)[:,t]})
     cur_info = robot_body.fwd_kinematics(arm)
-    cur_pos, cur_quat = info['pos'], info['quat']
+    cur_pos, cur_quat = cur_info['pos'], cur_info['quat']
 
     st, et = pred.active_range
     for ts in range(max(a_st, t+st), min(a_et-1, t+et)):
@@ -1403,7 +1403,7 @@ def resample_eereachable(pred, negated, t, plan, inv=False, use_pos=True, use_ro
                 vec = obj_mat.dot(vec)
                 mask = obj_mat.dot(mask)
             targ_pos = targ_pos+vec
-            for ind, val in enumertae(mask):
+            for ind, val in enumerate(mask):
                 if np.abs(val) < 1e-1:
                     targ_pos[ind] = cur_pos[ind]
         else:

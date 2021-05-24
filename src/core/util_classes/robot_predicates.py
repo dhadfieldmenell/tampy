@@ -810,6 +810,7 @@ class PosePredicate(RobotPredicate):
     #@profile
     def abs_ee_pos_check_jac(self, x, abs_pt):
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
+        return self.abs_pos_error_jac(obj_trans, robot_trans, axises, arm_joints, abs_pt)
      
     #@profile
     def rel_ee_pos_check_f(self, x, rel_pt):
@@ -2338,7 +2339,7 @@ class EEReachable(PosePredicate):
             return -rel_step*self.retreat_dist*self.axis
 
     def resample(self, negated, t, plan):
-        return robot_sampling.resample_eereachable(self, negated, t, plan, inv=False, rel=self.use_rel, use_rot=False)
+        return robot_sampling.resample_eereachable(self, negated, t, plan, inv=False, rel=self.eval_rel, use_rot=False)
 
 class EEReachableRot(EEReachable):
     def __init__(self, name, params, expected_param_types, active_range=(-const.EEREACHABLE_STEPS, const.EEREACHABLE_STEPS), env=None, debug=False):
