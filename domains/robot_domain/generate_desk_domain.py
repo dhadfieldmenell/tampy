@@ -242,9 +242,9 @@ dp.add('HeightBlock', ['Item', 'Item'])
 dp.add('AboveTable', ['Item'])
 
 # Useful for Robodesk
-#dp.add('SlideDoorAt', ['Reachable', 'Door'])
-#dp.add('SlideDoorOpen', ['Reachable', 'Door'])
-#dp.add('SlideDoorClose', ['Reachable', 'Door'])
+dp.add('SlideDoorAt', ['Reachable', 'Door'])
+dp.add('SlideDoorOpen', ['Reachable', 'Door'])
+dp.add('SlideDoorClose', ['Reachable', 'Door'])
 dp.add('Lifted', ['Item', 'Robot'])
 
 
@@ -350,7 +350,7 @@ class MoveToGrasp(MoveArm):
                          ('(not (NearGripper{} ?robot ?item))'.format(arm), '0:0'),
                         ])
 
-        self.eff.extend([('(RightGripperDownRot ?robot)', '{0}:{1}'.format(3, self.end-1)),
+        self.eff.extend([#('(RightGripperDownRot ?robot)', '{0}:{1}'.format(3, self.end-1)),
                          ('(NearApproach{} ?robot ?item)'.format(arm), '{0}:{1}'.format(self.end, self.end)),
                          ('(NearApproach{}Rot ?robot ?item)'.format(arm), '{0}:{1}'.format(self.end, self.end)),
                          ('(NearApproach{} ?robot ?targ)'.format(arm), '{0}:{1}'.format(self.end, self.end-1)),
@@ -672,18 +672,19 @@ class Hold(Action):
         self.args = '(?robot - Robot ?item - Item ?target - Reachable ?sp - RobotPose ?ep - RobotPose)'
         grasp_time = self.end
         self.grasp_time = grasp_time
-        self.pre = [('(Near ?item ?target)', '0:0'),
-                    ('(At ?item ?target)', '1:{}'.format(grasp_time)),
+        steps = const.EEREACHABLE_STEPS
+        self.pre = [('(At ?item ?target)', '0:0'),
+                    ('(At ?item ?target)', '1:{}'.format(end-1)),
                     ('(RobotAt ?robot ?sp)', '0:-1'),
                     ('(not (RobotAt ?robot ?ep))', '{}:{}'.format(0, 0)),
-                    ('(forall (?obj - Item) (StationaryRot ?obj))', '0:{}'.format(grasp_time)),
+                    ('(forall (?obj - Item) (StationaryRot ?obj))', '0:{}'.format(end-1)),
                     ('(forall (?obj - Item) (StationaryNEq ?obj ?item))', '0:{}'.format(end-1)),
                     ('(forall (?obs - Obstacle)(StationaryW ?obs))', '{}:{}'.format(0, end-1)),
                     ('(IsMP ?robot)', '0:{}'.format(end-1)),
                     ('(WithinJointLimit ?robot)', '0:{}'.format(end)),
                     ('(forall (?obs - Obstacle) (not (RCollides ?robot ?obs)))', '1:{}'.format(self.grasp_time-2)),
-                    ('(forall (?obj - Item) (not (Obstructs ?robot ?obj)))', '1:{}'.format(grasp_time-3)),
-                    ('(forall (?obj - Item) (not (ObstructsHolding ?robot ?obj ?item)))', '{}:{}'.format(grasp_time-1, end-1))
+                    ('(forall (?obj - Item) (not (Obstructs ?robot ?obj)))', '1:{}'.format(grasp_time-steps)),
+                    ('(forall (?obj - Item) (not (ObstructsHolding ?robot ?obj ?item)))', '{}:{}'.format(grasp_time-3, end-1))
                    ]
 
         self.eff = [('(not (RobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
@@ -703,16 +704,16 @@ class HoldArm(Hold):
                         ('(not (InGripperLeft ?robot ?item))', '0:0'),
                         ('(not (NearGripperRight ?robot ?item))', '0:0'),
                         ('(not (NearGripperLeft ?robot ?item))', '0:0'),
-                        ('(EEApproach{} ?robot ?target)'.format(arm), '{}:{}'.format(self.grasp_time, self.grasp_time)),
+                        ('(EEApproach{} ?robot ?target)'.format(arm), '{}:{}'.format(self.grasp_time-1, self.grasp_time-1)),
                         ('(EEAt{}Rot ?robot ?target)'.format(arm), '{}:{}'.format(self.grasp_time-steps+1, self.grasp_time-1)),
-                        ('(OpenGripper{} ?robot)'.format(arm), '{0}:{1}'.format(1,self.grasp_time)),
+                        ('(OpenGripper{} ?robot)'.format(arm), '{0}:{1}'.format(1,self.grasp_time-1)),
                         ('(NearGripper{} ?robot ?item)'.format(arm), '{0}:{1}'.format(self.grasp_time, self.end-1)),
                         ('(forall (?obj - Item) (not (InGripper{} ?robot ?item)))'.format(arm), '0:{}'.format(self.grasp_time-1)),
                         ('(forall (?obj - Item) (not (NearGripper{} ?robot ?item)))'.format(arm), '0:0'),
                         ])
 
         self.eff.extend([('(InGripper{} ?robot ?item)'.format(arm), '{0}:{1}'.format(self.end, self.end-1)),
-                         ('(NearGripper{} ?robot ?item)'.format(arm), '{0}:{1}'.format(self.end, self.end)),
+                         ('(NearGripper{} ?robot ?item)'.format(arm), '{0}:{1}'.format(self.end-1, self.end)),
                          ('(EEAtXY{} ?robot ?target)'.format(arm), '{}:{}'.format(self.end, self.end-1)),
                          ('(EEAtXZ{} ?robot ?target)'.format(arm), '{}:{}'.format(self.end, self.end-1)),
                          ('(EEAtRelXY{} ?robot ?target)'.format(arm), '{}:{}'.format(self.end, self.end-1)),
@@ -1087,7 +1088,8 @@ class SlideDoorArm(SlideDoor):
         super(SlideDoorArm, self).__init__(open_door)
         self.arm = arm.lower()
         arm = arm.lower().capitalize()
-        self.name = 'slide_{}_{}'.format(open_door, self.arm)
+        mode = 'open' if open_door else 'close'
+        self.name = 'slide_{}_{}'.format(mode, self.arm)
         self.pre.extend([('(NearGripper{} ?robot ?item)'.format(arm), '0:0'),
                          ('(NearGripper{} ?robot ?item)'.format(arm), '1:{}'.format(self.putdown_time)),
                          ('(not (NearGripper{} ?robot ?item))'.format(arm), 
@@ -1131,20 +1133,19 @@ class SlideCloseRight(SlideDoorArm):
         super(SlideCloseRight, self).__init__('right', False)
 
 
-
-actions = [MoveToGraspRight(), MoveToPutdownRight(), GraspRight(), PutdownRight()]
-right_dom_str = dom_str
-for action in actions:
-    right_dom_str += '\n\n'
-    print(action.name)
-    right_dom_str += action.to_str()
-# removes all the extra spaces
-right_dom_str = right_dom_str.replace('            ', '')
-right_dom_str = right_dom_str.replace('    ', '')
-right_dom_str = right_dom_str.replace('    ', '')
-print(right_dom_str)
-f = open('right_robot.domain', 'w')
-f.write(right_dom_str)
+#actions = [MoveToGraspRight(), MoveToPutdownRight(), GraspRight(), PutdownRight()]
+#right_dom_str = dom_str
+#for action in actions:
+#    right_dom_str += '\n\n'
+#    print(action.name)
+#    right_dom_str += action.to_str()
+## removes all the extra spaces
+#right_dom_str = right_dom_str.replace('            ', '')
+#right_dom_str = right_dom_str.replace('    ', '')
+#right_dom_str = right_dom_str.replace('    ', '')
+#print(right_dom_str)
+#f = open('right_robot.domain', 'w')
+#f.write(right_dom_str)
 
 
 
