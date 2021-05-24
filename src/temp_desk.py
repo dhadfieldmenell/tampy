@@ -30,8 +30,8 @@ visual = len(os.environ.get('DISPLAY', '')) > 0
 problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, None, use_tf=True, sess=None, visual=visual)
 params = problem.init_state.params
 
+goal = '(NearGripperRight panda ball)'
 #goal = '(Lifted ball panda)'
-goal = '(NearApproachRight panda ball)'
 solver = RobotSolver()
 plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=5)
 

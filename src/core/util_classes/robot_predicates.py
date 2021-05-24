@@ -681,8 +681,11 @@ class CollisionPredicate(RobotPredicate):
                 parent_id = info[-1]
                 parent_frame_pos = info[14]
                 axis = info[13]
-                parent_info = p.getLinkState(robot_body.body_id, parent_id)
-                parent_pos = np.array(parent_info[0])
+                if parent_id >= 0:
+                    parent_info = p.getLinkState(robot_body.body_id, parent_id)
+                    parent_pos = np.array(parent_info[0])
+                else:
+                    parent_pos = np.zeros(3)
                 anchors[arm].append((parent_frame_pos + parent_pos, axis))
             ee_state = p.getLinkState(robot_body.body_id, robot_body._geom.get_ee_link(arm))
             manips[arm] = np.array(ee_state[0])
@@ -2438,7 +2441,7 @@ class ApproachLeft(EEReachableLeft):
 class EEAtXYLeft(EEReachableLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.coeff = const.EEATXY_COEFF
-        super(EEAtXYLeft, self).__init__(name, params, expected_param_types, env, debug, 0)
+        super(EEAtXYLeft, self).__init__(name, params, expected_param_types, env, debug)
         self.mask = np.array([1., 1., 0.]).reshape((3,1))
         self.approach_dist = const.GRASP_DIST
         self.eval_rel = False
@@ -2448,29 +2451,29 @@ class EEAtXYLeft(EEReachableLeft):
 
 class EEAtRelXYLeft(EEAtXYLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        super(EEAtRelXYLeft, self).__init__(name, params, expected_param_types, env, debug, 0)
+        super(EEAtRelXYLeft, self).__init__(name, params, expected_param_types, env, debug)
         self.eval_rel = True
 
 class EEAtXZLeft(EEAtXYLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.axis = np.array([0., -1., 0.])
-        super(EEAtXZLeft, self).__init__(name, params, expected_param_types, env, debug, 0)
+        super(EEAtXZLeft, self).__init__(name, params, expected_param_types, env, debug,)
         self.mask = np.array([1., 0., 1.]).reshape((3,1))
 
 class EEAtRelXZLeft(EEAtXZLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        super(EEAtRelXZLeft, self).__init__(name, params, expected_param_types, env, debug, 0)
+        super(EEAtRelXZLeft, self).__init__(name, params, expected_param_types, env, debug)
         self.eval_rel = True
 
 class EEAtYZLeft(EEAtXYLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.axis = np.array([-1., 0, 0.])
-        super(EEAtXZLeft, self).__init__(name, params, expected_param_types, env, debug, 0)
+        super(EEAtXZLeft, self).__init__(name, params, expected_param_types, env, debug)
         self.mask = np.array([0., 1., 1.]).reshape((3,1))
 
 class EEAtRelYZLeft(EEAtYZLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        super(EEAtRelYZLeft, self).__init__(name, params, expected_param_types, env, debug, 0)
+        super(EEAtRelYZLeft, self).__init__(name, params, expected_param_types, env, debug)
         self.eval_rel = True
 
 class NearApproachLeft(ApproachLeft):
@@ -2564,31 +2567,31 @@ class EEAtXYRight(EEReachableRight):
 
 class EEAtRelXYRight(EEAtXYRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        super(EEAtRelXYRight, self).__init__(name, params, expected_param_types, env, debug, 0)
+        super(EEAtRelXYRight, self).__init__(name, params, expected_param_types, env, debug)
         self.eval_rel = True
 
 class EEAtXZRight(EEAtXYRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.axis = np.array([0., -1., 0.])
-        super(EEAtXZRight, self).__init__(name, params, expected_param_types, env, debug, 0)
+        super(EEAtXZRight, self).__init__(name, params, expected_param_types, env, debug)
         self.mask = np.array([1., 0., 1.]).reshape((3,1))
         self.eval_rel = False
 
 class EEAtRelXZRight(EEAtXZRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        super(EEAtRelXZRight, self).__init__(name, params, expected_param_types, env, debug, 0)
+        super(EEAtRelXZRight, self).__init__(name, params, expected_param_types, env, debug)
         self.eval_rel = True
 
 class EEAtYZRight(EEAtXYRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.axis = np.array([-1., 0., 0.])
-        super(EEAtXZRight, self).__init__(name, params, expected_param_types, env, debug, 0)
+        super(EEAtXZRight, self).__init__(name, params, expected_param_types, env, debug)
         self.mask = np.array([0., 1., 1.]).reshape((3,1))
         self.eval_rel = False
 
 class EEAtRelYZRight(EEAtYZRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        super(EEAtRelYZRight, self).__init__(name, params, expected_param_types, env, debug, 0)
+        super(EEAtRelYZRight, self).__init__(name, params, expected_param_types, env, debug)
         self.eval_rel = True
 
 class EEReachableLeftInv(EEReachableLeft):
