@@ -640,7 +640,7 @@ class NAMOSortingAgent(TAMPAgent):
 
         for pname in plan.params:
             if '{0}_init_target'.format(pname) in plan.params:
-                plan.params['{0}_init_target'.format(pname)].value[:,0] = plan.params[pname].pose[:,0]
+                plan.params['{0}_init_target'.format(pname)].value[:,0] = plan.params[pname].pose[:,st]
 
 
     def solve_sample_opt_traj(self, state, task, condition, traj_mean=[], inf_f=None, mp_var=0, targets=[], x_only=False, t_limit=60, n_resamples=10, out_coeff=None, smoothing=False, attr_dict=None):

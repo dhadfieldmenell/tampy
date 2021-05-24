@@ -1255,11 +1255,6 @@ class At(ExprPredicate):
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
 
-        #A = np.c_[np.r_[np.eye(6), -np.eye(6)], np.r_[-np.eye(6), np.eye(6)]]
-        #b, val = np.zeros((12, 1)), np.ones((12, 1))*1e-2
-        #aff_e = AffExpr(A, b)
-        #e = LEqExpr(aff_e, val)
-
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
 

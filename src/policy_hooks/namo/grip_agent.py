@@ -132,8 +132,8 @@ class NAMOGripAgent(NAMOSortingAgent):
             # items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.4), 'rgba': tuple(cur_color), 'mass': 10.})
             #items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 10.})
             items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 40.})
-
-            items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (NEAR_TOL, NEAR_TOL, 0.05), 'rgba': tuple(cur_color), 'mass': 1.})
+            targ_color = cur_color[:3] + [1.] # [0.25]
+            items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (NEAR_TOL, NEAR_TOL, 0.045), 'rgba': tuple(targ_color), 'mass': 1.})
 
         for i in range(len(wall_dims)):
             dim, next_trans = wall_dims[i]
@@ -512,7 +512,8 @@ class NAMOGripAgent(NAMOSortingAgent):
                 pos = mp_state[self.state_inds[param_name, 'pose']].copy()
                 targ = self.target_vecs[0][self.target_inds['{0}_end_target'.format(param_name), 'value']]
                 self.mjc_env.set_item_pos(param_name, np.r_[pos, 0.5], forward=False)
-                self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, 1.5], forward=False)
+                #self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, 1.5], forward=False)
+                self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, -0.15], forward=False)
         self.mjc_env.physics.forward()
 
 
@@ -792,20 +793,20 @@ class NAMOGripAgent(NAMOSortingAgent):
         params = act.params
         if self.task_list[task[0]] == 'moveto':
             params[3].value[:,0] = params[0].pose[:,st]
-            params[2].value[:,0] = params[1].pose[:,st]
+            #params[2].value[:,0] = params[1].pose[:,st]
         elif self.task_list[task[0]] == 'transfer':
             params[1].value[:,0] = params[0].pose[:,st]
-            params[6].value[:,0] = params[3].pose[:,st]
+            #params[6].value[:,0] = params[3].pose[:,st]
         elif self.task_list[task[0]] == 'place':
             params[1].value[:,0] = params[0].pose[:,st]
-            params[6].value[:,0] = params[3].pose[:,st]
+            #params[6].value[:,0] = params[3].pose[:,st]
 
         for tname, attr in self.target_inds:
             getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
 
         for pname in plan.params:
             if '{0}_init_target'.format(pname) in plan.params:
-                plan.params['{0}_init_target'.format(pname)].value[:,0] = plan.params[pname].pose[:,0]
+                plan.params['{0}_init_target'.format(pname)].value[:,0] = plan.params[pname].pose[:,st]
 
 
     def goal(self, cond, targets=None):

@@ -36,14 +36,25 @@ pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
 descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.format(NUM_OBJS, SORT_CLOSET, USE_PERTURB, OPT_MCTS_FEEDBACK)
 
 END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
-END_TARGETS.extend([(1., 2.),
-                   (-1., 2.),
-                   (2.8, 2.),
+#END_TARGETS.extend([(1., 2.),
+#                   (-1., 2.),
+#                   (2.8, 2.),
+#                   (-2.8, 2.),
+#                   (-4.6, 2.),
+#                   (4.6, 2.),
+#                   (6.4, 2.),
+#                   (-6.4, 2.),
+#                   ])
+
+
+END_TARGETS.extend([(2.8, 2.),
                    (-2.8, 2.),
-                   (-4.6, 2.),
-                   (4.6, 2.),
                    (6.4, 2.),
                    (-6.4, 2.),
+                   (2.8, -8.),
+                   (-2.8, -8.),
+                   (6.4, -8.),
+                   (-6.4, -8.),
                    ])
 
 n_aux = 4
@@ -51,7 +62,7 @@ possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25
 #possible_can_locs.extend(list(itertools.product(list(range(-45, 45, 4)), list(range(-40, -10, 2)))))
 #possible_can_locs.extend(list(itertools.product(list(range(-70, 70, 2)), list(range(-75, 0, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-70, 70, 2)), list(range(-80, -20, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-80, 80, 2)), list(range(-55, -5, 2)))))
 
 
 for i in range(len(possible_can_locs)):
