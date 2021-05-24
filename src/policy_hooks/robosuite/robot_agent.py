@@ -556,17 +556,17 @@ class RobotAgent(TAMPAgent):
         if self.task_list[task[0]].find('grasp') >= 0:
             params[2].value[:,0] = params[1].pose[:,st]
             params[2].rotation[:,0] = params[1].rotation[:,st]
-        params[3].value[:,0] = params[0].pose[:,st]
-        for arm in params[0].geom.arms:
-            getattr(params[3], arm)[:,0] = getattr(params[0], arm)[:,st]
-            gripper = params[0].geom.get_gripper(arm)
-            getattr(params[3], gripper)[:,0] = getattr(params[0], gripper)[:,st]
-            ee_attr = '{}_ee_pos'.format(arm)
-            rot_ee_attr = '{}_ee_rot'.format(arm)
-            if hasattr(params[0], ee_attr):
-                getattr(params[3], ee_attr)[:,0] = getattr(params[0], ee_attr)[:,st]
-            if hasattr(params[0], rot_ee_attr):
-                getattr(params[3], rot_ee_attr)[:,0] = getattr(params[0], rot_ee_attr)[:,st]
+        #params[3].value[:,0] = params[0].pose[:,st]
+        #for arm in params[0].geom.arms:
+        #    getattr(params[3], arm)[:,0] = getattr(params[0], arm)[:,st]
+        #    gripper = params[0].geom.get_gripper(arm)
+        #    getattr(params[3], gripper)[:,0] = getattr(params[0], gripper)[:,st]
+        #    ee_attr = '{}_ee_pos'.format(arm)
+        #    rot_ee_attr = '{}_ee_rot'.format(arm)
+        #    if hasattr(params[0], ee_attr):
+        #        getattr(params[3], ee_attr)[:,0] = getattr(params[0], ee_attr)[:,st]
+        #    if hasattr(params[0], rot_ee_attr):
+        #        getattr(params[3], rot_ee_attr)[:,0] = getattr(params[0], rot_ee_attr)[:,st]
 
         for tname, attr in self.target_inds:
             getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
