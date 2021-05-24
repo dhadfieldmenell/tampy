@@ -29,6 +29,7 @@ def get_sawyer_pose_str(name, RArm = R_ARM_INIT, G = OPEN_GRIPPER, Pos = SAWYER_
     s += "(right_ee_rot {} {}), ".format(name, EE_ROT)
     s += "(right_gripper {} {}), ".format(name, G)
     s += "(value {} {}), ".format(name, Pos)
+    s += "(rotation {} {}), ".format(name, [0.,0.,0.])
     return s
 
 def get_sawyer_str(name, RArm = R_ARM_INIT, G = OPEN_GRIPPER, Pos = SAWYER_INIT_POSE):
@@ -39,6 +40,7 @@ def get_sawyer_str(name, RArm = R_ARM_INIT, G = OPEN_GRIPPER, Pos = SAWYER_INIT_
     s += "(right_ee_rot {} {}), ".format(name, EE_ROT)
     s += "(right_gripper {} {}), ".format(name, G)
     s += "(pose {} {}), ".format(name, Pos)
+    s += "(rotation {} {}), ".format(name, [0.,0.,0.])
     return s
 
 def get_undefined_robot_pose_str(name):
@@ -48,6 +50,7 @@ def get_undefined_robot_pose_str(name):
     s += "(right_ee_rot {} undefined), ".format(name)
     s += "(right_gripper {} undefined), ".format(name)
     s += "(value {} undefined), ".format(name)
+    s += "(rotation {} undefined), ".format(name)
     return s
 
 def get_undefined_symbol(name):
@@ -117,6 +120,7 @@ def main():
 
     for item in ['milk', 'bread', 'can', 'cereal']:
         s += "(At {0} {0}_init_target), ".format(item)
+        s += "(AtInit {0} {0}_init_target), ".format(item)
         s += "(Near {0} {0}_init_target), ".format(item)
     s += "(RobotAt sawyer robot_init_pose),"
     s += "(StationaryBase sawyer), "

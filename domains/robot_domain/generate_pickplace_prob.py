@@ -22,13 +22,14 @@ TABLE_GEOM = [1.23/2, 2.45/2, 0.97/2]
 TABLE_POS = [1.23/2-0.1, 0, -3.]
 TABLE_ROT = [0,0,0]
 
-def get_sawyer_pose_str(name, RArm = R_ARM_INIT, G = OPEN_GRIPPER, Pos = SAWYER_INIT_POSE):
+def get_sawyer_pose_str(name, RArm = R_ARM_INIT, G = OPEN_GRIPPER, Pos = SAWYER_INIT_POSE, Rot = [0., 0., 0.]):
     s = ""
     s += "(right {} {}), ".format(name, RArm)
     s += "(right_ee_pos {} {}), ".format(name, EE_POS)
     s += "(right_ee_rot {} {}), ".format(name, EE_ROT)
     s += "(right_gripper {} {}), ".format(name, G)
     s += "(value {} {}), ".format(name, Pos)
+    s += "(rotation {} {}), ".format(name, Rot)
     return s
 
 def get_sawyer_str(name, RArm = R_ARM_INIT, G = OPEN_GRIPPER, Pos = SAWYER_INIT_POSE):
@@ -39,6 +40,7 @@ def get_sawyer_str(name, RArm = R_ARM_INIT, G = OPEN_GRIPPER, Pos = SAWYER_INIT_
     s += "(right_ee_rot {} {}), ".format(name, EE_ROT)
     s += "(right_gripper {} {}), ".format(name, G)
     s += "(pose {} {}), ".format(name, Pos)
+    s += "(rotation {} {}), ".format(name, [0.,0.,0.])
     return s
 
 def get_undefined_robot_pose_str(name):
@@ -48,6 +50,7 @@ def get_undefined_robot_pose_str(name):
     s += "(right_ee_rot {} undefined), ".format(name)
     s += "(right_gripper {} undefined), ".format(name)
     s += "(value {} undefined), ".format(name)
+    s += "(rotation {} undefined), ".format(name)
     return s
 
 def get_undefined_symbol(name):
