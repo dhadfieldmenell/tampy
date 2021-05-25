@@ -20,7 +20,6 @@ import core.util_classes.items as items
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
 import core.util_classes.transform_utils as T
-from pma.robodesk_solver import REF_JNTS
 from policy_hooks.agent import Agent
 from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
@@ -31,17 +30,6 @@ from policy_hooks.tamp_agent import TAMPAgent
 STEP = 0.1
 NEAR_TOL = 0.05
 LOCAL_NEAR_TOL = 0.12 # 0.3
-MAX_SAMPLELISTS = 1000
-MAX_TASK_PATHS = 100
-GRIP_TOL = 0.
-MIN_STEP = 1e-2
-LIDAR_DIST = 2.
-# LIDAR_DIST = 1.5
-DSAFE = 5e-1
-MAX_STEP = max(1.5*dmove, 1)
-Z_MAX = 0.4
-GRIPPER_Z = 1.0
-REF_QUAT = np.array([0, 0, -0.7071, -0.7071])
 
 def theta_error(cur_quat, next_quat):
     sign1 = np.sign(cur_quat[np.argmax(np.abs(cur_quat))])
@@ -120,14 +108,17 @@ class EnvWrapper():
     def get_attr(self, obj, attr, euler=False):
         if attr.find('ee_pos') >= 0:
             obj = 'end_effector'
-            ind = self.env.mjpy_model.site_name2id(obj)
-            return self.env.sim.data.site_xpos[ind]
+            ind = self.env.physics.model.name2id(obj, 'site')
+            return self.env.physics.data.site_xpos[ind]
 
         if attr.find('ee_rot') >= 0:
             obj = 'end_effector'
-            ind = self.env.mjpy_model.site_name2id(obj)
-            mat = self.env.sim.data.site_xmat[ind]
-            return robo_T.mat2quat(mat)
+            ind = self.env.physics.model.name2id(obj, 'site')
+            mat = self.env.physics.data.site_xmat[ind].reshape((3,3))
+            rot = T.mat2quat(mat)
+            if euler:
+                rot = T.quaternion_to_euler(rot)
+            return rot
 
         if attr in self.geom.jnt_names:
             jnts = self.geom.jnt_names[attr]
@@ -140,11 +131,11 @@ class EnvWrapper():
                 return vals
 
         if attr.find('hinge') >= 0:
-            if obj.find('drawer') > = 0:
+            if obj.find('drawer') >= 0:
                 jnts = ['drawer_joint']
-            elif obj.find('shelf') > = 0:
+            elif obj.find('shelf') >= 0:
                 jnts = ['slide_joint']
-            return self.set_joints(jnts, val, forward=forward)
+            return self.get_joints(jnts)
 
         if obj == 'panda':
             obj = 'panda0_link0'
@@ -161,9 +152,9 @@ class EnvWrapper():
             return self.set_joints(jnts, val, forward=forward)
 
         if attr.find('hinge') >= 0:
-            if obj.find('drawer') > = 0:
+            if obj.find('drawer') >= 0:
                 jnts = ['drawer_joint']
-            elif obj.find('shelf') > = 0:
+            elif obj.find('shelf') >= 0:
                 jnts = ['slide_joint']
             return self.set_joints(jnts, val, forward=forward)
 
@@ -182,21 +173,22 @@ class EnvWrapper():
         if item_name.find('shelf') >= 0: item_name = 'slide'
 
         try:
-            ind = self.env.mjpy_model.joint_name2id(item_name)
-            adr = self.env.mjpy_model.jnt_qposadr[ind]
-            pos = self.env.sim.data.qpos[adr:adr+3]
-            quat = self.env.sim.data.qpos[adr+3:adr+7]
+            pose = self.env.physics.named.data.qpos[item_name]
+            pos, quat = pose[:3], pose[3:7]
         except Exception as e:
-            ind = self.env.mjpy_model.body_name2id(item_name)
-            pos = self.env.sim.data.body_xpos[ind]
-            quat = self.env.sim.data.body_xquat[ind]
+            pos = self.env.physics.named.data.xpos[item_name]
+            quat = self.env.physics.named.data.xquat[item_name]
+
+        if item_name.find('ball') >= 0:
+            quat = [1., 0., 0., 0.]
 
         if order != 'xyzw':
             raise Exception()
+
         quat = [quat[1], quat[2], quat[3], quat[0]]
         if item_name.find('upright') >= 0:
             base_rot = Rotation.from_quat(quat)
-            quat = (base_rot * self.upright_rot).to_quat()
+            quat = (base_rot * self.upright_rot).as_quat()
 
         rot = quat
         if euler:
@@ -208,29 +200,28 @@ class EnvWrapper():
         #if item_name.find('drawer') >= 0: item_name = 'drawer'
         #if item_name.find('shelf') >= 0: item_name = 'slide'
         if item.name.find('desk'): return
+        if item.name.find('handle'): return
 
         if quat is not None and len(quat) == 3:
             quat = T.euler_to_quaternion(quat, order)
 
         if item_name.find('upright') >= 0:
             base_rot = Rotation.from_quat(quat)
-            quat = (self.upright_rot_inv * base_rot).to_quat()
+            quat = (self.upright_rot_inv * base_rot).as_quat()
 
         if quat is not None and order != 'wxyz':
             quat = [quat[3], quat[0], quat[1], quat[2]]
 
         try:
-            ind = self.env.mjpy_model.joint_name2id(item_name)
-            adr = self.env.mjpy_model.jnt_qposadr[ind]
             if pos is not None:
-                self.env.sim.data.qpos[adr:adr+3] = pos
+                self.env.physics.named.data.qpos[item_name][:3] = pos[item_name]
             if quat is not None:
-                self.env.sim.data.qpos[adr+3:adr+7] = quat
+                self.env.physics.named.data.qpos[item_name][3:] = quat
         except Exception as e:
-            ind = self.env.mjpy_model.body_name2id(item_name)
-            if pos is not None: self.env.sim.data.body_xpos[ind] = pos
+            if pos is not None:
+                self.env.physics.named.data.xpos[item_name][:3] = pos[item_name]
             if quat is not None:
-                self.env.sim.data.body_xquat[ind] = quat
+                self.env.physics.named.data.xpos[item_name][3:] = quat
 
         if forward:
             self.forward()
@@ -238,9 +229,9 @@ class EnvWrapper():
     def get_joints(self, jnt_names):
         vals = []
         for jnt in jnt_names:
-            ind = self.env.mjpy_model.joint_name2id(jnt)
-            adr = self.env.mjpy_model.jnt_qposadr[ind]
-            vals.append(self.env.sim.data.qpos[adr])
+            ind = self.env.physics.model.name2id(jnt, 'joint')
+            adr = self.env.physics.model.jnt_qposadr[ind]
+            vals.append(self.env.physics.data.qpos[adr])
         return np.array(vals)
 
     def set_joints(self, jnt_names, jnt_vals, forward=False):
@@ -248,9 +239,9 @@ class EnvWrapper():
             print(jnt_names, jnt_vals, 'MAKE SURE JNTS MATCH')
 
         for jnt, val in zip(jnt_names, jnt_vals):
-            ind = self.env.mjpy_model.joint_name2id(jnt)
-            adr = self.env.mjpy_model.jnt_qposadr[ind]
-            self.env.sim.data.qpos[adr] = val
+            ind = self.env.physics.model.name2id(jnt, 'joint')
+            adr = self.env.physics.model.jnt_qposadr[ind]
+            self.env.physics.data.qpos[adr] = val
 
         if forward:
             self.forward()
@@ -260,11 +251,11 @@ class EnvWrapper():
             joint_position = action
             for t in range(self.env.action_repeat):
                 for _ in range(10):
-                    self.physics.data.ctrl[0:9] = joint_position[0:9]
+                    self.env.physics.data.ctrl[0:9] = joint_position[0:9]
                     # Ensure gravity compensation stays enabled.
-                    self.physics.data.qfrc_applied[0:9] = self.physics.data.qfrc_bias[0:9]
-                    self.physics.step()
-                    self.physics_copy.data.qpos[:] = self.physics.data.qpos[:]
+                    self.env.physics.data.qfrc_applied[0:9] = self.physics.data.qfrc_bias[0:9]
+                    self.env.physics.step()
+                    self.env.physics_copy.data.qpos[:] = self.physics.data.qpos[:]
 
                     if self.env.reward == 'dense':
                         total_reward += self.env._get_task_reward(self.env.task, 'dense_reward')
@@ -279,11 +270,12 @@ class EnvWrapper():
                     else:
                         raise ValueError(self.env.reward)
 
-              self.env.num_steps += self.env.action_repeat
-              if self.env.episode_length and self.env.num_steps >= self.env.episode_length:
-                  done = True
-              else:
-                  done = False
+                self.env.num_steps += self.env.action_repeat
+                if self.env.episode_length and self.env.num_steps >= self.env.episode_length:
+                    done = True
+                else:
+                    done = False
+
             return self.env._get_obs(), total_reward, done, {'discount': 1.0}
 
         return self.env.step(action)
@@ -299,20 +291,20 @@ class EnvWrapper():
         self.env.physics.data.xfrc_applied[:] = 0
 
     def forward(self):
-        self.zero()
+        #self.zero()
         self.env.physics.forward()
 
     def reset(self):
         obs = self.env.reset()
-        cur_pos = self.get_attr('panda', 'right_ee_pos')
-        cur_jnts = self.get_attr('panda', 'right')
-        dim = 8 if self.mode.find('joint') >= 0 else 7
-        for _ in range(40):
-            self.step(np.zeros(dim))
-            self.set_attr('panda', 'right', cur_jnts)
-            self.forward()
+        #cur_pos = self.get_attr('panda', 'right_ee_pos')
+        #cur_jnts = self.get_attr('panda', 'right')
+        #dim = 9 if self.mode.find('joint') >= 0 else 8
+        #for _ in range(40):
+        #    self.step(np.zeros(dim))
+        #    self.set_attr('panda', 'right', cur_jnts)
+        #    self.forward()
 
-        self.forward()
+        #self.forward()
         return obs
 
 
@@ -345,8 +337,6 @@ class RobotAgent(TAMPAgent):
         self.main_camera_id = 0
         no = self._hyperparams['num_objs']
         self.targ_labels = {}
-        for i, obj in enumerate(self.obj_list):
-            self.targ_labels[i] = list(self.plans.values())[0].params['{}_end_target'.format(obj)].value[:,0]
         self.cur_obs = self.mjc_env.reset()
         self.replace_cond(0)
 
@@ -519,17 +509,17 @@ class RobotAgent(TAMPAgent):
         if self.task_list[task[0]].find('grasp') >= 0:
             params[2].value[:,0] = params[1].pose[:,st]
             params[2].rotation[:,0] = params[1].rotation[:,st]
-        params[3].value[:,0] = params[0].pose[:,st]
-        for arm in params[0].geom.arms:
-            getattr(params[3], arm)[:,0] = getattr(params[0], arm)[:,st]
-            gripper = params[0].geom.get_gripper(arm)
-            getattr(params[3], gripper)[:,0] = getattr(params[0], gripper)[:,st]
-            ee_attr = '{}_ee_pos'.format(arm)
-            rot_ee_attr = '{}_ee_rot'.format(arm)
-            if hasattr(params[0], ee_attr):
-                getattr(params[3], ee_attr)[:,0] = getattr(params[0], ee_attr)[:,st]
-            if hasattr(params[0], rot_ee_attr):
-                getattr(params[3], rot_ee_attr)[:,0] = getattr(params[0], rot_ee_attr)[:,st]
+        #params[3].value[:,0] = params[0].pose[:,st]
+        #for arm in params[0].geom.arms:
+        #    getattr(params[3], arm)[:,0] = getattr(params[0], arm)[:,st]
+        #    gripper = params[0].geom.get_gripper(arm)
+        #    getattr(params[3], gripper)[:,0] = getattr(params[0], gripper)[:,st]
+        #    ee_attr = '{}_ee_pos'.format(arm)
+        #    rot_ee_attr = '{}_ee_rot'.format(arm)
+        #    if hasattr(params[0], ee_attr):
+        #        getattr(params[3], ee_attr)[:,0] = getattr(params[0], ee_attr)[:,st]
+        #    if hasattr(params[0], rot_ee_attr):
+        #        getattr(params[3], rot_ee_attr)[:,0] = getattr(params[0], rot_ee_attr)[:,st]
 
         for tname, attr in self.target_inds:
             getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
@@ -659,26 +649,24 @@ class RobotAgent(TAMPAgent):
         sample.set(STATE_HIST_ENUM, self._x_delta.flatten(), t)
         if self.task_hist_len > 0:
             sample.set(TASK_HIST_ENUM, self._prev_task.flatten(), t)
-        #onehot_task = np.zeros(self.sensor_dims[ONEHOT_TASK_ENUM])
-        #onehot_task[self.task_to_onehot[task]] = 1.
-        #sample.set(ONEHOT_TASK_ENUM, onehot_task, t)
         sample.set(DONE_ENUM, np.zeros(1), t)
         sample.set(TASK_DONE_ENUM, np.array([1, 0]), t)
-        robot = 'sawyer'
+        robot = 'panda'
         if RIGHT_ENUM in self.sensor_dims:
-            sample.set(RIGHT_ENUM, mp_state[self.state_inds['sawyer', 'right']], t)
+            sample.set(RIGHT_ENUM, mp_state[self.state_inds[robot, 'right']], t)
         if LEFT_ENUM in self.sensor_dims:
-            sample.set(LEFT_ENUM, mp_state[self.state_inds['sawyer', 'left']], t)
+            sample.set(LEFT_ENUM, mp_state[self.state_inds[robot, 'left']], t)
         if LEFT_GRIPPER_ENUM in self.sensor_dims:
-            sample.set(LEFT_GRIPPER_ENUM, mp_state[self.state_inds['sawyer', 'left_gripper']], t)
+            sample.set(LEFT_GRIPPER_ENUM, mp_state[self.state_inds[robot, 'left_gripper']], t)
         if RIGHT_GRIPPER_ENUM in self.sensor_dims:
-            sample.set(RIGHT_GRIPPER_ENUM, mp_state[self.state_inds['sawyer', 'right_gripper']], t)
+            sample.set(RIGHT_GRIPPER_ENUM, mp_state[self.state_inds[robot, 'right_gripper']], t)
 
         prim_choices = self.prob.get_prim_choices(self.task_list)
         if task is not None:
             task_ind = task[0]
             obj_ind = task[1]
             targ_ind = task[2]
+            door_ind = task[3]
 
             task_vec = np.zeros((len(self.task_list)), dtype=np.float32)
             task_vec[task[0]] = 1.
@@ -692,21 +680,17 @@ class RobotAgent(TAMPAgent):
                     vec = np.array(task[ind])
                 sample.set(enum, vec, t)
 
-            if self.discrete_prim:
-                sample.set(FACTOREDTASK_ENUM, np.array(task), t)
-                obj_name = list(prim_choices[OBJ_ENUM])[task[1]]
-                targ_name = list(prim_choices[TARG_ENUM])[task[2]]
-                for (pname, aname), inds in self.state_inds.items():
-                    if aname.find('right_ee_pos') >= 0:
-                        obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - mp_state[inds]
-                        targ_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[inds]
-                        break
-                targ_off_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds[obj_name, 'pose']]
-                obj_quat = T.euler_to_quaternion(mp_state[self.state_inds[obj_name, 'rotation']], 'xyzw')
-                targ_quat = T.euler_to_quaternion(targets[self.target_inds[targ_name, 'rotation']], 'xyzw')
-            else:
-                obj_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
-                targ_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
+            sample.set(FACTOREDTASK_ENUM, np.array(task), t)
+            obj_name = list(prim_choices[OBJ_ENUM])[task[1]]
+            targ_name = list(prim_choices[TARG_ENUM])[task[2]]
+            for (pname, aname), inds in self.state_inds.items():
+                if aname.find('right_ee_pos') >= 0:
+                    obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - mp_state[inds]
+                    targ_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[inds]
+                    break
+            targ_off_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds[obj_name, 'pose']]
+            obj_quat = T.euler_to_quaternion(mp_state[self.state_inds[obj_name, 'rotation']], 'xyzw')
+            targ_quat = T.euler_to_quaternion(targets[self.target_inds[targ_name, 'rotation']], 'xyzw')
             sample.set(OBJ_POSE_ENUM, obj_pose.copy(), t)
             sample.set(TARG_POSE_ENUM, targ_pose.copy(), t)
             sample.task = task
@@ -715,37 +699,42 @@ class RobotAgent(TAMPAgent):
             sample.task_name = self.task_list[task[0]]
 
             grasp_pt = list(self.plans.values())[0].params[obj_name].geom.grasp_point
-            if self.task_list[task[0]].find('grasp') >= 0:
+            task_name = self.task_list[task[0]].lower()
+
+            if task_name.find('door') < 0:
+                door_vec = np.zeros(len(prim_choices[DOOR_ENUM]))
+                door_vec[:] = 1. / len(door_vec)
+                sample.set(DOOR_ENUM, door_vec, t)
+            else:
+                door_vec = np.zeros(len(prim_choices[DOOR_ENUM]))
+                door_vec[task[2]] = 1.
+                sample.set(DOOR_ENUM, door_vec, t)
+
+            if task_name.lower() in ['move_to_grasp', 'lift', 'hold'] or \
+                task_name.find('slide') >= 0:
                 obj_mat = T.quat2mat(obj_quat)
                 goal_quat = T.mat2quat(obj_mat.dot(ee_mat))
                 rot_off = theta_error(ee_quat, goal_quat)
                 sample.set(END_POSE_ENUM, obj_pose+grasp_pt, t)
-                #sample.set(END_ROT_ENUM, rot_off, t)
                 sample.set(END_ROT_ENUM, mp_state[self.state_inds[obj_name, 'rotation']], t)
                 targ_vec = np.zeros(len(prim_choices[TARG_ENUM]))
                 targ_vec[:] = 1. / len(targ_vec)
                 sample.set(TARG_ENUM, targ_vec, t)
-            elif self.task_list[task[0]].find('putdown') >= 0:
+
+            elif self.task_list[task[0]].find('place') >= 0:
                 targ_mat = T.quat2mat(targ_quat)
                 goal_quat = T.mat2quat(targ_mat.dot(ee_mat))
                 rot_off = theta_error(ee_quat, targ_quat)
-                #sample.set(END_POSE_ENUM, targ_pose+grasp_pt, t)
                 sample.set(END_POSE_ENUM, targ_off_pose, t)
-                #sample.set(END_ROT_ENUM, rot_off, t)
                 sample.set(END_ROT_ENUM, targets[self.target_inds[targ_name, 'rotation']], t)
+
             else:
-                obj_mat = T.quat2mat(obj_quat)
-                goal_quat = T.mat2quat(obj_mat.dot(ee_mat))
-                rot_off = theta_error(ee_quat, obj_quat)
-                sample.set(END_POSE_ENUM, obj_pose, t)
-                #sample.set(END_ROT_ENUM, rot_off, t)
-                sample.set(END_ROT_ENUM, mp_state[self.state_inds[obj_name, 'rotation']], t)
+                raise NotImplementedError()
 
         sample.condition = cond
         sample.set(TARGETS_ENUM, targets.copy(), t)
-        sample.set(GOAL_ENUM, np.concatenate([targets[self.target_inds['{0}_end_target'.format(o), 'value']] for o in prim_choices[OBJ_ENUM]]), t)
         if ONEHOT_GOAL_ENUM in self._hyperparams['sensor_dims']:
-            sample.set(ONEHOT_GOAL_ENUM, self.onehot_encode_goal(sample.get(GOAL_ENUM, t)), t)
+            sample.set(ONEHOT_GOAL_ENUM, targets, t)
         sample.targets = targets.copy()
 
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
@@ -770,8 +759,7 @@ class RobotAgent(TAMPAgent):
         if fill_obs:
             if IM_ENUM in self._hyperparams['obs_include'] or \
                IM_ENUM in self._hyperparams['prim_obs_include']:
-                self.reset_mjc_env(sample.get_X(t=t), targets, draw_targets=True)
-                im = self.mjc_env.render(height=self.image_height, width=self.image_width, view=self.view)
+                im = self.base_env.render(height=self.image_height, width=self.image_width, view=self.view)
                 im = (im - 128.) / 128.
                 sample.set(IM_ENUM, im.flatten(), t)
 
@@ -786,32 +774,6 @@ class RobotAgent(TAMPAgent):
         no = self._hyperparams['num_objs']
         if len(np.shape(state)) < 2:
             state = [state]
-
-        if self.goal_type == 'moveto':
-            choices = self.prob.get_prim_choices(self.task_list)
-            moveto = self.task_list.index('move_to_grasp_right')
-            obj = choices[OBJ_ENUM].index('cereal')
-            targ = choices[TARG_ENUM].index('cereal_end_target')
-            task = (moveto, obj, targ)
-            T = self.plans[task].horizon - 1
-            preds = self._failed_preds(state[-1], task, 0, active_ts=(T,T), tol=1e-3)
-            cost = len(preds)
-            if cont: return cost
-            return 1. if len(preds) else 0.
-
-        if self.goal_type == 'grasp':
-            choices = self.prob.get_prim_choices(self.task_list)
-            grasp = self.task_list.index('grasp_right')
-            obj = choices[OBJ_ENUM].index('cereal')
-            targ = choices[TARG_ENUM].index('cereal_end_target')
-            task = (grasp, obj, targ)
-            T = self.plans[task].horizon - 1
-            preds = self._failed_preds(state[-1], task, 0, active_ts=(T,T), tol=1e-3)
-            cost = len(preds)
-            if verbose and len(preds):
-                print('FAILED:', preds, preds[0][1].expr.expr.eval(preds[0][1].get_param_vector(T)), self.process_id)
-            if cont: return cost
-            return 1. if len(preds) else 0.
 
         for param_name in objs:
             param = plan.params[param_name]
@@ -894,11 +856,7 @@ class RobotAgent(TAMPAgent):
 
 
     def set_to_targets(self, condition=0):
-        prim_choices = self.prob.get_prim_choices(self.task_list)
-        objs = prim_choices[OBJ_ENUM]
-        for obj_name in objs:
-            self.mjc_env.set_item_pos(obj_name, self.targets[condition]['{0}_end_target'.format(obj_name)], forward=False)
-        self.mjc_env.physics.forward()
+        return
 
 
     def check_targets(self, x, condition=0):
@@ -945,9 +903,9 @@ class RobotAgent(TAMPAgent):
 
     def get_random_initial_state_vec(self, config, plans, dX, state_inds, ncond):
         self.cur_obs = self.mjc_env.reset()
-        for ind, obj in enumerate(self.obj_list):
-            if ind >= config['num_objs'] and (obj, 'pose') in self.state_inds:
-                self.set_to_target(obj)
+        #for ind, obj in enumerate(self.obj_list):
+        #    if ind >= config['num_objs'] and (obj, 'pose') in self.state_inds:
+        #        self.set_to_target(obj)
 
         x = np.zeros(self.dX)
         for pname, aname in self.state_inds:
@@ -957,21 +915,14 @@ class RobotAgent(TAMPAgent):
             x[inds] = val
 
         targets = {}
-        for ind, obj in enumerate(self.obj_list):
-            targ = '{}_end_target'.format(obj)
-            if (obj, 'pose') in self.state_inds:
-                targets[targ] = self.mjc_env.get_item_pose('Visual{}_main'.format(obj.capitalize()))[0]
-                targets[targ][2] -= self.mjc_env.z_offsets[obj]
+        plan = list(self.plans.values())[0]
+        for targ in ['shelf_target', 'off_desk_target', 'bin_target']:
+            targets[targ] = plan.params[targ].value[:,0].copy()
         return [x], [targets] 
    
 
     def set_to_target(self, obj, targets=None):
-        if targets is None:
-            targ_val = self.mjc_env.get_item_pose('Visual{}_main'.format(obj.capitalize()))[0]
-            targ_val[2] -= self.mjc_env.z_offsets[obj]
-        else:
-            targ_val = targets[self.target_inds['{}_end_target'.format(obj), 'value']]
-        self.mjc_env.set_item_pose(obj, targ_val, [0., 0., 0., 1.], forward=True)
+        pass
 
     
     def replace_cond(self, cond, curric_step=-1):
@@ -986,9 +937,6 @@ class RobotAgent(TAMPAgent):
         prim_choices = self.prob.get_prim_choices(self.task_list)
         for target_name in self.targets[cond]:
             self.target_vecs[cond][self.target_inds[target_name, 'value']] = self.targets[cond][target_name]
-        only_goal = np.concatenate([self.target_vecs[cond][self.target_inds['{0}_end_target'.format(o), 'value']] for o in prim_choices[OBJ_ENUM]])
-        onehot_goal = self.onehot_encode_goal(only_goal)
-        nt = len(prim_choices[TARG_ENUM])
 
 
     def goal(self, cond, targets=None):
@@ -1008,6 +956,7 @@ class RobotAgent(TAMPAgent):
 
 
     def check_target(self, targ):
+        return
         vec = np.zeros(len(list(self.targ_labels.keys())))
         for ind in self.targ_labels:
             if np.all(np.abs(targ - self.targ_labels[ind]) < NEAR_TOL):
@@ -1257,16 +1206,15 @@ class RobotAgent(TAMPAgent):
 
 
     def render_viewer(self, pixels):
-        if self.use_glew:
+        if self.use_glew and self.viewer is not None:
             with self._window._context.make_current() as ctx:
                 ctx.call(
                     self._window._update_gui_on_render_thread, self._window._context.window, pixels)
             self._window._mouse.process_events()
             self._window._keyboard.process_events()
-        else:
-            if self._matplot_im is not None:
-                self._matplot_im.set_data(pixels)
-                plt.draw()
+        elif not self.use_glew and self._matplot_im is not None:
+            self._matplot_im.set_data(pixels)
+            plt.draw()
 
 
     def _run_matplot_view(self):

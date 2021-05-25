@@ -1663,7 +1663,7 @@ class StationaryWBase(ExprPredicate):
         A = np.c_[np.eye(6), -np.eye(6)]
         b = np.zeros((6, 1))
         e = EqExpr(AffExpr(A, b), b)
-        super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
+        super(StationaryWBase, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
         self.spacial_anchor = False
 
 class StationaryNEq(ExprPredicate):
@@ -1758,7 +1758,7 @@ class SlideDoorAt(ExprPredicate):
         assert params[1].geom.hinge_type == 'prismatic'
         self.handle, self.door = params
         ind = 0
-        for val in self.door.open_dir:
+        for val in self.door.geom.open_dir:
             if val != 0: break
             ind += 1
 
@@ -1771,9 +1771,9 @@ class SlideDoorAt(ExprPredicate):
             A[i, i] = 1.
             A[i, 3+i] = -1.
             if i == ind:
-                A[-1] = -1.
+                A[i, -1] = -1.
 
-        b = -np.array(self.door.geom.hinge_pos).reshape((-1,1))
+        b = -np.array(self.door.geom.handle_pos).reshape((-1,1))
         val = np.zeros((1,1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
@@ -1787,7 +1787,7 @@ class SlideDoorOpen(ExprPredicate):
         assert params[1].geom.hinge_type == 'prismatic'
         self.handle, self.door = params
         ind = 0
-        for val in self.door.open_dir:
+        for val in self.door.geom.open_dir:
             if val != 0: break
             ind += 1
 
@@ -1798,12 +1798,12 @@ class SlideDoorOpen(ExprPredicate):
         self.coeff = 1e-1
         A = self.coeff*np.array([[1., -1., 0.], [0., 0., 1.]])
         open_val = self.door.geom.open_val
-        b = self.coeff*np.array([[-self.door.geom.hinge_pos[ind]-open_val], [-open_val]])
+        b = self.coeff*np.array([[-self.door.geom.handle_pos[ind]-open_val], [-open_val]])
         val = np.zeros((2,1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
 
-        #neg_b = self.coeff*np.array([[-self.door.geom.hinge_pos[ind]], [0.]])
+        #neg_b = self.coeff*np.array([[-self.door.geom.handle_pos[ind]], [0.]])
         #neg_aff_e = AffExpr(A, neg_b)
         #self.neg_expr = EgExpr(neg_aff_e, val)
         super(SlideDoorOpen, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
@@ -1816,7 +1816,7 @@ class SlideDoorClose(ExprPredicate):
         assert params[1].geom.hinge_type == 'prismatic'
         self.handle, self.door = params
         ind = 0
-        for val in self.door.open_dir:
+        for val in self.door.geom.open_dir:
             if val != 0: break
             ind += 1
 
@@ -1827,7 +1827,7 @@ class SlideDoorClose(ExprPredicate):
         self.coeff = 1e-1
         A = self.coeff*np.array([[1., -1., 0.], [0., 0., 1.]])
         open_val = self.door.geom.open_val
-        b = self.coeff*np.array([[-self.door.geom.hinge_pos[ind]], [0.]])
+        b = self.coeff*np.array([[-self.door.geom.handle_pos[ind]], [0.]])
         val = np.zeros((2,1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
@@ -3219,8 +3219,8 @@ class HeightBlock(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.goal_obj, self.block_obj, = params
         goal_geom, block_geom = self.goal_obj.geom, self.block_obj.geom
-        self.goal_h = goal_geom.height
-        self.block_h = block_geom.height
+        self.goal_h = goal_geom.height if hasattr(goal_geom, 'height') else goal_geom.radius
+        self.block_h = block_geom.height if hasattr(block_geom, 'height') else block_geom.radius
         self.dist = 0.1
 
         attr_inds = OrderedDict([(self.goal_obj, [("pose", np.array([0,1,2], dtype=np.int))]),

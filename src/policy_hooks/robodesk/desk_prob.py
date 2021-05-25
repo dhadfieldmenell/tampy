@@ -29,7 +29,7 @@ domain_file = "../domains/robot_domain/right_desk.domain"
 mapping_file = "policy_hooks/robodesk/robot_task_mapping"
 
 def prob_file(descr=None):
-    return "../domains/robot_domain/probs/desk_prob.prob"
+    return "../domains/robot_domain/probs/robodesk_prob.prob"
 
 
 def get_prim_choices(task_list=None):
@@ -40,10 +40,10 @@ def get_prim_choices(task_list=None):
         out[utils.TASK_ENUM] = sorted(list(task_list))
 
     out[utils.OBJ_ENUM] = ['ball', 'upright_block', 'flat_block']
-    out[utils.TARG_ENUM] = ['bin_target', 'desk_shelf_target', 'desk_drawer_target']
-    out[utils.DOOR_ENUM] = ['desk_drawer', 'desk_shelf']
-    for door in out[utils.DOOR_ENUM]:
-        out[utils.OBJ_ENUM].append('{}_handle'.format(door))
+    out[utils.TARG_ENUM] = ['bin_target', 'shelf_target', 'off_desk_target']
+    out[utils.DOOR_ENUM] = ['drawer', 'shelf']
+    #for door in ['drawer', 'shelf']:
+    #    out[utils.OBJ_ENUM].append('{}_handle'.format(door))
     return out
 
 
@@ -55,14 +55,17 @@ def get_vector(config):
     for item in ['ball', 'upright_block', 'flat_block']:
         state_vector_include[item] = ['pose', 'rotation']
 
+    for door in ['drawer', 'shelf']:
+        state_vector_include[door] = ['pose', 'rotation', 'hinge']
+
     action_vector_include = {
         'panda': ['right', 'right_gripper']
     }
 
     target_vector_include = {
         'bin_target': ['value', 'rotation'],
-        'desk_shelf_target': ['value', 'rotation'],
-        'desk_drawer_target': ['value', 'rotation'],
+        'shelf_target': ['value', 'rotation'],
+        'off_desk_target': ['value', 'rotation'],
     }
     return state_vector_include, action_vector_include, target_vector_include
 
@@ -98,3 +101,6 @@ def get_plans(use_tf=False):
 
     return plans, openrave_bodies, env
 
+
+def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
+    return [np.zeros(dX)], [{'shelf_target': np.zeros(3)}]

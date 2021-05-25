@@ -16,14 +16,14 @@ from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.traj_opt_pi2 import TrajOptPI2
 from core.util_classes.namo_grip_predicates import ATTRMAP
-import policy_hooks.robosuite.pick_prob as prob
+import policy_hooks.robodesk.desk_prob as prob
 prob.NUM_OBJS = NUM_OBJS
 prob.NUM_TARGS = NUM_TARGS
 from policy_hooks.policy_mp_prior_gmm import PolicyMPPriorGMM
 from policy_hooks.policy_prior_gmm import PolicyPriorGMM
 
-from policy_hooks.robosuite.robot_agent import RobotAgent
-from pma.robosuite_solver import RobotSolver
+from policy_hooks.robodesk.robot_agent import RobotAgent
+from pma.robot_solver import RobotSolver
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
@@ -169,7 +169,6 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.N_GRASPS = N_GRASPS
     prob.FIX_TARGETS = True
 
-    prob.END_TARGETS = prob.END_TARGETS[:8]
     prob.n_aux = 0
     config = {
         'gui_on': False,
@@ -218,7 +217,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'n_optimizers': N_OPTIMIZERS,
         'n_rollout_servers': N_ROLLOUT_SERVERS,
         'n_alg_servers': N_ALG_SERVERS,
-        'base_weight_dir': 'sawyer_',
+        'base_weight_dir': 'panda_',
         'policy_out_coeff': algorithm['policy_out_coeff'],
         'policy_inf_coeff': algorithm['policy_inf_coeff'],
         'max_sample_queue': 5e2,
@@ -238,7 +237,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'val_update_size': 1000,
         'use_local': True,
         'n_dirs': N_DIRS,
-        'domain': 'sawyer',
+        'domain': 'panda',
         'perturb_steps': 3,
         'mcts_early_stop_prob': 0.5,
         'hl_timeout': HL_TIMEOUT,
@@ -251,7 +250,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'share_buffer': True,
         'split_nets': False,
         'split_mcts_alg': True,
-        'robot_name': 'sawyer',
+        'robot_name': 'panda',
         'ctrl_mode': 'joint_angle',
         'visual_cameras': [0],
 
@@ -289,7 +288,6 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.INGRASP_ENUM: no,
                 utils.TRUETASK_ENUM: 2,
                 utils.TRUEOBJ_ENUM: no,
-                utils.TRUETARG_ENUM: len(prob.END_TARGETS),
                 utils.ATGOAL_ENUM: no,
                 utils.FACTOREDTASK_ENUM: len(list(prob.get_prim_choices().keys())),
                 utils.RIGHT_ENUM: 7,

@@ -31,8 +31,9 @@ config, config_module = load_config(args, base_config)
 config.update(base_config)
 agent_config = load_agent(config)
 agent = build_agent(agent_config)
-
 env = agent.base_env
+
+import ipdb; ipdb.set_trace()
 
 bt_ll.DEBUG = True
 openrave_bodies = None

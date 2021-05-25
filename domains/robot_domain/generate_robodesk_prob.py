@@ -83,9 +83,9 @@ def main():
     s += "Panda (name panda); "
 
     items = ['upright_block', 'flat_block', 'ball', 'red_button', 'green_button', 'blue_button', \
-             'drawer_handle', 'shelf_handle']
+             'shelf_handle', 'drawer_handle']
     init_pos = [[0.15, 0.78, 0.85], [0.15, 0.63, 0.775], [-0.4, 0.7, 0.799], [-0.45, 1.0, 1.1], \
-                [-0.25, 1.0, 1.1], [-0.05, 1.0, 1.1], [-0.3, 0.92, 0.935], [0., 0.814, 0.656]]
+                [-0.25, 1.0, 1.1], [-0.05, 1.0, 1.1], [-0.3, 0.78, 0.935], [0., 0.49, 0.665]]
     dims = [[0.023, 0.09, 0.023], [0.08, 0.035, 0.015], [0.04], [0.035, 0.01], [0.035, 0.01], \
             [0.035, 0.01], [0.01, 0.05], [0.01, 0.05]]
     item_types = []
@@ -114,12 +114,12 @@ def main():
     s += "Target (name off_desk_target); "
     s += "PandaPose (name {}); ".format("robot_init_pose")
     s += "PandaPose (name {}); ".format("robot_end_pose")
-    s += "Door (name desk_shelf);"
+    s += "Door (name shelf);"
     s += "Obstacle (name desk_body);"
-    s += "Door (name desk_drawer) \n\n"
+    s += "Door (name drawer) \n\n"
 
     s += "Init: "
-    rots = {'shelf_handle': [0, 1.57, 0], 'upright_block': [1.57, 0., 0.]}
+    rots = {'shelf_handle': [1.57, 0, 0], 'upright_block': [1.57, 0., 0.]}
     for ind, item in enumerate(items):
         dim = dims[ind]
         item_type = item_types[ind]
@@ -148,6 +148,9 @@ def main():
         s += get_undefined_robot_pose_str("{0}_putdown_begin".format(item))
         s += get_undefined_robot_pose_str("{0}_putdown_end".format(item))
 
+    s += "(hinge drawer [0.])"
+    s += "(hinge shelf [0.])"
+
     s += get_panda_str('panda', R_ARM_INIT, OPEN_GRIPPER, PANDA_INIT_POSE)
     s += get_panda_pose_str('robot_init_pose', R_ARM_INIT, OPEN_GRIPPER, PANDA_INIT_POSE)
     s += get_undefined_robot_pose_str('robot_end_pose')
@@ -159,19 +162,19 @@ def main():
     s += "(value off_desk_target {}), ".format(OFF_DESK_TARGET_POS)
     s += "(rotation off_desk_target {}), ".format(OFF_DESK_TARGET_ROT)
 
-    s += "(geom desk_shelf {}), ".format(SHELF_GEOM)
-    s += "(pose desk_shelf {}), ".format(SHELF_POS)
-    s += "(hinge desk_shelf {}), ".format([0.])
-    s += "(rotation desk_shelf {}), ".format(SHELF_ROT)
+    s += "(geom shelf {}), ".format(SHELF_GEOM)
+    s += "(pose shelf {}), ".format(SHELF_POS)
+    s += "(hinge shelf {}), ".format([0.])
+    s += "(rotation shelf {}), ".format(SHELF_ROT)
 
     s += "(geom desk_body {}), ".format(DESK_BODY_GEOM)
     s += "(pose desk_body {}), ".format(DESK_BODY_POS)
     s += "(rotation desk_body {}), ".format(DESK_BODY_ROT)
 
-    s += "(geom desk_drawer {}), ".format(DRAWER_GEOM)
-    s += "(pose desk_drawer {}), ".format(DRAWER_POS)
-    s += "(hinge desk_drawer {}), ".format([0.])
-    s += "(rotation desk_drawer {}); ".format(DRAWER_ROT)
+    s += "(geom drawer {}), ".format(DRAWER_GEOM)
+    s += "(pose drawer {}), ".format(DRAWER_POS)
+    s += "(hinge drawer {}), ".format([0.])
+    s += "(rotation drawer {}); ".format(DRAWER_ROT)
 
     for item in items:
         s += "(At {0} {0}_init_target), ".format(item)
@@ -189,6 +192,8 @@ def main():
     s += "(StationaryRot shelf_handle), "
     s += "(StationaryXZ drawer_handle), "
     s += "(StationaryYZ shelf_handle), "
+    s += "(SlideDoorAt shelf_handle shelf), "
+    s += "(SlideDoorAt drawer_handle drawer), "
     s += "(StationaryW desk_body), "
     s += "\n\n"
 

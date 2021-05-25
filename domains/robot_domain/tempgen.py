@@ -1,4 +1,3 @@
-import copy
 import sys
 sys.path.insert(0, '../../src/')
 import core.util_classes.common_constants as const
@@ -150,11 +149,6 @@ class DerivatedPredicates(object):
 
         return prim_str
 
-    def copy(self):
-        new_dp = DerivatedPredicates()
-        new_dp.pred_dict = copy.copy(self.pred_dict)
-        return new_dp
-
 
 dp = DerivatedPredicates()
 dp.add('At', ['Item', 'Reachable'])
@@ -248,15 +242,14 @@ dp.add('HeightBlock', ['Item', 'Item'])
 dp.add('AboveTable', ['Item'])
 
 # Useful for Robodesk
-# Door isn't in every domain, and FF doesn't like unused types
+#dp.add('SlideDoorAt', ['Reachable', 'Door'])
+#dp.add('SlideDoorOpen', ['Reachable', 'Door'])
+#dp.add('SlideDoorClose', ['Reachable', 'Door'])
 dp.add('Lifted', ['Item', 'Robot'])
-door_dp = dp.copy()
-door_dp.add('SlideDoorAt', ['Reachable', 'Door'])
-door_dp.add('SlideDoorOpen', ['Reachable', 'Door'])
-door_dp.add('SlideDoorClose', ['Reachable', 'Door'])
 
 
-header_str = """
+dom_str += dp.get_str() + '\n'
+dom_str += """
 
 # The first set of parentheses after the colon contains the
 # parameters. The second contains preconditions and the third contains
@@ -266,10 +259,6 @@ header_str = """
 # timesteps during which each predicate must hold
 
 """
-
-base_dom_str = dom_str
-dom_str += dp.get_str() + '\n' + header_str
-door_dom_str = base_dom_str + door_dp.get_str() + '\n' + header_str
 
 
 class Action(object):
@@ -673,12 +662,14 @@ class Hold(Action):
         self.timesteps = 7 + const.EEREACHABLE_STEPS
         end = self.timesteps - 1
         self.end = end
-        self.args = '(?robot - Robot ?item - Item ?target - Reachable)'
+        self.args = '(?robot - Robot ?item - Item ?target - Reachable ?sp - RobotPose ?ep - RobotPose)'
         grasp_time = self.end
         self.grasp_time = grasp_time
         steps = const.EEREACHABLE_STEPS
         self.pre = [('(At ?item ?target)', '0:0'),
                     ('(At ?item ?target)', '1:{}'.format(end)),
+                    ('(RobotAt ?robot ?sp)', '0:-1'),
+                    ('(not (RobotAt ?robot ?ep))', '{}:{}'.format(0, 0)),
                     ('(forall (?obj - Item) (StationaryRot ?obj))', '0:{}'.format(end-1)),
                     ('(forall (?obj - Item) (StationaryNEq ?obj ?item))', '0:{}'.format(end-1)),
                     ('(forall (?obj - Item) (Stationary ?obj))', '0:{}'.format(end-1)),
@@ -690,7 +681,9 @@ class Hold(Action):
                     ('(forall (?obj - Item) (not (ObstructsHolding ?robot ?obj ?item)))', '{}:{}'.format(grasp_time-3, end-1))
                    ]
 
-        self.eff = []
+        self.eff = [('(not (RobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
+                    ('(RobotAt ?robot ?ep)', '{}:{}'.format(end, end-1)),
+                   ]
 
 
 class HoldArm(Hold):
@@ -743,9 +736,11 @@ class Lift(Action):
         self.timesteps = 2 + const.EEREACHABLE_STEPS
         end = self.timesteps - 1
         self.end = end
-        self.args = '(?robot - Robot ?item - Item ?target - Reachable)'
+        self.args = '(?robot - Robot ?item - Item ?target - Reachable ?sp - RobotPose ?ep - RobotPose)'
         self.pre = [('(At ?item ?target)', '0:0'),
                     ('(not (Lifted ?item ?robot))', '{}:{}'.format(0, -1)),
+                    ('(RobotAt ?robot ?sp)', '0:-1'),
+                    ('(not (RobotAt ?robot ?ep))', '{}:{}'.format(0, 0)),
                     #('(forall (?obj - Item) (not (HeightBlock ?item ?obj)))', '0:{}'.format(0)),
                     ('(forall (?obj - Item) (StationaryRot ?obj))', '0:{}'.format(end-1)),
                     ('(forall (?obj - Item) (StationaryNEq ?obj ?item))', '0:{}'.format(end-1)),
@@ -759,6 +754,8 @@ class Lift(Action):
         self.eff = [('(not (At ?item ?target))', '{}:{}'.format(end, end-1)),
                     ('(not (Near ?item ?target))', '{}:{}'.format(end, end-1)),
                     ('(Lifted ?item ?robot)', '{}:{}'.format(end, end-1)),
+                    ('(not (RobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
+                    ('(RobotAt ?robot ?ep)', '{}:{}'.format(end, end-1)),
                     #('(forall (?obj - Reachable) (not (At ?item ?obj)))', 
                     #    '{}:{}'.format(end, end-1)),
                     #('(forall (?obj - Reachable) (not (Near ?item ?obj)))', 
@@ -805,7 +802,7 @@ class Place(Action):
         self.timesteps = 7 + 2 * const.EEREACHABLE_STEPS
         end = self.timesteps - 1
         self.end = end
-        self.args = '(?robot - Robot ?target - Target ?item - Item)'
+        self.args = '(?robot - Robot ?target - Target ?item - Item ?sp - RobotPose ?ep - RobotPose)'
         putdown_time = end // 2
         approach_time = 5
         retreat_time = end-5
@@ -818,6 +815,8 @@ class Place(Action):
                     ('(Lifted ?item ?robot)', '{0}:{1}'.format(0, -1)),
                     #('(forall (?obj - Item) (not (At ?obj ?target)))', '0:0'),
                     #('(forall (?obj - Item) (not (Near ?obj ?target)))', '0:0'),
+                    ('(RobotAt ?robot ?sp)', '0:-1'),
+                    ('(not (RobotAt ?robot ?ep))', '{}:{}'.format(0, -1)),
                     ('(forall (?obj - Item) \
                         (Stationary ?obj))', '{0}:{1}'.format(putdown_time, end-1)),
                     ('(forall (?obj - Item)\
@@ -844,6 +843,8 @@ class Place(Action):
         self.eff = [('(At ?item ?target)', '{}:{}'.format(end, end-1)) ,
                     ('(not (Lifted ?item ?robot))', '{0}:{1}'.format(end, end-1)),
                     ('(Near ?item ?target)', '{}:{}'.format(end, end)) ,
+                    ('(not (RobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
+                    ('(RobotAt ?robot ?ep)', '{}:{}'.format(end, end-1)),
                     #('(forall (?obj - Reachable / ?target) (not (At ?item ?obj)))', 
                     #    '{}:{}'.format(end, end-1)),
                     #('(forall (?obj - Reachable / ?target) (not (Near ?item ?obj)))', 
@@ -910,7 +911,7 @@ class Slide(Action):
         self.timesteps = 7 + 2 * const.EEREACHABLE_STEPS
         end = self.timesteps - 1
         self.end = end
-        self.args = '(?robot - Robot ?target - SlideTarget ?item - Item)'
+        self.args = '(?robot - Robot ?target - SlideTarget ?item - Item ?sp - RobotPose ?ep - RobotPose)'
         putdown_time = end // 2
         approach_time = 5
         retreat_time = end-5
@@ -922,6 +923,8 @@ class Slide(Action):
                     ('(At ?item ?target)', '{0}:{1}'.format(putdown_time, putdown_time)),
                     #('(forall (?obj - Item) (not (At ?obj ?target)))', '0:0'),
                     #('(forall (?obj - Item) (not (Near ?obj ?target)))', '0:0'),
+                    ('(RobotAt ?robot ?sp)', '0:-1'),
+                    ('(not (RobotAt ?robot ?ep))', '{}:{}'.format(0, -1)),
                     ('(forall (?obj - Item) \
                         (Stationary ?obj))', '{0}:{1}'.format(putdown_time, end-1)),
                     ('(forall (?obj - Item)\
@@ -947,6 +950,8 @@ class Slide(Action):
 
         self.eff = [('(At ?item ?target)', '{}:{}'.format(end, end-1)) ,
                     ('(Near ?item ?target)', '{}:{}'.format(end, end)) ,
+                    ('(not (RobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
+                    ('(RobotAt ?robot ?ep)', '{}:{}'.format(end, end-1)),
                     #('(forall (?obj - Reachable / ?target) (not (At ?item ?obj)))', 
                     #    '{}:{}'.format(end, end-1)),
                     #('(forall (?obj - Reachable / ?target) (not (Near ?item ?obj)))', 
@@ -1014,7 +1019,7 @@ class SlideDoor(Action):
         self.timesteps = 7 + 2 * const.EEREACHABLE_STEPS
         end = self.timesteps - 1
         self.end = end
-        self.args = '(?robot - Robot ?door - Door ?item - Item)'
+        self.args = '(?robot - Robot ?door - Door ?item - Item ?sp - RobotPose ?ep - RobotPose)'
         putdown_time = end // 2
         approach_time = 5
         retreat_time = end-5
@@ -1024,6 +1029,8 @@ class SlideDoor(Action):
 
         self.pre = [('(SlideDoorAt ?item ?door)', '{0}:{1}'.format(0, 0)),
                     ('(SlideDoorAt ?item ?door)', '{0}:{1}'.format(1, end)),
+                    ('(RobotAt ?robot ?sp)', '0:-1'),
+                    ('(not (RobotAt ?robot ?ep))', '{}:{}'.format(0, -1)),
                     ('(forall (?obj - Item) \
                         (Stationary ?obj))', '{0}:{1}'.format(putdown_time, end-1)),
                     ('(forall (?obj - Item)\
@@ -1052,7 +1059,9 @@ class SlideDoor(Action):
         else:
             self.pre.append(('(not (SlideDoorClose ?item ?door))', '{0}:{1}'.format(0, 0)))
 
-        self.eff = [('(not (Obstructs ?robot ?item))', '{}:{}'.format(end, end-1)),
+        self.eff = [('(not (RobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
+                    ('(RobotAt ?robot ?ep)', '{}:{}'.format(end, end-1)),
+                    ('(not (Obstructs ?robot ?item))', '{}:{}'.format(end, end-1)),
                     ('(not (RCollides ?robot ?item))', '{}:{}'.format(end, end-1)),
                     ('(forall (?obj - Item) \
                         (not (ObstructsHolding ?robot ?item ?obj))\
@@ -1078,7 +1087,7 @@ class SlideDoorArm(SlideDoor):
                          ('(NearGripper{} ?robot ?item)'.format(arm), '1:{}'.format(self.putdown_time)),
                          ('(not (NearGripper{} ?robot ?item))'.format(arm), 
                              '{}:{}'.format(self.putdown_time+self.steps, self.end-1)),
-                         ('(EEAt{}Rot ?robot ?item)'.format(arm), 
+                         ('(EEAt{}Rot ?robot ?target)'.format(arm), 
                              '{}:{}'.format(self.putdown_time-self.steps+1, self.putdown_time+self.steps-1)),
                          #('(EEAtRelXZ{} ?robot ?item)'.format(arm), '{}:{}'.format(1, self.putdown_time)),
                          ('(EERetreat{} ?robot ?item)'.format(arm), 
@@ -1136,7 +1145,7 @@ f.write(right_dom_str)
 ### RIGHT DESK DOMAIN
 actions = [MoveToGraspRight(), HoldRight(), LiftRight(), \
            SlideOpenRight(), SlideCloseRight(), PlaceRight()]
-right_dom_str = door_dom_str
+right_dom_str = dom_str
 for action in actions:
     right_dom_str += '\n\n'
     print(action.name)
