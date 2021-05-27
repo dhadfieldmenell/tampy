@@ -85,7 +85,7 @@ def main():
     items = ['upright_block', 'flat_block', 'ball', 'red_button', 'green_button', 'blue_button', \
              'shelf_handle', 'drawer_handle']
     init_pos = [[0.15, 0.78, 0.85], [0.15, 0.63, 0.775], [-0.4, 0.7, 0.799], [-0.45, 1.0, 1.1], \
-                [-0.25, 1.0, 1.1], [-0.05, 1.0, 1.1], [-0.3, 0.78, 0.975], [0., 0.49, 0.665]]
+                [-0.25, 1.0, 1.1], [-0.05, 1.0, 1.1], [-0.3, 0.78, 1.005], [0., 0.49, 0.665]]
     dims = [[0.09, 0.023, 0.023], [0.08, 0.035, 0.015], [0.04], [0.035, 0.01], [0.035, 0.01], \
             [0.035, 0.01], [0.01, 0.05], [0.01, 0.05]]
     item_types = []
@@ -94,6 +94,8 @@ def main():
             item_type = 'Box'
         elif item.find('ball') >= 0:
             item_type = 'Sphere'
+        #elif item.find('handle') >= 0:
+        #    item_type = 'Handle'
         else:
             item_type = 'Can'
         item_types.append(item_type)
@@ -125,7 +127,7 @@ def main():
         item_type = item_types[ind]
         if item_type.lower() == 'sphere':
             tail_str = ' {}), '.format(dim[0])
-        elif item_type.lower() == 'can':
+        elif item_type.lower() == 'can' or item_type.lower() == 'handle':
             tail_str = ' {} {}), '.format(dim[0], dim[1])
         else:
             tail_str = ' {}), '.format(dim)

@@ -47,12 +47,12 @@ END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
 #                   ])
 
 
-END_TARGETS.extend([(2.8, 2.),
-                   (-2.8, 2.),
+END_TARGETS.extend([(3.2, 2.),
+                   (-3.2, 2.),
                    (6.4, 2.),
                    (-6.4, 2.),
-                   (2.8, -8.),
-                   (-2.8, -8.),
+                   (3.2, -8.),
+                   (-3.2, -8.),
                    (6.4, -8.),
                    (-6.4, -8.),
                    ])
@@ -62,7 +62,7 @@ possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25
 #possible_can_locs.extend(list(itertools.product(list(range(-45, 45, 4)), list(range(-40, -10, 2)))))
 #possible_can_locs.extend(list(itertools.product(list(range(-70, 70, 2)), list(range(-75, 0, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-80, 80, 2)), list(range(-55, -5, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-80, 80, 2)), list(range(-60, 0, 2)))))
 
 
 for i in range(len(possible_can_locs)):

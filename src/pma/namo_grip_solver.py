@@ -44,7 +44,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         return rs_param
 
     def freeze_rs_param(self, act):
-        return False #True
+        return False
 
     def obj_pose_suggester(self, plan, anum, resample_size=1, st=0):
         robot_pose = []
@@ -214,7 +214,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             if param._type not in ['Box', 'Can']: continue
             if param in act.params: continue
             if act.name.lower().find('transfer') >= 0 and param in act.params: continue
-            if act.name.lower().find('place') >= 0 and param in act.params: continue
+            if act.name.lower().find('move') >= 0 and param in act.params: continue
             expected_param_types = ['Robot', param._type]
             params = [robot, param]
             pred = ColObjPred('obstr', params, expected_param_types, plan.env, coeff=coeff)

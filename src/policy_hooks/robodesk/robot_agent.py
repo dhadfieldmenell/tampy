@@ -2,10 +2,14 @@ import copy
 import ctypes
 import pickle as pickle
 import sys
+from threading import Thread
 import time
+from tkinter import TclError
 import traceback
 import xml.etree.ElementTree as xml
 
+import matplotlib
+matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 
 import numpy as np
@@ -26,6 +30,15 @@ from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.tamp_agent import TAMPAgent
 
+
+const.NEAR_GRIP_COEFF = 1e-1
+const.GRASP_DIST = 0.15
+const.APPROACH_DIST = 0.015
+const.EEREACHABLE_ROT_COEFF = 8e-3
+
+SHELF_ROT = [1.57, 1.57, 0]
+SHELF_OFFSET = [-0.3, -0.07, 1.005]
+DRAWER_OFFSET = [0., -0.36, 0.01]
 
 STEP = 0.1
 NEAR_TOL = 0.05
@@ -167,17 +180,48 @@ class EnvWrapper():
         if attr.find('rot') >= 0 or attr.find('quat') >= 0:
             return self.set_item_pose(obj, quat=val, euler=euler, forward=forward)
 
+
+    def get_handle_pose(self, handle_name, order='xyzw', euler=False):
+        if item_name.find('shelf') >= 0:
+            quat = T.euler_to_quaternion(SHELF_HANDLE_ROT, 'xyzw')
+        else:
+            quat = [0., 0., 0., 1.]
+
+        door = item_name.split('_handle')[0]
+        if door.find('shelf') >= 0:
+            jnt = 'slide_joint'
+            val = self.env.physics.named.data.qpos[jnt]
+            door_pos = self.env.physics.named.data.xpos[door]
+            pos = door_pos + SHELF_OFFSET + np.array([val, 0., 0.])
+
+        if door.find('drawer') >= 0:
+            jnt = 'drawer_joint'
+            val = self.env.physics.named.data.qpos[jnt]
+            door_pos = self.env.physics.named.data.xpos[door]
+            pos = door_pos + DRAWER_OFFSET + np.array([0, val, 0.])
+
+        rot = quat
+        if euler:
+            rot = T.quaternion_to_euler(quat, 'xyzw')
+        return pos, rot
+   
+
     def get_item_pose(self, item_name, order='xyzw', euler=False):
         pos, quat = None, None
+        if item_name.find('handle') >= 0:
+            return self.get_handle_pose(item_name, order, euler)
+
         if item_name.find('drawer') >= 0: item_name = 'drawer'
         if item_name.find('shelf') >= 0: item_name = 'slide'
 
-        try:
-            pose = self.env.physics.named.data.qpos[item_name]
-            pos, quat = pose[:3], pose[3:7]
-        except Exception as e:
-            pos = self.env.physics.named.data.xpos[item_name]
-            quat = self.env.physics.named.data.xquat[item_name]
+        pos = self.env.physics.named.data.xpos[item_name]
+        quat = self.env.physics.named.data.xquat[item_name]
+        #try:
+        #    pose = self.env.physics.named.data.qpos[item_name]
+        #    pos, quat = pose[:3], pose[3:7]
+        #except Exception as e:
+        #    pos = self.env.physics.named.data.xpos[item_name]
+        #    quat = self.env.physics.named.data.xquat[item_name]
 
         if item_name.find('ball') >= 0:
             quat = [1., 0., 0., 0.]
@@ -195,12 +239,12 @@ class EnvWrapper():
             rot = T.quaternion_to_euler(quat, 'xyzw')
         return np.array(pos), np.array(rot)
 
+
     def set_item_pose(self, item_name, pos=None, quat=None, forward=False, order='xyzw', euler=False):
         if item_name == 'panda': return
-        #if item_name.find('drawer') >= 0: item_name = 'drawer'
-        #if item_name.find('shelf') >= 0: item_name = 'slide'
         if item.name.find('desk'): return
         if item.name.find('handle'): return
+        if item.name.find('button'): return
 
         if quat is not None and len(quat) == 3:
             quat = T.euler_to_quaternion(quat, order)
@@ -333,6 +377,7 @@ class RobotAgent(TAMPAgent):
         self.mjc_env = EnvWrapper(self.base_env, self.panda, self.ctrl_mode)
         self.check_col = hyperparams['master_config'].get('check_col', True)
         self.use_glew = False
+        self._viewer = None
         self.camera_id = 1
         self.main_camera_id = 0
         no = self._hyperparams['num_objs']
@@ -1230,4 +1275,13 @@ class RobotAgent(TAMPAgent):
         except TclError:
             print('\nCould not find display to launch viewer (this does not affect the ability to render images)\n')
 
+
+    def distance_to_goal(self, x=None, targets=None):
+        raise NotImplementedError()
+
+
+    def reward(self, x=None, targets=None, center=False):
+        if x is None: x = self.get_state()
+        if targets is None: targets = self.target_vecs[0]
+        raise NotImplementedError()
 

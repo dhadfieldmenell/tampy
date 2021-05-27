@@ -132,8 +132,8 @@ class NAMOGripAgent(NAMOSortingAgent):
             # items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.4), 'rgba': tuple(cur_color), 'mass': 10.})
             #items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 10.})
             items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 40.})
-            targ_color = cur_color[:3] + [1.] # [0.25]
-            items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (NEAR_TOL, NEAR_TOL, 0.045), 'rgba': tuple(targ_color), 'mass': 1.})
+            targ_color = cur_color[:3] + [0.75] # [0.25]
+            items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (NEAR_TOL*1.5, NEAR_TOL*1.5, 0.045), 'rgba': tuple(targ_color), 'mass': 1.})
 
         for i in range(len(wall_dims)):
             dim, next_trans = wall_dims[i]
@@ -309,13 +309,14 @@ class NAMOGripAgent(NAMOSortingAgent):
                 x[self.state_inds[pname, attr]] = 0.1 if val > 0 else -0.1
             elif attr == 'theta':
                 val = self.mjc_env.get_joints(['robot_theta'])
-                x[self.state_inds[pname, 'theta']] = val['robot_theta']
+                val = val['robot_theta']
+                x[self.state_inds[pname, 'theta']] = val
             elif attr == 'vel':
                 val = self.mjc_env.get_user_data('vel', 0.)
                 x[self.state_inds[pname, 'vel']] = val
 
         assert not np.any(np.isnan(x))
-        return x
+        return x.round(5)
 
 
     def fill_sample(self, cond, sample, mp_state, t, task, fill_obs=False, targets=None):

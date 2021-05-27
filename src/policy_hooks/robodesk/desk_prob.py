@@ -13,20 +13,22 @@ from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 
-NO_COL = True
-NUM_OBJS = 4
-NUM_TARGS = 4
-SORT_CLOSET = False
-USE_PERTURB = False
-OPT_MCTS_FEEDBACK = True
-N_GRASPS = 4
-FIX_TARGETS = False
-
-CONST_TARGETS = False
-CONST_ORDER = False
 
 domain_file = "../domains/robot_domain/right_desk.domain"
 mapping_file = "policy_hooks/robodesk/robot_task_mapping"
+
+GOAL_OPTIONS = [
+                '(SlideDoorOpen shelf_handle shelf)',
+                '(SlideDoorOpen drawer_handle drawer)',
+                '(NearGripper panda green_button)',
+                '(Lifted upright_block panda)',
+                '(Lifted ball panda)',
+                '(Near upright_block off_desk_target)',
+                '(Near upright_block shelf_target)',
+                '(Near flat_block bin_target)',
+                '(Stacked upright_block flat_block)'
+                ]
+
 
 def prob_file(descr=None):
     return "../domains/robot_domain/probs/robodesk_prob.prob"
@@ -42,8 +44,8 @@ def get_prim_choices(task_list=None):
     out[utils.OBJ_ENUM] = ['ball', 'upright_block', 'flat_block']
     out[utils.TARG_ENUM] = ['bin_target', 'shelf_target', 'off_desk_target']
     out[utils.DOOR_ENUM] = ['drawer', 'shelf']
-    #for door in ['drawer', 'shelf']:
-    #    out[utils.OBJ_ENUM].append('{}_handle'.format(door))
+    for door in ['drawer', 'shelf']:
+        out[utils.OBJ_ENUM].append('{}_handle'.format(door))
     return out
 
 
@@ -52,7 +54,7 @@ def get_vector(config):
         'panda': ['right', 'right_ee_pos', 'right_ee_rot', 'right_gripper', 'pose']
     }
 
-    for item in ['ball', 'upright_block', 'flat_block']:
+    for item in ['ball', 'upright_block', 'flat_block', 'green_button']:
         state_vector_include[item] = ['pose', 'rotation']
 
     for door in ['drawer', 'shelf']:
@@ -104,3 +106,4 @@ def get_plans(use_tf=False):
 
 def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
     return [np.zeros(dX)], [{'shelf_target': np.zeros(3)}]
+

@@ -84,6 +84,7 @@ pp.add('SlideTarget', [('value', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('Basket', [('geom', 'Basket'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('Cloth', [('geom', 'Cloth'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('Can', [('geom', 'Can'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
+pp.add('Handle', [('geom', 'Can'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('Sphere', [('geom', 'Sphere'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('Box', [('geom', 'Box'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
 
@@ -157,9 +158,9 @@ class DerivatedPredicates(object):
 
 
 dp = DerivatedPredicates()
-dp.add('At', ['Item', 'Reachable'])
+dp.add('At', ['Reachable', 'Reachable'])
 dp.add('AtInit', ['Item', 'Reachable'])
-dp.add('Near', ['Item', 'Reachable'])
+dp.add('Near', ['Reachable', 'Reachable'])
 dp.add('RobotAt', ['Robot', 'RobotPose'])
 
 dp.add('IsMP', ['Robot'])
@@ -691,8 +692,8 @@ class Hold(Action):
                     ('(IsMP ?robot)', '0:{}'.format(end-1)),
                     ('(WithinJointLimit ?robot)', '0:{}'.format(end)),
                     ('(forall (?obs - Obstacle) (not (RCollides ?robot ?obs)))', '1:{}'.format(self.grasp_time-steps)),
-                    ('(forall (?obj - Item) (not (Obstructs ?robot ?obj)))', '1:{}'.format(grasp_time-steps)),
-                    ('(forall (?obj - Item) (not (ObstructsHolding ?robot ?obj ?item)))', '{}:{}'.format(grasp_time-3, end-1))
+                    ('(forall (?obj - Item) (not (Obstructs ?robot ?obj)))', '1:{}'.format(grasp_time-steps-2)),
+                    ('(forall (?obj - Item) (not (ObstructsHolding ?robot ?obj ?item)))', '{}:{}'.format(grasp_time-steps-2, end-1))
                    ]
 
         self.eff = []
@@ -1019,7 +1020,7 @@ class SlideDoor(Action):
         self.timesteps = 7 + 2 * const.EEREACHABLE_STEPS
         end = self.timesteps - 1
         self.end = end
-        self.args = '(?robot - Robot ?door - Door ?item - Handle)'
+        self.args = '(?robot - Robot ?door - Door ?item - Item)'
         putdown_time = end // 2
         approach_time = 5
         retreat_time = end-5
@@ -1089,7 +1090,7 @@ class SlideDoorArm(SlideDoor):
                          ('(not (NearGripper{} ?robot ?item))'.format(arm), 
                              '{}:{}'.format(self.putdown_time+self.steps, self.end-1)),
                          ('(EEAt{}Rot ?robot ?item)'.format(arm), 
-                             '{}:{}'.format(self.putdown_time, self.putdown_time+2)),
+                             '{}:{}'.format(self.putdown_time, self.putdown_time+1)),
                          #('(EEAtRelXZ{} ?robot ?item)'.format(arm), '{}:{}'.format(1, self.putdown_time)),
                          ('(EERetreat{} ?robot ?item)'.format(arm), 
                              '{}:{}'.format(self.putdown_time, self.putdown_time)),

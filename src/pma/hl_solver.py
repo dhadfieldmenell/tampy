@@ -468,7 +468,6 @@ class FFSolver(HLSolver):
         with open("%sprob.output"%(fprefix), "r") as f:
             s = f.read()
         if "goal can be simplified to FALSE" in s or "problem proven unsolvable" in s:
-            # import ipdb; ipdb.set_trace()
             plan = Plan.IMPOSSIBLE
         else:
             try:

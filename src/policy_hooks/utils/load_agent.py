@@ -78,13 +78,13 @@ def load_agent(config):
         sensor_dims[enum] = config['sensor_dims'][enum]
 
     if 'cont_obs_include' not in config:
-        config['cont_obs_include'] = config['prim_obs_include']
+        config['cont_obs_include'] = copy.copy(config['prim_obs_include'])
 
-    if config['add_action_hist']:
+    if config.get('add_action_hist', False):
         config['prim_obs_include'].append(utils.TRAJ_HIST_ENUM)
-    if config['add_obs_delta']:
+    if config.get('add_obs_delta', False):
         config['prim_obs_include'].append(utils.STATE_DELTA_ENUM)
-    if config['add_task_hist']:
+    if config.get('add_task_hist', False):
         config['prim_obs_include'].append(utils.TASK_HIST_ENUM)
     if config.get('add_hl_image', False):
         config['prim_obs_include'].append(utils.IM_ENUM)
@@ -97,7 +97,7 @@ def load_agent(config):
         config['load_render'] = True
 
     options = prob.get_prim_choices(task_list)
-    if config['flat']:
+    if config.get('flat', False):
         obs_include = config['obs_include']
         config['obs_include'] = []
         for enum in obs_include:
@@ -151,7 +151,7 @@ def load_agent(config):
         prim_ind += sensor_dims[enum]
         prim_out.append(enum)
 
-    sensor_dims[utils.TASK_HIST_ENUM] = int(config['task_hist_len'] * prim_ind)
+    sensor_dims[utils.TASK_HIST_ENUM] = int(config.get('task_hist_len', 0) * prim_ind)
 
     aux_bounds = []
     if len(prim_bounds) > len(options.keys()):
@@ -201,7 +201,7 @@ def load_agent(config):
         'image_width': im_w,
         'image_height': im_h,
         'image_channels': im_c,
-        'hist_len': config['hist_len'],
+        'hist_len': config.get('hist_len', 0),
         'T': 1,
         'viewer': config.get('viewer', False),
         'model': None,
@@ -214,7 +214,7 @@ def load_agent(config):
         'prim_dims': prim_dims,
         'mp_solver_type': config['mp_solver_type'],
         'robot_name': config['robot_name'],
-        'split_nets': config['split_nets'],
+        'split_nets': config.get('split_nets', True),
         'policy_inf_coeff': config['policy_inf_coeff'],
         'policy_out_coeff': config['policy_out_coeff'],
         'master_config': config,

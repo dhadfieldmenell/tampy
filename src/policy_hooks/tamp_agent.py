@@ -93,12 +93,13 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.rank = hyperparams['master_config'].get('rank', 0)
         self.process_id = self.master_config['id']
         self.goal_type = self.master_config.get('goal_type', 'default')
-        self.dagger_window = self.master_config['dagger_window']
+        self.dagger_window = self.master_config.get('dagger_window', 0)
         self._tol = 1e-3
         for condition in range(len(self.x0)):
             target_vec = np.zeros((self.target_dim,))
             for target_name in self.targets[condition]:
-                target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
+                if (target_name, 'value') in self.target_inds:
+                    target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
             self.target_vecs.append(target_vec)
         self.cur_state = self.x0[0]
         self.goals = self.target_vecs
@@ -108,7 +109,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         #    self.task_to_onehot[task] = i
         self.sensor_dims = self._hyperparams['sensor_dims']
         self.discrete_prim = self._hyperparams.get('discrete_prim', True)
-        self.swap = self._hyperparams['master_config']['swap']
+        self.swap = self._hyperparams['master_config'].get('swap', False)
 
         self.policies = {task: None for task in self.task_list}
         self._get_hl_plan = self._hyperparams['get_hl_plan']
@@ -592,7 +593,9 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 pos1_inds = self.state_inds[objs[i], 'pose']
                 targ = '{}_end_target'.format(objs[ind])
                 pos2_inds = self.target_inds[targ, 'value']
-                self.init_vecs[cond][pos1_inds] = self.targets[cond][targ]
+                noise = np.random.normal(0, 0.1, len(pos2_inds))
+                self.init_vecs[cond][pos1_inds] = self.targets[cond][targ] + noise
+
         if OBJ_ENUM in prim_choices and curric_step > 0:
             i = 0
             inds = np.random.permutation(list(range(len(prim_choices[OBJ_ENUM]))))
@@ -801,7 +804,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                     if near_pred not in initial:
                         initial.append(near_pred)
             for pname, aname in self.target_inds:
-                getattr(plan.params[pname], aname)[:,0] = targets[self.target_inds[pname, aname]]
+                if pname in plan.params:
+                    getattr(plan.params[pname], aname)[:,0] = targets[self.target_inds[pname, aname]]
             init_preds = parse_state(plan, [], st, preds)
             initial.extend([p.get_rep() for p in init_preds])
         goal = self.goal(cond, targets)
@@ -1022,7 +1026,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 try:
                     success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=ref_traj, st=act_st)
                 except AttributeError as e:
-                    print(('Opt Exception in full solve for', x0, task, plan.actions[a]), e, st)
+                    print(('Opt Exception in full solve for', x0, task, plan.actions[a]), e, st, plan.actions)
                     success = False
                 except Exception as e:
                     traceback.print_exception(*sys.exc_info())
@@ -1376,7 +1380,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             targets = self.target_vecs[condition]
 
         for tname, attr in self.target_inds:
-            getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
+            if tname in plan.params:
+                getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
 
         for t in range(active_ts[0], active_ts[1]+1):
             set_params_attrs(plan.params, self.state_inds, Xs[t-active_ts[0]], min(plan.horizon-1, t), plan=plan)
@@ -1528,7 +1533,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 pos1_inds = self.state_inds[objs[i], 'pose']
                 targ = '{}_end_target'.format(objs[ind])
                 pos2_inds = self.target_inds[targ, 'value']
-                xs[0][pos1_inds] = targets[0][targ]
+                noise = np.random.normal(0, 0.1, len(pos2_inds))
+                xs[0][pos1_inds] = targets[0][targ] + noise
         return xs, targets
 
     

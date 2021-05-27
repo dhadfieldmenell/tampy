@@ -78,7 +78,8 @@ for param in params:
 #goal = '(NearGripperRight panda ball)'
 #goal = '(Lifted flat_block panda)'
 #goal = '(Lifted upright_block panda)'
-goal = '(SlideDoorOpen shelf_handle shelf)'
+#goal = '(SlideDoorOpen shelf_handle shelf)'
+goal = '(SlideDoorOpen drawer_handle drawer)'
 solver = RobotSolver()
 plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=5)
 

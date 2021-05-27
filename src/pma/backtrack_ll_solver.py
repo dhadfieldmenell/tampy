@@ -17,7 +17,7 @@ MAX_PRIORITY=3
 BASE_MOVE_COEFF = 1.
 TRAJOPT_COEFF=5e1
 TRANSFER_COEFF = 1e-1
-FIXED_COEFF = 0.1 * TRAJOPT_COEFF
+FIXED_COEFF = 0.2 * TRAJOPT_COEFF
 INIT_TRAJ_COEFF = 1e-1
 RS_COEFF = 1e2
 COL_COEFF = 0
@@ -982,10 +982,10 @@ class BacktrackLLSolver(LLSolver):
                 attr_type = param.get_attr_type(attr_name)
                 param_ll = self._param_to_ll[param]
                 K = attr_type.dim
-                T = min(len(mean), param_ll._horizon)
+                T = min(len(mean), param_ll._horizon)-2
 
                 if len(mean) >= param_ll.active_ts[1]:
-                    attr_val = mean[param_ll.active_ts[0]:param_ll.active_ts[1]+1][:, plan.state_inds[p_name, attr_name]]
+                    attr_val = mean[param_ll.active_ts[0]+1:param_ll.active_ts[1]][:, plan.state_inds[p_name, attr_name]]
                 else:
                     attr_val = mean[-T:][:, plan.state_inds[p_name, attr_name]]
                 
@@ -1000,11 +1000,11 @@ class BacktrackLLSolver(LLSolver):
                 cur_val = attr_val.reshape((KT, 1), order='F')
                 A = -2*cur_val.T.dot(Q)
                 b = cur_val.T.dot(Q.dot(cur_val))
-                transfer_coeff = coeff/float(plan.horizon)
+                transfer_coeff = coeff / float(plan.horizon)
 
                 quad_expr = QuadExpr(2*transfer_coeff*Q,
                                      transfer_coeff*A, transfer_coeff*b)
-                ll_attr_val = getattr(param_ll, attr_name)[:, :T]
+                ll_attr_val = getattr(param_ll, attr_name)[:, 1:T+1]
                 param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
                 sco_var = self.create_variable(param_ll_grb_vars, cur_val)
                 bexpr = BoundExpr(quad_expr, sco_var)

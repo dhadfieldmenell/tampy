@@ -1950,7 +1950,7 @@ class InGraspAngle(ExprPredicate):
         self.dist = 0.
         self.dsafe = dsafe
         self.gripdist = gripdist
-        self.coeff = 0.1
+        self.coeff = 0.08
         if self.r.is_symbol():
             k = 'value'
         else:
@@ -2154,7 +2154,7 @@ class ApproachGraspAngle(InGraspAngle):
 class NearGraspAngle(InGraspAngle):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(NearGraspAngle, self).__init__(name, params, expected_param_types,env, sess, debug)
-        self.coeff = 2e-2
+        self.coeff = 4e-2
         self._rollout = True
 
 class TargNearGraspAngle(NearGraspAngle):

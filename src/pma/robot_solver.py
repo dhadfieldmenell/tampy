@@ -105,6 +105,16 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         return pose
 
+    
+    def objs_stacked(self, obj, base_obj, st):
+        h1 = obj.geom.height if hasattr(obj.geom, 'height') else obj.geom.radius
+        h2 = base_obj.geom.height if hasattr(base_obj.geom, 'height') else base_obj.geom.radius
+        disp = (h1 + h2) / 2.
+        pos = base_obj.pose[:,st] + np.array([0., 0., disp])
+        rot = base_obj.rotation[:,st]
+        pose = {'pose': pos.reshape((-1,1)), 'rotation': rot}
+        return pose
+
 
     def obj_in_gripper(self, ee_pos, targ_rot, obj):
         pose = {}
