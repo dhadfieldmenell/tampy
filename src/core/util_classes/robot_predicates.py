@@ -20,6 +20,7 @@ DEFAULT_TOL = 1e-3
 NEAR_TOL = 1e-1 # 2e-2
 NEAR_ROT_TOL = 0.2
 
+
 ### HELPER FUNCTIONS
 
 def init_robot_pred(pred, robot, params=[], robot_poses=[], attrs={}):
@@ -1867,6 +1868,57 @@ class SlideDoorClose(ExprPredicate):
     #    return expr.eval(self.get_param_vector(time), tol=tol, negated=False)
 
 
+class InSlideDoor(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        assert params[1].geom.hinge_type == 'prismatic'
+        self.obj, self.door = params
+        ind = 0
+        for val in self.door.geom.open_dir:
+            if val != 0: break
+            ind += 1
+
+        attr_inds = OrderedDict([(self.obj, [("pose", np.array([0, 1, 2], dtype=np.int))]),
+                                 (self.door, [("pose", np.array([0, 1, 2], dtype=np.int)),
+                                                ("hinge", np.array([0], dtype=np.int))])])
+
+        A = np.zeros((3,7))
+        for i in range(3):
+            A[i, i] = 1.
+            A[i, 3+i] = -1.
+            if i == ind:
+                A[i, -1] = -1.
+
+        b = -np.array(self.door.geom.in_pos).reshape((-1,1))
+        val = np.zeros((3,1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(InSlideDoor, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
+        self.spacial_anchor = True
+
+
+class Stacked(ExprPredicate):
+    #@profile
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        self.obj, self.base_obj = params
+        h1 = self.obj.geom.height if hasattr(self.obj.geom, 'height') else self.obj.geom.radius
+        h2 = self.base_obj.geom.height if hasattr(self.base_obj.geom, 'height') else self.base_obj.geom.radius
+        attr_inds = OrderedDict([(self.obj, [("pose", np.array([0,1,2], dtype=np.int)),
+                                             ("rotation", np.array([0,1,2], dtype=np.int))]),
+                                 (self.base_obj, [("pose", np.array([0,1,2], dtype=np.int)),
+                                                ("rotation", np.array([0,1,2], dtype=np.int))])])
+
+        A = np.c_[np.eye(6), -np.eye(6)]
+        b, val = np.zeros((6, 1)), np.zeros((6, 1))
+        b[2,0] = -(h1 + h2) / 2.
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+
+        super(Stacked, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
+        self.spacial_anchor = True
+
+
 ### EE CONSTRAINTS - Non-linear constraints on end effector pos/orn
 
 class InContact(ExprPredicate):
@@ -2227,6 +2279,7 @@ class RightEEValid(EEValid):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         super(RightEEValid, self).__init__(name, params, expected_param_types, env, debug)
         self.arm = "right" if "right" in self.robot.geom.arms else self.robot.geom.arms[0]
+
 
 ### EEREACHABLE CONSTRAINTS - defined linear approach paths
 

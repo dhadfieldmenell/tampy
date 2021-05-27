@@ -189,6 +189,7 @@ class Door(XMLItem):
         if door_type.lower() == 'desk_drawer':
             shape = baxter_gym.__path__[0] + '/robot_info/robodesk/desk_drawer.xml'
             self.handle_pos = [0., -0.36, 0.01]
+            self.in_pos = [0., -0.2, 0.05]
             self.hinge_type = 'prismatic'
             self.closed_val = 0.
             self.open_val = -0.23 #-0.48
@@ -197,6 +198,7 @@ class Door(XMLItem):
             shape = baxter_gym.__path__[0] + '/robot_info/robodesk/desk_shelf.xml'
             self.hinge_type = 'prismatic'
             self.handle_pos = [-0.3, -0.07, 1.005]
+            self.in_pos = [0.2, 0.16, 0.85]
             self.handle_orn = [1.57, 1.57, 0.]
             self.closed_val = 0.
             self.open_val = 0.6
