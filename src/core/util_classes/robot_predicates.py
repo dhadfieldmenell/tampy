@@ -419,16 +419,21 @@ class CollisionPredicate(RobotPredicate):
         obj = self.params[self.ind1]
         obj_body = self._param_to_body[obj]
         pos_inds, rot_inds = self.attr_map[obj, 'pose'], self.attr_map[obj, 'rotation']
-        can_pos, can_rot = x[pos_inds], x[rot_inds]
-        obj_body.set_pose(can_pos, can_rot)
-        obj_body._pos = can_pos.flatten() 
-        obj_body._orn = can_rot.flatten()
+        obj_pos, obj_rot = x[pos_inds], x[rot_inds]
+        obj_body.set_pose(obj_pos, obj_rot)
+        obj_body._pos = obj_pos.flatten() 
+        obj_body._orn = obj_rot.flatten()
+        if hasattr(obj.geom, 'dof_map'):
+            dof_map = {}
+            for attr in obj.geom.dof_map:
+                if (obj, attr) in self.attr_map:
+                    dof_map[attr] = x[self.attr_map[obj, attr]]
+            if len(dof_map.keys()):
+                obj.openrave_body.set_dof(dof_map)
 
         collisions = p.getClosestPoints(robot_body.body_id, obj_body.body_id, const.MAX_CONTACT_DISTANCE)
         # Calculate value and jacobian
         col_val, col_jac = self._calc_grad_and_val(robot_body, obj_body, collisions)
-        # self._cache[flattened] = (col_val.copy(), col_jac.copy())
-        # print "col_val", np.max(col_val)
         obj_body._pos = None
         obj_body._orn = None
         return col_val, col_jac
@@ -1649,6 +1654,26 @@ class StationaryW(ExprPredicate):
         super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
         self.spacial_anchor = False
 
+class StationaryWNEq(ExprPredicate):
+    #@profile
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.w, self.obj = params
+
+        cur_attr_dim = 0
+        attr_inds = const.ATTRMAP[self.w._type]
+        for (attr, inds) in attr_inds:
+            cur_attr_dim += len(inds)
+
+        w_inds = [(self.w, [(attr, np.array(inds, dtype=np.int)) for (attr, inds) in attr_inds])]
+        attr_inds = OrderedDict(w_inds)
+
+        A = np.c_[np.eye(cur_attr_dim), -np.eye(cur_attr_dim)]
+        if self.w == self.obj: A[:] = 0.
+        b = np.zeros((cur_attr_dim, 1))
+        e = EqExpr(AffExpr(A, b), b)
+        super(StationaryWNEq, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
+        self.spacial_anchor = False
+
 class StationaryWBase(ExprPredicate):
     """
         Format: StationaryW, Obstacle
@@ -1774,7 +1799,7 @@ class SlideDoorAt(ExprPredicate):
                 A[i, -1] = -1.
 
         b = -np.array(self.door.geom.handle_pos).reshape((-1,1))
-        val = np.zeros((1,1))
+        val = np.zeros((3,1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
         super(SlideDoorAt, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
@@ -1968,8 +1993,7 @@ class InGripper(PosePredicate):
         if params[1].is_symbol():
             self.robot, self.targ = params
             attr_inds, attr_dim = init_robot_pred(self, self.robot, [self.targ])
-            self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
-                                   self.targ: self.lazy_spawn_or_body(self.targ, self.targ.name, self.targ.geom)}
+            self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
         else:
             self.robot, self.obj = params
             attr_inds, attr_dim = init_robot_pred(self, self.robot, [self.obj])

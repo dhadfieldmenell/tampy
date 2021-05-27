@@ -85,8 +85,8 @@ def main():
     items = ['upright_block', 'flat_block', 'ball', 'red_button', 'green_button', 'blue_button', \
              'shelf_handle', 'drawer_handle']
     init_pos = [[0.15, 0.78, 0.85], [0.15, 0.63, 0.775], [-0.4, 0.7, 0.799], [-0.45, 1.0, 1.1], \
-                [-0.25, 1.0, 1.1], [-0.05, 1.0, 1.1], [-0.3, 0.78, 0.935], [0., 0.49, 0.665]]
-    dims = [[0.023, 0.09, 0.023], [0.08, 0.035, 0.015], [0.04], [0.035, 0.01], [0.035, 0.01], \
+                [-0.25, 1.0, 1.1], [-0.05, 1.0, 1.1], [-0.3, 0.78, 0.975], [0., 0.49, 0.665]]
+    dims = [[0.09, 0.023, 0.023], [0.08, 0.035, 0.015], [0.04], [0.035, 0.01], [0.035, 0.01], \
             [0.035, 0.01], [0.01, 0.05], [0.01, 0.05]]
     item_types = []
     for item in items:
@@ -119,7 +119,7 @@ def main():
     s += "Door (name drawer) \n\n"
 
     s += "Init: "
-    rots = {'shelf_handle': [1.57, 0, 0], 'upright_block': [1.57, 0., 0.]}
+    rots = {'shelf_handle': [1.57, 1.57, 0], 'upright_block': [1.57, 1.57, 0.]}
     for ind, item in enumerate(items):
         dim = dims[ind]
         item_type = item_types[ind]
@@ -195,6 +195,9 @@ def main():
     s += "(SlideDoorAt shelf_handle shelf), "
     s += "(SlideDoorAt drawer_handle drawer), "
     s += "(StationaryW desk_body), "
+    s += "(Stationary red_button), "
+    s += "(Stationary green_button), "
+    s += "(Stationary blue_button), "
     s += "\n\n"
 
     with open(filename, "w") as f:

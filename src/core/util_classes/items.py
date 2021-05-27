@@ -22,6 +22,7 @@ class XMLItem(Item):
         self._base_type = "xml_item"
         self.shape = shape
         self.grasp_point = [0., 0., 0.]
+        self.dof_map = {}
 
     def is_initialized(self):
         return self.initialized
@@ -183,6 +184,8 @@ class Basket(Item):
 class Door(XMLItem):
     def __init__(self, door_type):
         import baxter_gym
+
+        self.handle_orn = [0., 0., 0.]
         if door_type.lower() == 'desk_drawer':
             shape = baxter_gym.__path__[0] + '/robot_info/robodesk/desk_drawer.xml'
             self.handle_pos = [0., -0.36, 0.01]
@@ -193,7 +196,8 @@ class Door(XMLItem):
         elif door_type.lower() == 'desk_shelf':
             shape = baxter_gym.__path__[0] + '/robot_info/robodesk/desk_shelf.xml'
             self.hinge_type = 'prismatic'
-            self.handle_pos = [-0.3, -0.07, 0.935]
+            self.handle_pos = [-0.3, -0.07, 0.975]
+            self.handle_orn = [1.57, 1.57, 0.]
             self.closed_val = 0.
             self.open_val = 0.6
             self.open_dir = [1., 0., 0.]
@@ -221,6 +225,7 @@ class Door(XMLItem):
             if info[2] != p.JOINT_FIXED:
                 self.hinge = info[1]
                 self.hinge_jnt = jnt
+                self.dof_map['hinge'] = jnt
                 if info[2] == p.JOINT_REVOLUTE:
                     self.hinge_type = 'revolute'
                 elif info[2] == p.JOINT_PRISMATIC:

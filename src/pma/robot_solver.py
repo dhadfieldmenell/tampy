@@ -13,14 +13,14 @@ from pma import backtrack_ll_solver
 
 class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
-        if a.name.find('move') < 0:
-            if a.name.find('grasp') >= 0: return [a.params[0], a.params[1]]
-            if a.name.find('lift') >= 0: return [a.params[0], a.params[1]]
-            if a.name.find('place') >= 0: return [a.params[0], a.params[2]]
-            if a.name.find('slide') >= 0: return [a.params[0], a.params[2]]
+        if a.name.lower().find('move') < 0:
+            if a.name.lower().find('grasp') >= 0: return [a.params[0], a.params[1]]
+            if a.name.lower().find('lift') >= 0: return [a.params[0], a.params[1]]
+            if a.name.lower().find('place') >= 0: return [a.params[0], a.params[2]]
+            if a.name.lower().find('slide') >= 0: return [a.params[0], a.params[1]]
 
-        if a.name.find('move') >= 0:
-            if a.name.find('put') >= 0: return [a.params[0], a.params[2]]
+        if a.name.lower().find('move') >= 0:
+            if a.name.lower().find('put') >= 0: return [a.params[0], a.params[2]]
 
         return a.params[0]
 
@@ -29,7 +29,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         return True
 
 
-    def vertical_gripper(self, robot, arm, obj, obj_geom, gripper_open=True, ts=(0,20), rand=False, null_zero=True, disp=np.array([0, 0, const.GRASP_DIST]), rel_pos=True):
+    def vertical_gripper(self, a_name, robot, arm, obj, obj_geom, gripper_open=True, ts=(0,20), rand=False, null_zero=True, disp=np.array([0, 0, const.GRASP_DIST]), rel_pos=True):
         start_ts, end_ts = ts
         robot_body = robot.openrave_body
         robot_body.set_from_param(robot, start_ts)
@@ -40,7 +40,12 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         attempt = 0
         while not len(iks) and attempt < 20:
             off_mat = np.eye(3) if attempt == 0 else T.quat2mat(T.euler_to_quaternion([np.random.uniform(-np.pi/8, np.pi/8), 0., 0.], 'xyzw'))
-            euler = obj.rotation[:,ts[0]] if not obj.is_symbol() else obj.rotation[:,0]
+
+            if 'door' in obj_geom.get_types():
+                euler = obj_geom.handle_orn
+            else:
+                euler = obj.rotation[:,ts[0]] if not obj.is_symbol() else obj.rotation[:,0]
+
             obj_quat = T.euler_to_quaternion(euler, 'xyzw')
             obj_mat = off_mat.dot(T.quat2mat(obj_quat))
             gripper_axis = robot.geom.get_gripper_axis(arm)
@@ -54,7 +59,12 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             if rel_pos:
                 cur_disp = obj_mat.dot(cur_disp)
 
-            if obj.is_symbol():
+
+            if 'door' in obj_geom.get_types():
+                target_loc = obj.pose[:, start_ts] + obj_geom.handle_pos + cur_disp
+                if a_name.lower().find('open'):
+                    target_loc += np.abs(obj_geom.open_val) * np.array(obj_geom.open_dir)
+            elif obj.is_symbol():
                 target_loc = obj.value[:, 0] + cur_disp
             else:
                 target_loc = obj.pose[:, start_ts] + cur_disp
@@ -120,6 +130,13 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         return gripper_open
 
 
+    def door_val(self, door, is_open=True, st=0):
+        pose = {'pose': door.pose[:,st:st+1], 'rotation': door.rotation[:,st:st+1]}
+        pose['hinge'] = door.geom.open_val if is_open else door.geom.close_val
+        pose['hinge'] = np.array(pose['hinge']).reshape((1,1))
+        return pose
+
+
     def obj_pose_suggester(self, plan, anum, resample_size=20, st=0):
         robot_pose = []
         assert anum + 1 <= len(plan.actions)
@@ -169,8 +186,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         disp = np.array([0., 0., const.GRASP_DIST])
         if a_name.find('move') < 0 and \
-            (a_name.find('hold') >= 0 or \
-            a_name.find('slide') >= 0):
+            a_name.find('hold') >= 0:
             disp = np.zeros(3)
 
         rand = False
@@ -192,7 +208,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         ### Sample poses
         for i in range(resample_size):
             ### Cases for when behavior can be inferred from current action
-            pose = self.vertical_gripper(robot, arm, obj, obj_geom, gripper_open, (st, et), rand=(rand or (i>0)), null_zero=zero_null, rel_pos=rel_pos, disp=disp)
+            pose = self.vertical_gripper(a_name, robot, arm, obj, obj_geom, gripper_open, (st, et), rand=(rand or (i>0)), null_zero=zero_null, rel_pos=rel_pos, disp=disp)
 
             ### Cases for when behavior cannot be inferred from current action
             #elif next_act is None:
@@ -214,6 +230,12 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                 pose = {robot: pose, obj: self.obj_in_gripper(pose['{}_ee_pos'.format(arm)], targ.rotation[:,0], obj)}
                 obj = act.params[1]
                 targ = act.params[2]
+
+            if a_name.find('slide') >= 0:
+                door = act.params[1]
+                is_open = a_name.find('open') >= 0
+                door_pose = self.door_val(door, is_open, st)
+                pose = {robot: pose, door: door_pose}
 
             if pose is None: break
             robot_pose.append(pose)

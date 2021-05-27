@@ -1,9 +1,11 @@
 import numpy as np
+import pybullet as p
 
 import robodesk
 
 import main
 from core.parsing import parse_domain_config, parse_problem_config
+import core.util_classes.common_constants as const
 from core.util_classes.robots import Baxter
 from core.util_classes.openrave_body import *
 from core.util_classes.transform_utils import *
@@ -35,6 +37,15 @@ env = agent.base_env
 
 import ipdb; ipdb.set_trace()
 
+try:
+    p.disconnect()
+except Exception as e:
+    print(e)
+
+const.NEAR_GRIP_COEFF = 1e-1
+const.GRASP_DIST = 0.15
+const.APPROACH_DIST = 0.015
+const.EEREACHABLE_ROT_COEFF = 8e-3
 bt_ll.DEBUG = True
 openrave_bodies = None
 domain_fname = "../domains/robot_domain/right_desk.domain"
@@ -66,7 +77,8 @@ for param in params:
 
 #goal = '(NearGripperRight panda ball)'
 #goal = '(Lifted flat_block panda)'
-goal = '(Lifted upright_block panda)'
+#goal = '(Lifted upright_block panda)'
+goal = '(SlideDoorOpen shelf_handle shelf)'
 solver = RobotSolver()
 plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=5)
 
@@ -75,4 +87,6 @@ import ipdb; ipdb.set_trace()
 
 if visual:
     agent.add_viewer()
+
+import ipdb; ipdb.set_trace()
 
