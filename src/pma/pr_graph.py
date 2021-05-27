@@ -23,7 +23,7 @@ def p_mod_abs(hl_solver, ll_solver, domain, problem, initial=None, goal=None, su
         if Q.empty(): break
         n = Q.get_nowait()[1]
         if n.is_hl_node():
-            c_plan = n.plan(hl_solver)
+            c_plan = n.plan(hl_solver, debug)
             if c_plan == Plan.IMPOSSIBLE:
                 print('IMPOSSIBLE PLAN IN PR GRAPH')
                 if debug: print('Found impossible plan')

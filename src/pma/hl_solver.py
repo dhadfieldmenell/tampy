@@ -256,7 +256,7 @@ class FFSolver(HLSolver):
             plan_str = prefix + plan_str
         return plan_str
 
-    def solve(self, abs_prob, domain, concr_prob, prefix=None, label=''):
+    def solve(self, abs_prob, domain, concr_prob, prefix=None, label='', debug=False):
         """
         Argument:
             abs_prob: translated problem in .PDDL recognizable by HLSolver (String)
@@ -267,14 +267,14 @@ class FFSolver(HLSolver):
             Plan Object for ll_solver to optimize. (internal_repr/plan)
         """
         plan_str = self.run_planner(abs_prob, self.abs_domain, prefix=prefix, label=label)
-        plan = self.get_plan(plan_str, domain, concr_prob, concr_prob.initial)
+        plan = self.get_plan(plan_str, domain, concr_prob, concr_prob.initial, debug=debug)
         if type(plan) is not str:
             plan.plan_str = plan_str
             plan.goal = concr_prob.goal
             plan.initial = concr_prob.initial
         return plan
 
-    def get_plan(self, plan_str, domain, concr_prob, initial=None, reuse_params=None):
+    def get_plan(self, plan_str, domain, concr_prob, initial=None, reuse_params=None, debug=False):
         """
         Argument:
             plan_str: list of high level plan. (List(String))
@@ -298,7 +298,7 @@ class FFSolver(HLSolver):
 
         actions = self._spawn_actions(plan_str, domain, params,
                                       plan_horizon, concr_prob, openrave_env,
-                                      initial)
+                                      initial, debug=debug)
         
         plan = Plan(params, actions, plan_horizon, openrave_env, sess=sess)
         plan.start = concr_prob.start_action
@@ -342,7 +342,7 @@ class FFSolver(HLSolver):
 
     def _spawn_actions(self, plan_str, domain, params,
                                        plan_horizon, concr_prob, env,
-                                       initial=[]):
+                                       initial=[], debug=False):
         """
         Argument:
             plan_str: list of high level plan. (List(String))

@@ -26,8 +26,6 @@ class OpenRAVEBody(object):
         else:
             raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)
 
-        # self.set_transparency(0.5)
-
     def delete(self):
         P.removeCollisionShape(self.body_id)
 

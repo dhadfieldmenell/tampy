@@ -1,6 +1,6 @@
 import numpy as np
 
-from sco.expr import BoundExpr, QuadExpr, AffExpr
+from sco.expr import BoundExpr
 
 from core.util_classes.namo_predicates import ColObjPred
 from pma import backtrack_ll_solver
@@ -142,10 +142,10 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
 
     def _add_col_obj(self, plan, norm='min-vel', coeff=None, active_ts=None):
         """
-            This function returns the expression e(x) = P|x - cur|^2
-            Which says the optimized trajectory should be close to the
-            previous trajectory.
-            Where P is the KT x KT matrix, where Px is the difference of parameter's attributes' current value and parameter's next timestep value
+        This function returns the expression e(x) = P|x - cur|^2
+        Which says the optimized trajectory should be close to the
+        previous trajectory.
+        Where P is the KT x KT matrix, where Px is the difference of parameter's attributes' current value and parameter's next timestep value
         """
         if active_ts is None:
             active_ts = (0, plan.horizon-1)

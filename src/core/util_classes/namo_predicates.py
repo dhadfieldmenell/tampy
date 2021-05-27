@@ -7,7 +7,7 @@ from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 import numpy as np
 import tensorflow as tf
 
-import pybullet as p
+import pybullet as P
 
 from collections import OrderedDict
 import os
@@ -139,7 +139,6 @@ def get_rrt_traj(env, robot, active_dof, init_dof, end_dof):
     params.SetRobotActiveJoints(robot)
     params.SetGoalConfig(end_dof) # set goal to all ones
     # # forces parabolic planning with 40 iterations
-    # import ipdb; ipdb.set_trace()
     params.SetExtraParameters("""<_postprocessing planner="parabolicsmoother">
         <_nmaxiterations>20</_nmaxiterations>
     </_postprocessing>""")
@@ -219,15 +218,11 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False):
 
 
 class CollisionPredicate(ExprPredicate):
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1, active_range=(0,1), priority=3):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = True, ind0=0, ind1=1, active_range=(0,1), priority=3):
         self._debug = debug
-        # if self._debug:
-        #     self._env.SetViewer("qtcoin")
-
         self.dsafe = dsafe
         self.ind0 = ind0
         self.ind1 = ind1
-
         self._cache = {}
         self.n_cols = 1
 
@@ -270,7 +265,7 @@ class CollisionPredicate(ExprPredicate):
         b0.set_pose(pose0)
         b1.set_pose(pose1)
 
-        collisions = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
+        collisions = P.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
 
         col_val, jac01 = self._calc_grad_and_val(p0.name, p1.name, pose0, pose1, collisions)
         val = col_val
@@ -325,8 +320,6 @@ class CollisionPredicate(ExprPredicate):
 
             # plotting
             if self._debug:
-                pt0[2] = 1.01
-                pt1[2] = 1.01
                 self._plot_collision(pt0, pt1, distance)
                 print("pt0 = ", pt0)
                 print("pt1 = ", pt1)
@@ -337,21 +330,19 @@ class CollisionPredicate(ExprPredicate):
             jacs[i, :2] = -1*normal[:2]
             jacs[i, 2:] = normal[:2]
 
-        if self._debug:
-            print("options: ", results)
-            print("selected: ", chosen_pt0, chosen_pt1)
-            print("selected distance: ", chosen_distance)
-            self._plot_collision(chosen_pt0, chosen_pt1, chosen_distance)
 
-        # if jac0 is None or jac1 is None or val is None:
-        #     import ipdb; ipdb.set_trace()
         return np.array(vals).reshape((self.n_cols, 1)), np.array(jacs).reshape((self.n_cols, 4))
 
     def _plot_collision(self, ptA, ptB, distance):
         self.handles = []
         if not np.allclose(ptA, ptB, atol=1e-3):
-            rgb = (1, 0, 0) if distance < 0 else (0, 1, 0)
-        self.handles.append(P.addUserDebugLine(ptA, ptB, rgb, 0.01))
+            if distance < 0:
+                # Red because collision
+                rgb = (1,0,0)
+            else:
+                # Green because no collision
+                rgb = (0,1,0)
+            self.handles.append(P.addUserDebugLine(ptA, ptB, rgb, 0.01))
 
 
 class HLGraspFailed(ExprPredicate):
@@ -800,7 +791,6 @@ class TargetGraspCollides(Collides):
                                         expected_param_types, ind0=0, ind1=1,
                                         active_range=(0,0), priority=1)
         self.n_cols = N_COLS
-        # self.priority = 1
 
     def f(self, x):
         if self.held is not None and any([self.held.name == p.name for p in [self.c, self.w]]) \
@@ -1519,7 +1509,7 @@ class ObstructsHolding(CollisionPredicate):
         b0.set_pose(pose_r)
         b1.set_pose(pose_obstr)
 
-        collisions1 = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
+        collisions1 = P.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
         col_val1, jac01 = self._calc_grad_and_val(self.r.name, self.obstr.name, pose_r, pose_obstr, collisions1)
 
         if self.obstr.name == self.held.name:
@@ -1534,7 +1524,7 @@ class ObstructsHolding(CollisionPredicate):
             pose_held = x[4:6]
             b2.set_pose(pose_held)
 
-            collisions2 = p.getClosestPoints(b2.body_id, b1.body_id, contact_dist)
+            collisions2 = P.getClosestPoints(b2.body_id, b1.body_id, contact_dist)
 
             col_val2, jac21 = self._calc_grad_and_val(self.held.name, self.obstr.name, pose_held, pose_obstr, collisions2)
 

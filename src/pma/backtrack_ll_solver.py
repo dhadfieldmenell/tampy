@@ -899,6 +899,7 @@ class BacktrackLLSolver(LLSolver):
                         sco_var = self.create_variable(param_ll_grb_vars, init_val)
                         bexpr = BoundExpr(quad_expr, sco_var)
                         traj_objs.append(bexpr)
+        
         return traj_objs
 
     def _get_fixed_obj(self, param, value_map, norm, coeff=None, active_ts=None):
