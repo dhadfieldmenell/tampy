@@ -36,10 +36,6 @@ const.GRASP_DIST = 0.15
 const.APPROACH_DIST = 0.015
 const.EEREACHABLE_ROT_COEFF = 8e-3
 
-SHELF_ROT = [1.57, 1.57, 0]
-SHELF_OFFSET = [-0.3, -0.07, 1.005]
-DRAWER_OFFSET = [0., -0.36, 0.01]
-
 STEP = 0.1
 NEAR_TOL = 0.05
 LOCAL_NEAR_TOL = 0.12 # 0.3
@@ -108,6 +104,8 @@ class EnvWrapper():
         self.mode = mode
         self.upright_rot = Rotation.from_euler('xyz', [1.57, 0., 0.])
         self.upright_rot_inv = self.upright_rot.inv()
+        self.flat_rot = Rotation.from_euler('xyz', [0., 0., 1.57])
+        self.flat_rot_inv = self.flat_rot.inv()
 
 
     def get_task():
@@ -183,7 +181,7 @@ class EnvWrapper():
 
     def get_handle_pose(self, handle_name, order='xyzw', euler=False):
         if item_name.find('shelf') >= 0:
-            quat = T.euler_to_quaternion(SHELF_HANDLE_ROT, 'xyzw')
+            quat = T.euler_to_quaternion(const.SHELF_HANDLE_ORN, 'xyzw')
         else:
             quat = [0., 0., 0., 1.]
 
@@ -192,13 +190,13 @@ class EnvWrapper():
             jnt = 'slide_joint'
             val = self.env.physics.named.data.qpos[jnt]
             door_pos = self.env.physics.named.data.xpos[door]
-            pos = door_pos + SHELF_OFFSET + np.array([val, 0., 0.])
+            pos = door_pos + const.SHELF_HANDLE_POS + np.array([val, 0., 0.])
 
         if door.find('drawer') >= 0:
             jnt = 'drawer_joint'
             val = self.env.physics.named.data.qpos[jnt]
             door_pos = self.env.physics.named.data.xpos[door]
-            pos = door_pos + DRAWER_OFFSET + np.array([0, val, 0.])
+            pos = door_pos + const.DRAWER_HANDLE_POS + np.array([0, val, 0.])
 
         rot = quat
         if euler:
@@ -234,6 +232,10 @@ class EnvWrapper():
             base_rot = Rotation.from_quat(quat)
             quat = (base_rot * self.upright_rot).as_quat()
 
+        if item_name.find('flat') >= 0:
+            base_rot = Rotation.from_quat(quat)
+            quat = (base_rot * self.flat_rot).as_quat()
+
         rot = quat
         if euler:
             rot = T.quaternion_to_euler(quat, 'xyzw')
@@ -242,9 +244,9 @@ class EnvWrapper():
 
     def set_item_pose(self, item_name, pos=None, quat=None, forward=False, order='xyzw', euler=False):
         if item_name == 'panda': return
-        if item.name.find('desk'): return
-        if item.name.find('handle'): return
-        if item.name.find('button'): return
+        if item_name.find('desk') >= 0: return
+        if item_name.find('handle') >= 0: return
+        if item_name.find('button') >= 0: return
 
         if quat is not None and len(quat) == 3:
             quat = T.euler_to_quaternion(quat, order)
@@ -252,6 +254,10 @@ class EnvWrapper():
         if item_name.find('upright') >= 0:
             base_rot = Rotation.from_quat(quat)
             quat = (self.upright_rot_inv * base_rot).as_quat()
+
+        if item_name.find('flat') >= 0:
+            base_rot = Rotation.from_quat(quat)
+            quat = (self.flat_rot_inv * base_rot).as_quat()
 
         if quat is not None and order != 'wxyz':
             quat = [quat[3], quat[0], quat[1], quat[2]]
@@ -340,6 +346,8 @@ class EnvWrapper():
 
     def reset(self):
         obs = self.env.reset()
+        ball_rot = T.euler_to_quaternion([0., -0.4, 1.57])
+        self.set_item_pose('ball', None, ball_rot)
         #cur_pos = self.get_attr('panda', 'right_ee_pos')
         #cur_jnts = self.get_attr('panda', 'right')
         #dim = 9 if self.mode.find('joint') >= 0 else 8
@@ -866,8 +874,7 @@ class RobotAgent(TAMPAgent):
         self._x_delta[:] = x.reshape((1,-1))
         self._prev_task = np.zeros((self.task_hist_len, self.dPrimOut))
         self.cur_state = x.copy()
-        if full: self.base_env.reset()
-        self.base_env.physics.reset()
+        self.mjc_env.reset()
         for (pname, aname), inds in self.state_inds.items():
             if aname.find('ee_pos') >= 0 or aname.find('ee_rot') >= 0: continue
             val = x[inds]

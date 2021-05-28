@@ -2,6 +2,10 @@ from IPython import embed as shell
 import itertools
 import numpy as np
 import random
+import sys
+
+sys.path.insert(0, '../../src/')
+import core.util_classes.common_constants as const
 
 
 # SEED = 1234
@@ -29,6 +33,7 @@ OFF_DESK_TARGET_ROT = [0., 0., 0.]
 SHELF_GEOM = 'desk_shelf'
 SHELF_POS = [0., 0.85, 0.]
 SHELF_ROT = [0., 0., 0.]
+SHELF_HANDLE_POS = (np.array(SHELF_POS) + const.SHELF_HANDLE_POS).tolist()
 
 DESK_BODY_GEOM = [0.6, 0.275, 0.025]
 DESK_BODY_POS = [0., 0.85, 0.735]
@@ -37,6 +42,8 @@ DESK_BODY_ROT = [0, 0, 0]
 DRAWER_GEOM = 'desk_drawer'
 DRAWER_POS = [0., 0.85, 0.655]
 DRAWER_ROT = [0. ,0., 0.]
+DRAWER_HANDLE_POS = (np.array(DRAWER_POS) + const.DRAWER_HANDLE_POS).tolist()
+
 
 def get_panda_pose_str(name, RArm = R_ARM_INIT, G = OPEN_GRIPPER, Pos = PANDA_INIT_POSE, Rot = PANDA_INIT_ROT):
     s = ""
@@ -85,8 +92,8 @@ def main():
     items = ['upright_block', 'flat_block', 'ball', 'red_button', 'green_button', 'blue_button', \
              'shelf_handle', 'drawer_handle']
     init_pos = [[0.15, 0.78, 0.85], [0.15, 0.63, 0.775], [-0.4, 0.7, 0.799], [-0.45, 1.0, 1.1], \
-                [-0.25, 1.0, 1.1], [-0.05, 1.0, 1.1], [-0.3, 0.78, 1.005], [0., 0.49, 0.665]]
-    dims = [[0.09, 0.023, 0.023], [0.08, 0.035, 0.015], [0.04], [0.035, 0.01], [0.035, 0.01], \
+                [-0.25, 1.0, 1.1], [-0.05, 1.0, 1.1], SHELF_HANDLE_POS, DRAWER_HANDLE_POS]
+    dims = [[0.023, 0.09, 0.023], [0.035, 0.08, 0.015], [0.04], [0.035, 0.01], [0.035, 0.01], \
             [0.035, 0.01], [0.01, 0.05], [0.01, 0.05]]
     item_types = []
     for item in items:
@@ -121,7 +128,10 @@ def main():
     s += "Door (name drawer) \n\n"
 
     s += "Init: "
-    rots = {'shelf_handle': [1.57, 1.57, 0], 'upright_block': [1.57, 1.57, 0.]}
+    rots = {'shelf_handle': const.SHELF_HANDLE_ORN, 
+            'upright_block': [1.57, 0., 0.],
+            'flat_block': [0., 0., 1.57],
+            'drawer_handle': const.DRAWER_HANDLE_ORN,}
     for ind, item in enumerate(items):
         dim = dims[ind]
         item_type = item_types[ind]
@@ -183,6 +193,8 @@ def main():
     s += "(RobotAt panda robot_init_pose),"
     s += "(StationaryBase panda), "
     s += "(IsMP panda), "
+    s += "(SlideDoorOpen shelf_handle shelf), "
+    s += "(SlideDoorClose drawer_handle drawer), "
     s += "(WithinJointLimit panda), "
     s += "(StationaryW desk_body) \n\n"
 

@@ -16,7 +16,8 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         if a.name.lower().find('move') < 0:
             if a.name.lower().find('grasp') >= 0: return [a.params[0], a.params[1]]
             if a.name.lower().find('lift') >= 0: return [a.params[0], a.params[1]]
-            if a.name.lower().find('place') >= 0: return [a.params[0], a.params[2]]
+            if a.name.lower().find('stack') >= 0: return [a.params[0], a.params[1], a.params[2]]
+            #if a.name.lower().find('place') >= 0: return [a.params[0], a.params[2]]
             if a.name.lower().find('slide') >= 0: return [a.params[0], a.params[1]]
 
         if a.name.lower().find('move') >= 0:
@@ -42,7 +43,10 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             off_mat = np.eye(3) if attempt == 0 else T.quat2mat(T.euler_to_quaternion([np.random.uniform(-np.pi/8, np.pi/8), 0., 0.], 'xyzw'))
 
             if 'door' in obj_geom.get_types():
-                euler = obj_geom.handle_orn
+                if a_name.find('slide') >= 0:
+                    euler = obj_geom.handle_orn
+                else:
+                    euler = obj_geom.in_orn
             else:
                 euler = obj.rotation[:,ts[0]] if not obj.is_symbol() else obj.rotation[:,0]
 
@@ -60,10 +64,14 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                 cur_disp = obj_mat.dot(cur_disp)
 
 
-            if 'door' in obj_geom.get_types():
+            if a_name.lower().find('slide') >= 0 and 'door' in obj_geom.get_types():
                 target_loc = obj.pose[:, start_ts] + obj_geom.handle_pos + cur_disp
-                if a_name.lower().find('open'):
+                if a_name.lower().find('open') >= 0:
                     target_loc += np.abs(obj_geom.open_val) * np.array(obj_geom.open_dir)
+                if a_name.lower().find('close') >= 0:
+                    target_loc += np.abs(obj_geom.close_val) * np.array(obj_geom.open_dir)
+            elif a_name.lower().find('place_in') >= 0 and 'door' in obj_geom.get_types():
+                target_loc = obj.pose[:, start_ts] + obj_geom.in_pos + cur_disp
             elif obj.is_symbol():
                 target_loc = obj.value[:, 0] + cur_disp
             else:
@@ -151,10 +159,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         robot_pose = []
         assert anum + 1 <= len(plan.actions)
 
-        if anum + 1 < len(plan.actions):
-            act, next_act = plan.actions[anum], plan.actions[anum+1]
-        else:
-            act, next_act = plan.actions[anum], None
+        act = plan.actions[anum]
 
         robot = act.params[0]
         robot_body = robot.openrave_body
@@ -190,42 +195,23 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         gripper_open = self.gripper_open(a_name)
 
         rel_pos = True
+        disp = np.array([0., 0., const.GRASP_DIST])
         if a_name.find('move') < 0 and \
            a_name.find('lift') >= 0:
             rel_pos = False
 
-        disp = np.array([0., 0., const.GRASP_DIST])
         if a_name.find('move') < 0 and \
             a_name.find('hold') >= 0:
             disp = np.zeros(3)
 
+        if a_name.find('move') < 0 and \
+            a_name.find('place_in_door') >= 0:
+            rel_pos = False
+
         rand = False
-        if next_act is not None:
-            next_obj = next_act.params[1]
-            next_a_name = next_act.name.lower()
-            next_arm = robot.geom.arms[0]
-            next_gripper_open = self.gripper_open(next_a_name)
-            next_st, next_et = next_act.active_timesteps
-            next_obj_geom = next_obj.geom if hasattr(obj, 'geom') else params[2].geom
-            if next_a_name.find('left') >= 0: next_arm = 'left'
-            if next_a_name.find('right') >= 0: next_arm = 'right'
-
-            next_rel_pos = True
-            if next_a_name.find('move') < 0 and \
-               next_a_name.find('lift') >= 0:
-                next_rel_pos = False
-
         ### Sample poses
         for i in range(resample_size):
-            ### Cases for when behavior can be inferred from current action
             pose = self.vertical_gripper(a_name, robot, arm, obj, obj_geom, gripper_open, (st, et), rand=(rand or (i>0)), null_zero=zero_null, rel_pos=rel_pos, disp=disp)
-
-            ### Cases for when behavior cannot be inferred from current action
-            #elif next_act is None:
-            #    pose = None
-
-            #else:
-            #    pose = self.vertical_gripper(robot, next_arm, next_obj, next_obj_geom, next_gripper_open, (next_st, next_et), rand=(rand or (i>0)), rel_pos=next_rel_pos)
 
             if a_name.find('move') < 0 and \
                 (a_name.find('grasp') >= 0 or \
@@ -234,10 +220,15 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                 targ = act.params[2]
                 pose = {robot: pose, obj: self.obj_in_gripper(pose['{}_ee_pos'.format(arm)], targ.rotation[:,0], obj)}
 
-            if a_name.find('put') >= 0 and a_name.find('move') >= 0:
+            if a_name.find('move') >= 0 and \
+               (a_name.find('put') >= 0 or \
+                a_name.find('place') >= 0):
                 obj = act.params[2]
                 targ = act.params[1]
-                pose = {robot: pose, obj: self.obj_in_gripper(pose['{}_ee_pos'.format(arm)], targ.rotation[:,0], obj)}
+                rot = targ.rotation[:,0]
+                if hasattr(targ, 'geom') and 'door' in targ.geom.get_types():
+                    rot = targ.geom.in_orn
+                pose = {robot: pose, obj: self.obj_in_gripper(pose['{}_ee_pos'.format(arm)], rot, obj)}
                 obj = act.params[1]
                 targ = act.params[2]
 

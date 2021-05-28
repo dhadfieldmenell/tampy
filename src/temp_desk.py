@@ -34,6 +34,7 @@ config.update(base_config)
 agent_config = load_agent(config)
 agent = build_agent(agent_config)
 env = agent.base_env
+agent.mjc_env.reset()
 
 import ipdb; ipdb.set_trace()
 
@@ -43,8 +44,8 @@ except Exception as e:
     print(e)
 
 const.NEAR_GRIP_COEFF = 1e-1
-const.GRASP_DIST = 0.15
-const.APPROACH_DIST = 0.015
+const.GRASP_DIST = 0.2
+const.APPROACH_DIST = 0.025
 const.EEREACHABLE_ROT_COEFF = 8e-3
 bt_ll.DEBUG = True
 openrave_bodies = None
@@ -60,14 +61,17 @@ problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, None, use_t
 params = problem.init_state.params
 
 for param in ['ball', 'upright_block', 'flat_block']:
-    params[param].pose[:,0] = env.physics.named.data.qpos[param][:3]
-    quat = env.physics.named.data.qpos[param][3:7]
-    quat = [quat[1], quat[2], quat[3], quat[0]]
-    euler = T.quaternion_to_euler(quat)
-    params[param].rotation[:,0] = euler
+    pose = agent.mjc_env.get_item_pose(param, euler=True)
+    params[param].pose[:,0] = pose[0]
+    params[param].rotation[:,0] = pose[1]
+    #params[param].pose[:,0] = env.physics.named.data.qpos[param][:3]
+    #quat = env.physics.named.data.qpos[param][3:7]
+    #quat = [quat[1], quat[2], quat[3], quat[0]]
+    #euler = T.quaternion_to_euler(quat)
+    #params[param].rotation[:,0] = euler
 
-params['upright_block'].rotation[:,0] = [1.57, 1.57, 0.]
-params['ball'].rotation[:,0] = [0., 0., 0.]
+params['upright_block'].rotation[:,0] = [1.57, 0., 0.]
+params['ball'].rotation[:,0] = [0., -0.4, 1.57]
 
 for param in params:
     targ = '{}_init_target'.format(param)
@@ -78,8 +82,12 @@ for param in params:
 #goal = '(NearGripperRight panda ball)'
 #goal = '(Lifted flat_block panda)'
 #goal = '(Lifted upright_block panda)'
+#goal = '(Lifted ball panda)'
 #goal = '(SlideDoorOpen shelf_handle shelf)'
-goal = '(SlideDoorOpen drawer_handle drawer)'
+#goal = '(SlideDoorOpen drawer_handle drawer)'
+#goal = '(InSlideDoor ball drawer)'
+goal = '(InSlideDoor upright_block shelf)'
+
 solver = RobotSolver()
 plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=5)
 

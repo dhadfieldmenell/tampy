@@ -42,7 +42,7 @@ def get_prim_choices(task_list=None):
         out[utils.TASK_ENUM] = sorted(list(task_list))
 
     out[utils.OBJ_ENUM] = ['ball', 'upright_block', 'flat_block']
-    out[utils.TARG_ENUM] = ['bin_target', 'shelf_target', 'off_desk_target']
+    out[utils.TARG_ENUM] = ['bin_target', 'off_desk_target']
     out[utils.DOOR_ENUM] = ['drawer', 'shelf']
     for door in ['drawer', 'shelf']:
         out[utils.OBJ_ENUM].append('{}_handle'.format(door))
@@ -82,17 +82,84 @@ def get_plans(use_tf=False):
     params = None
     sess = None
 
-    for obj_ind, obj in enumerate(prim_options[OBJ_ENUM]):
-        for targ_ind, targ in enumerate(prim_options[TARG_ENUM]):
+    for task_ind, task in enumerate(tasks.keys()):
+        # SlideDoor actions don't need obj or targ
+        if task.lower().find('slide') >= 0:
             for door_ind, door in enumerate(prim_options[DOOR_ENUM]):
-                for task_ind, task in enumerate(tasks.keys()):
+                next_task_str = copy.deepcopy(tasks[task])
+                new_task_str = []
+                for step in next_task_str:
+                    new_task_str.append(step.format('', '', door))
+                plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params, sess=sess, use_tf=use_tf)
+                params = plan.params
+                if env is None:
+                    env = plan.env
+                    for param in list(plan.params.values()):
+                        if hasattr(param, 'geom'):
+                            if not hasattr(param, 'openrave_body') or param.openrave_body is None:
+                                param.openrave_body = OpenRAVEBody(env, param.name, param.geom)
+                            openrave_bodies[param.name] = param.openrave_body
+
+                for obj_ind, obj in enumerate(prim_options[OBJ_ENUM]):
+                    for targ_ind, targ in enumerate(prim_options[TARG_ENUM]):
+                        plans[task_ind, obj_ind, targ_ind, door_ind] = plan
+
+        # Lift/Hold/MoveToGrasp only need obj
+        elif task.lower().find('hold') >= 0 or \
+             task.lower().find('lift') >= 0 or \
+             task.lower().find('grasp') >= 0:
+            for obj_ind, obj in enumerate(prim_options[OBJ_ENUM]):
+                next_task_str = copy.deepcopy(tasks[task])
+                new_task_str = []
+                for step in next_task_str:
+                    new_task_str.append(step.format(obj, '', ''))
+                plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params, sess=sess, use_tf=use_tf)
+                params = plan.params
+                if env is None:
+                    env = plan.env
+                    for param in list(plan.params.values()):
+                        if hasattr(param, 'geom'):
+                            if not hasattr(param, 'openrave_body') or param.openrave_body is None:
+                                param.openrave_body = OpenRAVEBody(env, param.name, param.geom)
+                            openrave_bodies[param.name] = param.openrave_body
+
+                for door_ind, door in enumerate(prim_options[DOOR_ENUM]):
+                    for targ_ind, targ in enumerate(prim_options[TARG_ENUM]):
+                        plans[task_ind, obj_ind, targ_ind, door_ind] = plan
+
+        # PlaceInDoor actions don't need targ
+        elif task.lower().find('place_in') >= 0:
+            for obj_ind, obj in enumerate(prim_options[OBJ_ENUM]):
+                for door_ind, door in enumerate(prim_options[DOOR_ENUM]):
                     next_task_str = copy.deepcopy(tasks[task])
                     new_task_str = []
                     for step in next_task_str:
-                        new_task_str.append(step.format(obj, targ, door))
+                        new_task_str.append(step.format(obj, '', door))
                     plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params, sess=sess, use_tf=use_tf)
                     params = plan.params
-                    plans[task_ind, obj_ind, targ_ind, door_ind] = plan
+                    if env is None:
+                        env = plan.env
+                        for param in list(plan.params.values()):
+                            if hasattr(param, 'geom'):
+                                if not hasattr(param, 'openrave_body') or param.openrave_body is None:
+                                    param.openrave_body = OpenRAVEBody(env, param.name, param.geom)
+                                openrave_bodies[param.name] = param.openrave_body
+
+                    for targ_ind, targ in enumerate(prim_options[TARG_ENUM]):
+                        plans[task_ind, obj_ind, targ_ind, door_ind] = plan
+
+        else:
+            for obj_ind, obj in enumerate(prim_options[OBJ_ENUM]):
+                for targ_ind, targ in enumerate(prim_options[TARG_ENUM]):
+                    next_task_str = copy.deepcopy(tasks[task])
+                    new_task_str = []
+                    for step in next_task_str:
+                        new_task_str.append(step.format(obj, targ, ''))
+                    plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params, sess=sess, use_tf=use_tf)
+                    for door_ind, door in enumerate(prim_options[DOOR_ENUM]):
+                        plans[task_ind, obj_ind, targ_ind, door_ind] = plan
+
+                    params = plan.params
                     if env is None:
                         env = plan.env
                         for param in list(plan.params.values()):
