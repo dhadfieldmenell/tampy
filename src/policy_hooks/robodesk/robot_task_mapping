@@ -23,6 +23,9 @@
         '0: SLIDE_CLOSE_RIGHT PANDA {2} {2}_HANDLE'
     ],
 
+    'place_in_door_right': [
+        '0: PLACE_IN_DOOR_RIGHT PANDA {2} {0} {2}_HANDLE'
+    ],
 };
 
 {

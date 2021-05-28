@@ -204,10 +204,6 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             a_name.find('hold') >= 0:
             disp = np.zeros(3)
 
-        if a_name.find('move') < 0 and \
-            a_name.find('place_in_door') >= 0:
-            rel_pos = False
-
         rand = False
         ### Sample poses
         for i in range(resample_size):

@@ -93,7 +93,7 @@ def main():
              'shelf_handle', 'drawer_handle']
     init_pos = [[0.15, 0.78, 0.85], [0.15, 0.63, 0.775], [-0.4, 0.7, 0.799], [-0.45, 1.0, 1.1], \
                 [-0.25, 1.0, 1.1], [-0.05, 1.0, 1.1], SHELF_HANDLE_POS, DRAWER_HANDLE_POS]
-    dims = [[0.023, 0.09, 0.023], [0.035, 0.08, 0.015], [0.04], [0.035, 0.01], [0.035, 0.01], \
+    dims = [[0.09, 0.023, 0.023], [0.08, 0.035, 0.015], [0.04], [0.035, 0.01], [0.035, 0.01], \
             [0.035, 0.01], [0.01, 0.05], [0.01, 0.05]]
     item_types = []
     for item in items:
@@ -129,8 +129,8 @@ def main():
 
     s += "Init: "
     rots = {'shelf_handle': const.SHELF_HANDLE_ORN, 
-            'upright_block': [1.57, 0., 0.],
-            'flat_block': [0., 0., 1.57],
+            'upright_block': [1.57, 1.57, 0.],
+            'flat_block': [0., 0., 0.],
             'drawer_handle': const.DRAWER_HANDLE_ORN,}
     for ind, item in enumerate(items):
         dim = dims[ind]

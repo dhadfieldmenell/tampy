@@ -31,9 +31,9 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.tamp_agent import TAMPAgent
 
 
-const.NEAR_GRIP_COEFF = 1e-1
+const.NEAR_GRIP_COEFF = 1e-2
 const.GRASP_DIST = 0.15
-const.APPROACH_DIST = 0.015
+const.APPROACH_DIST = 0.02
 const.EEREACHABLE_ROT_COEFF = 8e-3
 
 STEP = 0.1
@@ -102,9 +102,9 @@ class EnvWrapper():
         self.physics = env.physics
         self.model = self.physics.model
         self.mode = mode
-        self.upright_rot = Rotation.from_euler('xyz', [1.57, 0., 0.])
+        self.upright_rot = Rotation.from_euler('xyz', [1.57, 1.57, 0.])
         self.upright_rot_inv = self.upright_rot.inv()
-        self.flat_rot = Rotation.from_euler('xyz', [0., 0., 1.57])
+        self.flat_rot = Rotation.from_euler('xyz', [0., 0., 0.])
         self.flat_rot_inv = self.flat_rot.inv()
 
 
@@ -128,7 +128,7 @@ class EnvWrapper():
             mat = self.env.physics.data.site_xmat[ind].reshape((3,3))
             rot = T.mat2quat(mat)
             if euler:
-                rot = T.quaternion_to_euler(rot)
+                rot = T.quaternion_to_euler(rot, 'xyzw')
             return rot
 
         if attr in self.geom.jnt_names:
@@ -346,7 +346,7 @@ class EnvWrapper():
 
     def reset(self):
         obs = self.env.reset()
-        ball_rot = T.euler_to_quaternion([0., -0.4, 1.57])
+        ball_rot = T.euler_to_quaternion([0., -0.4, 1.57], 'xyzw')
         self.set_item_pose('ball', None, ball_rot)
         #cur_pos = self.get_attr('panda', 'right_ee_pos')
         #cur_jnts = self.get_attr('panda', 'right')
