@@ -1090,10 +1090,10 @@ class SlideDoor(Action):
         ]
 
         if open_door:
-            self.eff.append(('(SlideDoorOpen ?item ?door)', '{0}:{1}'.format(putdown_time, end-1)))
+            self.eff.append(('(SlideDoorOpen ?item ?door)', '{0}:{1}'.format(putdown_time, end)))
             self.eff.append(('(not (SlideDoorClose ?item ?door))', '{0}:{1}'.format(end, end)))
         else:
-            self.eff.append(('(SlideDoorClose ?item ?door)', '{0}:{1}'.format(putdown_time, end-1)))
+            self.eff.append(('(SlideDoorClose ?item ?door)', '{0}:{1}'.format(putdown_time, end)))
             self.eff.append(('(not (SlideDoorOpen ?item ?door))', '{0}:{1}'.format(end, end)))
 
 
