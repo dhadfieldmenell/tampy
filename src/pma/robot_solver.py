@@ -69,9 +69,9 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                 if a_name.lower().find('open') >= 0:
                     target_loc += np.abs(obj_geom.open_val) * np.array(obj_geom.open_dir)
                 if a_name.lower().find('close') >= 0:
-                    target_loc += np.abs(obj_geom.close_val) * np.array(obj_geom.open_dir)
+                    target_loc -= np.abs(obj_geom.close_val) * np.array(obj_geom.open_dir)
             elif a_name.lower().find('place_in') >= 0 and 'door' in obj_geom.get_types():
-                target_loc = obj.pose[:, start_ts] + obj_geom.in_pos + cur_disp
+                target_loc = obj.pose[:, start_ts] + obj_geom.in_pos + cur_disp + np.array([0., 0., 0.02])
             elif obj.is_symbol():
                 target_loc = obj.value[:, 0] + cur_disp
             else:

@@ -32,7 +32,7 @@ from policy_hooks.tamp_agent import TAMPAgent
 
 
 const.NEAR_GRIP_COEFF = 1e-2
-const.GRASP_DIST = 0.15
+const.GRASP_DIST = 0.2
 const.APPROACH_DIST = 0.02
 const.EEREACHABLE_ROT_COEFF = 8e-3
 
@@ -102,6 +102,7 @@ class EnvWrapper():
         self.physics = env.physics
         self.model = self.physics.model
         self.mode = mode
+        self.z_offsets = {'upright_block': 0.045}
         self.upright_rot = Rotation.from_euler('xyz', [1.57, 1.57, 0.])
         self.upright_rot_inv = self.upright_rot.inv()
         self.flat_rot = Rotation.from_euler('xyz', [0., 0., 0.])
@@ -227,6 +228,8 @@ class EnvWrapper():
         if order != 'xyzw':
             raise Exception()
 
+        pos = [pos[0], pos[1], pos[2]+self.z_offsets.get(item_name, 0.0)]
+
         quat = [quat[1], quat[2], quat[3], quat[0]]
         if item_name.find('upright') >= 0:
             base_rot = Rotation.from_quat(quat)
@@ -262,14 +265,17 @@ class EnvWrapper():
         if quat is not None and order != 'wxyz':
             quat = [quat[3], quat[0], quat[1], quat[2]]
 
+        if pos is not None:
+            pos = [pos[0], pos[1], pos[2]+self.z_offsets.get(item_name, 0.0)]
+
         try:
             if pos is not None:
-                self.env.physics.named.data.qpos[item_name][:3] = pos[item_name]
+                self.env.physics.named.data.qpos[item_name][:3] = pos
             if quat is not None:
                 self.env.physics.named.data.qpos[item_name][3:] = quat
         except Exception as e:
             if pos is not None:
-                self.env.physics.named.data.xpos[item_name][:3] = pos[item_name]
+                self.env.physics.named.data.xpos[item_name][:3] = pos
             if quat is not None:
                 self.env.physics.named.data.xpos[item_name][3:] = quat
 
