@@ -822,7 +822,7 @@ class Place(Action):
     def __init__(self):
         self.name = 'place'
         self.steps = const.EEREACHABLE_STEPS
-        self.timesteps = 7 + 2 * const.EEREACHABLE_STEPS
+        self.timesteps = 11 + 2 * const.EEREACHABLE_STEPS
         end = self.timesteps - 1
         self.end = end
         self.args = '(?robot - Robot ?target - Target ?item - Item)'
@@ -1148,7 +1148,7 @@ class PlaceInDoor(Action):
     def __init__(self):
         self.name = 'place_in_door'
         self.steps = const.EEREACHABLE_STEPS
-        self.timesteps = 7 + 2 * const.EEREACHABLE_STEPS
+        self.timesteps = 11 + 2 * const.EEREACHABLE_STEPS
         end = self.timesteps - 1
         self.end = end
         self.args = '(?robot - Robot ?door - Door ?item - Item ?handle - Reachable)'
@@ -1245,7 +1245,7 @@ class Stack(Action):
     def __init__(self):
         self.name = 'stack'
         self.steps = const.EEREACHABLE_STEPS
-        self.timesteps = 7 + 2 * const.EEREACHABLE_STEPS
+        self.timesteps = 11 + 2 * const.EEREACHABLE_STEPS
         end = self.timesteps - 1
         self.end = end
         self.args = '(?robot - Robot ?item - Item ?base - Item)'
