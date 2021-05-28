@@ -959,7 +959,7 @@ class Slide(Action):
                     )', '{0}:{1}'.format(self.putdown_time+1, self.end-1)),
                     ('(forall (?obj - Item)\
                         (not (Obstructs ?robot ?obj))\
-                    )', '{}:{}'.format(putdown_time+3, end)),
+                    )', '{}:{}'.format(putdown_time+3, end-1)),
                     ('(forall (?obj - Item)\
                         (not (ObstructsHolding ?robot ?obj ?item))\
                     )', '{}:{}'.format(1, putdown_time+2))
@@ -1068,7 +1068,7 @@ class SlideDoor(Action):
                     )', '{0}:{1}'.format(self.putdown_time+1, self.end-1)),
                     ('(forall (?obj - Item)\
                         (not (Obstructs ?robot ?obj))\
-                    )', '{}:{}'.format(putdown_time+3, end)),
+                    )', '{}:{}'.format(putdown_time+3, end-1)),
                     #('(forall (?obj - Item)\
                     #    (not (ObstructsHolding ?robot ?obj ?item))\
                     #)', '{}:{}'.format(1, putdown_time+2))
@@ -1179,9 +1179,9 @@ class PlaceInDoor(Action):
                     ('(forall (?obs - Obstacle)\
                         (not (RCollides ?robot ?obs))\
                     )', '{0}:{1}'.format(self.putdown_time+self.steps, self.end-1)),
-                    ('(forall (?obj - Item)\
-                        (not (Obstructs ?robot ?obj))\
-                    )', '{}:{}'.format(putdown_time+self.steps, end)),
+                    #('(forall (?obj - Item)\
+                    #    (not (Obstructs ?robot ?obj))\
+                    #)', '{}:{}'.format(putdown_time+self.steps, end-1)),
                     ('(forall (?obj - Item)\
                         (not (ObstructsHolding ?robot ?obj ?item))\
                     )', '{}:{}'.format(1, putdown_time-self.steps))
@@ -1275,7 +1275,7 @@ class Stack(Action):
                     )', '{0}:{1}'.format(self.putdown_time+1, self.end-1)),
                     ('(forall (?obj - Item)\
                         (not (Obstructs ?robot ?obj))\
-                    )', '{}:{}'.format(putdown_time+3, end)),
+                    )', '{}:{}'.format(putdown_time+3, end-1)),
                     ('(forall (?obj - Item)\
                         (not (ObstructsHolding ?robot ?obj ?item))\
                     )', '{}:{}'.format(1, putdown_time+2))

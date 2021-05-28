@@ -1,4 +1,6 @@
 import pybullet as p
+import core.util_classes.common_constants as const
+
 
 class Item(object):
     """
@@ -186,23 +188,29 @@ class Door(XMLItem):
         import baxter_gym
 
         self.handle_orn = [0., 0., 0.]
+        self.in_orn = [0., 0., 0.]
         if door_type.lower() == 'desk_drawer':
             shape = baxter_gym.__path__[0] + '/robot_info/robodesk/desk_drawer.xml'
-            self.handle_pos = [0., -0.36, 0.01]
-            self.in_pos = [0., -0.2, 0.05]
+            #self.handle_pos = [0., -0.36, 0.01]
+            self.handle_pos = const.DRAWER_HANDLE_POS
+            self.handle_orn = const.DRAWER_HANDLE_ORN
+            #self.in_pos = [0., -0.2, 0.05]
+            self.in_pos = const.IN_DRAWER_POS
+            self.in_orn = const.IN_DRAWER_ORN
             self.hinge_type = 'prismatic'
-            self.closed_val = 0.
-            self.open_val = -0.23 #-0.48
+            self.close_val = 0.
+            self.open_val = -0.18 #-0.48
             self.open_dir = [0., -1., 0.]
         elif door_type.lower() == 'desk_shelf':
             shape = baxter_gym.__path__[0] + '/robot_info/robodesk/desk_shelf.xml'
             self.hinge_type = 'prismatic'
-            self.handle_pos = [-0.3, -0.07, 1.005]
-            self.in_pos = [0.2, 0.16, 0.85]
-            self.handle_orn = [1.57, 1.57, 0.]
-            self.closed_val = 0.
-            self.open_val = 0.6
-            self.open_dir = [1., 0., 0.]
+            self.handle_pos = const.SHELF_HANDLE_POS 
+            self.in_pos = const.IN_SHELF_POS
+            self.handle_orn = const.SHELF_HANDLE_ORN
+            self.in_orn = const.IN_SHELF_ORN
+            self.close_val = 0.6
+            self.open_val = 0.
+            self.open_dir = [-1., 0., 0.]
         else:
             raise NotImplementedError()
 

@@ -238,8 +238,6 @@ class RobotPredicate(ExprPredicate):
         else:
             ee_pos, ee_rot = np.zeros((3,1)), np.zeros((3,1))
 
-        if hasattr(self, 'ref_orn'): ee_rot = np.array(self.ref_orn)
-
         ee_rot = ee_rot.flatten()
         obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, [ee_rot[2], ee_rot[1], ee_rot[0]])
         #obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, [ee_rot[0], ee_rot[1], ee_rot[2]])
@@ -2508,8 +2506,9 @@ class EEApproachInDoorLeft(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "left"
         super(EEApproachInDoorLeft, self).__init__(name, params[:2], expected_param_types, (-steps, 0), env, debug)
+        self.ref_orn = T.quat2mat(T.euler_to_quaternion(params[1].geom.in_orn, 'xyzw'))
+        self.axis = self.ref_orn.dot(self.axis).round(4)
         self.rel_pt = params[1].geom.in_pos
-        self.ref_orn = params[1].geom.in_orn
 
 class EERetreatLeft(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
@@ -2528,8 +2527,9 @@ class EERetreatInDoorLeft(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "left"
         super(EERetreatInDoorLeft, self).__init__(name, params[:2], expected_param_types, (0, steps), env, debug)
+        self.ref_orn = T.quat2mat(T.euler_to_quaternion(params[1].geom.in_orn, 'xyzw'))
+        self.axis = self.ref_orn.dot(self.axis).round(4)
         self.rel_pt = params[1].geom.in_pos
-        self.ref_orn = params[1].geom.in_orn
 
 class EEReachableLeftRot(EEReachableRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
@@ -2632,8 +2632,9 @@ class EEApproachInDoorRight(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "right"
         super(EEApproachInDoorRight, self).__init__(name, params[:2], expected_param_types, (-steps, 0), env, debug)
+        self.ref_orn = T.quat2mat(T.euler_to_quaternion(params[1].geom.in_orn, 'xyzw'))
+        self.axis = self.ref_orn.dot(self.axis).round(4)
         self.rel_pt = params[1].geom.in_pos
-        self.ref_orn = params[1].geom.in_orn
 
 class EERetreatRight(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
@@ -2652,8 +2653,9 @@ class EERetreatInDoorRight(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "right"
         super(EERetreatInDoorRight, self).__init__(name, params[:2], expected_param_types, (0, steps), env, debug)
+        self.ref_orn = T.quat2mat(T.euler_to_quaternion(params[1].geom.in_orn, 'xyzw'))
+        self.axis = self.ref_orn.dot(self.axis).round(4)
         self.rel_pt = params[1].geom.in_pos
-        self.ref_orn = params[1].geom.in_orn
 
 class EEReachableRightRot(EEReachableRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
