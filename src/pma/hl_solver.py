@@ -464,7 +464,10 @@ class FFSolver(HLSolver):
         with open("%sprob.pddl"%(fprefix), "w") as f:
             f.write(abs_prob)
         with open("%sprob.output"%(fprefix), "w") as f:
-            subprocess.call([FFSolver.FF_EXEC, "-o", "%sdom.pddl"%(fprefix), "-f", "%sprob.pddl"%(fprefix)], stdout=f)
+            try:
+                subprocess.call([FFSolver.FF_EXEC, "-o", "%sdom.pddl"%(fprefix), "-f", "%sprob.pddl"%(fprefix)], stdout=f, timeout=300)
+            except subprocess.TimeoutExpired:
+                print('Error: FF solve timed out!')
         with open("%sprob.output"%(fprefix), "r") as f:
             s = f.read()
         if "goal can be simplified to FALSE" in s or "problem proven unsolvable" in s:

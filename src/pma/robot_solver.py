@@ -11,17 +11,20 @@ import core.util_classes.transform_utils as T
 from pma import backtrack_ll_solver
 
 
+PANDA_REF_JNTS = [-0.30, -0.4, 0.28, -2.5, 0.13, 1.87, 0.91]
+
 class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
         if a.name.lower().find('move') < 0:
             if a.name.lower().find('grasp') >= 0: return [a.params[0], a.params[1]]
             if a.name.lower().find('lift') >= 0: return [a.params[0], a.params[1]]
-            if a.name.lower().find('stack') >= 0: return [a.params[0], a.params[1], a.params[2]]
+            #if a.name.lower().find('stack') >= 0: return [a.params[0], a.params[1], a.params[2]]
             #if a.name.lower().find('place') >= 0: return [a.params[0], a.params[2]]
             if a.name.lower().find('slide') >= 0: return [a.params[0], a.params[1]]
 
         if a.name.lower().find('move') >= 0:
             if a.name.lower().find('put') >= 0: return [a.params[0], a.params[2]]
+            if a.name.lower().find('place') >= 0: return [a.params[0], a.params[2]]
 
         return a.params[0]
 
@@ -77,8 +80,8 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                 target_loc = obj.pose[:, start_ts] + cur_disp
 
             robot_body.set_pose(robot.pose[:,ts[0]], robot.rotation[:,ts[0]])
-            robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
-            #robot_body.set_dof({arm: REF_JNTS})
+            #robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
+            robot_body.set_dof({arm: PANDA_REF_JNTS})
 
             iks = robot_body.get_ik_from_pose(target_loc, quat, arm)
             robot_body.set_dof({arm: iks})

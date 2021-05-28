@@ -582,19 +582,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.x0[cond] = self.init_vecs[cond][:self.symbolic_bound]
         self.target_vecs[cond] = np.zeros((self.target_dim,))
         prim_choices = self.prob.get_prim_choices(self.task_list)
-        if self.swap:
-            objs = self.prim_choices[OBJ_ENUM]
-            inds = list(range(len(objs)))
-            for i in range(len(objs)):
-                ind = inds.pop(np.random.randint(len(objs)))
-                if i == ind:
-                    inds.append(ind)
-                    continue
-                pos1_inds = self.state_inds[objs[i], 'pose']
-                targ = '{}_end_target'.format(objs[ind])
-                pos2_inds = self.target_inds[targ, 'value']
-                noise = np.random.uniform(-0.2, 0.2, len(pos2_inds))
-                self.init_vecs[cond][pos1_inds] = self.targets[cond][targ] + noise
 
         if OBJ_ENUM in prim_choices and curric_step > 0:
             i = 0
@@ -1146,7 +1133,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                     self.optimal_samples[self.task_list[s.task[0]]].append(s)
                     log_info['{}_opt_rollout_success'.format(self.task_list[s.task[0]])].append(1)
                 elif path[-1].success > 0.99:
-                    print('Adding path w/postcond failure?', self.task_list[s.task[0]], self.process_id)
+                    if ind == 0:
+                        print('Adding path w/postcond failure?', self.task_list[s.task[0]], self.process_id)
                     log_info['{}_opt_rollout_success'.format(self.task_list[s.task[0]])].append(0)
                     #self.optimal_samples[self.task_list[s.task[0]]].append(s)
         print(('Plans run vs. success:', self.n_plans_run, self.n_plans_suc_run, self.process_id))
@@ -1257,8 +1245,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 x2 = path[-1].end_state
                 s._postsuc = False
                 cost = self.postcond_cost(end_s, task, end_s.T-1, debug=True, x0=base_x0, tol=1e-3)
-                state_dict = {(pname, aname): (x1[self.state_inds[pname, aname]], x2[self.state_inds[pname, aname]], plan.params[pname].pose[:,st], plan.params[pname].pose[:,et]) for (pname, aname) in self.state_inds}
-                if save: print('Ran opt path w/postcond failure?', task, plan.actions[anum], state_dict, self.process_id)
+                state_dict = {(pname, aname): (x1[self.state_inds[pname, aname]], x2[self.state_inds[pname, aname]], getattr(plan.params[pname], aname)[:,st], getattr(plan.params[pname], aname)[:,et]) for (pname, aname) in self.state_inds}
+                if ind == 0 and save: print('Ran opt path w/postcond failure?', task, plan.actions[anum], state_dict, self.process_id)
 
         static_x0 = x0.copy()
         static_hist = self._x_delta.copy()
@@ -1525,16 +1513,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
     def get_random_initial_state_vec(self, config, plans, dX, state_inds, n=1):
         xs, targets = self.prob.get_random_initial_state_vec(config, plans, dX, state_inds, n)
-        if self.swap:
-            objs = self.prim_choices[OBJ_ENUM]
-            inds = np.random.permutation(len(objs))
-            for i, ind in enumerate(inds):
-                if i == ind: continue
-                pos1_inds = self.state_inds[objs[i], 'pose']
-                targ = '{}_end_target'.format(objs[ind])
-                pos2_inds = self.target_inds[targ, 'value']
-                noise = np.random.uniform(-0.2, 0.2, len(pos2_inds))
-                xs[0][pos1_inds] = targets[0][targ] + noise
         return xs, targets
 
     

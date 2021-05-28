@@ -108,10 +108,11 @@ def main():
         item_types.append(item_type)
 
     for ind, item in enumerate(items):
-        s += "PandaPose (name {}); ".format("{0}_grasp_begin".format(item))
-        s += "PandaPose (name {}); ".format("{0}_grasp_end".format(item))
-        s += "PandaPose (name {}); ".format("{0}_putdown_begin".format(item))
-        s += "PandaPose (name {}); ".format("{0}_putdown_end".format(item))
+        if item.find('blue') >= 0 or item.find('red') >= 0: continue
+        #s += "PandaPose (name {}); ".format("{0}_grasp_begin".format(item))
+        #s += "PandaPose (name {}); ".format("{0}_grasp_end".format(item))
+        #s += "PandaPose (name {}); ".format("{0}_putdown_begin".format(item))
+        #s += "PandaPose (name {}); ".format("{0}_putdown_end".format(item))
 
         item_type = item_types[ind]
         s += "{} (name {}); ".format(item_type, item)
@@ -133,6 +134,7 @@ def main():
             'flat_block': [0., 0., 0.],
             'drawer_handle': const.DRAWER_HANDLE_ORN,}
     for ind, item in enumerate(items):
+        if item.find('blue') >= 0 or item.find('red') >= 0: continue
         dim = dims[ind]
         item_type = item_types[ind]
         if item_type.lower() == 'sphere':
@@ -155,10 +157,10 @@ def main():
         s += "(value {}_end_target {}), ".format(item, init_pos[ind])
         s += "(rotation {}_end_target {}), ".format(item, rot)
 
-        s += get_undefined_robot_pose_str("{0}_grasp_begin".format(item))
-        s += get_undefined_robot_pose_str("{0}_grasp_end".format(item))
-        s += get_undefined_robot_pose_str("{0}_putdown_begin".format(item))
-        s += get_undefined_robot_pose_str("{0}_putdown_end".format(item))
+        #s += get_undefined_robot_pose_str("{0}_grasp_begin".format(item))
+        #s += get_undefined_robot_pose_str("{0}_grasp_end".format(item))
+        #s += get_undefined_robot_pose_str("{0}_putdown_begin".format(item))
+        #s += get_undefined_robot_pose_str("{0}_putdown_end".format(item))
 
     s += "(hinge drawer [0.])"
     s += "(hinge shelf [0.])"
@@ -189,7 +191,9 @@ def main():
     s += "(rotation drawer {}); ".format(DRAWER_ROT)
 
     for item in items:
+        if item.find('blue') >= 0 or item.find('red') >= 0: continue
         s += "(At {0} {0}_init_target), ".format(item)
+        s += "(Near {0} {0}_init_target), ".format(item)
     s += "(RobotAt panda robot_init_pose),"
     s += "(StationaryBase panda), "
     s += "(IsMP panda), "
@@ -209,9 +213,9 @@ def main():
     s += "(SlideDoorAt shelf_handle shelf), "
     s += "(SlideDoorAt drawer_handle drawer), "
     s += "(StationaryW desk_body), "
-    s += "(Stationary red_button), "
+    #s += "(Stationary red_button), "
     s += "(Stationary green_button), "
-    s += "(Stationary blue_button), "
+    #s += "(Stationary blue_button), "
     s += "\n\n"
 
     with open(filename, "w") as f:
