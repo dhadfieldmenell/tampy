@@ -43,10 +43,10 @@ try:
 except Exception as e:
     print(e)
 
-const.NEAR_GRIP_COEFF = 1e-1
-const.GRASP_DIST = 0.2
-const.APPROACH_DIST = 0.025
-const.EEREACHABLE_ROT_COEFF = 8e-3
+#const.NEAR_GRIP_COEFF = 5e-2
+#const.GRASP_DIST = 0.2
+#const.APPROACH_DIST = 0.025
+#const.EEREACHABLE_ROT_COEFF = 8e-3
 bt_ll.DEBUG = True
 openrave_bodies = None
 domain_fname = "../domains/robot_domain/right_desk.domain"
@@ -69,8 +69,6 @@ for param in ['ball', 'upright_block', 'flat_block']:
     #quat = [quat[1], quat[2], quat[3], quat[0]]
     #euler = T.quaternion_to_euler(quat)
     #params[param].rotation[:,0] = euler
-
-params['upright_block'].rotation[:,0] = [1.57, 0., 0.]
 params['ball'].rotation[:,0] = [0., -0.4, 1.57]
 
 for param in params:
@@ -83,13 +81,14 @@ for param in params:
 #goal = '(Lifted flat_block panda)'
 #goal = '(Lifted upright_block panda)'
 #goal = '(Lifted ball panda)'
-#goal = '(SlideDoorOpen shelf_handle shelf)'
+#goal = '(SlideDoorClose shelf_handle shelf)'
 #goal = '(SlideDoorOpen drawer_handle drawer)'
 #goal = '(InSlideDoor ball drawer)'
-goal = '(InSlideDoor upright_block shelf)'
+#goal = '(InSlideDoor upright_block shelf)'
+goal = '(and (SlideDoorClose shelf_handle shelf) (InSlideDoor upright_block shelf))'
 
 solver = RobotSolver()
-plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=5)
+plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=2)
 
 
 import ipdb; ipdb.set_trace()

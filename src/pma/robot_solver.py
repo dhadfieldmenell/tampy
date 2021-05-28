@@ -63,7 +63,6 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             if rel_pos:
                 cur_disp = obj_mat.dot(cur_disp)
 
-
             if a_name.lower().find('slide') >= 0 and 'door' in obj_geom.get_types():
                 target_loc = obj.pose[:, start_ts] + obj_geom.handle_pos + cur_disp
                 if a_name.lower().find('open') >= 0:

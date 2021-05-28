@@ -33,8 +33,10 @@ from policy_hooks.tamp_agent import TAMPAgent
 
 const.NEAR_GRIP_COEFF = 1e-2
 const.GRASP_DIST = 0.2
-const.APPROACH_DIST = 0.02
+const.APPROACH_DIST = 0.025
 const.EEREACHABLE_ROT_COEFF = 8e-3
+const.RCOLLIDES_COEFF = 1e-2
+const.OBSTRUCTS_COEFF = 1e-1
 
 STEP = 0.1
 NEAR_TOL = 0.05
@@ -102,7 +104,8 @@ class EnvWrapper():
         self.physics = env.physics
         self.model = self.physics.model
         self.mode = mode
-        self.z_offsets = {'upright_block': 0.045}
+        #self.z_offsets = {'upright_block': 0.045}
+        self.z_offsets = {}
         self.upright_rot = Rotation.from_euler('xyz', [1.57, 1.57, 0.])
         self.upright_rot_inv = self.upright_rot.inv()
         self.flat_rot = Rotation.from_euler('xyz', [0., 0., 0.])

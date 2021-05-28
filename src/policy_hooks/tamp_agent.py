@@ -593,7 +593,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 pos1_inds = self.state_inds[objs[i], 'pose']
                 targ = '{}_end_target'.format(objs[ind])
                 pos2_inds = self.target_inds[targ, 'value']
-                noise = np.random.normal(0, 0.1, len(pos2_inds))
+                noise = np.random.uniform(-0.2, 0.2, len(pos2_inds))
                 self.init_vecs[cond][pos1_inds] = self.targets[cond][targ] + noise
 
         if OBJ_ENUM in prim_choices and curric_step > 0:
@@ -1533,7 +1533,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 pos1_inds = self.state_inds[objs[i], 'pose']
                 targ = '{}_end_target'.format(objs[ind])
                 pos2_inds = self.target_inds[targ, 'value']
-                noise = np.random.normal(0, 0.1, len(pos2_inds))
+                noise = np.random.uniform(-0.2, 0.2, len(pos2_inds))
                 xs[0][pos1_inds] = targets[0][targ] + noise
         return xs, targets
 

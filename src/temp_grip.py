@@ -20,6 +20,28 @@ import pybullet as P
 from core.util_classes.openrave_body import *
 NAMO_XML = baxter_gym.__path__[0] + '/robot_info/lidar_namo.xml'
 
+view = True
+fpath = baxter_gym.__path__[0]
+im_dims = (256, 256)
+wall_dims = OpenRAVEBody.get_wall_dims('closet')
+config = {
+    'obs_include': ['can{0}'.format(i) for i in range(2)],
+    'include_files': [NAMO_XML],
+    'include_items': [],
+    'view': view,
+    'sim_freq': 25,
+    'timestep': 0.002,
+    'image_dimensions': im_dims,
+    'step_mult': 5e0,
+    'act_jnts': ['robot_x', 'robot_y', 'robot_theta', 'right_finger_joint', 'left_finger_joint']
+}
+config['load_render'] = True 
+config['xmlid'] = '{0}'.format('temp_run')
+env = MJCEnv.load_config(config)
+import ipdb; ipdb.set_trace()
+
+
+
 plans = prob.get_plans(use_tf=True)
 plan = list(plans[0].values())[0]
 domain = plan.domain
