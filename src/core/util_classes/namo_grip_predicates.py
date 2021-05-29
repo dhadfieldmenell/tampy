@@ -30,7 +30,7 @@ This file implements the predicates for the 2D NAMO domain.
 
 dsafe = 1e-3
 # dmove = 1.1e0 # 5e-1
-dmove = 1.8e0 # 5e-1
+dmove = 1.5e0 # 5e-1
 contact_dist = 2e-1 # dsafe
 gripdist = 0.61 # 75
 
@@ -2154,7 +2154,7 @@ class ApproachGraspAngle(InGraspAngle):
 class NearGraspAngle(InGraspAngle):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(NearGraspAngle, self).__init__(name, params, expected_param_types,env, sess, debug)
-        self.coeff = 4e-2
+        self.coeff = 2e-2
         self._rollout = True
 
 class TargNearGraspAngle(NearGraspAngle):

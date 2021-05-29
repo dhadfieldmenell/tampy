@@ -9,7 +9,10 @@ import traceback
 import xml.etree.ElementTree as xml
 
 import matplotlib
-matplotlib.use("TkAgg")
+try:
+    matplotlib.use("TkAgg")
+except:
+    pass
 import matplotlib.pyplot as plt
 
 import numpy as np

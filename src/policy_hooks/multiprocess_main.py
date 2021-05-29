@@ -250,7 +250,7 @@ class MultiProcessMain(object):
                 'sensor_dims': self.sensor_dims,
                 'n_layers': self.config['prim_n_layers'],
                 'num_filters': [32, 32],
-                'filter_sizes': [5, 5],
+                'filter_sizes': [7, 5],
                 'dim_hidden': self.config['prim_dim_hidden'],
                 'output_boundaries': self.config['prim_bounds'],
                 'aux_boundaries': self.config['aux_bounds'],
