@@ -172,5 +172,5 @@ def get_plans(use_tf=False):
 
 
 def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
-    return [np.zeros(dX)], [{'shelf_target': np.zeros(3)}]
+    return [np.zeros(dX)], [{'bin_target': np.zeros(3)}]
 

@@ -11,7 +11,9 @@ import core.util_classes.transform_utils as T
 from pma import backtrack_ll_solver
 
 
-PANDA_REF_JNTS = [-0.30, -0.4, 0.28, -2.5, 0.13, 1.87, 0.91]
+#PANDA_REF_JNTS = [-0.30, -0.4, 0.28, -2.5, 0.13, 1.87, 0.91]
+#PANDA_REF_JNTS = [0.3, -0.8, 1.0, -2.5, 1.5, 1.87, 0.91]
+PANDA_REF_JNTS = [0.3, -0.8, 1.0, -2.5, 0.5, 1.87, 0.2]
 
 class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
@@ -55,12 +57,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
 
             obj_quat = T.euler_to_quaternion(euler, 'xyzw')
             obj_mat = off_mat.dot(T.quat2mat(obj_quat))
-            gripper_axis = robot.geom.get_gripper_axis(arm)
-            target_axis = [0, 0, -1]
-            quat = OpenRAVEBody.quat_from_v1_to_v2(gripper_axis, target_axis)
-            robot_mat = T.quat2mat(quat)
-            quat = T.mat2quat(obj_mat.dot(robot_mat))
-
+            quat = self.convert_orn(robot, arm, euler, off_mat=off_mat)
             offset = obj_geom.grasp_point if hasattr(obj_geom, 'grasp_point') else np.zeros(3)
             cur_disp = disp + offset
             if rel_pos:
@@ -80,8 +77,10 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                 target_loc = obj.pose[:, start_ts] + cur_disp
 
             robot_body.set_pose(robot.pose[:,ts[0]], robot.rotation[:,ts[0]])
-            #robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
-            robot_body.set_dof({arm: PANDA_REF_JNTS})
+            if a_name.lower().find('move') >= 0:
+                robot_body.set_dof({arm: PANDA_REF_JNTS})
+            else:
+                robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
 
             iks = robot_body.get_ik_from_pose(target_loc, quat, arm)
             robot_body.set_dof({arm: iks})
@@ -91,6 +90,8 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             attempt += 1
 
         if not len(iks): return None
+        if a_name.find('lift') >= 0:
+            iks[-1] += 1.57 if iks[-1] < 0 else -1.57
         arm_pose = np.array(iks).reshape((-1,1))
         pose = {arm: arm_pose}
         gripper = robot.geom.get_gripper(arm)
@@ -115,7 +116,23 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         return pose
 
-    
+    def convert_orn(self, robot, arm, rot, to_robot=True, off_mat=np.eye(3)): 
+        if len(rot) == 3:
+            rot = T.euler_to_quaternion(rot, 'xyzw')
+
+        targ_mat = off_mat.dot(T.quat2mat(rot))
+        gripper_axis = robot.geom.get_gripper_axis(arm)
+        target_axis = [0, 0, -1]
+        quat = OpenRAVEBody.quat_from_v1_to_v2(gripper_axis, target_axis)
+        robot_mat = T.quat2mat(quat)
+        if to_robot:
+            quat = T.mat2quat(targ_mat.dot(robot_mat))
+        else:
+            quat = T.mat2quat(targ_mat.dot(np.linalg.inv(robot_mat)))
+
+        return quat
+
+
     def objs_stacked(self, obj, base_obj, st):
         h1 = obj.geom.height if hasattr(obj.geom, 'height') else obj.geom.radius
         h2 = base_obj.geom.height if hasattr(base_obj.geom, 'height') else base_obj.geom.radius
@@ -128,12 +145,17 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
 
     def obj_in_gripper(self, ee_pos, targ_rot, obj):
         pose = {}
-        obj_quat = T.euler_to_quaternion(targ_rot, 'xyzw')
-        obj_mat = T.quat2mat(obj_quat)
+        targ_quat = targ_rot
+        if len(targ_rot) == 3:
+            targ_quat = T.euler_to_quaternion(targ_rot, 'xyzw')
+        if len(targ_rot) == 4:
+            targ_rot = T.quaternion_to_euler(targ_rot, 'xyzw')
+
+        obj_mat = T.quat2mat(targ_quat)
         grasp_pt = obj_mat.dot(obj.geom.grasp_point).flatten()
         pose['pose'] = ee_pos.flatten() - grasp_pt
         pose['pose'] = pose['pose'].reshape((-1,1))
-        pose['rotation'] = targ_rot.reshape((-1,1))
+        pose['rotation'] = np.array(targ_rot).reshape((-1,1))
         return pose
 
 
@@ -211,22 +233,25 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         for i in range(resample_size):
             pose = self.vertical_gripper(a_name, robot, arm, obj, obj_geom, gripper_open, (st, et), rand=(rand or (i>0)), null_zero=zero_null, rel_pos=rel_pos, disp=disp)
 
+            targ_pos = pose['{}_ee_pos'.format(arm)]
+            targ_rot = self.convert_orn(robot, arm, pose['{}_ee_rot'.format(arm)].flatten(), to_robot=False)
+            targ_rot = T.quaternion_to_euler(targ_rot, 'xyzw')
+
             if a_name.find('move') < 0 and \
                 (a_name.find('grasp') >= 0 or \
                 a_name.find('lift') >= 0):
                 obj = act.params[1]
                 targ = act.params[2]
-                pose = {robot: pose, obj: self.obj_in_gripper(pose['{}_ee_pos'.format(arm)], targ.rotation[:,0], obj)}
+                pose = {robot: pose, obj: self.obj_in_gripper(targ_pos, targ_rot, obj)}
 
             if a_name.find('move') >= 0 and \
                (a_name.find('put') >= 0 or \
                 a_name.find('place') >= 0):
                 obj = act.params[2]
                 targ = act.params[1]
-                rot = targ.rotation[:,0]
                 if hasattr(targ, 'geom') and 'door' in targ.geom.get_types():
-                    rot = targ.geom.in_orn
-                pose = {robot: pose, obj: self.obj_in_gripper(pose['{}_ee_pos'.format(arm)], rot, obj)}
+                    targ_rot = targ.geom.in_orn
+                pose = {robot: pose, obj: self.obj_in_gripper(targ_pos, targ_rot, obj)}
                 obj = act.params[1]
                 targ = act.params[2]
 

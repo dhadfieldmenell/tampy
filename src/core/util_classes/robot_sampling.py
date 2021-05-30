@@ -553,18 +553,21 @@ def test_resample_order(attr_inds, res):
 #@profile
 def resample_eereachable(pred, negated, t, plan, inv=False, use_pos=True, use_rot=True, rel=True):
     attr_inds, res = OrderedDict(), OrderedDict()
+    acts = [a for a in plan.actions if a.active_timesteps[0] < t and a.active_timesteps[1] >= t]
+    if not len(acts): return None, None
+    x = pred.get_param_vector(t)
+    obj_trans, robot_trans, axises, arm_joints = pred.robot_obj_kinematics(x)
     robot, robot_body = pred.robot, pred._param_to_body[pred.robot]
+
+    act = acts[0]
+    a_st, a_et = act.active_timesteps
+
     if hasattr(pred, 'obj'):
         targ_pos = pred.obj.pose[:,t].copy()
         targ_rot = pred.obj.rotation[:,t].copy()
     elif hasattr(pred, 'targ'):
         targ_pos = pred.targ.value[:,0].copy()
         targ_rot = pred.targ.rotation[:,0].copy()
-
-    acts = [a for a in plan.actions if a.active_timesteps[0] < t and a.active_timesteps[1] >= t]
-    if not len(acts): return None, None
-    act = acts[0]
-    a_st, a_et = act.active_timesteps
 
     arm = pred.arm
     targ_quat = T.euler_to_quaternion(targ_rot, 'xyzw')
@@ -580,18 +583,16 @@ def resample_eereachable(pred, negated, t, plan, inv=False, use_pos=True, use_ro
 
     st, et = pred.active_range
     base_targ_pos = targ_pos
-    for ts in range(max(a_st, t+st), min(a_et, t+et)):
+    p_st, p_et = max(a_st, t+st), min(a_et, t+et+1)
+    for ts in range(p_st, p_et):
         if use_pos:
-            dist = pred.approach_dist if ts <= t else pred.retreat_dist
-            vec = -np.array(pred.rel_pt) - dist * np.abs(t-ts) * pred.axis
-            mask = pred.mask
+            #dist = pred.approach_dist if ts <= t else pred.retreat_dist
+            #vec = -np.array(pred.rel_pt) - dist * np.abs(t-ts) * pred.axis
+            vec = np.array(pred.rel_pt) + pred.get_rel_pt(ts-t)
             if rel:
-                vec = obj_mat.dot(vec)
-                mask = obj_mat.dot(mask)
+                #vec = obj_mat.dot(vec)
+                vec = obj_trans[:3,:3].dot(vec)
             targ_pos = base_targ_pos+vec
-            for ind, val in enumerate(mask):
-                if np.abs(val) < 1e-1:
-                    targ_pos[ind] = cur_pos[ind]
         else:
             targ_pos = np.array(cur_pos)
 

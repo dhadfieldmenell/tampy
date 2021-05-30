@@ -36,12 +36,13 @@ from policy_hooks.tamp_agent import TAMPAgent
 
 const.NEAR_GRIP_COEFF = 1e-2
 const.NEAR_APPROACH_COEFF = 7e-3
-const.GRASP_DIST = 0.16
+const.GRASP_DIST = 0.18
 const.APPROACH_DIST = 0.02
 const.RETREAT_DIST = 0.02
-const.EEREACHABLE_ROT_COEFF = 8e-3
+const.EEREACHABLE_COEFF = 2e-2
+const.EEREACHABLE_ROT_COEFF = 1e-2
 const.RCOLLIDES_COEFF = 1e-2
-const.OBSTRUCTS_COEFF = 8e-2
+const.OBSTRUCTS_COEFF = 1e-2
 
 STEP = 0.1
 NEAR_TOL = 0.05
@@ -110,7 +111,7 @@ class EnvWrapper():
         self.model = self.physics.model
         self.mode = mode
         self.z_offsets = {}
-        self.z_offsets = {'upright_block': 0.045}
+        #self.z_offsets = {'upright_block': 0.02}
         self.upright_rot = Rotation.from_euler('xyz', [1.57, 1.57, 0.])
         self.upright_rot_inv = self.upright_rot.inv()
         self.flat_rot = Rotation.from_euler('xyz', [0., 0., 0.])
@@ -397,7 +398,7 @@ class RobotAgent(TAMPAgent):
         self.load_render = hyperparams['master_config'].get('load_render', False)
         self.ctrl_mode = 'joint' if ('panda', 'right') in self.action_inds else 'ee_pos'
 
-        freq = 25
+        freq = 50
         self.base_env = robodesk.RoboDesk(task='lift_ball', \
                                           reward='success', \
                                           action_repeat=freq, \
