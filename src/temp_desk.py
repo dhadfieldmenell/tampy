@@ -36,8 +36,6 @@ agent = build_agent(agent_config)
 env = agent.base_env
 agent.mjc_env.reset()
 
-import ipdb; ipdb.set_trace()
-
 try:
     p.disconnect()
 except Exception as e:
@@ -60,7 +58,8 @@ visual = len(os.environ.get('DISPLAY', '')) > 0
 problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, None, use_tf=True, sess=None, visual=visual)
 params = problem.init_state.params
 
-for param in ['ball', 'upright_block', 'flat_block']:
+for param in ['ball', 'upright_block', 'flat_block', \
+              'drawer_handle', 'shelf_handle']:
     pose = agent.mjc_env.get_item_pose(param, euler=True)
     params[param].pose[:,0] = pose[0]
     params[param].rotation[:,0] = pose[1]
@@ -69,7 +68,9 @@ for param in ['ball', 'upright_block', 'flat_block']:
     #quat = [quat[1], quat[2], quat[3], quat[0]]
     #euler = T.quaternion_to_euler(quat)
     #params[param].rotation[:,0] = euler
-params['ball'].rotation[:,0] = [0., -0.4, 1.57]
+#params['ball'].rotation[:,0] = [0., -0.4, 1.57]
+params['drawer'].hinge[:,0] = agent.mjc_env.get_attr('drawer', 'hinge')
+params['shelf'].hinge[:,0] = agent.mjc_env.get_attr('shelf', 'hinge')
 
 for param in params:
     targ = '{}_init_target'.format(param)
@@ -77,7 +78,13 @@ for param in params:
         params[targ].value[:,0] = params[param].pose[:,0]
         params[targ].rotation[:,0] = params[param].rotation[:,0]
 
-#goal = '(NearGripperRight panda ball)'
+goal = '(and (InSlideDoor ball drawer) (Stacked upright_block flat_block))'
+#goal = '(and (SlideDoorOpen drawer_handle drawer) (NearApproachRight panda upright_block))'
+#goal = '(and (InSlideDoor upright_block shelf) (NearApproachRight panda ball))'
+#goal = '(and (SlideDoorClose drawer_handle drawer) (InSlideDoor ball drawer))'
+#goal = '(and (InSlideDoor ball drawer) (InSlideDoor upright_block shelf) (SlideDoorClose drawer_handle drawer))'
+#goal = '(Stacked upright_block flat_block)'
+#goal = '(and (SlideDoorClose shelf_handle shelf) (InSlideDoor upright_block shelf))'
 #goal = '(Lifted flat_block panda)'
 #goal = '(Lifted upright_block panda)'
 #goal = '(Lifted ball panda)'
@@ -85,16 +92,25 @@ for param in params:
 #goal = '(SlideDoorOpen drawer_handle drawer)'
 #goal = '(InSlideDoor ball drawer)'
 #goal = '(InSlideDoor upright_block shelf)'
-goal = '(and (SlideDoorClose shelf_handle shelf) (InSlideDoor upright_block shelf))'
 
+import ipdb; ipdb.set_trace()
 solver = RobotSolver()
 plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=2)
-
 
 import ipdb; ipdb.set_trace()
 
 if visual:
     agent.add_viewer()
+
+
+panda = plan.params['panda']
+for act in plan.actions:
+    st, et = act.active_timesteps
+    for t in range(st, et):
+        ctrl = np.r_[panda.right[:,t], panda.right_gripper[:,t]]
+        obs, rew, done, info = agent.mjc_env.step(ctrl)
+        agent.render_viewer(obs['image'])
+    import ipdb; ipdb.set_trace()
 
 import ipdb; ipdb.set_trace()
 

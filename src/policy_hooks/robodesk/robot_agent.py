@@ -35,8 +35,9 @@ from policy_hooks.tamp_agent import TAMPAgent
 
 
 const.NEAR_GRIP_COEFF = 1e-2
-const.GRASP_DIST = 0.18
+const.GRASP_DIST = 0.15
 const.APPROACH_DIST = 0.02
+const.RETREAT_DIST = 0.02
 const.EEREACHABLE_ROT_COEFF = 8e-3
 const.RCOLLIDES_COEFF = 1e-2
 const.OBSTRUCTS_COEFF = 8e-2
@@ -187,22 +188,26 @@ class EnvWrapper():
 
 
     def get_handle_pose(self, handle_name, order='xyzw', euler=False):
-        if item_name.find('shelf') >= 0:
+        if handle_name.find('shelf') >= 0:
             quat = T.euler_to_quaternion(const.SHELF_HANDLE_ORN, 'xyzw')
+        elif handle_name.find('drawer') >= 0:
+            quat = T.euler_to_quaternion(const.DRAWER_HANDLE_ORN, 'xyzw')
         else:
             quat = [0., 0., 0., 1.]
 
-        door = item_name.split('_handle')[0]
+        door = handle_name.split('_handle')[0]
         if door.find('shelf') >= 0:
             jnt = 'slide_joint'
-            val = self.env.physics.named.data.qpos[jnt]
-            door_pos = self.env.physics.named.data.xpos[door]
+            val = self.env.physics.named.data.qpos[jnt][0]
+            #door_pos = self.env.physics.named.data.xpos['slide']
+            door_pos = np.array([0., 0.85, 0.])
             pos = door_pos + const.SHELF_HANDLE_POS + np.array([val, 0., 0.])
 
         if door.find('drawer') >= 0:
             jnt = 'drawer_joint'
-            val = self.env.physics.named.data.qpos[jnt]
-            door_pos = self.env.physics.named.data.xpos[door]
+            val = self.env.physics.named.data.qpos[jnt][0]
+            door_pos = np.array([0., 0.85, 0.655])
+            #door_pos = self.env.physics.named.data.xpos[door]
             pos = door_pos + const.DRAWER_HANDLE_POS + np.array([0, val, 0.])
 
         rot = quat
@@ -228,8 +233,14 @@ class EnvWrapper():
         #    pos = self.env.physics.named.data.xpos[item_name]
         #    quat = self.env.physics.named.data.xquat[item_name]
 
-        if item_name.find('ball') >= 0:
-            quat = [1., 0., 0., 0.]
+        if item_name.find('drawer') >= 0:
+            pos = np.array([0., 0.85, 0.655])
+
+        if item_name.find('shelf') >= 0:
+            pos = np.array([0., 0.85, 0.])
+
+        #if item_name.find('ball') >= 0:
+        #    quat = T.euler_to_quaternion([0., -0.3, 1.57], 'wxyz')
 
         if order != 'xyzw':
             raise Exception()
@@ -310,6 +321,7 @@ class EnvWrapper():
 
     def step(self, action):
         if self.mode.find('joint') >= 0:
+            total_reward = 0.
             joint_position = action
             for t in range(self.env.action_repeat):
                 for _ in range(10):
@@ -358,7 +370,7 @@ class EnvWrapper():
 
     def reset(self):
         obs = self.env.reset()
-        ball_rot = T.euler_to_quaternion([0., -0.4, 1.57], 'xyzw')
+        ball_rot = T.euler_to_quaternion([0., -0.3, 1.57], 'xyzw')
         self.set_item_pose('ball', None, ball_rot)
         #cur_pos = self.get_attr('panda', 'right_ee_pos')
         #cur_jnts = self.get_attr('panda', 'right')
@@ -368,7 +380,7 @@ class EnvWrapper():
         #    self.set_attr('panda', 'right', cur_jnts)
         #    self.forward()
 
-        #self.forward()
+        self.forward()
         return obs
 
 
@@ -389,7 +401,7 @@ class RobotAgent(TAMPAgent):
                                           reward='success', \
                                           action_repeat=freq, \
                                           episode_length=None, \
-                                          image_size=64)
+                                          image_size=128)
 
         prim_options = self.prob.get_prim_choices(self.task_list)
         self.obj_list = prim_options[OBJ_ENUM]

@@ -555,11 +555,11 @@ def resample_eereachable(pred, negated, t, plan, inv=False, use_pos=True, use_ro
     attr_inds, res = OrderedDict(), OrderedDict()
     robot, robot_body = pred.robot, pred._param_to_body[pred.robot]
     if hasattr(pred, 'obj'):
-        targ_pos = pred.obj.pose[:,t]
-        targ_rot = pred.obj.rotation[:,t]
+        targ_pos = pred.obj.pose[:,t].copy()
+        targ_rot = pred.obj.rotation[:,t].copy()
     elif hasattr(pred, 'targ'):
-        targ_pos = pred.targ.value[:,0]
-        targ_rot = pred.targ.rotation[:,0]
+        targ_pos = pred.targ.value[:,0].copy()
+        targ_rot = pred.targ.rotation[:,0].copy()
 
     acts = [a for a in plan.actions if a.active_timesteps[0] < t and a.active_timesteps[1] >= t]
     if not len(acts): return None, None

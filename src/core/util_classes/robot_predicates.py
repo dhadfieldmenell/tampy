@@ -3054,6 +3054,10 @@ class RCollides(CollisionPredicate):
         self.neg_coeff = const.RCOLLIDE_COEFF
         attrs = {self.robot: self.robot.geom.arms + self.robot.geom.grippers + ['pose', 'rotation'], \
                  self.obstacle: ['pose', 'rotation']}
+
+        if 'door' in self.obstacle.geom.get_types():
+            attrs[self.obstacle].append('hinge')
+
         attr_inds, attr_dim = init_robot_pred(self, self.robot, [self.obstacle], attrs=attrs)
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
                                self.obstacle: self.lazy_spawn_or_body(self.obstacle, self.obstacle.name, self.obstacle.geom)}
