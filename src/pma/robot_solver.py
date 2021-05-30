@@ -21,7 +21,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             if a.name.lower().find('grasp') >= 0: return [a.params[0], a.params[1]]
             if a.name.lower().find('lift') >= 0: return [a.params[0], a.params[1]]
             #if a.name.lower().find('stack') >= 0: return [a.params[0], a.params[1], a.params[2]]
-            #if a.name.lower().find('place') >= 0: return [a.params[0], a.params[2]]
+            #if a.name.lower().find('place_in_door') >= 0: return [a.params[0], a.params[2]]
             if a.name.lower().find('slide') >= 0: return [a.params[0], a.params[1]]
 
         if a.name.lower().find('move') >= 0:
@@ -70,7 +70,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                 if a_name.lower().find('close') >= 0:
                     target_loc -= np.abs(obj_geom.close_val) * np.array(obj_geom.open_dir)
             elif a_name.lower().find('place_in') >= 0 and 'door' in obj_geom.get_types():
-                target_loc = obj.pose[:, start_ts] + obj_geom.in_pos + cur_disp + np.array([0., 0., 0.02])
+                target_loc = obj.pose[:, start_ts] + obj_geom.in_pos + cur_disp
             elif obj.is_symbol():
                 target_loc = obj.value[:, 0] + cur_disp
             else:
@@ -114,6 +114,8 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             pose['{}_ee_pos'.format(arm)] = np.array(info['pos']).reshape((-1,1))
             pose['{}_ee_rot'.format(arm)] = np.array(T.quaternion_to_euler(info['quat'], 'xyzw')).reshape((-1,1))
 
+        pose['pose'] = robot.pose[:, ts[0]:ts[0]+1]
+        pose['rotation'] = robot.rotation[:, ts[0]:ts[0]+1]
         return pose
 
     def convert_orn(self, robot, arm, rot, to_robot=True, off_mat=np.eye(3)): 
@@ -260,6 +262,13 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                 is_open = a_name.find('open') >= 0
                 door_pose = self.door_val(door, is_open, st)
                 pose = {robot: pose, door: door_pose}
+
+            #if a_name.find('place_in_door') >= 0:
+            #    door = act.params[1]
+            #    obj = act.params[2]
+            #    obj_pose = {'pose': (door.pose[:, st] + np.array(door.geom.in_pos)).reshape((3,1)),
+            #               'rotation': np.array(door.geom.in_orn).reshape((3,1))}
+            #    pose = {robot: pose, obj: obj_pose}
 
             if pose is None: break
             robot_pose.append(pose)

@@ -191,9 +191,15 @@ class EnvWrapper():
 
     def get_handle_pose(self, handle_name, order='xyzw', euler=False):
         if handle_name.find('shelf') >= 0:
-            quat = T.euler_to_quaternion(const.SHELF_HANDLE_ORN, 'xyzw')
+            if euler:
+                quat = const.SHELF_HANDLE_ORN
+            else:
+                quat = T.euler_to_quaternion(const.SHELF_HANDLE_ORN, 'xyzw')
         elif handle_name.find('drawer') >= 0:
-            quat = T.euler_to_quaternion(const.DRAWER_HANDLE_ORN, 'xyzw')
+            if euler:
+                quat = const.DRAWER_HANDLE_ORN
+            else:
+                quat = T.euler_to_quaternion(const.DRAWER_HANDLE_ORN, 'xyzw')
         else:
             quat = [0., 0., 0., 1.]
 
@@ -213,7 +219,7 @@ class EnvWrapper():
             pos = door_pos + const.DRAWER_HANDLE_POS + np.array([0, val, 0.])
 
         rot = quat
-        if euler:
+        if euler and len(rot) == 4:
             rot = T.quaternion_to_euler(quat, 'xyzw')
         return pos, rot
    

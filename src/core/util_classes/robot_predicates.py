@@ -1840,17 +1840,17 @@ class SlideDoorOpen(ExprPredicate):
             if val != 0: break
             ind += 1
 
-        attr_inds = OrderedDict([(self.handle, [("pose", np.array([ind], dtype=np.int))]),
-                                 (self.door, [("pose", np.array([ind], dtype=np.int)),
-                                                ("hinge", np.array([0], dtype=np.int))])])
+        attr_inds = OrderedDict([(self.door, [("hinge", np.array([0], dtype=np.int))])])
 
-        self.coeff = 1e-2
-        A = self.coeff*np.array([[1., -1., 0.], [0., 0., 1.]])
         open_val = self.door.geom.open_val
-        b = self.coeff*np.array([[-self.door.geom.handle_pos[ind]-open_val], [-open_val]])
-        val = np.zeros((2,1))
+        close_val = self.door.geom.close_val
+        sgn = 1 if open_val < close_val else -1
+        self.coeff = 1. # 1e-3 / (np.abs(open_val-close_val) / 2.)
+        A = sgn*self.coeff*np.array([[1.]])
+        b = sgn*self.coeff*np.array([[-(close_val+open_val)/2.]])
+        val = np.zeros((1,1))
         aff_e = AffExpr(A, b)
-        e = EqExpr(aff_e, val)
+        e = LEqExpr(aff_e, val)
 
         #neg_b = self.coeff*np.array([[-self.door.geom.handle_pos[ind]], [0.]])
         #neg_aff_e = AffExpr(A, neg_b)
@@ -1869,18 +1869,17 @@ class SlideDoorClose(ExprPredicate):
             if val != 0: break
             ind += 1
 
-        attr_inds = OrderedDict([(self.handle, [("pose", np.array([ind], dtype=np.int))]),
-                                 (self.door, [("pose", np.array([ind], dtype=np.int)),
-                                                ("hinge", np.array([0], dtype=np.int))])])
+        attr_inds = OrderedDict([(self.door, [("hinge", np.array([0], dtype=np.int))])])
 
-        self.coeff = 1e-2
-        A = self.coeff*np.array([[1., -1., 0.], [0., 0., 1.]])
+        open_val = self.door.geom.open_val
         close_val = self.door.geom.close_val
-        b = self.coeff*np.array([[-self.door.geom.handle_pos[ind]-close_val], [-close_val]])
-        val = np.zeros((2,1))
+        sgn = 1 if open_val > close_val else -1
+        self.coeff = 1. # 1e-3 / (np.abs(open_val-close_val) / 2.)
+        A = sgn*self.coeff*np.array([[1.]])
+        b = sgn*self.coeff*np.array([[-(close_val+open_val)/2.]])
+        val = np.zeros((1,1))
         aff_e = AffExpr(A, b)
-        e = EqExpr(aff_e, val)
-
+        e = LEqExpr(aff_e, val)
         super(SlideDoorClose, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.spacial_anchor = True
 
