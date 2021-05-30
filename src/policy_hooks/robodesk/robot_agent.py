@@ -35,7 +35,8 @@ from policy_hooks.tamp_agent import TAMPAgent
 
 
 const.NEAR_GRIP_COEFF = 1e-2
-const.GRASP_DIST = 0.15
+const.NEAR_APPROACH_COEFF = 7e-3
+const.GRASP_DIST = 0.16
 const.APPROACH_DIST = 0.02
 const.RETREAT_DIST = 0.02
 const.EEREACHABLE_ROT_COEFF = 8e-3
@@ -108,8 +109,8 @@ class EnvWrapper():
         self.physics = env.physics
         self.model = self.physics.model
         self.mode = mode
-        #self.z_offsets = {'upright_block': 0.045}
         self.z_offsets = {}
+        self.z_offsets = {'upright_block': 0.045}
         self.upright_rot = Rotation.from_euler('xyz', [1.57, 1.57, 0.])
         self.upright_rot_inv = self.upright_rot.inv()
         self.flat_rot = Rotation.from_euler('xyz', [0., 0., 0.])
@@ -239,8 +240,8 @@ class EnvWrapper():
         if item_name.find('shelf') >= 0:
             pos = np.array([0., 0.85, 0.])
 
-        #if item_name.find('ball') >= 0:
-        #    quat = T.euler_to_quaternion([0., -0.3, 1.57], 'wxyz')
+        if item_name.find('ball') >= 0:
+            quat = T.euler_to_quaternion([0., -0.4, 1.57], 'wxyz')
 
         if order != 'xyzw':
             raise Exception()
@@ -370,7 +371,7 @@ class EnvWrapper():
 
     def reset(self):
         obs = self.env.reset()
-        ball_rot = T.euler_to_quaternion([0., -0.3, 1.57], 'xyzw')
+        ball_rot = T.euler_to_quaternion([0., -0.2, 1.57], 'xyzw')
         self.set_item_pose('ball', None, ball_rot)
         #cur_pos = self.get_attr('panda', 'right_ee_pos')
         #cur_jnts = self.get_attr('panda', 'right')

@@ -1080,9 +1080,9 @@ class SlideDoor(Action):
                    ]
 
         if open_door:
-            self.pre.append(('(not (SlideDoorOpen ?item ?door))', '{0}:{1}'.format(0, 0)))
+            self.pre.append(('(not (SlideDoorOpen ?item ?door))', '{0}:{1}'.format(0, -1)))
         else:
-            self.pre.append(('(not (SlideDoorClose ?item ?door))', '{0}:{1}'.format(0, 0)))
+            self.pre.append(('(not (SlideDoorClose ?item ?door))', '{0}:{1}'.format(0, -1)))
 
         self.eff = [('(not (Obstructs ?robot ?item))', '{}:{}'.format(end, end-1)),
                     ('(not (RCollides ?robot ?door))', '{}:{}'.format(end, end-1)),
@@ -1361,7 +1361,7 @@ class MoveToPlaceArm(MoveHoldingArm):
 
         self.pre.extend([('(not (NearGripper{} ?robot ?targ))'.format(arm), '0:0'),
                          ('(forall (?door - Door) (not (SlideDoorAt ?item ?door)))', '{0}:{1}'.format(0, -1)),
-                         ('(not (NearApproach{} ?robot ?targ))'.format(arm), '{0}:{1}'.format(0, 0)),
+                         ('(not (NearApproach{} ?robot ?targ))'.format(arm), '{0}:{1}'.format(0, -1)),
                          ('(Lifted ?item ?robot)', '0:0'),
                          ])
 
