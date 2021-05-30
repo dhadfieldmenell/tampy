@@ -242,7 +242,7 @@ class EnvWrapper():
             pos = np.array([0., 0.85, 0.])
 
         if item_name.find('ball') >= 0:
-            quat = T.euler_to_quaternion([0., -0.4, 1.57], 'wxyz')
+            quat = T.euler_to_quaternion([0., -0.8, 1.57], 'wxyz')
 
         if order != 'xyzw':
             raise Exception()
@@ -398,7 +398,7 @@ class RobotAgent(TAMPAgent):
         self.load_render = hyperparams['master_config'].get('load_render', False)
         self.ctrl_mode = 'joint' if ('panda', 'right') in self.action_inds else 'ee_pos'
 
-        freq = 50
+        freq = 20
         self.base_env = robodesk.RoboDesk(task='lift_ball', \
                                           reward='success', \
                                           action_repeat=freq, \

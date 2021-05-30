@@ -72,6 +72,8 @@ for param in ['ball', 'upright_block', 'flat_block', \
 params['drawer'].hinge[:,0] = agent.mjc_env.get_attr('drawer', 'hinge')
 params['shelf'].hinge[:,0] = agent.mjc_env.get_attr('shelf', 'hinge')
 
+params['panda'].right[:,0] = agent.mjc_env.get_attr('panda', 'right')
+
 for param in params:
     targ = '{}_init_target'.format(param)
     if targ in params:
@@ -95,7 +97,11 @@ goal = '(and (InSlideDoor ball drawer) (Stacked upright_block flat_block))'
 
 import ipdb; ipdb.set_trace()
 solver = RobotSolver()
-plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=2)
+
+try:
+    plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=2)
+except Exception as e:
+    import ipdb; ipdb.set_trace()
 
 import ipdb; ipdb.set_trace()
 
@@ -107,7 +113,9 @@ panda = plan.params['panda']
 for act in plan.actions:
     st, et = act.active_timesteps
     for t in range(st, et):
-        ctrl = np.r_[panda.right[:,t], panda.right_gripper[:,t]]
+        grip = panda.right_gripper[:, min(t+1, plan.horizon-1)]
+        grip = -0.005 * np.ones(2) if grip[0] < 0.01 else 0.06 * np.ones(2)
+        ctrl = np.r_[panda.right[:,t], grip]
         obs, rew, done, info = agent.mjc_env.step(ctrl)
         agent.render_viewer(obs['image'])
     import ipdb; ipdb.set_trace()

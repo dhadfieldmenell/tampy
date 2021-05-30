@@ -91,7 +91,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         if not len(iks): return None
         if a_name.find('lift') >= 0:
-            iks[-1] += 1.57 if iks[-1] < 0 else -1.57
+            iks[-1] += 1.57 if iks[-1] < -1.25 else -1.57
         arm_pose = np.array(iks).reshape((-1,1))
         pose = {arm: arm_pose}
         gripper = robot.geom.get_gripper(arm)
