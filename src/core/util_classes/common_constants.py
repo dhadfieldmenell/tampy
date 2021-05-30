@@ -89,12 +89,12 @@ Following are for relative positions on complex objects
 """
 #DRAWER_HANDLE_POS = [0., -0.36, 0.01]
 DRAWER_HANDLE_POS = [0., -0.33, -0.03]
-IN_DRAWER_POS = [0., -0.35, 0.02]
+IN_DRAWER_POS = [0., -0.43, 0.01]
 DRAWER_HANDLE_ORN = [0., 0., 1.57]
 IN_DRAWER_ORN = [0., 0., 0.]
 
-SHELF_HANDLE_POS = [-0.3, -0.07, 1.005]
-IN_SHELF_POS = [0.3, 0.11, 0.88]
+SHELF_HANDLE_POS = [-0.3, -0.07, 0.995]
+IN_SHELF_POS = [0.3, 0.15, 0.93]
 SHELF_HANDLE_ORN = [1.57, 1.57, 0.]
 IN_SHELF_ORN = [1.57, 1.57, 0.]
 

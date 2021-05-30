@@ -37,12 +37,12 @@ from policy_hooks.tamp_agent import TAMPAgent
 const.NEAR_GRIP_COEFF = 1e-2
 const.NEAR_APPROACH_COEFF = 7e-3
 const.GRASP_DIST = 0.18
-const.APPROACH_DIST = 0.02
-const.RETREAT_DIST = 0.02
-const.EEREACHABLE_COEFF = 2e-2
+const.APPROACH_DIST = 0.025
+const.RETREAT_DIST = 0.025
+const.EEREACHABLE_COEFF = 1.4e-2
 const.EEREACHABLE_ROT_COEFF = 1e-2
 const.RCOLLIDES_COEFF = 1e-2
-const.OBSTRUCTS_COEFF = 1e-2
+const.OBSTRUCTS_COEFF = 2e-2
 
 STEP = 0.1
 NEAR_TOL = 0.05
