@@ -199,8 +199,9 @@ class Door(XMLItem):
             self.in_orn = const.IN_DRAWER_ORN
             self.hinge_type = 'prismatic'
             self.close_val = 0.
-            self.open_val = -0.18 #-0.48
-            self.open_thresh = -0.12
+            self.open_val = -0.16 # -0.18 #-0.48
+            self.open_thresh = -0.14
+            self.close_thresh = -0.1
             self.open_dir = [0., -1., 0.]
         elif door_type.lower() == 'desk_shelf':
             shape = baxter_gym.__path__[0] + '/robot_info/robodesk/desk_shelf.xml'
@@ -212,6 +213,7 @@ class Door(XMLItem):
             self.close_val = 0.6
             self.open_val = 0.
             self.open_thresh = 0.3
+            self.close_thresh = 0.5
             self.open_dir = [-1., 0., 0.]
         else:
             raise NotImplementedError()

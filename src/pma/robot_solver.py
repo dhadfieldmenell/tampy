@@ -14,6 +14,7 @@ from pma import backtrack_ll_solver
 #PANDA_REF_JNTS = [-0.30, -0.4, 0.28, -2.5, 0.13, 1.87, 0.91]
 #PANDA_REF_JNTS = [0.3, -0.8, 1.0, -2.5, 1.5, 1.87, 0.91]
 PANDA_REF_JNTS = [0.3, -0.8, 1.0, -2.5, 0.5, 1.87, 0.2]
+PANDA_REF_JNTS = [0.5, -0.8, 1.0, -2.5, 0.5, 1.87, 0.2]
 
 class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
@@ -116,6 +117,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         pose['pose'] = robot.pose[:, ts[0]:ts[0]+1]
         pose['rotation'] = robot.rotation[:, ts[0]:ts[0]+1]
+
         return pose
 
     def convert_orn(self, robot, arm, rot, to_robot=True, off_mat=np.eye(3)): 

@@ -34,14 +34,14 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.tamp_agent import TAMPAgent
 
 
-const.NEAR_GRIP_COEFF = 1e-2
+const.NEAR_GRIP_COEFF = 2e-2
 const.NEAR_APPROACH_COEFF = 7e-3
 const.GRASP_DIST = 0.18
 const.APPROACH_DIST = 0.025
 const.RETREAT_DIST = 0.025
-const.EEREACHABLE_COEFF = 1.4e-2
+const.EEREACHABLE_COEFF = 1e-2
 const.EEREACHABLE_ROT_COEFF = 1e-2
-const.RCOLLIDES_COEFF = 1e-2
+const.RCOLLIDES_COEFF = 3e-2
 const.OBSTRUCTS_COEFF = 2e-2
 
 STEP = 0.1
@@ -116,6 +116,7 @@ class EnvWrapper():
         self.upright_rot_inv = self.upright_rot.inv()
         self.flat_rot = Rotation.from_euler('xyz', [0., 0., 0.])
         self.flat_rot_inv = self.flat_rot.inv()
+        self.cur_obs = self.reset()
 
 
     def get_task():
@@ -336,6 +337,11 @@ class EnvWrapper():
                     self.env.physics.data.ctrl[0:9] = joint_position[0:9]
                     # Ensure gravity compensation stays enabled.
                     self.env.physics.data.qfrc_applied[0:9] = self.physics.data.qfrc_bias[0:9]
+                    if self.env.physics.data.ctrl[7] > 0.02:
+                        self.env.physics.named.data.xfrc_applied['ball'][2] = -10.
+                    else:
+                        self.env.physics.named.data.xfrc_applied['ball'][2] = 0.
+
                     self.env.physics.step()
                     self.env.physics_copy.data.qpos[:] = self.physics.data.qpos[:]
 
@@ -357,10 +363,14 @@ class EnvWrapper():
                     done = True
                 else:
                     done = False
+            obs = self.env._get_obs()
+            self.cur_obs = obs
+            return obs, total_reward, done, {'discount': 1.0}
 
-            return self.env._get_obs(), total_reward, done, {'discount': 1.0}
+        obs, rew, done, info = self.env.step(action)
+        self.cur_obs = obs
+        return obs, rew, done, info
 
-        return self.env.step(action)
 
     def zero(self):
         self.env.physics.data.time = 0.0
@@ -389,6 +399,7 @@ class EnvWrapper():
         #    self.forward()
 
         self.forward()
+        self.cur_obs = obs
         return obs
 
 
@@ -403,6 +414,8 @@ class RobotAgent(TAMPAgent):
         self.optimal_pol_cls =  optimal_pol
         self.load_render = hyperparams['master_config'].get('load_render', False)
         self.ctrl_mode = 'joint' if ('panda', 'right') in self.action_inds else 'ee_pos'
+        self.compound_goals = hyperparams.get('compound_goals', False)
+        self._load_goals()
 
         freq = 20
         self.base_env = robodesk.RoboDesk(task='lift_ball', \
@@ -424,6 +437,15 @@ class RobotAgent(TAMPAgent):
         self.targ_labels = {}
         self.cur_obs = self.mjc_env.reset()
         self.replace_cond(0)
+
+
+    def _load_goals(self):
+        self.goals = {}
+        for goal in self.prob.GOAL_OPTIONS:
+            descr = goal.replace('(', '').replace(')', '')
+            descr = descr.split(' ')
+            self.goals[goal] = [descr[0], descr[1:]]
+
 
     def get_annotated_image(self, s, t, cam_id=None):
         x = s.get_X(t=t)
@@ -643,7 +665,8 @@ class RobotAgent(TAMPAgent):
                 plan.params['{0}_init_target'.format(param_name)].value[:,0] = param.pose[:,0]
 
         for tname, attr in self.target_inds:
-            getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
+            if tname in plan.params:
+                getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
 
         for param in plan.params.values():
             if (param.name, 'pose') in self.state_inds:
@@ -844,7 +867,7 @@ class RobotAgent(TAMPAgent):
         if fill_obs:
             if IM_ENUM in self._hyperparams['obs_include'] or \
                IM_ENUM in self._hyperparams['prim_obs_include']:
-                im = self.base_env.render(height=self.image_height, width=self.image_width, view=self.view)
+                im = self.mjc_env.cur_obs['image']
                 im = (im - 128.) / 128.
                 sample.set(IM_ENUM, im.flatten(), t)
 
@@ -852,37 +875,32 @@ class RobotAgent(TAMPAgent):
     def goal_f(self, condition, state, targets=None, cont=False, anywhere=False, tol=LOCAL_NEAR_TOL, verbose=False):
         if targets is None:
             targets = self.target_vecs[condition]
-        objs = self.prob.get_prim_choices(self.task_list)[OBJ_ENUM]
-        cost = len(objs)
-        alldisp = 0
-        plan = list(self.plans.values())[0]
-        no = self._hyperparams['num_objs']
-        if len(np.shape(state)) < 2:
-            state = [state]
 
-        for param_name in objs:
-            param = plan.params[param_name]
-            if 'Item' in param.get_type(True) and ('{0}_end_target'.format(param.name), 'value') in self.target_inds:
-                if anywhere:
-                    vals = [targets[self.target_inds[key, 'value']] for key, _ in self.target_inds if key.find('end_target') >= 0]
+        cost = 0
+        for goal in self.goals:
+            if targets[self.target_inds[goal, 'value']][0] == 1:
+                key, params = self.goals[goal]
+                if key.find('lift'):
+                    suc = self._lifted(x, params[0])
+                elif key.find('open'):
+                    suc = self._door_open(x, params[1])
+                elif key.find('close'):
+                    suc = self._door_close(x, params[1])
+                elif key.find('stack'):
+                    suc = self._stacked(x, params[0])
+                elif key.find('off_desk'):
+                    suc = self._off_desk(x, params[0])
+                elif key.find('in_bin'):
+                    suc = self._in_bin(x, params[0])
+                elif key.find('in_shelf'):
+                    suc = self._in_shelf(x, params[0])
+                elif key.find('button'):
+                    suc = self._button(x, params[0])
                 else:
-                    vals = [targets[self.target_inds['{0}_end_target'.format(param.name), 'value']]]
-                dist = np.inf
-                disp = None
-                for x in state:
-                    for val in vals:
-                        curdisp = x[self.state_inds[param.name, 'pose']] - val
-                        curdist = np.linalg.norm(curdisp)
-                        if curdist < dist:
-                            disp = curdisp
-                            dist = curdist
-                # np.sum((state[self.state_inds[param.name, 'pose']] - self.targets[condition]['{0}_end_target'.format(param.name)])**2)
-                # cost -= 1 if dist < 0.3 else 0
-                alldisp += dist # np.linalg.norm(disp)
-                cost -= 1 if np.all(np.abs(disp) < tol) else 0
+                    raise NotImplementedError()
 
-        if cont: return alldisp / float(no)
-        # return cost / float(self.prob.NUM_OBJS)
+                cost += 1 if suc else 0
+
         return 1. if cost > 0 else 0.
 
 
@@ -906,7 +924,7 @@ class RobotAgent(TAMPAgent):
         self._x_delta[:] = x.reshape((1,-1))
         self._prev_task = np.zeros((self.task_hist_len, self.dPrimOut))
         self.cur_state = x.copy()
-        self.mjc_env.reset()
+        obs = self.mjc_env.reset()
         for (pname, aname), inds in self.state_inds.items():
             if aname.find('ee_pos') >= 0 or aname.find('ee_rot') >= 0: continue
             val = x[inds]
@@ -937,23 +955,6 @@ class RobotAgent(TAMPAgent):
 
     def reset_mjc_env(self, x, targets=None, draw_targets=True):
         pass
-
-
-    def set_to_targets(self, condition=0):
-        return
-
-
-    def check_targets(self, x, condition=0):
-        mp_state = x[self._x_data_idx]
-        prim_choices = self.prob.get_prim_choices(self.task_list)
-        objs = prim_choices[OBJ_ENUM]
-        correct = 0
-        for obj_name in objs:
-            target = self.targets[condition]['{0}_end_target'.format(obj_name)]
-            obj_pos = mp_state[self.state_inds[obj_name, 'pose']]
-            if np.linalg.norm(obj_pos - target) < 0.05:
-                correct += 1
-        return correct
 
 
     def get_mjc_obs(self, x):
@@ -987,10 +988,6 @@ class RobotAgent(TAMPAgent):
 
     def get_random_initial_state_vec(self, config, plans, dX, state_inds, ncond):
         self.cur_obs = self.mjc_env.reset()
-        #for ind, obj in enumerate(self.obj_list):
-        #    if ind >= config['num_objs'] and (obj, 'pose') in self.state_inds:
-        #        self.set_to_target(obj)
-
         x = np.zeros(self.dX)
         for pname, aname in self.state_inds:
             inds = self.state_inds[pname, aname]
@@ -998,10 +995,22 @@ class RobotAgent(TAMPAgent):
             if len(inds) == 1: val = np.mean(val)
             x[inds] = val
 
-        targets = {}
+        targets = {goal: 0 for goal in self.goals}
         plan = list(self.plans.values())[0]
         for targ in ['shelf_target', 'off_desk_target', 'bin_target']:
             targets[targ] = plan.params[targ].value[:,0].copy()
+
+        used_params = []
+        goal_descrs = list(self.goals.keys())
+        order = np.random.permutation(len(goal_descrs))
+        for ind in order:
+            goal = goal_descrs[ind]
+            key, params = self.goals[goal]
+            if params[0] in used_params: continue
+            used_params.append(params[0])
+            targets[goal] = 1
+            if not self.compound_goals: break
+
         return [x], [targets] 
    
 
@@ -1026,36 +1035,21 @@ class RobotAgent(TAMPAgent):
     def goal(self, cond, targets=None):
         if targets is None:
             targets = self.target_vecs[cond]
-        prim_choices = self.prob.get_prim_choices(self.task_list)
-        goal = ''
-        if self.goal_type == 'moveto':
-            return '(NearApproachRight sawyer cereal)'
-        
-        if self.goal_type == 'grasp':
-            return '(NearGripperRight sawyer cereal)'
 
-        for i, obj in enumerate(prim_choices[OBJ_ENUM]):
-            goal += '(Near {0} {0}_end_target) '.format(obj)
+        goal = ''
+        for (descr, attr), inds in self.target_inds.items():
+            if type(descr) is str and targets[inds][0] == 1:
+                goal += descr
+
         return goal
 
 
-    def check_target(self, targ):
-        return
-        vec = np.zeros(len(list(self.targ_labels.keys())))
-        for ind in self.targ_labels:
-            if np.all(np.abs(targ - self.targ_labels[ind]) < NEAR_TOL):
-                vec[ind] = 1.
-                break
-        return vec
-
-
     def onehot_encode_goal(self, targets, descr=None, debug=False):
-        vecs = []
-        for i in range(0, len(targets), 3):
-            targ = targets[i:i+3]
-            vec = self.check_target(targ)
-            vecs.append(vec)
-        return np.concatenate(vecs)
+        vec = np.zeros(len(self.goals))
+        for ind, goal in enumerate(self.goals):
+            if targets[self.target_inds[goal, 'value']][0] == 1:
+                vec[ind] = 1.
+        return vec
 
 
     def get_mask(self, sample, enum):
@@ -1068,30 +1062,7 @@ class RobotAgent(TAMPAgent):
 
 
     def permute_tasks(self, tasks, targets, plan=None, x=None):
-        encoded = [list(l) for l in tasks]
-        no = self._hyperparams['num_objs']
-        perm = np.random.permutation(range(no))
-        for l in encoded:
-            l[1] = perm[l[1]]
-        prim_opts = self.prob.get_prim_choices(self.task_list)
-        objs = prim_opts[OBJ_ENUM]
-        encoded = [tuple(l) for l in encoded]
-        target_vec = targets.copy()
-        param_map = {}
-        old_values = {}
-        perm_map = {}
-        for n in range(no):
-            obj1 = objs[n]
-            obj2 = objs[perm[n]]
-            inds = self.target_inds['{0}_end_target'.format(obj1), 'value']
-            inds2 = self.target_inds['{0}_end_target'.format(obj2), 'value']
-            target_vec[inds2] = targets[inds]
-            if plan is None:
-                old_values[obj1] = x[self.state_inds[obj1, 'pose']]
-            else:
-                old_values[obj1] = plan.params[obj1].pose.copy()
-            perm_map[obj1] = obj2
-        return encoded, target_vec, perm_map
+        raise NotImplementedError()
 
 
     def encode_plan(self, plan, permute=False):
@@ -1323,4 +1294,52 @@ class RobotAgent(TAMPAgent):
         if x is None: x = self.get_state()
         if targets is None: targets = self.target_vecs[0]
         raise NotImplementedError()
+
+
+    def _in_shelf(self, x, item_name):
+        pos = x[slf.state_inds[item_name, 'pose']]
+        return pos[0] > 0.2 and pos[1] > 0.9
+
+
+    def _in_bin(self, x, item_name):
+        pos = x[slf.state_inds[item_name, 'pose']]
+        return pos[0] > 0.25 and pos[0] < 0.55 and pos[1] > 0.4 and pos[1] < 0.7
+
+
+    def _off_desk(self, x, item_name):
+        pos = x[slf.state_inds[item_name, 'pose']]
+        return pos[0] > 0.6
+
+
+    def _lifted(self, x, item_name):
+        pos = x[slf.state_inds[item_name, 'pose']]
+        thresh = 0.82
+        if item_name.find('upright') >= 0:
+            thresh = 0.86
+        return pos[2] > thresh
+
+
+    def _door_open(self, x, door_name):
+        door = list(self.plans.values()[0]).params[door_name]
+        open_val = door.geom.open_thresh
+        pos = x[slf.state_inds[door_name, 'hinge']][0]
+        sgn = -1. if door.geom.open_val < door.geom.close_val else 1.
+        pos = x[slf.state_inds[door_name, 'hinge']][0]
+        return sgn*pos > sgn*open_val
+
+
+    def _door_close(self, x, door_name):
+        door = list(self.plans.values()[0]).params[door_name]
+        close_val = door.geom.close_thresh
+        pos = x[slf.state_inds[door_name, 'hinge']][0]
+        sgn = -1. if door.geom.open_val < door.geom.close_val else 1.
+        pos = x[slf.state_inds[door_name, 'hinge']][0]
+        return sgn*pos < sgn*close_val
+
+
+    def _stacked(self, x, item_name, base_item='flat_block'):
+        pos1 = x[self.state_inds[item_name, 'pose']]
+        pos2 = x[self.state_inds[base_item, 'pose']]
+        return np.linalg.norm((pos1-pos2) - [0., 0., 0.037]) < 0.04
+
 

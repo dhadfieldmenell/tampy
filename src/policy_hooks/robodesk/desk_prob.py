@@ -18,13 +18,12 @@ domain_file = "../domains/robot_domain/right_desk.domain"
 mapping_file = "policy_hooks/robodesk/robot_task_mapping"
 
 GOAL_OPTIONS = [
-                '(SlideDoorOpen shelf_handle shelf)',
+                '(SlideDoorClose shelf_handle shelf)',
                 '(SlideDoorOpen drawer_handle drawer)',
-                '(NearGripper panda green_button)',
                 '(Lifted upright_block panda)',
                 '(Lifted ball panda)',
                 '(Near upright_block off_desk_target)',
-                '(Near upright_block shelf_target)',
+                '(InSlideDoor upright_block shelf)',
                 '(Near flat_block bin_target)',
                 '(Stacked upright_block flat_block)'
                 ]
@@ -69,6 +68,9 @@ def get_vector(config):
         'shelf_target': ['value', 'rotation'],
         'off_desk_target': ['value', 'rotation'],
     }
+    for goal in GOAL_OPTIONS:
+        target_vector_include[goal] = ['value']
+
     return state_vector_include, action_vector_include, target_vector_include
 
 
