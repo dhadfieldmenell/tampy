@@ -332,36 +332,6 @@ def resample_gripper_down_rot(pred, negated, t, plan, arms=[]):
     add_to_attr_inds_and_res(t, attr_inds, res, robot, [(arm, iks[arm]) for arm in arms])
     return res, attr_inds
 
-def resample_in_gripper(pred, negated, t, plan, fix_obj=False):
-    attr_inds, res = OrderedDict(), OrderedDict()
-
-    robot, obj = pred.robot, pred.obj
-    body, arm = robot.openrave_body, pred.arm
-    geom = robot.geom
-
-    act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
-
-    if not fix_obj or action.name.find("moveholding") >= 0:
-        ts_range = action.active_timesteps
-        for ts in range(ts_range[0], ts_range[1]+1):
-            body.set_from_param(robot, ts)
-            pos = body.fwd_kinematics(arm)['pos']
-            add_to_attr_inds_and_res(ts, attr_inds, res, cloth, [('pose', pos)])
-    elif fix_obj or action.name.find("grasp") >= 0 or action.name.find("putdown") >= 0:
-        grasp_time = action.active_timesteps[0]+1 + const.EEREACHABLE_STEPS
-        st = max(action.active_timesteps[0], grasp_time-ts_delta)
-        et = min(action.active_timesteps[1], grasp-time+ts_delta)
-        ts_range = range(st, et)
-        for ts in ts_range:
-            pos = obj.pose[:, ts]
-            body.set_from_param(robot, ts)
-            quat = body.fwd_kinematics(arm)['quat']
-            robot.openrave_body.set_dof({pred.arm: np.zeros(len(robot.geom.jnt_names[pred.arm]))})
-            ik = body.get_ik_from_pose(pos, quat, arm)
-            add_to_attr_inds_and_res(ts, attr_inds, res, robot, [(arm, ik)])
-
-    if DEBUG: assert pred.test(t, negated = negated, tol = 1e-3)
-    return res, attr_inds
 
 #@profile
 def resample_obstructs(pred, negated, t, plan):
@@ -597,6 +567,56 @@ def resample_eereachable(pred, negated, t, plan, inv=False, use_pos=True, use_ro
             targ_pos = np.array(cur_pos)
 
         quat = quat if use_rot else cur_quat
+        ik = robot_body.get_ik_from_pose(targ_pos, quat, arm)
+        add_to_attr_inds_and_res(ts, attr_inds, res, robot, [(arm, np.array(ik).flatten())])
+    return res, attr_inds
+
+
+#@profile
+def resample_in_gripper(pred, negated, t, plan):
+    attr_inds, res = OrderedDict(), OrderedDict()
+    acts = [a for a in plan.actions if a.active_timesteps[0] < t and a.active_timesteps[1] >= t]
+    if not len(acts): return None, None
+    x = pred.get_param_vector(t)
+    obj_trans, robot_trans, axises, arm_joints = pred.robot_obj_kinematics(x)
+    robot, robot_body = pred.robot, pred._param_to_body[pred.robot]
+    obj, obj_body = pred.obj, pred._param_to_body[pred.obj]
+
+    act = acts[0]
+    a_st, a_et = act.active_timesteps
+
+    if hasattr(pred, 'obj'):
+        targ_pos = pred.obj.pose[:,t].copy()
+        targ_rot = pred.obj.rotation[:,t].copy()
+    elif hasattr(pred, 'targ'):
+        targ_pos = pred.targ.value[:,0].copy()
+        targ_rot = pred.targ.rotation[:,0].copy()
+
+    arm = pred.arm
+    targ_quat = T.euler_to_quaternion(targ_rot, 'xyzw')
+    gripper_axis = robot.geom.get_gripper_axis(pred.arm)
+    quat = OpenRAVEBody.quat_from_v1_to_v2(gripper_axis, pred.axis)
+    robot_mat = T.quat2mat(quat)
+    obj_mat = T.quat2mat(targ_quat)
+    quat = T.mat2quat(obj_mat.dot(robot_mat))
+    robot_body.set_pose(robot.pose[:,t], robot.rotation[:,t])
+    robot_body.set_dof({arm: getattr(robot, arm)[:,t]})
+    cur_info = robot_body.fwd_kinematics(arm)
+    cur_pos, cur_quat = cur_info['pos'], cur_info['quat']
+
+    base_targ_pos = targ_pos
+    n_steps = 2
+    p_st, p_et = max(a_st, t-n_steps), min(a_et, t+n_steps+1)
+    for ts in range(p_st, p_et):
+        grasp_pt = obj.geom.grasp_point if hasattr(obj.geom, 'grasp_point') else np.zeros(3)
+        vec = np.array(grasp_pt)
+        if ts < t:
+            vec += np.array([0., 0., np.abs(ts-t)*const.APPROACH_DIST])
+        else:
+            vec += np.array([0., 0., np.abs(ts-t)*const.RETREAT_DIST])
+
+        vec = obj_trans[:3,:3].dot(vec)
+        targ_pos = base_targ_pos+vec
         ik = robot_body.get_ik_from_pose(targ_pos, quat, arm)
         add_to_attr_inds_and_res(ts, attr_inds, res, robot, [(arm, np.array(ik).flatten())])
     return res, attr_inds

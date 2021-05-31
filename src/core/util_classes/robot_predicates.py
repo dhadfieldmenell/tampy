@@ -1847,7 +1847,7 @@ class SlideDoorOpen(ExprPredicate):
         sgn = 1 if open_val < close_val else -1
         self.coeff = 1. # 1e-3 / (np.abs(open_val-close_val) / 2.)
         A = sgn*self.coeff*np.array([[1.]])
-        b = sgn*self.coeff*np.array([[-(close_val+open_val)/2.]])
+        b = sgn*self.coeff*np.array([[-self.door.geom.open_thresh]])
         val = np.zeros((1,1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
@@ -1876,7 +1876,7 @@ class SlideDoorClose(ExprPredicate):
         sgn = 1 if open_val > close_val else -1
         self.coeff = 1. # 1e-3 / (np.abs(open_val-close_val) / 2.)
         A = sgn*self.coeff*np.array([[1.]])
-        b = sgn*self.coeff*np.array([[-(close_val+open_val)/2.]])
+        b = sgn*self.coeff*np.array([[-self.door.geom.open_thresh]])
         val = np.zeros((1,1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
@@ -2101,6 +2101,9 @@ class InGripper(PosePredicate):
     def tile_grad(self, x):
         grad = self.eval_grad(x)
         return np.r_[grad, -1.*grad]
+
+    def resample(self, negated, t, plan):
+        return robot_sampling.resample_in_gripper(self, negated, t, plan)
 
 class InGripperLeft(InGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
