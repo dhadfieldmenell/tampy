@@ -47,14 +47,15 @@ END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
 #                   ])
 
 
-END_TARGETS.extend([(3.2, 2.3),
-                   (-3.2, 2.3),
+END_TARGETS.extend([
                    (6.4, 2.3),
                    (-6.4, 2.3),
-                   (3.2, -8.3),
-                   (-3.2, -8.3),
                    (6.4, -8.3),
                    (-6.4, -8.3),
+                   (3.2, 2.3),
+                   (-3.2, 2.3),
+                   (3.2, -8.3),
+                   (-3.2, -8.3),
                    ])
 
 n_aux = 4
@@ -236,16 +237,14 @@ def get_plans(use_tf=False):
     st = time.time()
     for task in task_ids:
         next_task_str = copy.deepcopy(tasks[task])
-        for i in range(len(prim_options[utils.OBJ_ENUM])):
-            for j in range(len(prim_options[utils.TARG_ENUM])):
+        if task.find('move') >= 0:
+            for i in range(len(prim_options[utils.OBJ_ENUM])):
                 obj = prim_options[utils.OBJ_ENUM][i]
-                targ = prim_options[utils.TARG_ENUM][j]
                 new_task_str = []
                 for step in next_task_str:
-                    new_task_str.append(step.format(obj, targ, 'grasp0'))
+                    new_task_str.append(step.format(obj, '', ''))
                 plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params, sess=sess, use_tf=use_tf)
                 params = plan.params
-                plans[(task_ids.index(task), i, j)] = plan
                 if env is None:
                     env = plan.env
                     for param in list(plan.params.values()):
@@ -253,6 +252,28 @@ def get_plans(use_tf=False):
                             if not hasattr(param, 'openrave_body') or param.openrave_body is None:
                                 param.openrave_body = OpenRAVEBody(env, param.name, param.geom)
                             openrave_bodies[param.name] = param.openrave_body
+
+                for j in range(len(prim_options[utils.TARG_ENUM])):
+                    plans[(task_ids.index(task), i, j)] = plan
+
+        else:
+            for i in range(len(prim_options[utils.OBJ_ENUM])):
+                for j in range(len(prim_options[utils.TARG_ENUM])):
+                    obj = prim_options[utils.OBJ_ENUM][i]
+                    targ = prim_options[utils.TARG_ENUM][j]
+                    new_task_str = []
+                    for step in next_task_str:
+                        new_task_str.append(step.format(obj, targ, 'grasp0'))
+                    plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params, sess=sess, use_tf=use_tf)
+                    params = plan.params
+                    plans[(task_ids.index(task), i, j)] = plan
+                    if env is None:
+                        env = plan.env
+                        for param in list(plan.params.values()):
+                            if hasattr(param, 'geom'):
+                                if not hasattr(param, 'openrave_body') or param.openrave_body is None:
+                                    param.openrave_body = OpenRAVEBody(env, param.name, param.geom)
+                                openrave_bodies[param.name] = param.openrave_body
     return plans, openrave_bodies, env
 
 def get_end_targets(num_cans=NUM_OBJS, num_targs=NUM_OBJS, targs=None, randomize=False, possible_locs=END_TARGETS):

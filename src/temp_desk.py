@@ -76,8 +76,15 @@ for param in ['ball', 'upright_block', 'flat_block', \
 params['drawer'].hinge[:,0] = agent.mjc_env.get_attr('drawer', 'hinge')
 params['shelf'].hinge[:,0] = agent.mjc_env.get_attr('shelf', 'hinge')
 
-params['panda'].right[:,0] = agent.mjc_env.get_attr('panda', 'right')
+right_jnts = agent.mjc_env.get_attr('panda', 'right')
+lb, ub = params['panda'].geom.get_joint_limits('right')
+lb = np.array(lb) + 2e-3
+ub = np.array(ub) - 2e-3
+right_jnts = np.clip(right_jnts, lb, ub)
+params['panda'].right[:,0] = right_jnts 
+
 params['robot_init_pose'].right[:,0] = agent.mjc_env.get_attr('panda', 'right')
+params['robot_init_pose'].right_gripper[:,0] = agent.mjc_env.get_attr('panda', 'right_gripper')
 
 for param in params:
     targ = '{}_init_target'.format(param)
@@ -85,11 +92,11 @@ for param in params:
         params[targ].value[:,0] = params[param].pose[:,0]
         params[targ].rotation[:,0] = params[param].rotation[:,0]
 
-#goal = '(and (InSlideDoor ball drawer) (Stacked upright_block flat_block))'
+goal = '(and (InSlideDoor ball drawer) (Stacked upright_block flat_block))'
 #goal = '(and (SlideDoorOpen drawer_handle drawer) (NearApproachRight panda upright_block))'
 #goal = '(and (InSlideDoor upright_block shelf) (NearApproachRight panda ball))'
 #goal = '(and (SlideDoorClose drawer_handle drawer) (InSlideDoor ball drawer))'
-goal = '(and (InSlideDoor ball drawer) (InSlideDoor upright_block shelf) (SlideDoorClose drawer_handle drawer) (SlideDoorClose shelf_handle shelf))'
+#goal = '(and (InSlideDoor ball drawer) (InSlideDoor upright_block shelf) (SlideDoorClose drawer_handle drawer) (SlideDoorClose shelf_handle shelf))'
 #goal = '(Stacked upright_block flat_block)'
 #goal = '(and (SlideDoorClose shelf_handle shelf) (InSlideDoor upright_block shelf))'
 #goal = '(Lifted flat_block panda)'
@@ -97,8 +104,9 @@ goal = '(and (InSlideDoor ball drawer) (InSlideDoor upright_block shelf) (SlideD
 #goal = '(Lifted ball panda)'
 #goal = '(SlideDoorClose shelf_handle shelf)'
 #goal = '(SlideDoorOpen drawer_handle drawer)'
-goal = '(InSlideDoor ball drawer)'
-goal = '(At flat_block bin_target)'
+#goal = '(InSlideDoor ball drawer)'
+#goal = '(At flat_block bin_target)'
+#goal = '(At ball bin_target)'
 #goal = '(InSlideDoor upright_block shelf)'
 #goal = '(InSlideDoor flat_block shelf)'
 
@@ -123,7 +131,7 @@ for act in plan.actions:
         ctrl = np.r_[panda.right[:,t], grip]
         obs, rew, done, info = agent.mjc_env.step(ctrl)
         agent.render_viewer(obs['image'])
-    import ipdb; ipdb.set_trace()
+    #import ipdb; ipdb.set_trace()
 
 import ipdb; ipdb.set_trace()
 

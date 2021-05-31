@@ -237,14 +237,18 @@ def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
 def get_target_inds(plan, attr_map, include):
     cur_ind = 0
     target_inds = {}
-    for param in list(plan.params.values()):
-        if param.name in include:
-            for attr in include[param.name]:
-                #param_attr_map = attr_map[param._type]
+    for param_name in include:
+        if param_name in plan.params:
+            param = plan.params[param_name]
+            for attr in include[param_name]:
                 inds = np.arange(len(getattr(param, attr)[:,0])) + cur_ind
-                #inds = next(filter(lambda p: p[0]==attr, attr_map[param._type]))[1] + cur_ind
                 cur_ind = inds[-1] + 1
                 target_inds[param.name, attr] = inds
+        else:
+            dim = include[param_name] if type(include[param_name]) is int else len(include[param_name])
+            inds = np.arange(dim) + cur_ind
+            target_inds[param_name, 'value'] = inds
+            cur_ind = inds[-1] + 1
 
     return cur_ind, target_inds
 
