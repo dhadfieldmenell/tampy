@@ -250,7 +250,7 @@ class MultiProcessMain(object):
                 'sensor_dims': self.sensor_dims,
                 'n_layers': self.config['prim_n_layers'],
                 'num_filters': [32, 32],
-                'filter_sizes': [7, 5],
+                'filter_sizes': [7,5],
                 'dim_hidden': self.config['prim_dim_hidden'],
                 'output_boundaries': self.config['prim_bounds'],
                 'aux_boundaries': self.config['aux_bounds'],
@@ -417,7 +417,8 @@ class MultiProcessMain(object):
 
     def create_server(self, server_cls, hyperparams, process=True):
         if hyperparams.get('seq', False):
-            spawn_server(server_cls, hyperparams)
+            spawn_server(server_cls, hyperparams, True)
+            sys.exit(0)
 
         if process:
             p = Process(target=spawn_server, args=(server_cls, hyperparams, True))
@@ -444,6 +445,9 @@ class MultiProcessMain(object):
 
 
     def create_servers(self, hyperparams, start_idx=0):
+        if hyperparams.get('seq', False):
+            self._create_server(hyperparams, TaskServer, 0)
+
         self.create_pol_servers(hyperparams)
         hyperparams['view'] = False
         for n in range(hyperparams['num_motion']):

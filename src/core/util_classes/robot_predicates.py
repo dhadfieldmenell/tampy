@@ -1876,7 +1876,7 @@ class SlideDoorClose(ExprPredicate):
         sgn = 1 if open_val > close_val else -1
         self.coeff = 1. # 1e-3 / (np.abs(open_val-close_val) / 2.)
         A = sgn*self.coeff*np.array([[1.]])
-        b = sgn*self.coeff*np.array([[-self.door.geom.open_thresh]])
+        b = sgn*self.coeff*np.array([[-self.door.geom.close_thresh]])
         val = np.zeros((1,1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
@@ -1928,9 +1928,13 @@ class Stacked(ExprPredicate):
                                  (self.base_obj, [("pose", np.array([0,1,2], dtype=np.int)),
                                                 ("rotation", np.array([0,1,2], dtype=np.int))])])
 
+        self.coeff = 5e-2
+        self.rot_coeff = 1e-2
         A = np.c_[np.eye(6), -np.eye(6)]
+        A[:3] *= self.coeff
+        A[3:] *= self.rot_coeff
         b, val = np.zeros((6, 1)), np.zeros((6, 1))
-        b[2,0] = -(h1 + h2)
+        b[2,0] = -self.coeff*(h1 + h2)
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
 
@@ -3100,6 +3104,9 @@ class RCollides(CollisionPredicate):
         else:
             return None
 
+    def resample(self, negated, t, plan):
+        return robot_sampling.resample_obstructs(self, negated, t, plan)
+
 class RSelfCollides(CollisionPredicate):
     """
         Format: RCollides Robot
@@ -3464,7 +3471,7 @@ class Lifted(ExprPredicate):
         A = np.array([[-1.]])
 
         if self.obj.name.lower().find('upright'):
-            b = 0.925 * np.ones((1,1))
+            b = 0.9 * np.ones((1,1))
         else:
             b = 0.85 * np.ones((1,1))
         val = np.zeros((1,1))
@@ -3472,5 +3479,35 @@ class Lifted(ExprPredicate):
         e = LEqExpr(aff_e, val)
 
         super(Lifted, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        self.spacial_anchor = True
+
+class InReach(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        self.obj, self.robot = params
+        attr_inds = OrderedDict([(self.obj, [("pose", np.array([2], dtype=np.int))])])
+            
+        A = np.array([[-1.]])
+        b = 0.6 * np.ones((1,1))
+        val = np.zeros((1,1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+
+        super(InReach, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        self.spacial_anchor = True
+
+class OffDesk(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        self.obj, self.robot = params
+        attr_inds = OrderedDict([(self.obj, [("pose", np.array([0], dtype=np.int))])])
+            
+        A = np.array([[-1.]])
+        b = 0.62 * np.ones((1,1))
+        val = np.zeros((1,1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+
+        super(OffDesk, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.spacial_anchor = True
 

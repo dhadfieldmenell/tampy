@@ -120,6 +120,8 @@ def main():
 
     for item in ['milk', 'bread', 'can', 'cereal']:
         s += "(At {0} {0}_init_target), ".format(item)
+        s += "(Near {0} {0}_init_target), ".format(item)
+        s += "(InReach {0} sawyer), ".format(item)
     s += "(RobotAt sawyer robot_init_pose),"
     s += "(StationaryBase sawyer), "
     #s += "(HeightBlock bread cereal), "

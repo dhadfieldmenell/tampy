@@ -262,6 +262,7 @@ dp.add('AboveTable', ['Item'])
 # Useful for Robodesk
 # Door isn't in every domain, and FF doesn't like unused types
 dp.add('Lifted', ['Item', 'Robot'])
+dp.add('InReach', ['Reachable', 'Robot'])
 dp.add('Stacked', ['Item', 'Item'])
 door_dp = dp.copy()
 door_dp.add('SlideDoorAt', ['Reachable', 'Door'])
@@ -373,6 +374,7 @@ class MoveToGrasp(MoveArm):
                          #('(At ?item ?targ)', '{0}:{1}'.format(1, self.end)),
                          #('(not (EEAtXY{} ?robot ?item))'.format(arm), '{0}:{1}'.format(0, 0)),
                          ('(not (NearGripper{} ?robot ?item))'.format(arm), '0:0'),
+                         ('(InReach ?item ?robot)', '0:0'),
                         ])
 
         self.eff.extend([#('(RightGripperDownRot ?robot)', '{0}:{1}'.format(3, self.end-1)),
@@ -706,6 +708,7 @@ class Hold(Action):
                     ('(forall (?obs - Obstacle) (not (RCollides ?robot ?obs)))', '1:{}'.format(self.grasp_time-steps-2)),
                     #('(forall (?obj - Item) (not (Obstructs ?robot ?obj)))', '1:{}'.format(grasp_time-steps-2)),
                     #('(forall (?obj - Item) (not (ObstructsHolding ?robot ?obj ?item)))', '{}:{}'.format(grasp_time-steps-2, end-1))
+                    ('(InReach ?item ?robot)', '0:0'),
                    ]
 
         self.eff = []
@@ -866,6 +869,7 @@ class Place(Action):
                    ]
 
         self.eff = [('(At ?item ?target)', '{}:{}'.format(end, end-1)) ,
+                    ('(not (InReach ?item ?robot))', '{}:{}'.format(end, end-1)),
                     ('(not (Lifted ?item ?robot))', '{0}:{1}'.format(end, end-1)),
                     ('(Near ?item ?target)', '{}:{}'.format(end, end)) ,
                     ('(forall (?obj - Reachable / ?target) (not (At ?item ?obj)))', 
@@ -1158,11 +1162,11 @@ class PlaceInDoor(Action):
     def __init__(self):
         self.name = 'place_in_door'
         self.steps = const.EEREACHABLE_STEPS
-        self.timesteps = 9 + 2 * const.EEREACHABLE_STEPS
+        self.timesteps = 11 + 2 * const.EEREACHABLE_STEPS
         end = self.timesteps - 1
         self.end = end
         self.args = '(?robot - Robot ?door - Door ?item - Item ?handle - Reachable)'
-        putdown_time = 2 + end // 2
+        putdown_time = 3 + end // 2
         approach_time = 5
         retreat_time = end-5
         self.putdown_time = putdown_time
@@ -1199,6 +1203,7 @@ class PlaceInDoor(Action):
                    ]
 
         self.eff = [('(not (Lifted ?item ?robot))', '{0}:{1}'.format(end, end-1)),
+                    ('(not (InReach ?item ?robot))', '{}:{}'.format(end, end-1)),
                     ('(InSlideDoor ?item ?door)', '{0}:{1}'.format(end, end)),
                     ('(not (Obstructs ?robot ?item))', '{}:{}'.format(end, end-1)),
                     ('(forall (?obj - Item) \

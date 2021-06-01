@@ -251,6 +251,10 @@ class EnvWrapper():
         if item_name.find('ball') >= 0:
             quat = T.euler_to_quaternion([0., -0.8, 1.57], 'wxyz')
 
+
+        if item_name.find('button') >= 0:
+            pos[1] -= 0.035
+
         if order != 'xyzw':
             raise Exception()
 
@@ -416,6 +420,7 @@ class RobotAgent(TAMPAgent):
         self.ctrl_mode = 'joint' if ('panda', 'right') in self.action_inds else 'ee_pos'
         self.compound_goals = hyperparams.get('compound_goals', False)
         self._load_goals()
+        self.rlen = 6 if not self.compound_goals else 24
 
         freq = 20
         self.base_env = robodesk.RoboDesk(task='lift_ball', \
@@ -613,9 +618,9 @@ class RobotAgent(TAMPAgent):
         prim_choices = self.prob.get_prim_choices(self.task_list)
         act = plan.actions[anum]
         params = act.params
-        if self.task_list[task[0]].find('grasp') >= 0:
-            params[2].value[:,0] = params[1].pose[:,st]
-            params[2].rotation[:,0] = params[1].rotation[:,st]
+        #if params[2].is_symbol():
+        #    params[2].value[:,0] = params[1].pose[:,st]
+        #    params[2].rotation[:,0] = params[1].rotation[:,st]
         #params[3].value[:,0] = params[0].pose[:,st]
         #for arm in params[0].geom.arms:
         #    getattr(params[3], arm)[:,0] = getattr(params[0], arm)[:,st]
@@ -750,15 +755,17 @@ class RobotAgent(TAMPAgent):
         ee_quat = T.euler_to_quaternion(ee_rot, 'xyzw')
         ee_mat = T.quat2mat(ee_quat)
         sample.set(STATE_ENUM, mp_state, t)
+        sample.set(DONE_ENUM, np.zeros(1), t)
+        sample.set(TASK_DONE_ENUM, np.array([1, 0]), t)
         if self.hist_len > 0:
             sample.set(TRAJ_HIST_ENUM, self._prev_U.flatten(), t)
             x_delta = self._x_delta[1:] - self._x_delta[:1]
             sample.set(STATE_DELTA_ENUM, x_delta.flatten(), t)
+
         sample.set(STATE_HIST_ENUM, self._x_delta.flatten(), t)
         if self.task_hist_len > 0:
             sample.set(TASK_HIST_ENUM, self._prev_task.flatten(), t)
-        sample.set(DONE_ENUM, np.zeros(1), t)
-        sample.set(TASK_DONE_ENUM, np.array([1, 0]), t)
+
         robot = 'panda'
         if RIGHT_ENUM in self.sensor_dims:
             sample.set(RIGHT_ENUM, mp_state[self.state_inds[robot, 'right']], t)
@@ -770,11 +777,23 @@ class RobotAgent(TAMPAgent):
             sample.set(RIGHT_GRIPPER_ENUM, mp_state[self.state_inds[robot, 'right_gripper']], t)
 
         prim_choices = self.prob.get_prim_choices(self.task_list)
+        task = list(task)
         if task is not None:
+            plan = list(self.plans.values())[0]
             task_ind = task[0]
             obj_ind = task[1]
             targ_ind = task[2]
             door_ind = task[3]
+
+            task_name = prim_choice[TASK_ENUM][task_ind]
+            obj_name = list(prim_choices[OBJ_ENUM])[task[1]]
+            targ_name = list(prim_choices[TARG_ENUM])[task[2]]
+            door_name = list(prim_choices[DOOR_ENUM])[task[3]]
+
+            if task_name.find('slide') >= 0:
+                obj_name = '{}_handle'.format(door_name)
+                obj_ind = prim_choices[OBJ_ENUM].index(obj_name)
+                task[1] = obj_ind
 
             task_vec = np.zeros((len(self.task_list)), dtype=np.float32)
             task_vec[task[0]] = 1.
@@ -789,18 +808,15 @@ class RobotAgent(TAMPAgent):
                 sample.set(enum, vec, t)
 
             sample.set(FACTOREDTASK_ENUM, np.array(task), t)
-            obj_name = list(prim_choices[OBJ_ENUM])[task[1]]
-            targ_name = list(prim_choices[TARG_ENUM])[task[2]]
             for (pname, aname), inds in self.state_inds.items():
                 if aname.find('right_ee_pos') >= 0:
                     obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - mp_state[inds]
                     targ_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[inds]
                     break
+
             targ_off_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds[obj_name, 'pose']]
             obj_quat = T.euler_to_quaternion(mp_state[self.state_inds[obj_name, 'rotation']], 'xyzw')
             targ_quat = T.euler_to_quaternion(targets[self.target_inds[targ_name, 'rotation']], 'xyzw')
-            sample.set(OBJ_POSE_ENUM, obj_pose.copy(), t)
-            sample.set(TARG_POSE_ENUM, targ_pose.copy(), t)
             sample.task = task
             sample.obj = task[1]
             sample.targ = task[2]
@@ -814,55 +830,77 @@ class RobotAgent(TAMPAgent):
                 door_vec[:] = 1. / len(door_vec)
                 sample.set(DOOR_ENUM, door_vec, t)
             else:
+                door_name = prim_choices[DOOR_ENUM][task[2]]
                 door_vec = np.zeros(len(prim_choices[DOOR_ENUM]))
                 door_vec[task[2]] = 1.
                 sample.set(DOOR_ENUM, door_vec, t)
 
-            if task_name.lower() in ['move_to_grasp', 'lift', 'hold'] or \
-                task_name.find('slide') >= 0:
-                obj_mat = T.quat2mat(obj_quat)
-                goal_quat = T.mat2quat(obj_mat.dot(ee_mat))
-                rot_off = theta_error(ee_quat, goal_quat)
-                sample.set(END_POSE_ENUM, obj_pose+grasp_pt, t)
+            if task_name.lower() in ['move_to_grasp', 'lift', 'hold']:
+                sample.set(END_POSE_ENUM, obj_pose, t)
+                sample.set(END_ROT_ENUM, mp_state[self.state_inds[obj_name, 'rotation']], t)
+                targ_vec = np.zeros(len(prim_choices[TARG_ENUM]))
+                targ_vec[:] = 1. / len(targ_vec)
+                sample.set(TARG_ENUM, targ_vec, t)
+
+            elif a_name.find('place_in_door') >= 0:
+                door_geom = plan.params[door_name].geom
+                door_pos = mp_state[self.state_inds[door_name], 'pose'] + door_geom.in_pos
+                obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - door_pos
+                sample.set(END_POSE_ENUM, obj_pose, t)
+                sample.set(END_ROT_ENUM, door_geom.in_orn, t)
+                targ_vec = np.zeros(len(prim_choices[TARG_ENUM]))
+                targ_vec[:] = 1. / len(targ_vec)
+                sample.set(TARG_ENUM, targ_vec, t)
+
+            elif a_name.find('slide') >= 0:
+                door_geom = plan.params[door_name].geom
+                cur_hinge = mp_state[self.state_inds[door_name, 'hinge']]
+                targ_hinge = door_geom.open_val if a_name.find('open') >= 0 else door_geom.close_val
+                obj_pose = (targ_hinge - cur_hinge) * np.abs(door_geom.open_dir) 
+                sample.set(END_POSE_ENUM, obj_pose, t)
                 sample.set(END_ROT_ENUM, mp_state[self.state_inds[obj_name, 'rotation']], t)
                 targ_vec = np.zeros(len(prim_choices[TARG_ENUM]))
                 targ_vec[:] = 1. / len(targ_vec)
                 sample.set(TARG_ENUM, targ_vec, t)
 
             elif self.task_list[task[0]].find('place') >= 0:
-                targ_mat = T.quat2mat(targ_quat)
-                goal_quat = T.mat2quat(targ_mat.dot(ee_mat))
-                rot_off = theta_error(ee_quat, targ_quat)
                 sample.set(END_POSE_ENUM, targ_off_pose, t)
                 sample.set(END_ROT_ENUM, targets[self.target_inds[targ_name, 'rotation']], t)
+
+            elif self.task_list[task[0]].find('stack') >= 0:
+                targ_off_pose = obj_pose - mp_state[self.state_inds['flat_block', 'pose']]
+                sample.set(END_POSE_ENUM, targ_off_pose, t)
+                sample.set(END_ROT_ENUM, mp_state[self.state_inds['flat_block', 'rotation']], t)
+                targ_vec = np.zeros(len(prim_choices[TARG_ENUM]))
+                targ_vec[:] = 1. / len(targ_vec)
+                sample.set(TARG_ENUM, targ_vec, t)
 
             else:
                 raise NotImplementedError()
 
         sample.condition = cond
         sample.set(TARGETS_ENUM, targets.copy(), t)
-        if ONEHOT_GOAL_ENUM in self._hyperparams['sensor_dims']:
-            sample.set(ONEHOT_GOAL_ENUM, targets, t)
+        sample.set(ONEHOT_GOAL_ENUM, targets, t)
         sample.targets = targets.copy()
 
-        for i, obj in enumerate(prim_choices[OBJ_ENUM]):
-            grasp_pt = list(self.plans.values())[0].params[obj].geom.grasp_point
-            sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
-            targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
-            sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose+grasp_pt, t)
-            sample.set(TARG_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
+        #for i, obj in enumerate(prim_choices[OBJ_ENUM]):
+        #    grasp_pt = list(self.plans.values())[0].params[obj].geom.grasp_point
+        #    sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
+        #    targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
+        #    sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose+grasp_pt, t)
+        #    sample.set(TARG_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
 
-            obj_spat = Rotation.from_euler('xyz', mp_state[self.state_inds[obj, 'rotation']])
-            obj_quat = T.euler_to_quaternion(mp_state[self.state_inds[obj, 'rotation']], 'xyzw')
-            obj_mat = T.quat2mat(obj_quat)
-            goal_quat = T.mat2quat(obj_mat.dot(ee_mat))
-            rot_off = theta_error(ee_quat, goal_quat)
-            #sample.set(OBJ_ROTDELTA_ENUMS[i], rot_off, t)
-            sample.set(OBJ_ROTDELTA_ENUMS[i], (obj_spat.inv() * ee_spat).as_rotvec(), t)
-            targ_rot_off = theta_error(ee_quat, [0, 0, 0, 1])
-            targ_spat = Rotation.from_euler('xyz', [0., 0., 0.])
-            #sample.set(TARG_ROTDELTA_ENUMS[i], targ_rot_off, t)
-            sample.set(TARG_ROTDELTA_ENUMS[i], (targ_spat.inv() * ee_spat).as_rotvec(), t)
+        #    obj_spat = Rotation.from_euler('xyz', mp_state[self.state_inds[obj, 'rotation']])
+        #    obj_quat = T.euler_to_quaternion(mp_state[self.state_inds[obj, 'rotation']], 'xyzw')
+        #    obj_mat = T.quat2mat(obj_quat)
+        #    goal_quat = T.mat2quat(obj_mat.dot(ee_mat))
+        #    rot_off = theta_error(ee_quat, goal_quat)
+        #    #sample.set(OBJ_ROTDELTA_ENUMS[i], rot_off, t)
+        #    sample.set(OBJ_ROTDELTA_ENUMS[i], (obj_spat.inv() * ee_spat).as_rotvec(), t)
+        #    targ_rot_off = theta_error(ee_quat, [0, 0, 0, 1])
+        #    targ_spat = Rotation.from_euler('xyz', [0., 0., 0.])
+        #    #sample.set(TARG_ROTDELTA_ENUMS[i], targ_rot_off, t)
+        #    sample.set(TARG_ROTDELTA_ENUMS[i], (targ_spat.inv() * ee_spat).as_rotvec(), t)
 
         if fill_obs:
             if IM_ENUM in self._hyperparams['obs_include'] or \
@@ -880,22 +918,23 @@ class RobotAgent(TAMPAgent):
         for goal in self.goals:
             if targets[self.target_inds[goal, 'value']][0] == 1:
                 key, params = self.goals[goal]
-                if key.find('lift'):
+                key = key.lower()
+                if key.find('lift') >= 0:
                     suc = self._lifted(x, params[0])
-                elif key.find('open'):
+                elif key.find('open') >= 0:
                     suc = self._door_open(x, params[1])
-                elif key.find('close'):
+                elif key.find('close') >= 0:
                     suc = self._door_close(x, params[1])
-                elif key.find('stack'):
+                elif key.find('stack') >= 0:
                     suc = self._stacked(x, params[0])
-                elif key.find('off_desk'):
+                elif key.find('off_desk') >= 0:
                     suc = self._off_desk(x, params[0])
-                elif key.find('in_bin'):
+                elif key.find('in_bin') >= 0:
                     suc = self._in_bin(x, params[0])
-                elif key.find('in_shelf'):
+                elif key.find('in_shelf') >= 0:
                     suc = self._in_shelf(x, params[0])
-                elif key.find('button'):
-                    suc = self._button(x, params[0])
+                elif key.find('near') >= 0 and params[1].find('button') >= 0:
+                    suc = self._button(x, params[1])
                 else:
                     raise NotImplementedError()
 
@@ -997,7 +1036,7 @@ class RobotAgent(TAMPAgent):
 
         targets = {goal: 0 for goal in self.goals}
         plan = list(self.plans.values())[0]
-        for targ in ['shelf_target', 'off_desk_target', 'bin_target']:
+        for targ in ['off_desk_target', 'bin_target']:
             targets[targ] = plan.params[targ].value[:,0].copy()
 
         used_params = []
@@ -1341,5 +1380,41 @@ class RobotAgent(TAMPAgent):
         pos1 = x[self.state_inds[item_name, 'pose']]
         pos2 = x[self.state_inds[base_item, 'pose']]
         return np.linalg.norm((pos1-pos2) - [0., 0., 0.037]) < 0.04
+
+
+    def _button(self, button_name):
+        color = button_name.split('_')[0]
+        val = self.base_env.physics.named.data.qpos[color + '_light'][0]
+        pressed = val < -0.00453
+        return val
+
+
+    def postcond_cost(self, sample, task=None, t=None, debug=False, tol=1e-3, x0=None):
+        if t is None: t = sample.T-1
+        if task is None: task = tuple(sample.get(FACTOREDTASK_ENUM, t=t))
+        task_name = self.task_list[task[0]].lower()
+        obj_name = self.prim_choices[OBJ_ENUM][task[1]].lower()
+        targ_name = self.prim_choices[TARG_ENUM][task[2]].lower()
+        door_name = self.prim_choices[DOOR_ENUM][task[3]].lower()
+        if task_name.find('place_in_door') >= 0:
+            pos = x[self.state_inds[obj_name, 'pose']]
+            if door_name.find('shelf') >= 0:
+                return pos[0] > 0.25 and pos[1] > 0.9
+            elif door_name.find('drawer') >= 0:
+                return pos[0] > -0.3 and pos[0] < 0.3 and pos[2] < 0.73 and pos[2] > 0.6
+        elif task_name.find('place') >= 0:
+            pos = x[self.state_inds[obj_name, 'pose']]
+            if targ_name.find('bin') >= 0:
+                return pos[2] < 0.6 and pos[0] > 0.25 and pos[0] < 0.55 and pos[1] > 0.35
+            elif targ_name.find('off') >= 0:
+                return pos[2] < 0.6
+        elif task_name.find('stack') >= 0:
+            pos = x[self.state_inds[obj_name, 'pose']]
+            base_pos = x[self.state_inds['flat_block', 'pose']]
+            targ_offset = [0., 0., 0.03778]
+            offset = np.linalg.norm((pos-base_pos) - targ_offset)
+            return offset < 0.04
+
+        return self.cost_f(sample.get_X(t), task, sample.condition, active_ts=(-1, -1), targets=sample.targets, debug=debug, tol=tol, x0=x0)
 
 

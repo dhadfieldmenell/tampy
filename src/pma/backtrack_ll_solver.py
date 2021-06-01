@@ -17,7 +17,7 @@ MAX_PRIORITY=3
 BASE_MOVE_COEFF = 1.
 TRAJOPT_COEFF=5e1
 TRANSFER_COEFF = 1e-1
-FIXED_COEFF = 0.5 * TRAJOPT_COEFF
+FIXED_COEFF = 2e-1 * TRAJOPT_COEFF
 INIT_TRAJ_COEFF = 1e-1
 RS_COEFF = 1e2
 COL_COEFF = 0
@@ -205,7 +205,9 @@ class BacktrackLLSolver(LLSolver):
                         setattr(param, attr, val)
                     else:
                         getattr(param, attr)[:, active_ts[1]] = val.flatten()
-                self.child_solver.fixed_objs.append((param, rp[param]))
+
+                if not self.freeze_rs_param(plan.actions[anum]):
+                    self.child_solver.fixed_objs.append((param, rp[param]))
 
             success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                               active_ts = active_ts, verbose=verbose,
@@ -278,15 +280,17 @@ class BacktrackLLSolver(LLSolver):
                 if success or priority < 0 or n_resamples == 0:
                     break
 
-                # failed_preds = plan.get_failed_preds(active_ts=active_ts, tol=1e-3)
+                if DEBUG:
+                    print("pre-resample attempt {} failed:".format(attempt))
+                    print(plan.get_failed_preds(active_ts, priority=priority, tol=1e-3))
 
                 success = self._solve_opt_prob(plan, priority=priority, callback=callback, 
                                                active_ts=active_ts, verbose=verbose, resample = True,
                                                init_traj=init_traj)
 
                 if DEBUG:
-                    print(("resample attempt: {} at priority {}".format(attempt, priority)))
-                    print((plan.get_failed_preds(active_ts, priority=priority, tol=1e-3)))
+                    print("resample attempt: {} at priority {}".format(attempt, priority))
+                    print(plan.get_failed_preds(active_ts, priority=priority, tol=1e-3))
                 
                 if success:
                     break
@@ -754,12 +758,13 @@ class BacktrackLLSolver(LLSolver):
         """
         if active_ts is None:
             active_ts = (0, plan.horizon-1)
+
         for action in plan.actions:
             true_start, true_end = action.active_timesteps
             action_start, action_end = action.active_timesteps
             ## only add an action
-            if action_start >= active_ts[1] and action_start > active_ts[0]: continue
-            if action_end < active_ts[0]: continue
+            if action_start >= active_ts[1]: continue
+            if action_end <= active_ts[0]: continue
 
             if action_start < active_ts[0]:
                 action_start = active_ts[0]
@@ -792,8 +797,8 @@ class BacktrackLLSolver(LLSolver):
             active_ts = (0, plan.horizon-1)
         for action in plan.actions:
             action_start, action_end = action.active_timesteps
-            if action_start >= active_ts[1] and action_start > active_ts[0]: continue
-            if action_end < active_ts[0]: continue
+            if action_start >= active_ts[1]: continue
+            if action_end <= active_ts[0]: continue
 
             if action_start < active_ts[0]:
                 action_start = active_ts[0]

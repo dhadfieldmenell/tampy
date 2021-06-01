@@ -102,7 +102,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                     target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
             self.target_vecs.append(target_vec)
         self.cur_state = self.x0[0]
-        self.goals = self.target_vecs
         #self.task_to_onehot = {}
         #for i, task in enumerate(self.plans.keys()):
         #    self.task_to_onehot[i] = task
@@ -597,27 +596,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             self.target_vecs[cond][self.target_inds[target_name, 'value']] = self.targets[cond][target_name]
 
 
-    def perturb_conditions(self, perturb_var=0.02):
-        self.perturb_init_states(perturb_var)
-        self.perturb_targets(perturb_var)
-
-
-    def perturb_init_states(self, perturb_var=0.02):
-        for c in range(len(self.x0)):
-            x0 = self.x0[c]
-            for obj in self.obj_list:
-                obj_p = self.plans_list[0].params[obj]
-                if obj.is_symbol() or obj._type == 'Robot': continue
-                x0[self.state_inds[obj, 'pose']] += np.random.normal(0, perturb_var, obj_p.pose.shape[0])
-
-
-    def perturb_targets(self, perturb_var=0.02):
-        for c in range(len(self.x0)):
-            for target_name in self.targets[c]:
-                target_p = self.plans_list[0].params[target_name]
-                self.targets[c][target_name] += np.random.normal(0, perturb_var, target_p.value.shape[0])
-                self.target_vecs[c][self.target_inds[target_name, 'value']] = self.targets[c][target_name]
-
 
     def get_prim_options(self, cond, state):
         mp_state = state[self._x_data_idx[STATE_ENUM]]
@@ -904,6 +882,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             act_st = max(st, act_st)
             prev_x0 = np.zeros_like(self.x0[0])
             fill_vector(plan.params, self.state_inds, prev_x0, act_st)
+            #prev_x0 = self.clip_state(self.get_state())
+
             task = tuple(tasks[a])
             perm_task = tuple(perm_tasks[a])
             cost = 1.
@@ -933,67 +913,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             else:
                 ref_traj = []
 
-            if backup and len(ref_traj) and cost > 0:
-                info['to_render'].append([])
-                if verbose:
-                    info['to_render'][-1].append([sample])
-
-                cur_path = []
-                n_suc = 0
-                hist_traj = np.r_[cur_x_hist, ref_traj]
-                old_solve_priorities = self.ll_solver.solve_priorities
-                self.ll_solver.solve_priorities = [3]
-
-                for ts, state in enumerate(ref_traj[:-1]):
-                    if ts == 0: continue 
-                    state = self.clip_state(state)
-                    for (pname, aname), inds in self.state_inds.items():
-                        getattr(plan.params[pname], aname)[:, act_st+ts] = state[inds]
-
-                prev_suc = act_et
-                for cur_step in range(2, act_et-act_st-1):
-                    old_free = plan.get_free_attrs()
-                    old_vals = plan.get_values()
-                    cur_t = act_et - cur_step
-                    cur_x0 = ref_traj[cur_t-act_st]
-                    set_params_attrs(plan.params, self.state_inds, self.clip_state(cur_x0), act_st, plan=plan)
-                    self.set_symbols(plan, task, anum=a, st=cur_t, targets=targets)
-                    try:
-                        #success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=0, init_traj=ref_traj[cur_t-act_st:], st=cur_t)
-                        success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=0, init_traj=[], st=cur_t)
-                    except AttributeError as e:
-                        success = False
-                    except Exception as e:
-                        print('Exception in backup solve for', cur_x0, task, plan.actions[a], e, cur_t)
-                        success = False
-
-                    if success:
-                        n_suc += 1
-                        next_t = max(prev_suc, cur_t+5)
-                        prev_suc = cur_t
-                        next_hist = hist_traj[-cur_step-self.hist_len-1:-cur_step]
-                        self._x_delta[:] = next_hist
-                        next_path, next_x0 = self.run_action(plan, a, cur_x0, perm_targets, perm_task, cur_t, next_t, reset=True, save=False, record=False, perm=perm, add_noop=False, prev_hist=next_hist)
-                        for step in next_path:
-                            self.optimal_samples[self.task_list[task[0]]].append(step)
-                            step.source_label = label
-                            #step.draw = False
-                            #step.use_ts[:] = 1.
-                            #step.prim_use_ts[:] = 1.
-
-                        cur_path = next_path + cur_path
-                        if verbose:
-                            print(self.process_id, "Adding backup solve traj for {}...".format(task))
-                            info['to_render'][-1].append(next_path)
-                    else:
-                        plan.store_values(old_vals)
-                        if verbose:
-                            print(self.process_id, "Failed backup solve traj for {}...".format(task))
-
-                    plan.store_free_attrs(old_free)
-                self.ll_solver.solve_priorities = old_solve_priorities
-                smooth_cnts.append((task, n_suc, len(cur_path)))
-
             if rollout and cost == 0:
                 success = True
                 rollout_success = True
@@ -1015,15 +934,18 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 except AttributeError as e:
                     print(('Opt Exception in full solve for', x0, task, plan.actions[a]), e, st, plan.actions)
                     success = False
+
                 except Exception as e:
                     traceback.print_exception(*sys.exc_info())
                     print(('Exception in full solve for', x0, task, plan.actions[a]), e, st)
                     success = False
+
                 plan.store_free_attrs(old_free)
                 self.n_opt[task] = self.n_opt.get(task, 0) + 1
 
                 if not success:
                     self.n_fail_opt[task] = self.n_fail_opt.get(task, 0) + 1
+                    print('FAILED TO SOLVE:', plan.actions[a], plan.get_failed_preds((act_st, act_et)))
                     return False, False, path, info
 
                 next_path, next_x0 = self.run_action(plan, a, x0, perm_targets, perm_task, act_st, reset=True, save=True, record=True, perm=perm, prev_hist=cur_x_hist)
@@ -1044,6 +966,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         if success:
             self.n_plans_run += 1
 
+        if not len(path):
+            print('NO PATH SAMPLED FOR', plan.actions)
         #if permute:
         #    for sample in path:
         #        for ts in range(sample.T-1):
@@ -1254,6 +1178,11 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             if plan.params[pname].is_symbol(): continue
             x0[self.state_inds[rev_perm.get(pname, pname), attr]] = static_x0[self.state_inds[pname, attr]]
             self._x_delta[:, self.state_inds[rev_perm.get(pname, pname), attr]] = static_hist[:, self.state_inds[pname, attr]]
+
+        if len(perm.keys()):
+            cur_hist = self._x_delta.copy()
+            self.reset_to_state(x0)
+            self._x_delta[:] = cur_hist
 
         self.target_vecs[0] = old_targets
         return path, x0
