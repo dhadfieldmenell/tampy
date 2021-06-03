@@ -13,11 +13,11 @@ GRB = grb.GRB
 from core.util_classes.viewer import OpenRAVEViewer
 
 
-MAX_PRIORITY=3
+MAX_PRIORITY = 3
 BASE_MOVE_COEFF = 1.
-TRAJOPT_COEFF=5e1
+TRAJOPT_COEFF = 5e1
 TRANSFER_COEFF = 1e-1
-FIXED_COEFF = 2e-1 * TRAJOPT_COEFF
+FIXED_COEFF = 5e1
 INIT_TRAJ_COEFF = 1e-1
 RS_COEFF = 1e2
 COL_COEFF = 0
@@ -202,7 +202,7 @@ class BacktrackLLSolver(LLSolver):
                 assert param in rs_params
                 for attr, val in rp[param].items():
                     if param.is_symbol():
-                        setattr(param, attr, val)
+                        getattr(param, attr)[:, 0] = val.flatten()
                     else:
                         getattr(param, attr)[:, active_ts[1]] = val.flatten()
 
@@ -781,7 +781,7 @@ class BacktrackLLSolver(LLSolver):
                                         priority=priority, add_nonlin=add_nonlin, verbose=verbose)
             ## add all of the linear ineqs
             timesteps = list(range(max(action_start, active_ts[0]),
-                              min(action_end, active_ts[1])))
+                              min(action_end, active_ts[1])+1))
             for pred_dict in action.preds:
                 self._add_pred_dict(pred_dict, timesteps, add_nonlin=False,
                                     priority=priority, verbose=verbose)
