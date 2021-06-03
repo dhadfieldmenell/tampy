@@ -18,7 +18,7 @@ do
                                                        -rollout 12 \
                                                        -task 2 \
                                                        -post -pre \
-                                                       -render \
+                                                       -render -verbose \
                                                        -warm 100 \
                                                        -neg_ratio 0. -opt_ratio 0.3 -dagger_ratio 0.7 \
                                                        -descr verify_dagger_thrity_opt_seventy_dagger & 

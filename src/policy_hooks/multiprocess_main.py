@@ -128,13 +128,9 @@ class MultiProcessMain(object):
         if hasattr(self.agent, 'cloth_init_joints'):
             self.config['agent']['cloth_init_joints'] = self.agent.cloth_init_joints
 
-        self.fail_value = self.config['fail_value']
         self.policy_opt = None
 
         self.weight_dir = self.config['weight_dir']
-
-        self.traj_opt_steps = self.config['traj_opt_steps']
-        self.num_samples = self.config['num_samples']
 
         self.mcts = []
         self._map_cont_discr_tasks()
@@ -182,7 +178,7 @@ class MultiProcessMain(object):
     def _set_alg_config(self):
         self.policy_inf_coeff = self.config['algorithm']['policy_inf_coeff']
         self.policy_out_coeff = self.config['algorithm']['policy_out_coeff']
-        state_cost_wp = np.ones((self.symbolic_bound), dtype='float64') if 'cost_wp_mult' not in self.config else self.config['cost_wp_mult']
+        state_cost_wp = np.ones((self.agent.symbolic_bound), dtype='float64')
         traj_cost = {
                         'type': StateTrajCost,
                         'data_types': {
@@ -250,7 +246,7 @@ class MultiProcessMain(object):
                 'sensor_dims': self.sensor_dims,
                 'n_layers': self.config['prim_n_layers'],
                 'num_filters': [32, 32],
-                'filter_sizes': [5, 5],
+                'filter_sizes': [7,5],
                 'dim_hidden': self.config['prim_dim_hidden'],
                 'output_boundaries': self.config['prim_bounds'],
                 'aux_boundaries': self.config['aux_bounds'],
@@ -297,7 +293,7 @@ class MultiProcessMain(object):
             'weight_decay': self.config['weight_decay'],
             'prim_weight_decay': self.config['prim_weight_decay'],
             'cont_weight_decay': self.config['cont_weight_decay'],
-            'val_weight_decay': self.config['val_weight_decay'],
+            'val_weight_decay': self.config['prim_weight_decay'],
             'weights_file_prefix': 'policy',
             'image_width': utils.IM_W,
             'image_height': utils.IM_H,
@@ -307,7 +303,7 @@ class MultiProcessMain(object):
             'allow_growth': True,
             'update_size': self.config['update_size'],
             'prim_update_size': self.config['prim_update_size'],
-            'val_update_size': self.config['val_update_size'],
+            'val_update_size': self.config['prim_update_size'],
             'solver_type': self.config['solver_type'],
         }
 
@@ -417,7 +413,8 @@ class MultiProcessMain(object):
 
     def create_server(self, server_cls, hyperparams, process=True):
         if hyperparams.get('seq', False):
-            spawn_server(server_cls, hyperparams)
+            spawn_server(server_cls, hyperparams, True)
+            sys.exit(0)
 
         if process:
             p = Process(target=spawn_server, args=(server_cls, hyperparams, True))
@@ -444,6 +441,9 @@ class MultiProcessMain(object):
 
 
     def create_servers(self, hyperparams, start_idx=0):
+        if hyperparams.get('seq', False):
+            self._create_server(hyperparams, TaskServer, 0)
+
         self.create_pol_servers(hyperparams)
         hyperparams['view'] = False
         for n in range(hyperparams['num_motion']):
@@ -714,17 +714,12 @@ def load_config(args, config=None, reload_module=None):
     config['common']['num_conds'] = config['num_conds']
     config['algorithm']['conditions'] = config['num_conds']
     config['num_objs'] = args.nobjs if args.nobjs > 0 else config['num_objs']
-    #config['weight_dir'] = get_dir_name(config['base_weight_dir'], config['num_objs'], config['num_targs'], i, config['descr'], args)
-    #config['weight_dir'] = config['base_weight_dir'] + str(config['num_objs'])
     config['log_timing'] = args.timing
-    # config['pretrain_timeout'] = args.pretrain_timeout
-    config['hl_timeout'] = args.hl_timeout if args.hl_timeout > 0 else config['hl_timeout']
     config['mcts_server'] = args.mcts_server or args.all_servers
     config['mp_server'] = args.mp_server or args.all_servers
     config['pol_server'] = args.policy_server or args.all_servers
     config['log_server'] = args.log_server or args.all_servers
     config['view_server'] = args.view_server
-    config['pretrain_steps'] = args.pretrain_steps if args.pretrain_steps > 0 else config['pretrain_steps']
     config['viewer'] = args.viewer
     config['server_id'] = args.server_id if args.server_id != '' else str(random.randint(0,2**32))
     return config, config_module

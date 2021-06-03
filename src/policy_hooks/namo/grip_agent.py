@@ -32,6 +32,7 @@ import core.util_classes.items as items
 from core.util_classes.namo_grip_predicates import dsafe, NEAR_TOL, dmove, HLGraspFailed, HLTransferFailed, HLPlaceFailed, GRIP_VAL
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
+import pma.backtrack_ll_solver as bt_ll
 
 from policy_hooks.agent import Agent
 from policy_hooks.sample import Sample
@@ -41,6 +42,8 @@ from policy_hooks.utils.tamp_eval_funcs import *
 # from policy_hooks.namo.sorting_prob_4 import *
 from policy_hooks.namo.namo_agent import NAMOSortingAgent
 
+
+bt_ll.INIT_TRAJ_COEFF = 1e-2
 
 MAX_SAMPLELISTS = 1000
 MAX_TASK_PATHS = 100
@@ -122,7 +125,7 @@ class NAMOGripAgent(NAMOSortingAgent):
 
         self.main_camera_id = 0
         # colors = [[1, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1, 1], [1, 1, 0, 1], [1, 0, 1, 1], [0.5, 0.75, 0.25, 1], [0.75, 0.5, 0, 1], [0.25, 0.25, 0.5, 1], [0.5, 0, 0.25, 1], [0, 0.5, 0.75, 1], [0, 0, 0.5, 1]]
-        colors = [[0.9, 0, 0, 1], [0, 0.9, 0, 1], [0, 0, 0.9, 1], [0.7, 0.7, 0.1, 1], [1., 0.1, 0.8, 1], [0.5, 0.95, 0.5, 1], [0.75, 0.4, 0, 1], [0.25, 0.25, 0.5, 1], [0.5, 0, 0.25, 1], [0, 0.5, 0.75, 1], [0, 0, 0.5, 1]]
+        colors = [[1, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1, 1], [0.7, 0.7, 0.1, 1], [1., 0.1, 0.8, 1], [0.5, 0.95, 0.5, 1], [0.75, 0.4, 0, 1], [0.25, 0.25, 0.5, 1], [0.5, 0, 0.25, 1], [0, 0.5, 0.75, 1], [0, 0, 0.5, 1]]
 
         items = config['include_items']
         prim_options = self.prob.get_prim_choices(self.task_list)
@@ -132,8 +135,8 @@ class NAMOGripAgent(NAMOSortingAgent):
             # items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.4), 'rgba': tuple(cur_color), 'mass': 10.})
             #items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 10.})
             items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 40.})
-
-            items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (NEAR_TOL, NEAR_TOL, 0.05), 'rgba': tuple(cur_color), 'mass': 1.})
+            targ_color = cur_color[:3] + [0.75] # [0.25]
+            items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (0.45, 0.45, 0.045), 'rgba': tuple(targ_color), 'mass': 1.})
 
         for i in range(len(wall_dims)):
             dim, next_trans = wall_dims[i]
@@ -309,13 +312,14 @@ class NAMOGripAgent(NAMOSortingAgent):
                 x[self.state_inds[pname, attr]] = 0.1 if val > 0 else -0.1
             elif attr == 'theta':
                 val = self.mjc_env.get_joints(['robot_theta'])
-                x[self.state_inds[pname, 'theta']] = val['robot_theta']
+                val = val['robot_theta']
+                x[self.state_inds[pname, 'theta']] = val
             elif attr == 'vel':
                 val = self.mjc_env.get_user_data('vel', 0.)
                 x[self.state_inds[pname, 'vel']] = val
 
         assert not np.any(np.isnan(x))
-        return x
+        return x.round(5)
 
 
     def fill_sample(self, cond, sample, mp_state, t, task, fill_obs=False, targets=None):
@@ -371,8 +375,8 @@ class NAMOGripAgent(NAMOSortingAgent):
         if OBJ_ENUM in prim_choices:
             obj_vec = np.zeros((len(prim_choices[OBJ_ENUM])), dtype='float32')
             obj_vec[task[1]] = 1.
-            #if self.task_list[task[0]].find('place') >= 0:
-            #    obj_vec[:] = 1. / len(obj_vec)
+            if self.task_list[task[0]].find('place') >= 0:
+                obj_vec[:] = 1. / len(obj_vec)
 
             sample.obj_ind = task[1]
             obj_ind = task[1]
@@ -512,7 +516,8 @@ class NAMOGripAgent(NAMOSortingAgent):
                 pos = mp_state[self.state_inds[param_name, 'pose']].copy()
                 targ = self.target_vecs[0][self.target_inds['{0}_end_target'.format(param_name), 'value']]
                 self.mjc_env.set_item_pos(param_name, np.r_[pos, 0.5], forward=False)
-                self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, 1.5], forward=False)
+                #self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, 1.5], forward=False)
+                self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, -0.15], forward=False)
         self.mjc_env.physics.forward()
 
 
@@ -792,20 +797,20 @@ class NAMOGripAgent(NAMOSortingAgent):
         params = act.params
         if self.task_list[task[0]] == 'moveto':
             params[3].value[:,0] = params[0].pose[:,st]
-            params[2].value[:,0] = params[1].pose[:,st]
+            #params[2].value[:,0] = params[1].pose[:,st]
         elif self.task_list[task[0]] == 'transfer':
             params[1].value[:,0] = params[0].pose[:,st]
-            params[6].value[:,0] = params[3].pose[:,st]
+            #params[6].value[:,0] = params[3].pose[:,st]
         elif self.task_list[task[0]] == 'place':
             params[1].value[:,0] = params[0].pose[:,st]
-            params[6].value[:,0] = params[3].pose[:,st]
+            #params[6].value[:,0] = params[3].pose[:,st]
 
         for tname, attr in self.target_inds:
             getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
 
         for pname in plan.params:
             if '{0}_init_target'.format(pname) in plan.params:
-                plan.params['{0}_init_target'.format(pname)].value[:,0] = plan.params[pname].pose[:,0]
+                plan.params['{0}_init_target'.format(pname)].value[:,0] = plan.params[pname].pose[:,st]
 
 
     def goal(self, cond, targets=None):

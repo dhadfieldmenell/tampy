@@ -7,6 +7,8 @@ from core.util_classes.namo_grip_predicates import RETREAT_DIST, dsafe, opposite
 
 class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
+        if a.name == 'transfer':
+            return [a.params[0], a.params[3]]
         return a.params[0] # Experiment with avoiding robot pose symbols
 
         if a.name == 'moveto':
@@ -44,7 +46,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         return rs_param
 
     def freeze_rs_param(self, act):
-        return False #True
+        return False
 
     def obj_pose_suggester(self, plan, anum, resample_size=1, st=0):
         robot_pose = []
@@ -69,11 +71,13 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 target_pos = target.value - [[0], [0.]]
                 robot_pose.append({'value': target_pos, 'gripper': np.array([[-1.]]) if next_act.name == 'putdown' else np.array([[1.]])})
             elif act.name == 'moveto' or act.name == 'new_quick_movetograsp' or act.name == 'quick_moveto':
-                target = act.params[2]
-                grasp = act.params[5]
-                target_rot = -np.arctan2(target.value[0,0] - oldx, target.value[1,0] - oldy)
-                if target.value[1] > 1.7:
+                target = act.params[1]
+                target_rot = -np.arctan2(target.pose[0,st] - oldx, target.pose[1,st] - oldy)
+                if target.pose[1, st] > 1.7:
                     target_rot = max(min(target_rot, np.pi/4), -np.pi/4)
+                elif target.pose[1, st] < -7.7 and np.abs(target_rot) < 3*np.pi/4:
+                    target_rot = np.sign(target_rot) * 3*np.pi/4
+
                 while target_rot < old_rot:
                     target_rot += 2*np.pi
                 while target_rot > old_rot:
@@ -81,14 +85,16 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 if np.abs(target_rot-old_rot) > np.abs(target_rot-old_rot+2*np.pi): target_rot += 2*np.pi
 
                 dist = gripdist + dsafe
-                target_pos = target.value - [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
+                target_pos = target.pose[:,st:st+1] - [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
                 robot_pose.append({'pose': target_pos, 'gripper': np.array([[0.1]]), 'theta': np.array([[target_rot]])})
-                # robot_pose.append({'pose': target_pos + grasp.value, 'gripper': np.array([[-1.]])})
             elif act.name == 'transfer' or act.name == 'new_quick_place_at':
                 target = act.params[4]
-                grasp = act.params[5]
                 target_rot = -np.arctan2(target.value[0,0] - oldx, target.value[1,0] - oldy)
-                target_rot = max(min(target_rot, np.pi/4), -np.pi/4)
+                if target.value[1] > 1.7:
+                    target_rot = max(min(target_rot, np.pi/4), -np.pi/4)
+                elif target.value[1] < -7.7 and np.abs(target_rot) < 3*np.pi/4:
+                    target_rot = np.sign(target_rot) * 3*np.pi/4
+
                 while target_rot < old_rot:
                     target_rot += 2*np.pi
                 while target_rot > old_rot:
@@ -96,7 +102,9 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 if np.abs(target_rot-old_rot) > np.abs(target_rot-old_rot+2*np.pi): target_rot += 2*np.pi
                 dist = -gripdist - dsafe
                 target_pos = target.value + [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
-                robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[target_rot]])})
+                #robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[target_rot]])})
+                robot_pose.append({act.params[0]: {'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[target_rot]])},
+                                   act.params[3]: {'pose': target.value.reshape((-1,1))}})
             elif act.name == 'place':
                 target = act.params[4]
                 grasp = act.params[5]
@@ -205,15 +213,16 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         act = [act for act in plan.actions if act.active_timesteps[0] <= active_ts[0] and act.active_timesteps[1] >= active_ts[1]][0]
         for param in plan.params.values():
             if param._type not in ['Box', 'Can']: continue
+            #if param in act.params: continue
             if act.name.lower().find('transfer') >= 0 and param in act.params: continue
-            if act.name.lower().find('place') >= 0 and param in act.params: continue
+            if act.name.lower().find('move') >= 0 and param in act.params: continue
             expected_param_types = ['Robot', param._type]
             params = [robot, param]
             pred = ColObjPred('obstr', params, expected_param_types, plan.env, coeff=coeff)
             for t in range(active_ts[0], active_ts[1]):
                 if act.name.lower().find('move') >= 0 \
                    and param in act.params \
-                   and t >= act.active_timesteps[1]-3: continue
+                   and t >= act.active_timesteps[1]-4: continue
 
                 var = self._spawn_sco_var_for_pred(pred, t)
                 bexpr = BoundExpr(pred.neg_expr.expr, var)

@@ -152,7 +152,7 @@ class PolicyServer(object):
                                          cycle_length=4, \
                                          block_length=1)
 
-        self.data = self.data.prefetch(4)
+        self.data = self.data.prefetch(12)
 
         self.input, self.act, self.prc = self.data.make_one_shot_iterator().get_next()
 

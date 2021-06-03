@@ -60,7 +60,7 @@ class HLSearchNode(SearchNode):
 
     def plan(self, solver):
         plan_obj = solver.solve(self.abs_prob, self.domain, self.concr_prob, self.prefix, label=self.label)
-        if self.ref_plan is not None:
+        if self.ref_plan is not None and type(plan_obj) is not str:
             if len(self.ref_plan.actions) < len(self.prefix):
                 raise IndexError('ref_plan must be compatible with prefix')
             plan_obj.fill(self.ref_plan, amin=0, amax=len(self.prefix)-1)

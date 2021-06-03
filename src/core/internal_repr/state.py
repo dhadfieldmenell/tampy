@@ -20,12 +20,14 @@ class State(object):
         return True
 
     def is_consistent(self):
+        consistent = True
         preds = list(self.preds) + list(self.invariants)
         for p in preds:
             if p.active_range != (0,0): continue
             if p.is_concrete() and not p.test(time=self.timestep):
                 # if 'Obstructs' in p.get_type(): continue
                 print("Initial State Not Consistent with predicates {} at time {}".format(p, self.timestep))
-                import ipdb; ipdb.set_trace()
-                return False
-        return True
+                consistent = False
+                #import ipdb; ipdb.set_trace()
+                #return False
+        return consistent

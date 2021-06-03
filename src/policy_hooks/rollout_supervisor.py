@@ -31,7 +31,7 @@ class RolloutSupervisor():
         self.s_per_task = 3
         self.n_pts = 2
         if self.agent.retime:
-            self.s_per_task *= 3
+            self.s_per_task *= 2
 
 
     def reset(self):
@@ -132,8 +132,9 @@ class RolloutSupervisor():
         self.agent.target_vecs[0] = targets
         self.agent.reset_to_state(x)
 
-        ntask = len(self.agent.task_list)
-        rlen = self.s_per_task * ntask * self.agent.num_objs
+        rlen = self.agent.rlen
+        #ntask = len(self.agent.task_list)
+        #rlen = self.s_per_task * ntask * self.agent.num_objs
 
         self.adj_eta = True
         l = self.get_task(x, targets, None, self.soft)

@@ -16,17 +16,14 @@ from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.traj_opt_pi2 import TrajOptPI2
 from core.util_classes.namo_grip_predicates import ATTRMAP
-from pma.namo_grip_solver import NAMOSolver
-import policy_hooks.namo.grip_agent as grip_agent
-# grip_agent.LOCAL_FRAME = False
-from policy_hooks.namo.grip_agent import NAMOGripAgent
-from policy_hooks.namo.namo_grip_policy_solver import NAMOGripPolicySolver
-import policy_hooks.namo.swap_prob as prob
+import policy_hooks.robodesk.desk_prob as prob
 prob.NUM_OBJS = NUM_OBJS
 prob.NUM_TARGS = NUM_TARGS
-from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer
 from policy_hooks.policy_mp_prior_gmm import PolicyMPPriorGMM
 from policy_hooks.policy_prior_gmm import PolicyPriorGMM
+
+from policy_hooks.robodesk.robot_agent import RobotAgent
+from pma.robot_solver import RobotSolver
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
@@ -172,8 +169,6 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.N_GRASPS = N_GRASPS
     prob.FIX_TARGETS = True
 
-    prob.domain_file = "../domains/namo_domain/namo_current_holgrip.domain"
-    prob.END_TARGETS = prob.END_TARGETS[:8]
     prob.n_aux = 0
     config = {
         'gui_on': False,
@@ -222,30 +217,27 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'n_optimizers': N_OPTIMIZERS,
         'n_rollout_servers': N_ROLLOUT_SERVERS,
         'n_alg_servers': N_ALG_SERVERS,
-        'base_weight_dir': 'namo_',
+        'base_weight_dir': 'panda_',
         'policy_out_coeff': algorithm['policy_out_coeff'],
         'policy_inf_coeff': algorithm['policy_inf_coeff'],
         'max_sample_queue': 5e2,
         'max_opt_sample_queue': 10,
-        'hl_plan_for_state': prob.hl_plan_for_state,
         'task_map_file': prob.mapping_file,
         'prob': prob,
         'get_vector': prob.get_vector,
-        'robot_name': 'pr2',
         'obj_type': 'can',
         'num_objs': no,
         'num_targs': nt,
         'attr_map': ATTRMAP,
-        'agent_type': NAMOGripAgent,
-        'opt_server_type': NAMOMotionPlanServer,
-        'mp_solver_type': NAMOGripPolicySolver,
-        'll_solver_type': NAMOSolver,
+        'agent_type': RobotAgent,
+        'mp_solver_type': RobotSolver,
+        'll_solver_type': RobotSolver,
         'update_size': 2000,
         'prim_update_size': 5000,
         'val_update_size': 1000,
         'use_local': True,
         'n_dirs': N_DIRS,
-        'domain': 'namo',
+        'domain': 'panda',
         'perturb_steps': 3,
         'mcts_early_stop_prob': 0.5,
         'hl_timeout': HL_TIMEOUT,
@@ -258,49 +250,48 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'share_buffer': True,
         'split_nets': False,
         'split_mcts_alg': True,
+        'robot_name': 'panda',
+        'ctrl_mode': 'joint_angle',
+        'visual_cameras': [0],
 
         'state_include': [utils.STATE_ENUM],
-        'obs_include': [#utils.LIDAR_ENUM,
-                        utils.MJC_SENSOR_ENUM,
-                        utils.TASK_ENUM,
+        'obs_include': [utils.TASK_ENUM,
                         #utils.OBJ_POSE_ENUM,
                         #utils.TARG_POSE_ENUM,
                         utils.END_POSE_ENUM,
-                        utils.THETA_VEC_ENUM,
-                        # utils.GRASP_ENUM,
-                        #utils.TRAJ_HIST_ENUM,
+                        utils.END_ROT_ENUM,
+                        utils.RIGHT_ENUM,
+                        utils.RIGHT_GRIPPER_ENUM,
                         # utils.DONE_ENUM,
                         ],
         'prim_obs_include': [
                              # utils.DONE_ENUM,
                              # utils.STATE_ENUM,
                              #utils.GOAL_ENUM,
-                             utils.ONEHOT_GOAL_ENUM,
+                             #utils.ONEHOT_GOAL_ENUM,
                              ],
         'val_obs_include': [utils.ONEHOT_GOAL_ENUM,
                             ],
-        #'prim_out_include': [utils.TASK_ENUM, utils.OBJ_ENUM, utils.TARG_ENUM, utils.GRASP_ENUM],
         'prim_out_include': list(prob.get_prim_choices().keys()),
         'sensor_dims': {
-                utils.OBJ_POSE_ENUM: 2,
-                utils.TARG_POSE_ENUM: 2,
+                utils.OBJ_POSE_ENUM: 3,
+                utils.TARG_POSE_ENUM: 3,
                 utils.LIDAR_ENUM: N_DIRS,
-                utils.MJC_SENSOR_ENUM: 69,
-                utils.EE_ENUM: 2,
-                utils.END_POSE_ENUM: 2,
+                utils.EE_ENUM: 3,
+                utils.RIGHT_EE_POS_ENUM: 3,
+                utils.RIGHT_EE_ROT_ENUM: 3,
+                utils.END_POSE_ENUM: 3,
+                utils.END_ROT_ENUM: 3,
                 utils.GRIPPER_ENUM: 1,
-                utils.VEL_ENUM: 1,
-                utils.THETA_ENUM: 1,
-                utils.THETA_VEC_ENUM: 2,
-                utils.GRASP_ENUM: N_GRASPS,
-                utils.GOAL_ENUM: 2*no,
-                utils.ONEHOT_GOAL_ENUM: no*(prob.n_aux + len(prob.END_TARGETS)),
+                utils.GOAL_ENUM: 3*no,
+                utils.ONEHOT_GOAL_ENUM: 16,
                 utils.INGRASP_ENUM: no,
                 utils.TRUETASK_ENUM: 2,
                 utils.TRUEOBJ_ENUM: no,
-                utils.TRUETARG_ENUM: len(prob.END_TARGETS),
                 utils.ATGOAL_ENUM: no,
                 utils.FACTOREDTASK_ENUM: len(list(prob.get_prim_choices().keys())),
+                utils.RIGHT_ENUM: 7,
+                utils.RIGHT_GRIPPER_ENUM: 2,
                 # utils.INIT_OBJ_POSE_ENUM: 2,
             },
         'visual': False,
@@ -310,23 +301,22 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'curric_thresh': -1,
         'n_thresh': -1,
         'expand_process': False,
-        'descr': '{0}_grasps_{1}_possible'.format(N_GRASPS, len(prob.END_TARGETS)+prob.n_aux),
         'her': False,
         'prim_decay': 0.95,
         'prim_first_wt': 1e1,
     }
 
-    #config['prim_obs_include'].append(utils.EE_ENUM)
-    # config['prim_obs_include'].append(utils.THETA_ENUM)
     for o in range(no):
-        config['sensor_dims'][utils.OBJ_DELTA_ENUMS[o]] = 2
-        config['sensor_dims'][utils.OBJ_ENUMS[o]] = 2
-        config['sensor_dims'][utils.TARG_ENUMS[o]] = 2
-        config['sensor_dims'][utils.TARG_DELTA_ENUMS[o]] = 2
-        config['prim_obs_include'].append(utils.OBJ_ENUMS[o])
-        config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
-        config['prim_obs_include'].append(utils.TARG_ENUMS[o])
-        config['prim_obs_include'].append(utils.TARG_DELTA_ENUMS[o])
+        config['sensor_dims'][utils.OBJ_DELTA_ENUMS[o]] = 3
+        config['sensor_dims'][utils.OBJ_ROTDELTA_ENUMS[o]] = 3
+        config['sensor_dims'][utils.TARG_ROTDELTA_ENUMS[o]] = 3
+        config['sensor_dims'][utils.OBJ_ENUMS[o]] = 3
+        config['sensor_dims'][utils.TARG_ENUMS[o]] = 3
+        #config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
+        #config['prim_obs_include'].append(utils.TARG_ENUMS[o])
+        #config['prim_obs_include'].append(utils.OBJ_ROTDELTA_ENUMS[o])
+        # config['prim_obs_include'].append(utils.TARG_ROTDELTA_ENUMS[o])
     return config
 
 config = refresh_config()
+

@@ -291,7 +291,9 @@ class RolloutServer(Server):
         targets = self.agent.target_vecs[0].copy()
         for t in range(n, n_targs[-1]):
             obj_name = prim_opts[OBJ_ENUM][t]
-            targets[self.agent.target_inds['{0}_end_target'.format(obj_name), 'value']] = x0[self.agent.state_inds[obj_name, 'pose']]
+            targ_name = '{0}_end_target'.format(obj_name)
+            if (targ_name, 'value') in self.agent.target_inds:
+                targets[self.agent.target_inds[targ_name, 'value']] = x0[self.agent.state_inds[obj_name, 'pose']]
 
         if rlen is None: rlen = self.agent.rlen
         hor = self.agent.hor

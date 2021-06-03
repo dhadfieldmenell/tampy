@@ -13,11 +13,11 @@ GRB = grb.GRB
 from core.util_classes.viewer import OpenRAVEViewer
 
 
-MAX_PRIORITY=3
+MAX_PRIORITY = 3
 BASE_MOVE_COEFF = 1.
-TRAJOPT_COEFF=5e1
+TRAJOPT_COEFF = 5e1
 TRANSFER_COEFF = 1e-1
-FIXED_COEFF = 0.2 * TRAJOPT_COEFF # 1e3
+FIXED_COEFF = 5e1
 INIT_TRAJ_COEFF = 1e-1
 RS_COEFF = 1e2
 COL_COEFF = 0
@@ -202,10 +202,12 @@ class BacktrackLLSolver(LLSolver):
                 assert param in rs_params
                 for attr, val in rp[param].items():
                     if param.is_symbol():
-                        setattr(param, attr, val)
+                        getattr(param, attr)[:, 0] = val.flatten()
                     else:
                         getattr(param, attr)[:, active_ts[1]] = val.flatten()
-                self.child_solver.fixed_objs.append((param, rp[param]))
+
+                if not self.freeze_rs_param(plan.actions[anum]):
+                    self.child_solver.fixed_objs.append((param, rp[param]))
 
             success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                               active_ts = active_ts, verbose=verbose,
@@ -278,15 +280,17 @@ class BacktrackLLSolver(LLSolver):
                 if success or priority < 0 or n_resamples == 0:
                     break
 
-                # failed_preds = plan.get_failed_preds(active_ts=active_ts, tol=1e-3)
+                if DEBUG:
+                    print("pre-resample attempt {} failed:".format(attempt))
+                    print(plan.get_failed_preds(active_ts, priority=priority, tol=1e-3))
 
                 success = self._solve_opt_prob(plan, priority=priority, callback=callback, 
                                                active_ts=active_ts, verbose=verbose, resample = True,
                                                init_traj=init_traj)
 
                 if DEBUG:
-                    print(("resample attempt: {} at priority {}".format(attempt, priority)))
-                    print((plan.get_failed_preds(active_ts, priority=priority, tol=1e-3)))
+                    print("resample attempt: {} at priority {}".format(attempt, priority))
+                    print(plan.get_failed_preds(active_ts, priority=priority, tol=1e-3))
                 
                 if success:
                     break
@@ -754,12 +758,13 @@ class BacktrackLLSolver(LLSolver):
         """
         if active_ts is None:
             active_ts = (0, plan.horizon-1)
+
         for action in plan.actions:
             true_start, true_end = action.active_timesteps
             action_start, action_end = action.active_timesteps
             ## only add an action
-            if action_start >= active_ts[1] and action_start > active_ts[0]: continue
-            if action_end < active_ts[0]: continue
+            if action_start >= active_ts[1]: continue
+            if action_end <= active_ts[0]: continue
 
             if action_start < active_ts[0]:
                 action_start = active_ts[0]
@@ -776,7 +781,7 @@ class BacktrackLLSolver(LLSolver):
                                         priority=priority, add_nonlin=add_nonlin, verbose=verbose)
             ## add all of the linear ineqs
             timesteps = list(range(max(action_start, active_ts[0]),
-                              min(action_end, active_ts[1])))
+                              min(action_end, active_ts[1])+1))
             for pred_dict in action.preds:
                 self._add_pred_dict(pred_dict, timesteps, add_nonlin=False,
                                     priority=priority, verbose=verbose)
@@ -792,8 +797,8 @@ class BacktrackLLSolver(LLSolver):
             active_ts = (0, plan.horizon-1)
         for action in plan.actions:
             action_start, action_end = action.active_timesteps
-            if action_start >= active_ts[1] and action_start > active_ts[0]: continue
-            if action_end < active_ts[0]: continue
+            if action_start >= active_ts[1]: continue
+            if action_end <= active_ts[0]: continue
 
             if action_start < active_ts[0]:
                 action_start = active_ts[0]
@@ -982,10 +987,10 @@ class BacktrackLLSolver(LLSolver):
                 attr_type = param.get_attr_type(attr_name)
                 param_ll = self._param_to_ll[param]
                 K = attr_type.dim
-                T = min(len(mean), param_ll._horizon)
+                T = min(len(mean), param_ll._horizon)-2
 
                 if len(mean) >= param_ll.active_ts[1]:
-                    attr_val = mean[param_ll.active_ts[0]:param_ll.active_ts[1]+1][:, plan.state_inds[p_name, attr_name]]
+                    attr_val = mean[param_ll.active_ts[0]+1:param_ll.active_ts[1]][:, plan.state_inds[p_name, attr_name]]
                 else:
                     attr_val = mean[-T:][:, plan.state_inds[p_name, attr_name]]
                 
@@ -1000,11 +1005,11 @@ class BacktrackLLSolver(LLSolver):
                 cur_val = attr_val.reshape((KT, 1), order='F')
                 A = -2*cur_val.T.dot(Q)
                 b = cur_val.T.dot(Q.dot(cur_val))
-                transfer_coeff = coeff/float(plan.horizon)
+                transfer_coeff = coeff / float(plan.horizon)
 
                 quad_expr = QuadExpr(2*transfer_coeff*Q,
                                      transfer_coeff*A, transfer_coeff*b)
-                ll_attr_val = getattr(param_ll, attr_name)[:, :T]
+                ll_attr_val = getattr(param_ll, attr_name)[:, 1:T+1]
                 param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
                 sco_var = self.create_variable(param_ll_grb_vars, cur_val)
                 bexpr = BoundExpr(quad_expr, sco_var)

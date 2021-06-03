@@ -111,6 +111,11 @@ class TaskServer(Server):
                                 label=node.label,
                                 refnode=node,
                                 nodetype=node.nodetype)
+
+        if self.config['seq']:
+            plan = new_node.gen_plan(self.agent.hl_solver, self.agent.openrave_bodies, self.agent.ll_solver)
+            success, opt_suc, path, info = self.agent.backtrack_solve(plan, anum=0, x0=node.x0, targets=node.targets, permute=False, label='seq')
+            import ipdb; ipdb.set_trace()
         self.push_queue(new_node, self.motion_queue)
 
 

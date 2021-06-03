@@ -22,7 +22,7 @@ MAX_CONTACT_DISTANCE = .1
 BASKET_OFFSET = 0.33
 BASKET_NARROW_OFFSET = 0.215
 BASKET_GRIP_OFFSET = 0
-GRASP_DIST = 0.23
+GRASP_DIST = 0.24
 EE_STEP = 0.08
 
 # EEReachable Constants
@@ -39,7 +39,7 @@ COLLIDES_DSAFE = 1e-3
 
 EEREACHABLE_COEFF = 5e-2
 EEREACHABLE_ROT_COEFF = 5e-2
-IN_GRIPPER_COEFF = 1e0
+IN_GRIPPER_COEFF = 1e-1
 IN_GRIPPER_ROT_COEFF = 1e0#2e0
 WASHER_IN_GRIPPER_ROT_COEFF = 1e-2
 GRIPPER_AT_COEFF = 1e-2
@@ -51,7 +51,7 @@ COLLIDE_COEFF = 4e1
 RCOLLIDE_COEFF = 1e-1
 MAX_CONTACT_DISTANCE = .1
 
-NEAR_GRIP_COEFF = 1.4e-2
+NEAR_GRIP_COEFF = 1e-2
 NEAR_GRIP_ROT_COEFF = 4e-3
 NEAR_APPROACH_COEFF = 1e-2
 NEAR_APPROACH_ROT_COEFF = 4e-3
@@ -83,6 +83,22 @@ RESAMPLE_OPENED_DOOR_ROT = [np.pi/2, 0, 0]
 RESAMPLE_CLOSED_DOOR_ROT = [5*np.pi/6, 0, 0]
 RESAMPLE_FACTOR_LR = [0.1, 0.1, 0.05]
 
+
+"""
+Following are for relative positions on complex objects
+"""
+#DRAWER_HANDLE_POS = [0., -0.36, 0.01]
+DRAWER_HANDLE_POS = [0., -0.33, -0.03]
+IN_DRAWER_POS = [0., -0.4, 0.01]
+DRAWER_HANDLE_ORN = [0., 0., 1.57]
+IN_DRAWER_ORN = [0., 0., 0.]
+
+SHELF_HANDLE_POS = [-0.3, -0.07, 1.005]
+IN_SHELF_POS = [0.27, 0.15, 0.93]
+SHELF_HANDLE_ORN = [1.57, 1.57, 0.]
+IN_SHELF_ORN = [1.57, 1.57, 0.]
+
+
 """
 Following constants are for testing purposes
 """
@@ -106,6 +122,9 @@ ATTRMAP = {"Rotation": [("value", np.array([0], dtype=np.int))],
                       ("rotation", np.array([0,1,2], dtype=np.int))),
             "Obstacle": (("pose", np.array([0,1,2], dtype=np.int)),
                    ("rotation", np.array([0,1,2], dtype=np.int))),
+            "Door": (("pose", np.array([0,1,2], dtype=np.int)),
+                    ("hinge", np.array([0], dtype=np.int)),
+                    ("rotation", np.array([0,1,2], dtype=np.int))),
             "Basket": (("pose", np.array([0,1,2], dtype=np.int)),
                        ("rotation", np.array([0,1,2], dtype=np.int))),
             "BasketTarget": (("value", np.array([0,1,2], dtype=np.int)),
@@ -113,6 +132,10 @@ ATTRMAP = {"Rotation": [("value", np.array([0], dtype=np.int))],
             "Cloth": (("pose", np.array([0,1,2], dtype=np.int)),
                       ("rotation", np.array([0,1,2], dtype=np.int))),
             "Can": (("pose", np.array([0,1,2], dtype=np.int)),
+                      ("rotation", np.array([0,1,2], dtype=np.int))),
+            "Handle": (("pose", np.array([0,1,2], dtype=np.int)),
+                      ("rotation", np.array([0,1,2], dtype=np.int))),
+            "Sphere": (("pose", np.array([0,1,2], dtype=np.int)),
                       ("rotation", np.array([0,1,2], dtype=np.int))),
             "Box": (("pose", np.array([0,1,2], dtype=np.int)),
                       ("rotation", np.array([0,1,2], dtype=np.int))),

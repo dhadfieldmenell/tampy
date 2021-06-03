@@ -144,10 +144,10 @@ class MotionServer(Server):
         if self.verbose and self.id.find('0') >= 0 and len(path):
             if node.nodetype.find('dagger') >= 0:
                 self.save_video(path, path[-1]._postsuc, lab='_fulldagger')
-            elif np.random.uniform() < 0.05:
-                self.save_video(path, path[-1]._postsuc, lab='_optimal', annotate=False)
+            elif np.random.uniform() < 0.1:
+                self.save_video(path, path[-1]._postsuc, lab='_optimal', annotate=True)
             elif not success and np.random.uniform() < 0.2:
-                self.save_video(path, path[-1]._postsuc, lab='_optimal_failed', annotate=False)
+                self.save_video(path, path[-1]._postsuc, lab='_optimal_failed', annotate=True)
 
         if self.verbose and self.render:
             for ind, batch in enumerate(info['to_render']):
@@ -190,9 +190,9 @@ class MotionServer(Server):
             print('Failure without failed constr?')
             return
 
-        failed_preds = plan.get_failed_preds((prev_t, fail_step+fail_pred.active_range[1]), priority=-2)
+        failed_preds = plan.get_failed_preds((prev_t, fail_step+fail_pred.active_range[1]), priority=-1)
         if len(failed_preds):
-            print('Refine failed with linear constr. viol.', node._trace, prev_t, plan.get_failed_preds((prev_t, prev_t+1), priority=0), len(node.ref_traj))
+            print('Refine failed with linear constr. viol.', node._trace, prev_t, failed_preds, len(node.ref_traj))
             return
 
         print('Refine failed:', plan.get_failed_preds((0, fail_step+fail_pred.active_range[1])), fail_pred, fail_step, plan.actions, node.label, node._trace, prev_t)

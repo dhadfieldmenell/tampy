@@ -151,10 +151,12 @@ class ParseProblemConfig(object):
                     except KeyError:
                         raise ProblemConfigException("Parameter '%s' for predicate type '%s' not defined in domain file."%(n, p_name))
                 try:
-                    invariant_set.add(domain.pred_schemas[p_name].pred_class(name="invariantpred%d"%i,
+                    invar_pred = domain.pred_schemas[p_name].pred_class(name="invariantpred%d"%i,
                                                                               params=p_objs,
                                                                               expected_param_types=domain.pred_schemas[p_name].expected_params,
-                                                                              env=env))
+                                                                              env=env)
+                    invariant_set.add(invar_pred)
+                    init_preds.add(invar_pred)
                 except TypeError as e:
                     print(e)
                     print(("type error for {}".format(pred)))

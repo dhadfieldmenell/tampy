@@ -7,7 +7,7 @@ from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 import numpy as np
 import tensorflow as tf
 
-from core.util_classes.common_constants import USE_OPENRAVE
+USE_OPENRAVE = False
 if USE_OPENRAVE:
     import ctrajoptpy
 else:
@@ -32,7 +32,7 @@ RS_SCALE = 0.5
 N_DIGS = 5
 GRIP_TOL = 5e-1
 COL_TS = 5 # 3
-NEAR_TOL = 0.3
+NEAR_TOL = 0.4 # 0.3
 GRIP_VAL = 1.
 
 

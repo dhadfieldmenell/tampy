@@ -1013,10 +1013,8 @@ def build_conv_layers(input_layer, filter_sizes, num_filters):
         biases['conv_bc{0}'.format(i)] = init_bias([num_filters[i]], name='conv_bc{0}'.format(i))
         cur_in = num_filters[i]
         nonlin = i < n_conv - 1 # Don't put relu on the last conv, it goes through spatial softmax
-        if i == 0:
-            conv_layers.append(conv2d(img=cur_in_layer, w=weights['conv_wc{0}'.format(i)], b=biases['conv_bc{0}'.format(i)], strides=[1,2,2,1], nonlin=nonlin))
-        else:
-            conv_layers.append(conv2d(img=cur_in_layer, w=weights['conv_wc{0}'.format(i)], b=biases['conv_bc{0}'.format(i)], nonlin=nonlin))
+        strides = [1,1,1,1] # if i > 0 else [1,2,2,1]
+        conv_layers.append(conv2d(img=cur_in_layer, w=weights['conv_wc{0}'.format(i)], b=biases['conv_bc{0}'.format(i)], nonlin=nonlin, strides=strides))
         cur_in_layer = conv_layers[-1]
 
     return conv_layers, weights, biases

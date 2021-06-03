@@ -19,7 +19,6 @@ problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, env=None, o
 state = problem.init_state
 solver = NAMOSolver()
 bt_ll.DEBUG = True
-bt_ll.TRAJOPT_COEFF = 1e-3
 hl_solver = FFSolver(d_c)
 abs_domain = hl_solver.abs_domain
 
@@ -55,4 +54,5 @@ elif len(plan.get_failed_preds()):
 else:
     print('PLAN FINISHED SUCCESSFULLY')
 
+import ipdb; ipdb.set_trace()
 

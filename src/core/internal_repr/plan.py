@@ -177,6 +177,11 @@ class Plan(object):
             else:
                 st, et = max(action.active_timesteps[0], active_ts[0]), min(action.active_timesteps[1], active_ts[1])
 
+            a_st, a_et = action.active_timesteps
+            if et > st:
+                if a_st >= et: continue
+                if a_et <= st: continue
+
             for pr in range(priority+1):
                 for n, p, t in self.get_failed_preds(active_ts=(st,et), priority=pr, tol=tol, incl_negated=incl_negated):
                     if t < t_min and (not hl_ignore or not p.hl_ignore):
@@ -193,6 +198,10 @@ class Plan(object):
             active_ts = (0, self.horizon-1)
         failed = []
         for a in self.actions:
+            st, et = a.active_timesteps
+            if active_ts[1] > active_ts[0]:
+                if st >= active_ts[1]: continue
+                if et <= active_ts[0]: continue
             failed.extend(a.get_failed_preds(active_ts, priority, tol=tol, incl_negated=incl_negated))
         return failed
 
