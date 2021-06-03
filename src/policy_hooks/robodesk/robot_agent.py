@@ -16,9 +16,12 @@ except:
 import matplotlib.pyplot as plt
 
 import numpy as np
+from PIL import Image
 import scipy.interpolate
 from scipy.spatial.transform import Rotation
 
+from dm_control import mujoco
+from dm_control.mujoco import TextOverlay
 import pybullet as P
 import robodesk
 
@@ -34,11 +37,11 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.tamp_agent import TAMPAgent
 
 
-const.NEAR_GRIP_COEFF = 2.4e-2
+const.NEAR_GRIP_COEFF = 2.2e-2
 const.NEAR_APPROACH_COEFF = 8e-3
 const.GRASP_DIST = 0.16 # 0.18
-const.APPROACH_DIST = 0.025
-const.RETREAT_DIST = 0.025
+const.APPROACH_DIST = 0.02
+const.RETREAT_DIST = 0.02
 const.EEREACHABLE_COEFF = 2e-2
 const.EEREACHABLE_ROT_COEFF = 1e-2
 const.RCOLLIDES_COEFF = 3e-2
@@ -117,6 +120,27 @@ class EnvWrapper():
         self.flat_rot = Rotation.from_euler('xyz', [0., 0., 0.])
         self.flat_rot_inv = self.flat_rot.inv()
         self.cur_obs = self.reset()
+
+    def render(self, mode='rgb_array', resize=True, overlays=()):
+        params = {'distance': 1.8, 'azimuth': 90, 'elevation': -60,
+                  'crop_box': (16.75, 25.0, 105.0, 88.75), 'size': 120}
+        camera = mujoco.Camera(
+            physics=self.physics, height=params['size'],
+            width=params['size'], camera_id=-1)
+        camera._render_camera.distance = params['distance']  # pylint: disable=protected-access
+        camera._render_camera.azimuth = params['azimuth']  # pylint: disable=protected-access
+        camera._render_camera.elevation = params['elevation']  # pylint: disable=protected-access
+        camera._render_camera.lookat[:] = [0, 0.535, 1.1]  # pylint: disable=protected-access
+
+        image = camera.render(depth=False, segmentation=False, overlays=overlays)
+        camera._scene.free()  # pylint: disable=protected-access
+
+        if resize:
+              image = Image.fromarray(image).crop(box=params['crop_box'])
+              image = image.resize([self.env.image_size, self.env.image_size],
+                                   resample=Image.ANTIALIAS)
+              image = np.asarray(image)
+        return image
 
 
     def get_task():
@@ -289,7 +313,8 @@ class EnvWrapper():
 
         if item_name.find('upright') >= 0 and quat is not  None:
             base_rot = Rotation.from_quat(quat)
-            quat = (self.upright_rot_inv * base_rot).as_quat()
+            #quat = (self.upright_rot_inv * base_rot).as_quat()
+            quat = (base_rot * self.upright_rot_inv).as_quat()
 
         if item_name.find('flat') >= 0 and quat is not None:
             base_rot = Rotation.from_quat(quat)
@@ -381,6 +406,8 @@ class EnvWrapper():
         self.cur_obs = obs
         return obs, rew, done, info
 
+    def get_text_overlay(self, title='', body='', style='normal', position='top left'):
+        return TextOverlay(title, body, style, position)
 
     def zero(self):
         self.env.physics.data.time = 0.0
@@ -473,12 +500,14 @@ class RobotAgent(TAMPAgent):
 
         gripcmd = round(s.get_U(t=t)[self.action_inds['panda', 'right_gripper']][0], 2)
 
+        textover1 = self.mjc_env.get_text_overlay(body='Task: {0}'.format(task))
+        textover2 = self.mjc_env.get_text_overlay(body='{0: <6} {1: <6}'.format(precost, postcost), position='bottom left')
+        overlays = (textover1, textover2)
         #for ctxt in self.base_env.sim.render_contexts:
         #    ctxt._overlay[mj_const.GRID_TOPLEFT] = ['{}'.format(task), '']
         #    ctxt._overlay[mj_const.GRID_BOTTOMLEFT] = ['{0: <7} {1: <7} {2}'.format(precost, postcost, gripcmd), '']
         #return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
-        im = self.base_env.render()
-        im = np.flip(im, axis=0)
+        im = self.mjc_env.render(overlays=overlays, resize=True)
         #for ctxt in self.base_env.sim.render_contexts:
         #    for key in list(ctxt._overlay.keys()):
         #        del ctxt._overlay[key]
@@ -488,7 +517,6 @@ class RobotAgent(TAMPAgent):
     def get_image(self, x, depth=False, cam_id=None):
         self.reset_to_state(x, full=False)
         im = self.base_env.render()
-        im = np.flip(im, axis=0)
         return im
 
 
@@ -799,11 +827,13 @@ class RobotAgent(TAMPAgent):
             else:
                 raise NotImplementedError()
 
+            sample.set(TRUE_POSE_ENUM, sample.get(END_POSE_ENUM, t=t), t)
+            sample.set(TRUE_ROT_ENUM, sample.get(END_ROT_ENUM, t=t), t)
+
         sample.condition = cond
         sample.set(TARGETS_ENUM, targets.copy(), t)
         sample.set(ONEHOT_GOAL_ENUM, targets, t)
         sample.targets = targets.copy()
-
         #for i, obj in enumerate(prim_choices[OBJ_ENUM]):
         #    grasp_pt = list(self.plans.values())[0].params[obj].geom.grasp_point
         #    sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)

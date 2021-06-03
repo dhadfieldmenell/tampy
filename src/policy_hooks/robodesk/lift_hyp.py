@@ -157,7 +157,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'prim_obs_include': [
                              utils.ONEHOT_GOAL_ENUM,
                              utils.RIGHT_EE_POS_ENUM,
-                             utils.RIGHT_EE_ROT_ENUM,
+                             #utils.RIGHT_EE_ROT_ENUM,
                              utils.RIGHT_ENUM,
                              utils.RIGHT_GRIPPER_ENUM,
                              ],
@@ -173,6 +173,8 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.RIGHT_EE_ROT_ENUM: 3,
                 utils.END_POSE_ENUM: 3,
                 utils.END_ROT_ENUM: 3,
+                utils.TRUE_POSE_ENUM: 3,
+                utils.TRUE_ROT_ENUM: 3,
                 utils.GRIPPER_ENUM: 1,
                 utils.GOAL_ENUM: 3*no,
                 utils.ONEHOT_GOAL_ENUM: 12 + len(prob.GOAL_OPTIONS),
