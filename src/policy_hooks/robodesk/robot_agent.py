@@ -34,12 +34,12 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.tamp_agent import TAMPAgent
 
 
-const.NEAR_GRIP_COEFF = 2e-2
-const.NEAR_APPROACH_COEFF = 7e-3
-const.GRASP_DIST = 0.18
+const.NEAR_GRIP_COEFF = 2.4e-2
+const.NEAR_APPROACH_COEFF = 8e-3
+const.GRASP_DIST = 0.16 # 0.18
 const.APPROACH_DIST = 0.025
 const.RETREAT_DIST = 0.025
-const.EEREACHABLE_COEFF = 1e-2
+const.EEREACHABLE_COEFF = 2e-2
 const.EEREACHABLE_ROT_COEFF = 1e-2
 const.RCOLLIDES_COEFF = 3e-2
 const.OBSTRUCTS_COEFF = 2e-2
@@ -65,21 +65,21 @@ class optimal_pol:
 
     def act(self, X, O, t, noise=None):
         u = np.zeros(self.dU)
-        if t < len(self.opt_traj) - 1:
+        if t < len(self.opt_traj):
             for param, attr in self.action_inds:
                 cur_val = X[self.state_inds[param, attr]] if (param, attr) in self.state_inds else None
                 if attr.find('grip') >= 0:
-                    val = self.opt_traj[t+1, self.state_inds[param, attr]][0]
-                    val = 0.1 if val <= 0. else -0.1
+                    #val = self.opt_traj[min(t+1, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
+                    val = self.opt_traj[min(t, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
                     u[self.action_inds[param, attr]] = val 
                 elif attr.find('ee_pos') >= 0:
                     cur_ee = cur_val if cur_val is not None else self.opt_traj[t, self.state_inds[param, attr]]
-                    next_ee = self.opt_traj[t+1, self.state_inds[param, attr]]
+                    next_ee = self.opt_traj[t, self.state_inds[param, attr]]
                     u[self.action_inds[param, attr]] = next_ee - cur_ee
                 elif attr.find('ee_rot') >= 0:
                     cur_ee = cur_val
                     cur_quat = np.array(T.euler_to_quaternion(cur_ee, 'xyzw'))
-                    next_ee = self.opt_traj[t+1, self.state_inds[param, attr]]
+                    next_ee = self.opt_traj[t, self.state_inds[param, attr]]
                     next_quat = np.array(T.euler_to_quaternion(next_ee, 'xyzw'))
                     currot = Rotation.from_quat(cur_quat)
                     targrot = Rotation.from_quat(next_quat)
@@ -87,7 +87,7 @@ class optimal_pol:
                     u[self.action_inds[param, attr]] = act
                 else:
                     cur_attr = cur_val if cur_val is not None else self.opt_traj[t, self.state_inds[param, attr]]
-                    next_attr = self.opt_traj[t+1, self.state_inds[param, attr]]
+                    next_attr = self.opt_traj[t, self.state_inds[param, attr]]
                     u[self.action_inds[param, attr]] = next_attr - cur_attr
         else:
             for param, attr in self.action_inds:
@@ -191,11 +191,12 @@ class EnvWrapper():
 
 
     def get_handle_pose(self, handle_name, order='xyzw', euler=False):
-        if handle_name.find('shelf') >= 0:
+        if handle_name.find('shelf') >= 0 or handle_name.find('slide') >= 0:
             if euler:
                 quat = const.SHELF_HANDLE_ORN
             else:
                 quat = T.euler_to_quaternion(const.SHELF_HANDLE_ORN, 'xyzw')
+
         elif handle_name.find('drawer') >= 0:
             if euler:
                 quat = const.DRAWER_HANDLE_ORN
@@ -205,7 +206,7 @@ class EnvWrapper():
             quat = [0., 0., 0., 1.]
 
         door = handle_name.split('_handle')[0]
-        if door.find('shelf') >= 0:
+        if door.find('shelf') >= 0 or door.find('slide') >= 0:
             jnt = 'slide_joint'
             val = self.env.physics.named.data.qpos[jnt][0]
             #door_pos = self.env.physics.named.data.xpos['slide']
@@ -245,7 +246,7 @@ class EnvWrapper():
         if item_name.find('drawer') >= 0:
             pos = np.array([0., 0.85, 0.655])
 
-        if item_name.find('shelf') >= 0:
+        if item_name.find('shelf') >= 0 or item_name.find('slide') >= 0:
             pos = np.array([0., 0.85, 0.])
 
         if item_name.find('ball') >= 0:
@@ -278,17 +279,19 @@ class EnvWrapper():
     def set_item_pose(self, item_name, pos=None, quat=None, forward=False, order='xyzw', euler=False):
         if item_name == 'panda': return
         if item_name.find('desk') >= 0: return
+        if item_name.find('shelf') >= 0: return
+        if item_name.find('drawer') >= 0: return
         if item_name.find('handle') >= 0: return
         if item_name.find('button') >= 0: return
 
         if quat is not None and len(quat) == 3:
             quat = T.euler_to_quaternion(quat, order)
 
-        if item_name.find('upright') >= 0:
+        if item_name.find('upright') >= 0 and quat is not  None:
             base_rot = Rotation.from_quat(quat)
             quat = (self.upright_rot_inv * base_rot).as_quat()
 
-        if item_name.find('flat') >= 0:
+        if item_name.find('flat') >= 0 and quat is not None:
             base_rot = Rotation.from_quat(quat)
             quat = (self.flat_rot_inv * base_rot).as_quat()
 
@@ -301,13 +304,16 @@ class EnvWrapper():
         try:
             if pos is not None:
                 self.env.physics.named.data.qpos[item_name][:3] = pos
+
             if quat is not None:
                 self.env.physics.named.data.qpos[item_name][3:] = quat
-        except Exception as e:
+
+        except KeyError as e:
             if pos is not None:
-                self.env.physics.named.data.xpos[item_name][:3] = pos
+                self.env.physics.named.data.xpos[item_name][:] = pos
+
             if quat is not None:
-                self.env.physics.named.data.xpos[item_name][3:] = quat
+                self.env.physics.named.data.xquat[item_name][:] = quat
 
         if forward:
             self.forward()
@@ -427,7 +433,7 @@ class RobotAgent(TAMPAgent):
                                           reward='success', \
                                           action_repeat=freq, \
                                           episode_length=None, \
-                                          image_size=128)
+                                          image_size=self.image_width)
 
         prim_options = self.prob.get_prim_choices(self.task_list)
         self.obj_list = prim_options[OBJ_ENUM]
@@ -436,6 +442,8 @@ class RobotAgent(TAMPAgent):
         self.check_col = hyperparams['master_config'].get('check_col', True)
         self.use_glew = False
         self._viewer = None
+        self.cur_im = None
+        self._matplot_im = None
         self.camera_id = 1
         self.main_camera_id = 0
         no = self._hyperparams['num_objs']
@@ -463,118 +471,25 @@ class RobotAgent(TAMPAgent):
         precost = str(precost)[1:]
         postcost = str(postcost)[1:]
 
-        gripcmd = round(s.get_U(t=t)[self.action_inds['sawyer', 'right_gripper']][0], 2)
+        gripcmd = round(s.get_U(t=t)[self.action_inds['panda', 'right_gripper']][0], 2)
 
-        for ctxt in self.base_env.sim.render_contexts:
-            ctxt._overlay[mj_const.GRID_TOPLEFT] = ['{}'.format(task), '']
-            ctxt._overlay[mj_const.GRID_BOTTOMLEFT] = ['{0: <7} {1: <7} {2}'.format(precost, postcost, gripcmd), '']
+        #for ctxt in self.base_env.sim.render_contexts:
+        #    ctxt._overlay[mj_const.GRID_TOPLEFT] = ['{}'.format(task), '']
+        #    ctxt._overlay[mj_const.GRID_BOTTOMLEFT] = ['{0: <7} {1: <7} {2}'.format(precost, postcost, gripcmd), '']
         #return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
-        im = self.base_env.sim.render(height=192, width=192, camera_name="frontview")
+        im = self.base_env.render()
         im = np.flip(im, axis=0)
-        for ctxt in self.base_env.sim.render_contexts:
-            for key in list(ctxt._overlay.keys()):
-                del ctxt._overlay[key]
+        #for ctxt in self.base_env.sim.render_contexts:
+        #    for key in list(ctxt._overlay.keys()):
+        #        del ctxt._overlay[key]
         return im
+
 
     def get_image(self, x, depth=False, cam_id=None):
         self.reset_to_state(x, full=False)
-        #return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
-        im = self.base_env.sim.render(height=192, width=192, camera_name="frontview")
+        im = self.base_env.render()
         im = np.flip(im, axis=0)
         return im
-
-    #def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None, policies=None):
-    #    assert not np.any(np.isnan(state))
-    #    start_t = time.time()
-    #    x0 = self.get_state() # state[self._x_data_idx[STATE_ENUM]].copy()
-    #    task = tuple(task)
-    #    if self.discrete_prim:
-    #        plan = self.plans[task]
-    #    else:
-    #        plan = self.plans[task[0]]
-
-    #    base_t = 0
-    #    self.T = plan.horizon if hor is None else hor
-    #    sample = Sample(self)
-    #    sample.init_t = 0
-    #    col_ts = np.zeros(self.T)
-
-    #    prim_choices = self.prob.get_prim_choices(self.task_list)
-    #    target_vec = np.zeros((self.target_dim,))
-
-    #    set_params_attrs(plan.params, plan.state_inds, x0, 0)
-    #    for target_name in self.targets[condition]:
-    #        target = plan.params[target_name]
-    #        target.value[:,0] = self.targets[condition][target.name]
-    #        target_vec[self.target_inds[target.name, 'value']] = target.value[:,0]
-
-    #    cur_state = self.get_state()
-    #    noise = np.zeros((self.T, self.dU))
-    #    n_steps = 0
-    #    end_state = None
-    #    for t in range(0, self.T):
-    #        noise_full = np.zeros((self.dU,))
-    #        self.fill_sample(condition, sample, cur_state, t, task, fill_obs=True)
-    #        sample.env_state[t] = self.base_env.sim.get_state()
-    #        prev_task = task
-    #        if task_f is not None:
-    #            sample.task = task
-    #            task = task_f(sample, t, task)
-    #            if task not in self.plans:
-    #                task = self.task_to_onehot[task[0]]
-    #            self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
-    #            taskname = self.task_list[task[0]]
-    #            if policies is not None: policy = policies[taskname]
-
-    #        X = cur_state.copy()
-    #        cur_noise = noise[t]
-
-    #        U_full = policy.act(X, sample.get_obs(t=t).copy(), t, cur_noise)
-    #        U_nogrip = U_full.copy()
-    #        U_nogrip[self.action_inds['sawyer', 'right_gripper']] = 0.
-    #        if np.all(np.abs(U_nogrip)) < 1e-3:
-    #            self._noops += 1
-    #            self.eta_scale = 1. / np.log(self._noops+2)
-    #        else:
-    #            self._noops = 0
-    #            self.eta_scale = 1.
-    #        assert not np.any(np.isnan(U_full))
-    #        sample.set(NOISE_ENUM, noise_full, t)
-
-    #        obs = sample.get_obs(t=t)
-    #        #U_full = np.clip(U_full, -MAX_STEP, MAX_STEP)
-    #        assert not np.any(np.isnan(U_full))
-    #        sample.set(ACTION_ENUM, U_full, t)
-    #        obj = self.prob.get_prim_choices(self.task_list)[OBJ_ENUM][task[1]]
-    #        suc, col = self.run_policy_step(U_full, cur_state)
-    #        col_ts[t] = col
-    #        new_state = self.get_state()
-    #        if len(self._prev_U): self._prev_U = np.r_[self._prev_U[1:], [U_nogrip]]
-    #        if len(self._x_delta)-1: self._x_delta = np.r_[self._x_delta[1:], [new_state]]
-    #        if len(self._prev_task): self._prev_task = np.r_[self._prev_task[1:], [sample.get_prim_out(t=t)]]
-
-
-    #        #if np.all(np.abs(cur_state - new_state) < 1e-4):
-    #        #    sample.use_ts[t] = 0
-
-    #        if n_steps == sample.T:
-    #            end_state = sample.get_X(t=t)
-
-    #        cur_state = new_state
-
-    #    if policy not in self.n_policy_calls:
-    #        self.n_policy_calls[policy] = 1
-    #    else:
-    #        self.n_policy_calls[policy] += 1
-    #    sample.end_state = new_state # end_state if end_state is not None else sample.get_X(t=self.T-1)
-    #    sample.task_cost = self.goal_f(condition, sample.end_state)
-    #    sample.use_ts[-1] = 0
-    #    sample.prim_use_ts[:] = sample.use_ts[:]
-    #    for t in range(sample.T-1):
-    #        if np.mean(np.abs(sample.get_X(t=t) - sample.get_X(t=t+1))) < 1e-3:
-    #            sample.prim_use_ts[t] = 0.
-    #    sample.col_ts = col_ts
-    #    return sample
 
 
     def run_policy_step(self, u, x):
@@ -585,28 +500,30 @@ class RobotAgent(TAMPAgent):
         panda = list(self.plans.values())[0].params['panda']
         true_lb, true_ub = panda.geom.get_joint_limits('right')
         factor = (np.array(true_ub) - np.array(true_lb)) / 5
-        if 'right_ee_pos' in ctrl:
-            targ_pos = self.mjc_env.get_attr('panda', 'right_ee_pos') + ctrl['right_ee_pos']
-            rotoff = Rotation.from_rotvec(ctrl['right_ee_rot'])
-            curquat = self.mjc_env.get_attr('panda', 'right_ee_rot', euler=False)
-            targrot = (rotoff * Rotation.from_quat(curquat)).as_quat()
-            for n in range(n_steps+1):
-                curquat = self.mjc_env.get_attr('panda', 'right_ee_rot', euler=False)
-                pos_ctrl = targ_pos - self.mjc_env.get_attr('panda', 'right_ee_pos')
-                sign1 = np.sign(targrot[np.argmax(np.abs(targrot))])
-                sign2 = np.sign(curquat[np.argmax(np.abs(curquat))])
-                rot_ctrl = -sign1 * sign2 * robo_T.get_orientation_error(sign1*targrot, sign2*curquat)
-                self.cur_obs, rew, done, _ = self.base_env.step(np.r_[pos_ctrl, rot_ctrl, [gripper]])
+        gripper = ctrl['right_gripper']
+        #if 'right_ee_pos' in ctrl:
+        #    targ_pos = self.mjc_env.get_attr('panda', 'right_ee_pos') + ctrl['right_ee_pos']
+        #    rotoff = Rotation.from_rotvec(ctrl['right_ee_rot'])
+        #    curquat = self.mjc_env.get_attr('panda', 'right_ee_rot', euler=False)
+        #    targrot = (rotoff * Rotation.from_quat(curquat)).as_quat()
+        #    for n in range(n_steps+1):
+        #        curquat = self.mjc_env.get_attr('panda', 'right_ee_rot', euler=False)
+        #        pos_ctrl = targ_pos - self.mjc_env.get_attr('panda', 'right_ee_pos')
+        #        sign1 = np.sign(targrot[np.argmax(np.abs(targrot))])
+        #        sign2 = np.sign(curquat[np.argmax(np.abs(curquat))])
+        #        rot_ctrl = -sign1 * sign2 * robo_T.get_orientation_error(sign1*targrot, sign2*curquat)
+        #        self.cur_obs, rew, done, _ = self.mjc_env.step(np.r_[pos_ctrl, rot_ctrl, [gripper]])
 
         if 'right' in ctrl:
             targ_pos = self.mjc_env.get_attr('panda', 'right') + ctrl['right']
             ctrl = np.r_[targ_pos, gripper]
-            self.cur_obs, rew, done, _ = self.base_env.step(ctrl)
+            self.cur_obs, rew, done, _ = self.mjc_env.step(ctrl)
 
-        rew = self.base_env.reward()
+        rew = 0. # self.base_env.reward()
         self._rew = rew
         self._ret += rew
         col = 0 # 1 if len(self._col) > 0 else 0
+        self.render_viewer(self.cur_obs['image'])
         return True, col
 
 
@@ -634,7 +551,8 @@ class RobotAgent(TAMPAgent):
         #        getattr(params[3], rot_ee_attr)[:,0] = getattr(params[0], rot_ee_attr)[:,st]
 
         for tname, attr in self.target_inds:
-            getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
+            if tname in plan.params:
+                getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
 
         for pname in plan.params:
             if '{0}_init_target'.format(pname) in plan.params:
@@ -742,10 +660,12 @@ class RobotAgent(TAMPAgent):
                 sample.set(LEFT_EE_POS_ENUM, mp_state[inds], t)
                 ee_pose = mp_state[inds]
                 ee_rot = mp_state[self.state_inds[pname, 'left_ee_rot']]
+                sample.set(LEFT_EE_ROT_ENUM, ee_rot, t)
             elif aname == 'right_ee_pos':
                 sample.set(RIGHT_EE_POS_ENUM, mp_state[inds], t)
                 ee_pose = mp_state[inds]
                 ee_rot = mp_state[self.state_inds[pname, 'right_ee_rot']]
+                sample.set(RIGHT_EE_ROT_ENUM, ee_rot, t)
             elif aname.find('ee_pos') >= 0:
                 sample.set(EE_ENUM, mp_state[inds], t)
                 ee_pose = mp_state[inds]
@@ -777,15 +697,15 @@ class RobotAgent(TAMPAgent):
             sample.set(RIGHT_GRIPPER_ENUM, mp_state[self.state_inds[robot, 'right_gripper']], t)
 
         prim_choices = self.prob.get_prim_choices(self.task_list)
-        task = list(task)
         if task is not None:
+            task = list(task)
             plan = list(self.plans.values())[0]
             task_ind = task[0]
             obj_ind = task[1]
             targ_ind = task[2]
             door_ind = task[3]
 
-            task_name = prim_choice[TASK_ENUM][task_ind]
+            task_name = prim_choices[TASK_ENUM][task_ind]
             obj_name = list(prim_choices[OBJ_ENUM])[task[1]]
             targ_name = list(prim_choices[TARG_ENUM])[task[2]]
             door_name = list(prim_choices[DOOR_ENUM])[task[3]]
@@ -800,6 +720,7 @@ class RobotAgent(TAMPAgent):
             sample.task_ind = task[0]
             sample.set(TASK_ENUM, task_vec, t)
             for ind, enum in enumerate(prim_choices):
+                if ind >= len(task): break
                 if hasattr(prim_choices[enum], '__len__'):
                     vec = np.zeros((len(prim_choices[enum])), dtype='float32')
                     vec[task[ind]] = 1.
@@ -835,27 +756,27 @@ class RobotAgent(TAMPAgent):
                 door_vec[task[2]] = 1.
                 sample.set(DOOR_ENUM, door_vec, t)
 
-            if task_name.lower() in ['move_to_grasp', 'lift', 'hold']:
+            if task_name.lower() in ['move_to_grasp_right', 'lift_right', 'hold_right']:
                 sample.set(END_POSE_ENUM, obj_pose, t)
                 sample.set(END_ROT_ENUM, mp_state[self.state_inds[obj_name, 'rotation']], t)
                 targ_vec = np.zeros(len(prim_choices[TARG_ENUM]))
                 targ_vec[:] = 1. / len(targ_vec)
                 sample.set(TARG_ENUM, targ_vec, t)
 
-            elif a_name.find('place_in_door') >= 0:
+            elif task_name.find('place_in_door') >= 0:
                 door_geom = plan.params[door_name].geom
-                door_pos = mp_state[self.state_inds[door_name], 'pose'] + door_geom.in_pos
+                door_pos = mp_state[self.state_inds[door_name, 'pose']] + door_geom.in_pos
                 obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - door_pos
                 sample.set(END_POSE_ENUM, obj_pose, t)
-                sample.set(END_ROT_ENUM, door_geom.in_orn, t)
+                sample.set(END_ROT_ENUM, np.array(door_geom.in_orn), t)
                 targ_vec = np.zeros(len(prim_choices[TARG_ENUM]))
                 targ_vec[:] = 1. / len(targ_vec)
                 sample.set(TARG_ENUM, targ_vec, t)
 
-            elif a_name.find('slide') >= 0:
+            elif task_name.find('slide') >= 0:
                 door_geom = plan.params[door_name].geom
                 cur_hinge = mp_state[self.state_inds[door_name, 'hinge']]
-                targ_hinge = door_geom.open_val if a_name.find('open') >= 0 else door_geom.close_val
+                targ_hinge = door_geom.open_val if task_name.find('open') >= 0 else door_geom.close_val
                 obj_pose = (targ_hinge - cur_hinge) * np.abs(door_geom.open_dir) 
                 sample.set(END_POSE_ENUM, obj_pose, t)
                 sample.set(END_ROT_ENUM, mp_state[self.state_inds[obj_name, 'rotation']], t)
@@ -915,6 +836,8 @@ class RobotAgent(TAMPAgent):
             targets = self.target_vecs[condition]
 
         cost = 0
+        x = np.array(state)
+        if len(x.shape) > 1: x = x[-1]
         for goal in self.goals:
             if targets[self.target_inds[goal, 'value']][0] == 1:
                 key, params = self.goals[goal]
@@ -938,7 +861,7 @@ class RobotAgent(TAMPAgent):
                 else:
                     raise NotImplementedError()
 
-                cost += 1 if suc else 0
+                cost += 1 if not suc else 0
 
         return 1. if cost > 0 else 0.
 
@@ -1124,15 +1047,15 @@ class RobotAgent(TAMPAgent):
 
         for enum in prim_choices:
             if enum is TASK_ENUM: continue
-            l.append(0)
             if hasattr(prim_choices[enum], '__len__'):
+                l.append(0)
                 for i, opt in enumerate(prim_choices[enum]):
                     if opt in [p.name for p in action.params]:
                         l[-1] = i
                         break
-            else:
-                param = action.params[1]
-                l[-1] = param.value[:,0] if param.is_symbol() else param.pose[:,action.active_timesteps[0]]
+            #else:
+            #    param = action.params[1]
+            #    l[-1] = param.value[:,0] if param.is_symbol() else param.pose[:,action.active_timesteps[0]]
         return l # tuple(l)
 
 
@@ -1233,7 +1156,7 @@ class RobotAgent(TAMPAgent):
 
     def clip_state(self, x):
         x = x.copy()
-        lb, ub = self.sawyer.geom.get_joint_limits('right')
+        lb, ub = self.panda.geom.get_joint_limits('right')
         lb = np.array(lb) + 2e-3
         ub = np.array(ub) - 2e-3
         jnt_vals = x[self.state_inds['panda', 'right']]
@@ -1250,11 +1173,11 @@ class RobotAgent(TAMPAgent):
 
     
     def reward(self, x=None, targets=None, center=False):
-        return self.base_env.reward()
+        return 0. # self.base_env.reward()
 
 
     def add_viewer(self):
-        if self._viewer is not None: return
+        if self._viewer is not None or self.cur_im is not None: return
         self.cur_im = np.zeros((self.image_height, self.image_width, 3))
         self._launch_viewer(self.image_width, self.image_height)
 
@@ -1326,53 +1249,53 @@ class RobotAgent(TAMPAgent):
 
 
     def distance_to_goal(self, x=None, targets=None):
-        raise NotImplementedError()
+        return 0.
 
 
     def reward(self, x=None, targets=None, center=False):
         if x is None: x = self.get_state()
         if targets is None: targets = self.target_vecs[0]
-        raise NotImplementedError()
+        return 0.
 
 
     def _in_shelf(self, x, item_name):
-        pos = x[slf.state_inds[item_name, 'pose']]
+        pos = x[self.state_inds[item_name, 'pose']]
         return pos[0] > 0.2 and pos[1] > 0.9
 
 
     def _in_bin(self, x, item_name):
-        pos = x[slf.state_inds[item_name, 'pose']]
+        pos = x[self.state_inds[item_name, 'pose']]
         return pos[0] > 0.25 and pos[0] < 0.55 and pos[1] > 0.4 and pos[1] < 0.7
 
 
     def _off_desk(self, x, item_name):
-        pos = x[slf.state_inds[item_name, 'pose']]
+        pos = x[self.state_inds[item_name, 'pose']]
         return pos[0] > 0.6
 
 
     def _lifted(self, x, item_name):
-        pos = x[slf.state_inds[item_name, 'pose']]
+        pos = x[self.state_inds[item_name, 'pose']]
         thresh = 0.82
         if item_name.find('upright') >= 0:
-            thresh = 0.86
+            thresh = 0.87
         return pos[2] > thresh
 
 
     def _door_open(self, x, door_name):
         door = list(self.plans.values()[0]).params[door_name]
         open_val = door.geom.open_thresh
-        pos = x[slf.state_inds[door_name, 'hinge']][0]
+        pos = x[self.state_inds[door_name, 'hinge']][0]
         sgn = -1. if door.geom.open_val < door.geom.close_val else 1.
-        pos = x[slf.state_inds[door_name, 'hinge']][0]
+        pos = x[self.state_inds[door_name, 'hinge']][0]
         return sgn*pos > sgn*open_val
 
 
     def _door_close(self, x, door_name):
         door = list(self.plans.values()[0]).params[door_name]
         close_val = door.geom.close_thresh
-        pos = x[slf.state_inds[door_name, 'hinge']][0]
+        pos = x[self.state_inds[door_name, 'hinge']][0]
         sgn = -1. if door.geom.open_val < door.geom.close_val else 1.
-        pos = x[slf.state_inds[door_name, 'hinge']][0]
+        pos = x[self.state_inds[door_name, 'hinge']][0]
         return sgn*pos < sgn*close_val
 
 
@@ -1396,6 +1319,7 @@ class RobotAgent(TAMPAgent):
         obj_name = self.prim_choices[OBJ_ENUM][task[1]].lower()
         targ_name = self.prim_choices[TARG_ENUM][task[2]].lower()
         door_name = self.prim_choices[DOOR_ENUM][task[3]].lower()
+        x = sample.get_X(t=t)
         if task_name.find('place_in_door') >= 0:
             pos = x[self.state_inds[obj_name, 'pose']]
             if door_name.find('shelf') >= 0:

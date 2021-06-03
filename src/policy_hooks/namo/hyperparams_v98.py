@@ -320,7 +320,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'prim_first_wt': 1e1,
     }
 
-    #config['prim_obs_include'].append(utils.EE_ENUM)
+    config['prim_obs_include'].append(utils.EE_ENUM)
     #config['prim_obs_include'].append(utils.THETA_ENUM)
     for o in range(no):
         config['sensor_dims'][utils.OBJ_DELTA_ENUMS[o]] = 2

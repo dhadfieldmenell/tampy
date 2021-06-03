@@ -53,7 +53,7 @@ def get_prim_choices(task_list=None):
 
 def get_vector(config):
     state_vector_include = {
-        'panda': ['right', 'right_ee_pos', 'right_ee_rot', 'right_gripper', 'pose']
+        'panda': ['right', 'right_ee_pos', 'right_ee_rot', 'right_gripper', 'pose', 'rotation']
     }
 
     for item in ['ball', 'upright_block', 'flat_block']:
@@ -61,6 +61,7 @@ def get_vector(config):
 
     for door in ['drawer', 'shelf']:
         state_vector_include[door] = ['pose', 'rotation', 'hinge']
+        state_vector_include['{}_handle'.format(door)] = ['pose', 'rotation']
 
     action_vector_include = {
         'panda': ['right', 'right_gripper']
@@ -86,7 +87,8 @@ def get_plans(use_tf=False):
     params = None
     sess = None
 
-    for task_ind, task in enumerate(tasks.keys()):
+    for task_ind, task in enumerate(task_ids):
+        params = None
         # SlideDoor actions don't need obj or targ
         if task.lower().find('slide') >= 0:
             for door_ind, door in enumerate(prim_options[DOOR_ENUM]):
@@ -171,7 +173,6 @@ def get_plans(use_tf=False):
                                 if not hasattr(param, 'openrave_body') or param.openrave_body is None:
                                     param.openrave_body = OpenRAVEBody(env, param.name, param.geom)
                                 openrave_bodies[param.name] = param.openrave_body
-
     return plans, openrave_bodies, env
 
 

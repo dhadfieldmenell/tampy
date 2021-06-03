@@ -855,12 +855,12 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         ref_traj = traj
         old_solve_priorities = self.ll_solver.solve_priorities
         xsaved = x0
-        perm = {}
         info = {'to_render': []}
         tasks = self.encode_plan(plan)
         if permute:
             perm_tasks, perm_targets, perm = self.permute_tasks(tasks, targets, plan)
         else:
+            perm = {}
             perm_tasks = tasks
             perm_targets = targets
         
@@ -874,6 +874,9 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         smooth_cnts = []
         self.reset_to_state(x0)
         for a in range(anum, len(plan.actions)):
+            if permute:
+                perm_tasks, perm_targets, perm = self.permute_tasks(tasks, targets, plan)
+
             cur_x_hist = self._x_delta.copy()
             self.reset_to_state(x0)
             success = False
@@ -882,7 +885,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             act_st = max(st, act_st)
             prev_x0 = np.zeros_like(self.x0[0])
             fill_vector(plan.params, self.state_inds, prev_x0, act_st)
-            #prev_x0 = self.clip_state(self.get_state())
+            prev_x0 = self.clip_state(self.get_state())
 
             task = tuple(tasks[a])
             perm_task = tuple(perm_tasks[a])
@@ -929,6 +932,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 self.set_symbols(plan, task, anum=a, st=act_st, targets=targets)
                 old_free = plan.get_free_attrs()
                 if not rollout: ref_traj = []
+                ref_traj = []
                 try:
                     success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=ref_traj, st=act_st)
                 except AttributeError as e:
@@ -946,6 +950,11 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 if not success:
                     self.n_fail_opt[task] = self.n_fail_opt.get(task, 0) + 1
                     print('FAILED TO SOLVE:', plan.actions[a], plan.get_failed_preds((act_st, act_et)))
+                    #state_dict = {(pname, aname): getattr(plan.params[pname], aname)[:, act_et] for pname, aname in self.state_inds if not plan.params[pname].is_symbol()}
+                    #for param in plan.params.values():
+                    #    if param.is_symbol():
+                    #        state_dict[param.name, 'value'] = param.value[:,0]
+                    #print('FAILED INFO:', plan.actions[a], state_dict, plan.get_failed_preds((act_st, act_st)), '\n\n\n')
                     return False, False, path, info
 
                 next_path, next_x0 = self.run_action(plan, a, x0, perm_targets, perm_task, act_st, reset=True, save=True, record=True, perm=perm, prev_hist=cur_x_hist)
@@ -1170,9 +1179,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 s._postsuc = False
                 cost = self.postcond_cost(end_s, task, end_s.T-1, debug=True, x0=base_x0, tol=1e-3)
                 state_dict = {(pname, aname): (x1[self.state_inds[pname, aname]], x2[self.state_inds[pname, aname]], getattr(plan.params[pname], aname)[:,st], getattr(plan.params[pname], aname)[:,et]) for (pname, aname) in self.state_inds}
-                if ind == 0 and save: print('Ran opt path w/postcond failure?', task, plan.actions[anum], state_dict, self.process_id)
+                #if ind == 0 and save: print('Ran opt path w/postcond failure?', task, plan.actions[anum], state_dict, self.process_id)
+                if ind == 0 and save: print('Ran opt path w/postcond failure?', task, plan.actions[anum], self.process_id)
 
-        static_x0 = x0.copy()
+        static_x0 = self.get_state().copy()
         static_hist = self._x_delta.copy()
         for pname, attr in self.state_inds:
             if plan.params[pname].is_symbol(): continue

@@ -72,6 +72,7 @@ class MoveTo(Action):
         self.eff = [\
                 ('(NearGraspAngle ?robot ?can)', '{0}:{1}'.format(et, et)),
                 ('(InGraspAngle ?robot ?can)', '{0}:{1}'.format(et, et)),
+                ('(forall (?targ - Target) (not (TargNearGraspAngle ?robot ?targ)))', '{}:{}'.format(et, et-1)),
                 ('(forall (?obj - Can / ?can) (not (NearGraspAngle ?robot ?obj)))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can / ?can) (not (InGraspAngle ?robot ?obj)))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
@@ -123,6 +124,7 @@ class Transfer(Action):
                 ('(forall (?obj - Can) (forall (?targ - Target) (not (ObstructsHolding ?robot ?targ ?targ ?c ?obj))))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
                 ('(TargNearGraspAngle ?robot ?t)', '{}:{}'.format(et, et)),
+                ('(forall (?targ - Target / ?t) (not (TargNearGraspAngle ?robot ?t)))', '{}:{}'.format(et, et-1)),
         ]
 
 class Place(Action):
@@ -133,8 +135,8 @@ class Place(Action):
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can ?t - Target ?g - Grasp ?init - Target)'
         self.pre = [\
                 #('(At ?c ?t)', '0:0'),
-                #('(Near ?c ?t)', '0:0'),
-                #('(Near ?c ?t)', '{}:{}'.format(et, et)),
+                ('(Near ?c ?t)', '0:0'),
+                ('(Near ?c ?t)', '{}:{}'.format(et, et)),
                 #('(At ?c ?t)', '1:{}'.format(et)),
                 # ('(forall (?obj - Can) (not (TargetCanGraspCollides ?t ?obj ?g)))', '0:0'),
                 # ('(forall (?w - Obstacle) (not (TargetGraspCollides ?t ?w ?g)))', '0:0'),
@@ -153,9 +155,9 @@ class Place(Action):
                 #('(forall (?targ - Target) (not (HLPlaceFailed ?targ)))', '{0}:{0}'.format(et,et-1)),
                 # ('(LinearRetreat ?robot)', '0:{0}'.format(et-1)),
                 #('(StationaryRot ?robot)', '0:{0}'.format(et-2)),
-                #('(StationaryRot ?robot)', '0:{0}'.format(1)),
+                ('(StationaryRot ?robot)', '0:{0}'.format(1)),
                 #('(RevThetaDirValid ?robot)', '0:{0}'.format(et-2)),
-                #('(RevThetaDirValid ?robot)', '0:{0}'.format(1)),
+                ('(RevThetaDirValid ?robot)', '0:{0}'.format(1)),
                 #('(RobotStationary ?robot)', '{0}:{0}'.format(0)),
                 #('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
                 ]

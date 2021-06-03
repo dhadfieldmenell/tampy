@@ -208,7 +208,7 @@ def load_agent(config):
         'get_hl_plan': None,
         'env': env,
         'openrave_bodies': openrave_bodies,
-        'n_dirs': config['n_dirs'],
+        'n_dirs': config.get('n_dirs', 1),
         'prob': prob,
         'attr_map': config['attr_map'],
         'prim_dims': prim_dims,

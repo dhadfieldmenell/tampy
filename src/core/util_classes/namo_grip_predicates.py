@@ -722,6 +722,7 @@ class Near(At):
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
         self._init_include = False
+        self._rollout = True
 
 class RobotNearTarget(At):
 
@@ -1934,7 +1935,7 @@ class InGripper(ExprPredicate):
                                  (self.grasp, [("value", np.array([0, 1], dtype=np.int))])
                                 ])
         # want x0 - x2 = x4, x1 - x3 = x5
-        A = 1e1 * np.array([[1, 0, -1, 0, -1, 0],
+        A = 1e-1 * np.array([[1, 0, -1, 0, -1, 0],
                       [0, 1, 0, -1, 0, -1]])
         b = np.zeros((2, 1))
 
@@ -1950,7 +1951,7 @@ class InGraspAngle(ExprPredicate):
         self.dist = 0.
         self.dsafe = dsafe
         self.gripdist = gripdist
-        self.coeff = 0.08
+        self.coeff = 7e-2
         if self.r.is_symbol():
             k = 'value'
         else:
@@ -1971,7 +1972,7 @@ class InGraspAngle(ExprPredicate):
 
         super(InGraspAngle, self).__init__(name, e, attr_inds, params, expected_param_types, priority=1)
         self._init_include = False
-        self._rollout = False
+        self._rollout = True
 
 
     def f(self, x):
@@ -2149,16 +2150,20 @@ class DoorInGrasp(ExprPredicate):
 class ApproachGraspAngle(InGraspAngle):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(ApproachGraspAngle, self).__init__(name, params, expected_param_types, env, sess, debug)
-        self.dist = 1.2
+        self.dist = 1.7
+        self.coeff = 1e-2
 
 class NearGraspAngle(InGraspAngle):
     def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(NearGraspAngle, self).__init__(name, params, expected_param_types,env, sess, debug)
-        self.coeff = 2e-2
+        self.coeff = 1.4e-2
         self._rollout = True
 
 class TargNearGraspAngle(NearGraspAngle):
-    pass
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
+        super(NearGraspAngle, self).__init__(name, params, expected_param_types,env, sess, debug)
+        self.coeff = 3e-2
+        self._rollout = True
 
 #class NearGraspAngle(InGraspAngle):
 #    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):

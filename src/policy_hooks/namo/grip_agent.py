@@ -32,6 +32,7 @@ import core.util_classes.items as items
 from core.util_classes.namo_grip_predicates import dsafe, NEAR_TOL, dmove, HLGraspFailed, HLTransferFailed, HLPlaceFailed, GRIP_VAL
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
+import pma.backtrack_ll_solver as bt_ll
 
 from policy_hooks.agent import Agent
 from policy_hooks.sample import Sample
@@ -41,6 +42,8 @@ from policy_hooks.utils.tamp_eval_funcs import *
 # from policy_hooks.namo.sorting_prob_4 import *
 from policy_hooks.namo.namo_agent import NAMOSortingAgent
 
+
+bt_ll.INIT_TRAJ_COEFF = 1e-2
 
 MAX_SAMPLELISTS = 1000
 MAX_TASK_PATHS = 100
@@ -122,7 +125,7 @@ class NAMOGripAgent(NAMOSortingAgent):
 
         self.main_camera_id = 0
         # colors = [[1, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1, 1], [1, 1, 0, 1], [1, 0, 1, 1], [0.5, 0.75, 0.25, 1], [0.75, 0.5, 0, 1], [0.25, 0.25, 0.5, 1], [0.5, 0, 0.25, 1], [0, 0.5, 0.75, 1], [0, 0, 0.5, 1]]
-        colors = [[0.9, 0, 0, 1], [0, 0.9, 0, 1], [0, 0, 0.9, 1], [0.7, 0.7, 0.1, 1], [1., 0.1, 0.8, 1], [0.5, 0.95, 0.5, 1], [0.75, 0.4, 0, 1], [0.25, 0.25, 0.5, 1], [0.5, 0, 0.25, 1], [0, 0.5, 0.75, 1], [0, 0, 0.5, 1]]
+        colors = [[1, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1, 1], [0.7, 0.7, 0.1, 1], [1., 0.1, 0.8, 1], [0.5, 0.95, 0.5, 1], [0.75, 0.4, 0, 1], [0.25, 0.25, 0.5, 1], [0.5, 0, 0.25, 1], [0, 0.5, 0.75, 1], [0, 0, 0.5, 1]]
 
         items = config['include_items']
         prim_options = self.prob.get_prim_choices(self.task_list)
@@ -133,7 +136,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             #items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 10.})
             items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 40.})
             targ_color = cur_color[:3] + [0.75] # [0.25]
-            items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (NEAR_TOL*1.5, NEAR_TOL*1.5, 0.045), 'rgba': tuple(targ_color), 'mass': 1.})
+            items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (0.45, 0.45, 0.045), 'rgba': tuple(targ_color), 'mass': 1.})
 
         for i in range(len(wall_dims)):
             dim, next_trans = wall_dims[i]

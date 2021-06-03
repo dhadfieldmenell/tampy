@@ -2527,7 +2527,8 @@ class EEApproachStackLeft(EEReachable):
         self.arm = "left"
         self.stack_obj = params[2]
         super(EEApproachStackLeft, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
-        base_h = (params[1].geom.height + params[2].geom.height) / 2
+        h2 = params[2].geom.height if hasattr(params[2].geom, 'height') else params[2].geom.radius
+        base_h = (params[1].geom.height + h2) 
         self.rel_pt += np.array([0., 0., base_h])
 
 class EEApproachInDoorLeft(EEReachable):
@@ -2548,7 +2549,8 @@ class EERetreatStackLeft(EEReachable):
         self.arm = "left"
         self.stack_obj = params[2]
         super(EERetreatStackLeft, self).__init__(name, params, expected_param_types, (0, steps), env, debug)
-        base_h = (params[1].geom.height + params[2].geom.height) / 2
+        h2 = params[2].geom.height if hasattr(params[2].geom, 'height') else params[2].geom.radius
+        base_h = (params[1].geom.height + h2)
         self.rel_pt += np.array([0., 0., base_h])
 
 class EERetreatInDoorLeft(EEReachable):
@@ -2653,7 +2655,8 @@ class EEApproachStackRight(EEReachable):
         self.arm = "right"
         self.stack_obj = params[2]
         super(EEApproachStackRight, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
-        base_h = (params[1].geom.height + params[2].geom.height) / 2
+        h2 = params[2].geom.height if hasattr(params[2].geom, 'height') else params[2].geom.radius
+        base_h = (params[1].geom.height + h2)
         self.rel_pt += np.array([0., 0., base_h])
 
 class EEApproachInDoorRight(EEReachable):
@@ -2674,7 +2677,8 @@ class EERetreatStackRight(EEReachable):
         self.arm = "right"
         self.stack_obj = params[2]
         super(EERetreatStackRight, self).__init__(name, params, expected_param_types, (0, steps), env, debug)
-        base_h = (params[1].geom.height + params[2].geom.height) / 2
+        h2 = params[2].geom.height if hasattr(params[2].geom, 'height') else params[2].geom.radius
+        base_h = (params[1].geom.height + h2)
         self.rel_pt += np.array([0., 0., base_h])
 
 class EERetreatInDoorRight(EEReachable):
@@ -3436,7 +3440,7 @@ class AboveTable(ExprPredicate):
         self.obj, = params
         attr_inds = OrderedDict([(self.obj, [("pose", np.array([2], dtype=np.int))])])
         A = -np.ones((1,1))
-        z = 0.98 if self.obj.name in ['milk', 'cereal'] else 0.95
+        z = 1.0 if self.obj.name in ['milk', 'cereal'] else 0.95
         b = z * np.ones((1,1))
         val = np.zeros((1,1))
         aff_e = AffExpr(A, b)
@@ -3488,7 +3492,10 @@ class InReach(ExprPredicate):
         attr_inds = OrderedDict([(self.obj, [("pose", np.array([2], dtype=np.int))])])
             
         A = np.array([[-1.]])
-        b = 0.6 * np.ones((1,1))
+        if self.robot.name.find('panda') >= 0:
+            b = 0.6 * np.ones((1,1))
+        else:
+            b = np.zeros((1,1))
         val = np.zeros((1,1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)

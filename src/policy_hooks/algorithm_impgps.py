@@ -36,9 +36,6 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         self.task = hyperparams['task']
         self.her = hyperparams.get('her', False)
         self.rollout_opt = hyperparams.get('rollout_opt', False)
-        self.fail_value = hyperparams['fail_value']
-        self.traj_centers = hyperparams['n_traj_centers']
-        self.use_centroids = hyperparams['use_centroids']
         self.mp_opt = hyperparams.get('mp_opt', False)
 
         policy_prior = hyperparams['policy_prior']

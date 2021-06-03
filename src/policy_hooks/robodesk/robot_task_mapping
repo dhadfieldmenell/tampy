@@ -26,6 +26,11 @@
     'place_in_door_right': [
         '0: PLACE_IN_DOOR_RIGHT PANDA {2} {0} {2}_HANDLE'
     ],
+
+    'stack_right': [
+        '0: STACK_RIGHT PANDA FLAT_BLOCK {0}'
+    ],
+
 };
 
 {

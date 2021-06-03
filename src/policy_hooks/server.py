@@ -11,7 +11,6 @@ from software_constants import *
 
 from PIL import Image
 import pybullet as P
-from scipy.cluster.vq import kmeans2 as kmeans
 # import tensorflow as tf
 
 from core.internal_repr.plan import Plan
@@ -216,10 +215,11 @@ class Server(object):
         problem = list(self.agent.plans.values())[0].prob
         domain = list(self.agent.plans.values())[0].domain
         abs_prob = self.agent.hl_solver.translate_problem(problem, goal=goal, initial=initial)
+        ref_x0 = self.agent.clip_state(x0)
         for pname, attr in self.agent.state_inds:
             p = problem.init_state.params[pname]
             if p.is_symbol(): continue
-            getattr(p, attr)[:,0] = x0[self.agent.state_inds[pname, attr]]
+            getattr(p, attr)[:,0] = ref_x0[self.agent.state_inds[pname, attr]]
         for targ, attr in self.agent.target_inds:
             if targ in problem.init_state.params:
                 p = problem.init_state.params[targ]
