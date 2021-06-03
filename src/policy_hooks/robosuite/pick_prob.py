@@ -93,9 +93,6 @@ def get_vector(config):
     }
     #for i in range(n_aux):
     #    target_vector_include['aux_target_{0}'.format(i)] = ['value']
-    if FIX_TARGETS:
-        for i in range(len(END_TARGETS)):
-            target_vector_include['end_target_{0}'.format(i)] = ['value']
 
     return state_vector_include, action_vector_include, target_vector_include
 
