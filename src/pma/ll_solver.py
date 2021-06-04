@@ -58,7 +58,7 @@ class LLParam(object):
     attribute where the value is a numpy array of Gurobi variables. LLParam
     updates its parameter based off of the value of the Gurobi variables.
 
-    Create create_grb_vars and batch_add_cnts aren't included in the
+    create_grb_vars and batch_add_cnts aren't included in the
     initialization because a Gurobi model update needs to be done before the
     batch_add_cnts call. Model updates can be very slow, so we want to create
     all the Gurobi variables for all the parameters before adding all the

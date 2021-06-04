@@ -30,7 +30,7 @@ class HLSolver(object):
         """
         raise NotImplementedError("Override this.")
 
-    def solve(self, abs_prob, domain, concr_prob, prefix=None):
+    def solve(self, abs_prob, domain, concr_prob, prefix=None, debug=False):
         """
         Solves the problem and returns a Plan object.
 
@@ -388,7 +388,8 @@ class FFSolver(HLSolver):
                     init_pred = domain.pred_schemas[p_name].pred_class(name="initpred%d"%i,
                                                                           params=p_objs,
                                                                           expected_param_types=domain.pred_schemas[p_name].expected_params,
-                                                                          env=env)
+                                                                          env=env,debug=debug)
+                    
                     preds.append({'negated': False, 'pred': init_pred, 'hl_info': 'hl_state', 'active_timesteps': (0,0)})
                 except TypeError as e:
                     print(("type error for {}".format(pred)))
@@ -407,7 +408,7 @@ class FFSolver(HLSolver):
                     invariant_pred = domain.pred_schemas[p_name].pred_class(name="invariantpred%d"%i,
                                                                           params=p_objs,
                                                                           expected_param_types=domain.pred_schemas[p_name].expected_params,
-                                                                          env=env)
+                                                                          env=env, debug=debug)
                     ts = (curr_h, curr_h + a_schema.horizon - 1)
                     preds.append({'negated': False, 'pred': invariant_pred, 'hl_info': 'invariant', 'active_timesteps': ts})
                 except TypeError as e:
@@ -432,7 +433,9 @@ class FFSolver(HLSolver):
 
                 for val in arg_valuations:
                     val, types = list(zip(*val))
-                    pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params, env=env)
+
+                    pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params, env=env, debug=debug)
+
                     ts = (p_d["active_timesteps"][0] + curr_h, p_d["active_timesteps"][1] + curr_h)
                     preds.append({"negated": p_d["negated"], "hl_info": p_d["hl_info"], "active_timesteps": ts, "pred": pred})
                                 
@@ -467,7 +470,6 @@ class FFSolver(HLSolver):
         with open("%sprob.output"%(fprefix), "r") as f:
             s = f.read()
         if "goal can be simplified to FALSE" in s or "problem proven unsolvable" in s:
-            # import ipdb; ipdb.set_trace()
             plan = Plan.IMPOSSIBLE
         else:
             try:

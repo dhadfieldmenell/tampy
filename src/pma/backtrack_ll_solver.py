@@ -904,10 +904,12 @@ class BacktrackLLSolver(LLSolver):
 
     def _get_fixed_obj(self, param, value_map, norm, coeff=None, active_ts=None):
         """
-            This function returns the expression e(x) = P|x - cur|^2
-            Which says the optimized value should be close to the
-            provided value.
-            Where P is the KT x KT matrix, where Px is the difference of parameter's attributes' current value and parameter's next timestep value
+        This function returns the expression e(x) = P|x - cur|^2
+        Which says the optimized value should be close to the
+        provided value.
+        Where P is the KT x KT matrix, where Px is the difference of 
+        parameter's attributes' current value and parameter's next 
+        timestep value
         """
         if coeff is None:
             coeff = self.fixed_coeff

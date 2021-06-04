@@ -218,7 +218,7 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False):
 
 
 class CollisionPredicate(ExprPredicate):
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = True, ind0=0, ind1=1, active_range=(0,1), priority=3):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1, active_range=(0,1), priority=3):
         self._debug = debug
         self.dsafe = dsafe
         self.ind0 = ind0
