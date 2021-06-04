@@ -356,12 +356,15 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
     def policies_initialized(self):
         for policy_name, policy in self.policies.items():
-            if policy_name == 'cont': continue
+            if not len(self.continuous_opts) and policy_name == 'cont': continue
             if not self.policy_initialized(policy): return False
         return True
 
 
     def policy_initialized(self, policy):
+        if hasattr(policy, 'initialized'):
+            return policy.initialized()
+
         return hasattr(policy, 'scale') and policy.scale is not None
 
 
@@ -400,7 +403,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 self.fill_sample(condition, sample, cur_state.copy(), t, task, fill_obs=False)
 
             prev_vals = {}
-            if policies is not None and 'cont' in policies and len(self.continuous_opts):
+            if policies is not None and 'cont' in policies and \
+               len(self.continuous_opts):
                 prev_vals = self.fill_cont(policies['cont'], sample, t)
 
             sample.set(NOISE_ENUM, noise_full, t)
@@ -898,7 +902,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 hor = 2 * (act_et - act_st)
                 if self.retime: hor *= 2
                 policies = {}
-                if 'cont' in self.policies:
+                if 'cont' in self.policies and self.policy_initialized(self.policies['cont']):
                     policies['cont'] = self.policies['cont']
                 sample = self.sample_task(policy, 0, x0.copy(), task, hor=hor, skip_opt=True, policies=policies)
                 sample.source_label = label
@@ -932,7 +936,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 self.set_symbols(plan, task, anum=a, st=act_st, targets=targets)
                 old_free = plan.get_free_attrs()
                 if not rollout: ref_traj = []
-                ref_traj = []
                 try:
                     success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples, init_traj=ref_traj, st=act_st)
                 except AttributeError as e:
@@ -949,7 +952,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
                 if not success:
                     self.n_fail_opt[task] = self.n_fail_opt.get(task, 0) + 1
-                    print('FAILED TO SOLVE:', plan.actions[a], plan.get_failed_preds((act_st, act_et)))
+                    try:
+                        print('FAILED TO SOLVE:', plan.actions[a], plan.get_failed_preds((act_st, act_et)))
+                    except Exception as e:
+                        print('FAILED, Error IN FAIL CHECK', e)
                     #state_dict = {(pname, aname): getattr(plan.params[pname], aname)[:, act_et] for pname, aname in self.state_inds if not plan.params[pname].is_symbol()}
                     #for param in plan.params.values():
                     #    if param.is_symbol():

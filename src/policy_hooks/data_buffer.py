@@ -236,6 +236,7 @@ class DataBuffer(object):
 
 
     def center(self, obs):
+        if not self.normalize: return obs
         obs[:, self.x_idx] = obs[:, self.x_idx].dot(self.scale) + self.bias
         return obs
 

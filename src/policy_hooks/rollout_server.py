@@ -10,7 +10,6 @@ import time
 from software_constants import *
 
 from PIL import Image
-from scipy.cluster.vq import kmeans2 as kmeans
 
 from sco.expr import *
 from core.internal_repr.plan import Plan

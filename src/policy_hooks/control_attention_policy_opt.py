@@ -16,6 +16,7 @@ from gps.algorithm.policy_opt.config import POLICY_OPT_TF
 from gps.algorithm.policy_opt.policy_opt import PolicyOpt
 #from gps.algorithm.policy.tf_policy import TfPolicy
 from policy_hooks.utils.tf_utils import TfSolver
+from policy_hooks.utils.policy_solver_utils import *
 
 from policy_hooks.tf_policy import TfPolicy
 
@@ -229,6 +230,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             except Exception as e:
                 #traceback.print_exception(*sys.exc_info())
                 if not skip:
+                    print(e)
                     print('Could not load {0} weights from {1}'.format(scope, self.scope), e)
 
 
@@ -244,6 +246,14 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
         scales = {task: self.task_map[task]['policy'].scale.tolist() for task in scopes if task in self.task_map}
         biases = {task: self.task_map[task]['policy'].bias.tolist() for task in scopes if task in self.task_map}
+        if hasattr(self, 'prim_policy') and 'primitive' in scopes:
+            scales['primitive'] = self.prim_policy.scale.tolist()
+            biases['primitive'] = self.prim_policy.bias.tolist()
+
+        if hasattr(self, 'cont_policy') and 'cont' in scopes:
+            scales['cont'] = self.cont_policy.scale.tolist()
+            biases['cont'] = self.cont_policy.bias.tolist()
+
         #variances = {task: self.var[task].tolist() for task in scopes if task in self.task_map}
         variances = {}
         scales[''] = []
@@ -260,6 +270,14 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope+'/')
             for var in variables:
                 var.load(var_to_val[var.name], session=self.sess)
+
+            if scope == 'primitive' and hasattr(self, 'prim_policy'):
+                self.prim_policy.scale = np.array(scales[scope])
+                self.prim_policy.bias = np.array(biases[scope])
+
+            if scope == 'cont' and hasattr(self, 'cont_policy'):
+                self.cont_policy.scale = np.array(scales[scope])
+                self.cont_policy.bias = np.array(biases[scope])
 
             if scope not in self.valid_scopes: continue
             # if save:
@@ -531,6 +549,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                         copy_param_scope=None,
                                         normalize=False)
         for scope in self.valid_scopes:
+            normalize = IM_ENUM not in self._hyperparams['network_params']['obs_include']
             if self.scope is None or scope == self.scope:
                 self.task_map[scope]['policy'] = TfPolicy(dU,
                                                         self.task_map[scope]['obs_tensor'],
@@ -539,6 +558,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                                         np.zeros(dU),
                                                         self.sess,
                                                         self.device_string,
+                                                        normalize=normalize,
                                                         copy_param_scope=None)
 
         if self.load_label and (self.scope is None or self.scope == 'label'):

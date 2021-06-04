@@ -32,6 +32,7 @@ from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
 import core.util_classes.transform_utils as T
 
+import pma.backtrack_ll_solver as bt_ll
 from pma.robosuite_solver import REF_JNTS
 
 from policy_hooks.agent import Agent
@@ -46,6 +47,10 @@ from mujoco_py.generated import const as mj_const
 import robosuite
 from robosuite.controllers import load_controller_config
 import robosuite.utils.transform_utils as robo_T
+
+
+bt_ll.INIT_TRAJ_COEFF = 1e-1
+bt_ll.TRAJOPT_COEFF = 5e1
 
 STEP = 0.1
 NEAR_TOL = 0.05

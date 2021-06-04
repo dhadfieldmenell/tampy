@@ -64,8 +64,11 @@ class Server(object):
         elif n_gpu == 1:
             gpu = 0
         else:
-            gpus = str(list(range(1, n_gpu+1)))[1:-1]
+            #gpus = str(list(range(1, n_gpu+1)))[1:-1]
+            #gpus = str(list(range(0, n_gpu)))[1:-1]
+            gpus = np.random.choice(range(n_gpu))
         os.environ['CUDA_VISIBLE_DEVICES'] = "{0}".format(gpus)
+        #os.environ['CUDA_VISIBLE_DEVICES'] = ""
 
         self.solver = hyperparams['mp_solver_type'](hyperparams)
         self.opt_smooth = hyperparams.get('opt_smooth', False)
@@ -377,7 +380,8 @@ class Server(object):
                                               scale=self.policy_opt.task_map[task if task in self.policy_opt.valid_scopes else 'control']['policy'].scale)
                                   for task in self.agent.task_list}
 
-        rollout_policies['cont'] = ContPolicy(self.policy_opt)
+        if len(self.agent.continuous_opts):
+            rollout_policies['cont'] = ContPolicy(self.policy_opt)
         self.agent.policies = rollout_policies
 
 
@@ -699,6 +703,9 @@ class Server(object):
 class ContPolicy:
     def __init__(self, policy_opt):
         self.policy_opt = policy_opt
+
+    def initialized(self):
+        return self.policy_opt.cont_policy.scale is not None
 
     def act(self, x, obs, t, noise=None):
         return self.policy_opt.cont_task(obs)

@@ -6,9 +6,12 @@ import numpy as np
 from copy import copy
 
 
-def init_weights(shape, name=None):
-    return tf.get_variable(name, initializer=tf.random_normal(shape, stddev=0.01))
+#def init_weights(shape, name=None):
+#    return tf.get_variable(name, initializer=tf.random_normal(shape, stddev=0.01))
 
+def init_weights(shape, name=None):
+    var = 1. / np.prod(shape[1:])
+    return tf.get_variable(name, initializer=tf.random_normal(shape, stddev=np.sqrt(var)))
 
 def init_bias(shape, name=None):
     return tf.get_variable(name, initializer=tf.zeros(shape, dtype='float'))
@@ -283,8 +286,10 @@ def multi_modal_network_fp(dim_input=27, dim_output=7, batch_size=25, network_co
     return nnet, fc_vars, last_conv_vars
 
 
-def conv2d(img, w, b, strides=[1, 1, 1, 1]):
-    return tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(img, w, strides=strides, padding='SAME'), b))
+def conv2d(img, w, b, strides=[1, 1, 1, 1], nonlin=True):
+    if nonlin:
+        return tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(img, w, strides=strides, padding='SAME'), b))
+    return tf.nn.bias_add(tf.nn.conv2d(img, w, strides=strides, padding='SAME'), b)
 
 
 def max_pool(img, k):
@@ -335,6 +340,7 @@ def fp_cont_network(dim_input=27, dim_output=2, batch_size=25, network_config=No
         dim_hidden = copy(dim_hidden)
     n_layers = len(dim_hidden) + 1
     dim_hidden.append(dim_output)
+    dh = dim_hidden
 
     # List of indices for state (vector) data and image (tensor) data in observation.
     x_idx, img_idx, i = [], [], 0

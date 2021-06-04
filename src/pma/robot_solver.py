@@ -292,51 +292,51 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                     getattr(param, attr)[:,t] = info['pos']
 
 
-    def _get_trajopt_obj(self, plan, active_ts=None):
-        if active_ts == None:
-            active_ts = (0, plan.horizon-1)
-        start, end = active_ts
-        traj_objs = []
-        for param in list(plan.params.values()):
-            if param not in self._param_to_ll:
-                continue
-            if isinstance(param, Object):
-                for attr_name in param.__dict__.keys():
-                    attr_type = param.get_attr_type(attr_name)
-                    if issubclass(attr_type, Vector):
-                        T = end - start + 1
-                        K = attr_type.dim
-                        attr_val = getattr(param, attr_name)
-                        KT = K*T
-                        v = -1 * np.ones((KT - K, 1))
-                        d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
-                        # [:,0] allows numpy to see v and d as one-dimensional so
-                        # that numpy will create a diagonal matrix with v and d as a diagonal
-                        P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
-                        Q = np.dot(np.transpose(P), P)
-                        Q *= self.trajopt_coeff/float(plan.horizon)
+    #def _get_trajopt_obj(self, plan, active_ts=None):
+    #    if active_ts == None:
+    #        active_ts = (0, plan.horizon-1)
+    #    start, end = active_ts
+    #    traj_objs = []
+    #    for param in list(plan.params.values()):
+    #        if param not in self._param_to_ll:
+    #            continue
+    #        if isinstance(param, Object):
+    #            for attr_name in param.__dict__.keys():
+    #                attr_type = param.get_attr_type(attr_name)
+    #                if issubclass(attr_type, Vector):
+    #                    T = end - start + 1
+    #                    K = attr_type.dim
+    #                    attr_val = getattr(param, attr_name)
+    #                    KT = K*T
+    #                    v = -1 * np.ones((KT - K, 1))
+    #                    d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
+    #                    # [:,0] allows numpy to see v and d as one-dimensional so
+    #                    # that numpy will create a diagonal matrix with v and d as a diagonal
+    #                    P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
+    #                    Q = np.dot(np.transpose(P), P)
+    #                    Q *= self.trajopt_coeff/float(plan.horizon)
 
-                        quad_expr = None
-                        coeff = 1.
-                        if attr_name.find('ee_pos') >= 0:
-                            coeff = 7e-3
-                        elif attr_name.find('ee_rot') >= 0:
-                            coeff = 2e-3
-                        elif attr_name.find('right') >= 0 or attr_name.find('left') >= 0:
-                            coeff = 1e1
-                        else:
-                            coeff = 1e-2
+    #                    quad_expr = None
+    #                    coeff = 1.
+    #                    if attr_name.find('ee_pos') >= 0:
+    #                        coeff = 7e-3
+    #                    elif attr_name.find('ee_rot') >= 0:
+    #                        coeff = 2e-3
+    #                    elif attr_name.find('right') >= 0 or attr_name.find('left') >= 0:
+    #                        coeff = 1e1
+    #                    else:
+    #                        coeff = 1e-2
 
-                        quad_expr = QuadExpr(coeff*Q, np.zeros((1,KT)), np.zeros((1,1)))
-                        param_ll = self._param_to_ll[param]
-                        ll_attr_val = getattr(param_ll, attr_name)
-                        param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
-                        attr_val = getattr(param, attr_name)
-                        init_val = attr_val[:, start:end+1].reshape((KT, 1), order='F')
-                        sco_var = self.create_variable(param_ll_grb_vars, init_val)
-                        bexpr = BoundExpr(quad_expr, sco_var)
-                        traj_objs.append(bexpr)
+    #                    quad_expr = QuadExpr(coeff*Q, np.zeros((1,KT)), np.zeros((1,1)))
+    #                    param_ll = self._param_to_ll[param]
+    #                    ll_attr_val = getattr(param_ll, attr_name)
+    #                    param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
+    #                    attr_val = getattr(param, attr_name)
+    #                    init_val = attr_val[:, start:end+1].reshape((KT, 1), order='F')
+    #                    sco_var = self.create_variable(param_ll_grb_vars, init_val)
+    #                    bexpr = BoundExpr(quad_expr, sco_var)
+    #                    traj_objs.append(bexpr)
 
-        return traj_objs
+    #    return traj_objs
 
 

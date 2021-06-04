@@ -163,7 +163,7 @@ class RolloutSupervisor():
             self.cur_ids.append(s)
             val = 1 - self.agent.goal_f(0, sample.get_X(sample.T-1), targets)
             if self.counts[-1] >= self.s_per_task * self.t_per_task:
-                print('TIMEOUT TERMINATING', self.counts[-1], curtask)
+                #print('TIMEOUT TERMINATING', self.counts[-1], curtask)
                 break
             
         if len(path):

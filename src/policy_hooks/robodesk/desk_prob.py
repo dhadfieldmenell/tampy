@@ -46,8 +46,8 @@ def get_prim_choices(task_list=None):
     out[utils.DOOR_ENUM] = ['drawer', 'shelf']
     for door in ['drawer', 'shelf']:
         out[utils.OBJ_ENUM].append('{}_handle'.format(door))
-    out[utils.END_POSE_ENUM] = 3
-    out[utils.END_ROT_ENUM] = 3
+    #out[utils.END_POSE_ENUM] = 3
+    #out[utils.END_ROT_ENUM] = 3
     return out
 
 

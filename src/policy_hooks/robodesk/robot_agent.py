@@ -16,7 +16,7 @@ except:
 import matplotlib.pyplot as plt
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 import scipy.interpolate
 from scipy.spatial.transform import Rotation
 
@@ -37,15 +37,17 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.tamp_agent import TAMPAgent
 
 
-const.NEAR_GRIP_COEFF = 2.2e-2
+const.NEAR_GRIP_COEFF = 2e-2
 const.NEAR_APPROACH_COEFF = 8e-3
-const.GRASP_DIST = 0.16 # 0.18
+const.NEAR_APPROACH_ROT_COEFF = 6e-3
+const.GRASP_DIST = 0.18
 const.APPROACH_DIST = 0.02
 const.RETREAT_DIST = 0.02
 const.EEREACHABLE_COEFF = 2e-2
-const.EEREACHABLE_ROT_COEFF = 1e-2
-const.RCOLLIDES_COEFF = 3e-2
+const.EEREACHABLE_ROT_COEFF = 8e-3
+const.RCOLLIDES_COEFF = 3e-2 # 2e-2
 const.OBSTRUCTS_COEFF = 2e-2
+const.INIT_TRAJ_COEFF = 2e-2
 
 STEP = 0.1
 NEAR_TOL = 0.05
@@ -74,6 +76,7 @@ class optimal_pol:
                 if attr.find('grip') >= 0:
                     #val = self.opt_traj[min(t+1, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
                     val = self.opt_traj[min(t, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
+                    val = 0.045 if val > 0.01 else -0.005
                     u[self.action_inds[param, attr]] = val 
                 elif attr.find('ee_pos') >= 0:
                     cur_ee = cur_val if cur_val is not None else self.opt_traj[t, self.state_inds[param, attr]]
@@ -120,10 +123,12 @@ class EnvWrapper():
         self.flat_rot = Rotation.from_euler('xyz', [0., 0., 0.])
         self.flat_rot_inv = self.flat_rot.inv()
         self.cur_obs = self.reset()
+        self.im_font = ImageFont.truetype('E:/PythonPillow/Fonts/FreeMono.ttf', 12)
 
-    def render(self, mode='rgb_array', resize=True, overlays=()):
+    def render(self, mode='rgb_array', resize=True, overlays=(), imsize=None):
         params = {'distance': 1.8, 'azimuth': 90, 'elevation': -60,
                   'crop_box': (16.75, 25.0, 105.0, 88.75), 'size': 120}
+        imsize = self.env.image_size if imsize is None else imsize
         camera = mujoco.Camera(
             physics=self.physics, height=params['size'],
             width=params['size'], camera_id=-1)
@@ -132,13 +137,28 @@ class EnvWrapper():
         camera._render_camera.elevation = params['elevation']  # pylint: disable=protected-access
         camera._render_camera.lookat[:] = [0, 0.535, 1.1]  # pylint: disable=protected-access
 
-        image = camera.render(depth=False, segmentation=False, overlays=overlays)
+
+        mjc_overlays = tuple(ovr for ovr in overlays if type(ovr) is not str)
+        str_overlays = tuple(ovr for ovr in overlays if type(ovr) is str)
+        image = camera.render(depth=False, segmentation=False, overlays=mjc_overlays)
         camera._scene.free()  # pylint: disable=protected-access
 
         if resize:
               image = Image.fromarray(image).crop(box=params['crop_box'])
-              image = image.resize([self.env.image_size, self.env.image_size],
+              image = image.resize([imsize, imsize],
                                    resample=Image.ANTIALIAS)
+              if len(str_overlays):
+                  border = 30
+                  image = ImageOps.expand(image, border=border, fill=(0, 0, 0))
+                  im_draw = ImageDraw.Draw(image)
+                  _, texth = self.im_font.getsize(str_overlays[0])
+                  pos = [(2,2), (2, imsize+2*border-texth-2), (2, 4+texth)]
+                  for ind, ovr in enumerate(str_overlays):
+                      w, h = self.im_font.getsize(ovr)
+                      x, y = pos[ind]
+                      im_draw.rectangle((x, y, x+w, y+h), fill='black')
+                      im_draw.text(pos[ind], ovr, fill=(255,255,255), font=self.im_font)
+
               image = np.asarray(image)
         return image
 
@@ -453,7 +473,7 @@ class RobotAgent(TAMPAgent):
         self.ctrl_mode = 'joint' if ('panda', 'right') in self.action_inds else 'ee_pos'
         self.compound_goals = hyperparams.get('compound_goals', False)
         self._load_goals()
-        self.rlen = 6 if not self.compound_goals else 24
+        self.rlen = 10 if not self.compound_goals else 30
 
         freq = 20
         self.base_env = robodesk.RoboDesk(task='lift_ball', \
@@ -490,24 +510,28 @@ class RobotAgent(TAMPAgent):
     def get_annotated_image(self, s, t, cam_id=None):
         x = s.get_X(t=t)
         self.reset_to_state(x, full=False)
-        task = [int(val) for val in s.get(FACTOREDTASK_ENUM, t=t)]
-        pos = s.get(END_POSE_ENUM, t=t)
-        precost = round(self.precond_cost(s, tuple(task), t), 5)
-        postcost = round(self.postcond_cost(s, tuple(task), t), 5)
+        task = s.get(FACTOREDTASK_ENUM, t=t).astype(int)
+        pos = s.get(END_POSE_ENUM, t=t).round(3)
+        truepos = s.get(TRUE_POSE_ENUM, t=t).round(3)
+        precost = round(self.precond_cost(s, tuple(task), t), 4)
+        postcost = round(self.postcond_cost(s, tuple(task), t), 4)
 
         precost = str(precost)[1:]
         postcost = str(postcost)[1:]
 
         gripcmd = round(s.get_U(t=t)[self.action_inds['panda', 'right_gripper']][0], 2)
 
-        textover1 = self.mjc_env.get_text_overlay(body='Task: {0}'.format(task))
-        textover2 = self.mjc_env.get_text_overlay(body='{0: <6} {1: <6}'.format(precost, postcost), position='bottom left')
-        overlays = (textover1, textover2)
+        #textover1 = self.mjc_env.get_text_overlay(body='Task: {0} Err: {1}'.format(task, truepos-pos))
+        #textover2 = self.mjc_env.get_text_overlay(body='{0: <6} {1: <6}'.format(precost, postcost), position='bottom left')
+        textover1 = 'TASK: {0}'.format(task)
+        textover2 = 'COST: {0: <5} {1: <5}'.format(precost, postcost)
+        textover3 = '{0}'.format(str(truepos-pos)[1:-1])
+        overlays = (textover1, textover2, textover3)
         #for ctxt in self.base_env.sim.render_contexts:
         #    ctxt._overlay[mj_const.GRID_TOPLEFT] = ['{}'.format(task), '']
         #    ctxt._overlay[mj_const.GRID_BOTTOMLEFT] = ['{0: <7} {1: <7} {2}'.format(precost, postcost, gripcmd), '']
         #return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
-        im = self.mjc_env.render(overlays=overlays, resize=True)
+        im = self.mjc_env.render(overlays=overlays, resize=True, imsize=96)
         #for ctxt in self.base_env.sim.render_contexts:
         #    for key in list(ctxt._overlay.keys()):
         #        del ctxt._overlay[key]
@@ -759,11 +783,12 @@ class RobotAgent(TAMPAgent):
             sample.set(FACTOREDTASK_ENUM, np.array(task), t)
             for (pname, aname), inds in self.state_inds.items():
                 if aname.find('right_ee_pos') >= 0:
-                    obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - mp_state[inds]
-                    targ_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[inds]
+                    obj_pose = mp_state[self.state_inds[obj_name, 'pose']]
+                    targ_pose = targets[self.target_inds[targ_name, 'value']]
+                    obj_off_pose = mp_state[self.state_inds[obj_name, 'pose']] - mp_state[inds]
+                    targ_off_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[inds]
                     break
 
-            targ_off_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds[obj_name, 'pose']]
             obj_quat = T.euler_to_quaternion(mp_state[self.state_inds[obj_name, 'rotation']], 'xyzw')
             targ_quat = T.euler_to_quaternion(targets[self.target_inds[targ_name, 'rotation']], 'xyzw')
             sample.task = task
@@ -787,6 +812,7 @@ class RobotAgent(TAMPAgent):
             if task_name.lower() in ['move_to_grasp_right', 'lift_right', 'hold_right']:
                 sample.set(END_POSE_ENUM, obj_pose, t)
                 sample.set(END_ROT_ENUM, mp_state[self.state_inds[obj_name, 'rotation']], t)
+                sample.set(ABS_POSE_ENUM, mp_state[self.state_inds[obj_name, 'pose']], t)
                 targ_vec = np.zeros(len(prim_choices[TARG_ENUM]))
                 targ_vec[:] = 1. / len(targ_vec)
                 sample.set(TARG_ENUM, targ_vec, t)
@@ -794,8 +820,9 @@ class RobotAgent(TAMPAgent):
             elif task_name.find('place_in_door') >= 0:
                 door_geom = plan.params[door_name].geom
                 door_pos = mp_state[self.state_inds[door_name, 'pose']] + door_geom.in_pos
-                obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - door_pos
+                obj_pose = door_pos #- mp_state[self.state_inds[obj_name, 'pose']]
                 sample.set(END_POSE_ENUM, obj_pose, t)
+                sample.set(ABS_POSE_ENUM, door_pos, t)
                 sample.set(END_ROT_ENUM, np.array(door_geom.in_orn), t)
                 targ_vec = np.zeros(len(prim_choices[TARG_ENUM]))
                 targ_vec[:] = 1. / len(targ_vec)
@@ -805,8 +832,9 @@ class RobotAgent(TAMPAgent):
                 door_geom = plan.params[door_name].geom
                 cur_hinge = mp_state[self.state_inds[door_name, 'hinge']]
                 targ_hinge = door_geom.open_val if task_name.find('open') >= 0 else door_geom.close_val
-                obj_pose = (targ_hinge - cur_hinge) * np.abs(door_geom.open_dir) 
+                obj_pose = mp_state[self.state_inds['{}_handle'.format(door_name), 'pose']] #(targ_hinge - cur_hinge) * np.abs(door_geom.open_dir) 
                 sample.set(END_POSE_ENUM, obj_pose, t)
+                sample.set(ABS_POSE_ENUM, mp_state[self.state_inds['{}_handle'.format(door_name), 'pose']], t)
                 sample.set(END_ROT_ENUM, mp_state[self.state_inds[obj_name, 'rotation']], t)
                 targ_vec = np.zeros(len(prim_choices[TARG_ENUM]))
                 targ_vec[:] = 1. / len(targ_vec)
@@ -814,11 +842,13 @@ class RobotAgent(TAMPAgent):
 
             elif self.task_list[task[0]].find('place') >= 0:
                 sample.set(END_POSE_ENUM, targ_off_pose, t)
+                sample.set(ABS_POSE_ENUM, targets[self.target_inds[targ_name, 'value']], t)
                 sample.set(END_ROT_ENUM, targets[self.target_inds[targ_name, 'rotation']], t)
 
             elif self.task_list[task[0]].find('stack') >= 0:
-                targ_off_pose = obj_pose - mp_state[self.state_inds['flat_block', 'pose']]
+                targ_off_pose = mp_state[self.state_inds['flat_block', 'pose']] # - obj_pose
                 sample.set(END_POSE_ENUM, targ_off_pose, t)
+                sample.set(ABS_POSE_ENUM, mp_state[self.state_inds['flat_block', 'pose']], t)
                 sample.set(END_ROT_ENUM, mp_state[self.state_inds['flat_block', 'rotation']], t)
                 targ_vec = np.zeros(len(prim_choices[TARG_ENUM]))
                 targ_vec[:] = 1. / len(targ_vec)
@@ -1081,6 +1111,9 @@ class RobotAgent(TAMPAgent):
                 l.append(0)
                 for i, opt in enumerate(prim_choices[enum]):
                     if opt in [p.name for p in action.params]:
+                        if action.name.lower().find('stack') >= 0:
+                            if enum is OBJ_ENUM and opt.find('flat') >= 0:
+                                continue
                         l[-1] = i
                         break
             #else:
@@ -1353,22 +1386,33 @@ class RobotAgent(TAMPAgent):
         if task_name.find('place_in_door') >= 0:
             pos = x[self.state_inds[obj_name, 'pose']]
             if door_name.find('shelf') >= 0:
-                return pos[0] > 0.25 and pos[1] > 0.9
+                return 0. if (pos[0] > 0.25 and pos[1] > 0.9) else 1.
             elif door_name.find('drawer') >= 0:
-                return pos[0] > -0.3 and pos[0] < 0.3 and pos[2] < 0.73 and pos[2] > 0.6
+                return 0. if (pos[0] > -0.3 and pos[0] < 0.3 and pos[2] < 0.73 and pos[2] > 0.6) else 1.
         elif task_name.find('place') >= 0:
             pos = x[self.state_inds[obj_name, 'pose']]
             if targ_name.find('bin') >= 0:
-                return pos[2] < 0.6 and pos[0] > 0.25 and pos[0] < 0.55 and pos[1] > 0.35
+                return 0. if (pos[2] < 0.6 and pos[0] > 0.25 and pos[0] < 0.55 and pos[1] > 0.35) else 1.
             elif targ_name.find('off') >= 0:
-                return pos[2] < 0.6
+                return 0. if pos[2] < 0.6 else 1.
         elif task_name.find('stack') >= 0:
             pos = x[self.state_inds[obj_name, 'pose']]
             base_pos = x[self.state_inds['flat_block', 'pose']]
             targ_offset = [0., 0., 0.03778]
             offset = np.linalg.norm((pos-base_pos) - targ_offset)
-            return offset < 0.04
+            return 0. if offset < 0.04 else offset
 
         return self.cost_f(sample.get_X(t), task, sample.condition, active_ts=(-1, -1), targets=sample.targets, debug=debug, tol=tol, x0=x0)
+
+
+    def fill_cont(self, policy, sample, t):
+        vals = policy.act(sample.get_X(t=t), sample.get_cont_obs(t=t), t)
+        old_vals = {}
+        for ind, enum in enumerate(self.continuous_opts):
+            old_vals[enum] = sample.get(enum, t=t).copy()
+            sample.set(enum, vals[ind], t=t)
+        sample.set(TRUE_POSE_ENUM, sample.get(END_POSE_ENUM, t=t), t=t)
+        sample.set(TRUE_ROT_ENUM, sample.get(END_ROT_ENUM, t=t), t=t)
+        return old_vals
 
 

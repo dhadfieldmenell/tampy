@@ -44,7 +44,7 @@ from policy_hooks.rollout_server import RolloutServer
 from policy_hooks.motion_server import MotionServer
 from policy_hooks.task_server import TaskServer
 from policy_hooks.human_labels.label_server import LabelServer
-from policy_hooks.tf_models import tf_network, multi_modal_network_fp
+from policy_hooks.tf_models import tf_network, multi_modal_network_fp, fp_cont_network
 import policy_hooks.hl_retrain as hl_retrain
 from policy_hooks.utils.load_agent import *
 
@@ -213,12 +213,17 @@ class MultiProcessMain(object):
         else:
             primitive_network_model = tf_classification_network if self.config.get('discrete_prim', True) else tf_network
 
-        if self.config.get('add_hl_image', False):
+        if self.config.get('add_cont_image', False):
             cont_network_model = fp_multi_modal_cont_network
         elif self.config.get('conditional', False):
             cont_network_model = tf_cond_classification_network
         else:
             cont_network_model = tf_classification_network if self.config.get('discrete_prim', True) else tf_network
+
+        if self.config.get('add_image', False):
+            network_model = fp_cont_network
+        else:
+            network_model = tf_network
 
         self.config['algorithm']['policy_opt'] = {
             'q_imwt': self.config.get('q_imwt', 0),
@@ -229,6 +234,9 @@ class MultiProcessMain(object):
             'network_params': {
                 'obs_include': self.config['agent']['obs_include'],
                 'obs_image_data': [IM_ENUM, OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
+                'idx': self.agent._obs_data_idx,
+                'num_filters': self.config.get('num_filters', [32, 32]),
+                'filter_sizes': self.config.get('filter_sizes', [7,5]),
                 'image_width': self.config['image_width'],
                 'image_height': self.config['image_height'],
                 'image_channels': self.config['image_channels'],
@@ -240,13 +248,14 @@ class MultiProcessMain(object):
             'primitive_network_params': {
                 'obs_include': self.config['agent']['prim_obs_include'],
                 'obs_image_data': [IM_ENUM, OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
+                'idx': self.agent._prim_obs_data_idx,
                 'image_width': self.config['image_width'],
                 'image_height': self.config['image_height'],
                 'image_channels': self.config['image_channels'],
                 'sensor_dims': self.sensor_dims,
                 'n_layers': self.config['prim_n_layers'],
-                'num_filters': [32, 32],
-                'filter_sizes': [7,5],
+                'num_filters': self.config.get('prim_filters', [32, 32]),
+                'filter_sizes': self.config.get('prim_filter_sizes', [7,5]),
                 'dim_hidden': self.config['prim_dim_hidden'],
                 'output_boundaries': self.config['prim_bounds'],
                 'aux_boundaries': self.config['aux_bounds'],
@@ -255,13 +264,14 @@ class MultiProcessMain(object):
             'label_network_params': {
                 'obs_include': self.config['agent']['prim_obs_include'],
                 'obs_image_data': [IM_ENUM, OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
+                'agent': self.agent,
                 'image_width': self.config['image_width'],
                 'image_height': self.config['image_height'],
                 'image_channels': self.config['image_channels'],
                 'sensor_dims': self.sensor_dims,
                 'n_layers': self.config['prim_n_layers'],
                 'num_filters': [32, 32],
-                'filter_sizes': [5, 5],
+                'filter_sizes': [7, 5],
                 'dim_hidden': self.config['prim_dim_hidden'],
                 'output_boundaries': [(0,2)],
                 'aux_boundaries': self.config['aux_bounds'],
@@ -270,13 +280,14 @@ class MultiProcessMain(object):
             'cont_network_params': {
                 'obs_include': self.config['agent']['cont_obs_include'],
                 'obs_image_data': [IM_ENUM, OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
+                'idx': self.agent._cont_obs_data_idx,
                 'image_width': self.config['image_width'],
                 'image_height': self.config['image_height'],
                 'image_channels': self.config['image_channels'],
                 'sensor_dims': self.sensor_dims,
                 'n_layers': self.config['prim_n_layers'],
-                'num_filters': [32, 32],
-                'filter_sizes': [5, 5],
+                'num_filters': self.config.get('cont_filters', [32, 32]),
+                'filter_sizes': self.config.get('cont_filter_sizes', [5, 5]),
                 'dim_hidden': self.config['prim_dim_hidden'],
                 'output_boundaries': self.config['cont_bounds'],
                 'aux_boundaries': [],
@@ -285,7 +296,7 @@ class MultiProcessMain(object):
             'aux_boundaries': self.config['aux_bounds'],
             'lr': self.config['lr'],
             'hllr': self.config['hllr'],
-            'network_model': tf_network,
+            'network_model': network_model,
             'primitive_network_model': primitive_network_model,
             'cont_network_model': cont_network_model,
             'iterations': self.config['train_iterations'],

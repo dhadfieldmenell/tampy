@@ -116,6 +116,9 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.NUM_TARGS = nt
     prob.N_GRASPS = N_GRASPS
     prob.FIX_TARGETS = True
+    opts = prob.get_prim_choices()
+    discr_opts = [opt for opt in opts if not np.isscalar(opts[opt])]
+    cont_opts = [opt for opt in opts if np.isscalar(opts[opt])]
 
     prob.n_aux = 0
     config = {
@@ -149,21 +152,26 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
 
         'state_include': [utils.STATE_ENUM],
         'obs_include': [utils.TASK_ENUM,
-                        utils.END_POSE_ENUM,
-                        utils.END_ROT_ENUM,
+                        #utils.END_POSE_ENUM,
+                        #utils.END_ROT_ENUM,
                         utils.RIGHT_ENUM,
+                        #utils.RIGHT_EE_POS_ENUM,
                         utils.RIGHT_GRIPPER_ENUM,
+                        utils.OBJ_ENUM,
+                        utils.TARG_ENUM,
+                        utils.DOOR_ENUM,
                         ],
         'prim_obs_include': [
                              utils.ONEHOT_GOAL_ENUM,
-                             utils.RIGHT_EE_POS_ENUM,
+                             #utils.RIGHT_EE_POS_ENUM,
                              #utils.RIGHT_EE_ROT_ENUM,
-                             utils.RIGHT_ENUM,
-                             utils.RIGHT_GRIPPER_ENUM,
+                             #utils.RIGHT_ENUM,
+                             #utils.RIGHT_GRIPPER_ENUM,
                              ],
         'val_obs_include': [utils.ONEHOT_GOAL_ENUM,
                             ],
-        'prim_out_include': list(prob.get_prim_choices().keys()),
+        'prim_out_include': discr_opts,
+        'cont_obs_include': [opt for opt in discr_opts],
         'sensor_dims': {
                 utils.OBJ_POSE_ENUM: 3,
                 utils.TARG_POSE_ENUM: 3,
@@ -172,6 +180,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.RIGHT_EE_POS_ENUM: 3,
                 utils.RIGHT_EE_ROT_ENUM: 3,
                 utils.END_POSE_ENUM: 3,
+                utils.ABS_POSE_ENUM: 3,
                 utils.END_ROT_ENUM: 3,
                 utils.TRUE_POSE_ENUM: 3,
                 utils.TRUE_ROT_ENUM: 3,
@@ -192,6 +201,12 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'n_thresh': -1,
         'expand_process': False,
         'her': False,
+        'prim_filters': [32, 32],
+        'prim_filter_sizes': [7, 5],
+        'cont_filters': [32, 16],
+        'cont_filter_sizes': [7, 5],
+        'num_filters': [32, 32],
+        'filter_sizes': [7, 5],
     }
 
     #for o in range(no):

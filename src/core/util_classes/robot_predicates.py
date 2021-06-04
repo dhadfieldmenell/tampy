@@ -2107,6 +2107,7 @@ class InGripper(PosePredicate):
         return np.r_[grad, -1.*grad]
 
     def resample(self, negated, t, plan):
+        if negated: return None, None
         return robot_sampling.resample_in_gripper(self, negated, t, plan)
 
 class InGripperLeft(InGripper):
@@ -2441,6 +2442,7 @@ class EEReachable(PosePredicate):
             return -rel_step*self.retreat_dist*self.axis
 
     def resample(self, negated, t, plan):
+        if negated: return None, None
         if hasattr(self, 'obj') and 'door' in self.obj.geom.get_types():
             return None, None
         return robot_sampling.resample_eereachable(self, negated, t, plan, inv=False, rel=self.eval_rel, use_rot=False)
@@ -2480,6 +2482,7 @@ class EEReachableRot(EEReachable):
         return grad
 
     def resample(self, negated, t, plan):
+        if negated: return None, None
         if hasattr(self, 'obj') and 'door' in self.obj.geom.get_types():
             return None, None
         return robot_sampling.resample_eereachable(self, negated, t, plan, inv=False, use_pos=False)
