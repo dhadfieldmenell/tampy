@@ -243,7 +243,6 @@ class CollisionPredicate(ExprPredicate):
             raise PredicateException("Out of range time for predicate '%s'."%self)
 
     def plot_cols(self, env, t):
-        pdb.set_trace()
         _debug = self._debug
         self._env = env
         self._debug = True
@@ -319,6 +318,7 @@ class CollisionPredicate(ExprPredicate):
             #     print(name0, name1, distance, pose0, pose1)
 
             # plotting
+            # import pdb; pdb.set_trace()
             if self._debug:
                 self._plot_collision(pt0, pt1, distance)
                 print("pt0 = ", pt0)
@@ -726,7 +726,7 @@ class Collides(CollisionPredicate):
         self.neg_expr = LEqExpr(col_expr_neg, -val)
 
         super(Collides, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=1)
+                                        expected_param_types, ind0=0, ind1=1, debug=debug)
         self.n_cols = N_COLS
         # self.priority = 1
 
@@ -789,7 +789,7 @@ class TargetGraspCollides(Collides):
 
         super(Collides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1,
-                                        active_range=(0,0), priority=1)
+                                        active_range=(0,0), priority=1, debug=debug)
         self.n_cols = N_COLS
 
     def f(self, x):
@@ -981,7 +981,7 @@ class RCollides(CollisionPredicate):
 
 
         super(RCollides, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=1)
+                                        expected_param_types, ind0=0, ind1=1, debug=debug)
         self.n_cols = N_COLS
         self.hl_ignore = True
 
@@ -1190,7 +1190,7 @@ class Obstructs(CollisionPredicate):
         self.neg_expr = LEqExpr(col_expr_neg, -val)
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=3)
+                                        expected_param_types, ind0=0, ind1=3, debug=debug)
         # self.priority=1
 
     def f(self, x):
@@ -1397,7 +1397,7 @@ class ObstructsHolding(CollisionPredicate):
         col_expr_neg = Expr(self.f_neg, self.grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
-        super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, debug=debug)
         # self.priority=1
 
     def f(self, x):

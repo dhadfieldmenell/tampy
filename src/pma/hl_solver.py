@@ -434,7 +434,10 @@ class FFSolver(HLSolver):
                 for val in arg_valuations:
                     val, types = list(zip(*val))
 
-                    pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params, env=env, debug=debug)
+                    try:
+                        pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params, env=env, debug=debug)
+                    except:
+                        pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params, env=env)
 
                     ts = (p_d["active_timesteps"][0] + curr_h, p_d["active_timesteps"][1] + curr_h)
                     preds.append({"negated": p_d["negated"], "hl_info": p_d["hl_info"], "active_timesteps": ts, "pred": pred})
