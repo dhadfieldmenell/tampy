@@ -317,7 +317,7 @@ class Action(object):
 class Move(Action):
     def __init__(self):
         self.name = 'moveto'
-        self.timesteps = 17
+        self.timesteps = 19 # 17
         end = self.timesteps - 1
         self.end = end
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose)'
@@ -377,6 +377,7 @@ class MoveToGrasp(MoveArm):
                          #('(not (EEAtXY{} ?robot ?item))'.format(arm), '{0}:{1}'.format(0, 0)),
                          ('(not (NearGripper{} ?robot ?item))'.format(arm), '0:0'),
                          ('(InReach ?item ?robot)', '0:0'),
+                         ('(InReach ?item ?robot)', '0:0'),
                         ])
 
         self.eff.extend([#('(RightGripperDownRot ?robot)', '{0}:{1}'.format(3, self.end-1)),
@@ -384,6 +385,8 @@ class MoveToGrasp(MoveArm):
                          ('(NearApproach{}Rot ?robot ?item)'.format(arm), '{0}:{1}'.format(self.end, self.end)),
                          #('(NearApproach{} ?robot ?targ)'.format(arm), '{0}:{1}'.format(self.end, self.end-1)),
                          ('(forall (?obj - Item / ?item) (not (EEAtXY{} ?robot ?obj)))'.format(arm), \
+                            '{0}:{1}'.format(self.end, self.end-1)),
+                         ('(forall (?obj - Item) (not (Lifted ?obj ?robot)))', \
                             '{0}:{1}'.format(self.end, self.end-1)),
                          ('(forall (?obj - Target / ?targ) (not (EEAtXY{} ?robot ?obj)))'.format(arm), \
                             '{0}:{1}'.format(self.end, self.end-1)),
@@ -705,6 +708,7 @@ class Hold(Action):
                     ('(forall (?obj - Item) (StationaryNEq ?obj ?item))', '0:{}'.format(end-1)),
                     ('(forall (?obj - Item) (Stationary ?obj))', '0:{}'.format(end-1)),
                     ('(forall (?obs - Obstacle)(StationaryW ?obs))', '{}:{}'.format(0, end-1)),
+                    ('(not (Stationary ?item))', '{}:{}'.format(0, -1)),
                     ('(IsMP ?robot)', '0:{}'.format(end-1)),
                     ('(WithinJointLimit ?robot)', '0:{}'.format(end)),
                     ('(forall (?obs - Obstacle) (not (RCollides ?robot ?obs)))', '1:{}'.format(self.grasp_time-steps)),

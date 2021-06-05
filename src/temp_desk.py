@@ -59,7 +59,7 @@ problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, None, use_t
 params = problem.init_state.params
 
 for param in ['ball', 'upright_block', 'flat_block', \
-              'drawer_handle', 'shelf_handle']:
+              'drawer_handle', 'shelf_handle', 'shelf', 'drawer']:
     pose = agent.mjc_env.get_item_pose(param, euler=True)
     targ = '{}_init_target'.format(param)
     params[param].pose[:,0] = pose[0]
@@ -92,7 +92,7 @@ for param in params:
         params[targ].value[:,0] = params[param].pose[:,0]
         params[targ].rotation[:,0] = params[param].rotation[:,0]
 
-goal = '(and (InSlideDoor ball drawer) (Stacked upright_block flat_block))'
+goal = '(and (InSlideDoor ball drawer) (Stacked upright_block flat_block) (NearGripperRight panda green_button))'
 #goal = '(and (SlideDoorOpen drawer_handle drawer) (NearApproachRight panda upright_block))'
 #goal = '(and (InSlideDoor upright_block shelf) (NearApproachRight panda ball))'
 #goal = '(and (SlideDoorClose drawer_handle drawer) (InSlideDoor ball drawer))'
@@ -107,8 +107,12 @@ goal = '(and (InSlideDoor ball drawer) (Stacked upright_block flat_block))'
 #goal = '(InSlideDoor ball drawer)'
 #goal = '(At flat_block bin_target)'
 #goal = '(At ball bin_target)'
-#goal = '(InSlideDoor upright_block shelf)'
+goal = '(InSlideDoor upright_block shelf)'
 #goal = '(InSlideDoor flat_block shelf)'
+#goal = '(and (At flat_block bin_target) (At upright_block off_desk_target))'
+#goal = '(and (InSlideDoor ball drawer) (NearGripperRight panda green_button))'
+#goal = '(NearGripperRight panda green_button)'
+goal = '(Lifted upright_block panda)'
 
 print('CONSISTENT?', problem.init_state.is_consistent())
 import ipdb; ipdb.set_trace()

@@ -39,10 +39,10 @@ from policy_hooks.tamp_agent import TAMPAgent
 
 const.NEAR_GRIP_COEFF = 2e-2
 const.NEAR_APPROACH_COEFF = 8e-3
-const.NEAR_APPROACH_ROT_COEFF = 6e-3
-const.GRASP_DIST = 0.18
-const.APPROACH_DIST = 0.02
-const.RETREAT_DIST = 0.02
+const.NEAR_APPROACH_ROT_COEFF = 8e-3
+const.GRASP_DIST = 0.16 # 0.18
+const.APPROACH_DIST = 0.015 # 0.02
+const.RETREAT_DIST = 0.015 # 0.02
 const.EEREACHABLE_COEFF = 2e-2
 const.EEREACHABLE_ROT_COEFF = 8e-3
 const.RCOLLIDES_COEFF = 3e-2 # 2e-2
@@ -74,8 +74,8 @@ class optimal_pol:
             for param, attr in self.action_inds:
                 cur_val = X[self.state_inds[param, attr]] if (param, attr) in self.state_inds else None
                 if attr.find('grip') >= 0:
-                    #val = self.opt_traj[min(t+1, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
-                    val = self.opt_traj[min(t, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
+                    val = self.opt_traj[min(t+1, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
+                    #val = self.opt_traj[min(t, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
                     val = 0.045 if val > 0.01 else -0.005
                     u[self.action_inds[param, attr]] = val 
                 elif attr.find('ee_pos') >= 0:
@@ -746,7 +746,8 @@ class RobotAgent(TAMPAgent):
         if LEFT_GRIPPER_ENUM in self.sensor_dims:
             sample.set(LEFT_GRIPPER_ENUM, mp_state[self.state_inds[robot, 'left_gripper']], t)
         if RIGHT_GRIPPER_ENUM in self.sensor_dims:
-            sample.set(RIGHT_GRIPPER_ENUM, mp_state[self.state_inds[robot, 'right_gripper']], t)
+            #sample.set(RIGHT_GRIPPER_ENUM, mp_state[self.state_inds[robot, 'right_gripper']], t)
+            sample.set(RIGHT_GRIPPER_ENUM, self.base_env.physics.data.ctrl[-2:], t)
 
         prim_choices = self.prob.get_prim_choices(self.task_list)
         if task is not None:

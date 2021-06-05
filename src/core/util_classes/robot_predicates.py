@@ -179,6 +179,7 @@ class RobotPredicate(ExprPredicate):
     def __init__(self, name, expr, attr_inds, params, expected_param_types, env=None, active_range=(0,0), tol=DEFAULT_TOL, priority=0):
         if not hasattr(self, 'arm') and hasattr(params[0].geom, 'arm'): self.arm = params[0].geom.arms[0]
         super(RobotPredicate, self).__init__(name, expr, attr_inds, params, expected_param_types, tol=tol, priority = priority, active_range=active_range)
+        self._init_include = False
 
     def get_robot_info(self, robot_body, arm):
         arm_inds = robot_body._geom.get_arm_inds(arm)
@@ -1532,6 +1533,7 @@ class Stationary(ExprPredicate):
         e = EqExpr(AffExpr(A, b), val)
         super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
         self.spacial_anchor = False
+        self._init_include = False
 
 class StationaryRot(ExprPredicate):
     """
@@ -1753,6 +1755,7 @@ class StationaryXZ(ExprPredicate):
         e = EqExpr(AffExpr(A, b), val)
         super(StationaryXZ, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
         self.spacial_anchor = False
+        self._init_include = False
 
 class StationaryYZ(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
@@ -1765,6 +1768,7 @@ class StationaryYZ(ExprPredicate):
         e = EqExpr(AffExpr(A, b), val)
         super(StationaryYZ, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
         self.spacial_anchor = False
+        self._init_include = False
 
 class StationaryXY(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
@@ -1777,6 +1781,7 @@ class StationaryXY(ExprPredicate):
         e = EqExpr(AffExpr(A, b), val)
         super(StationaryYZ, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
         self.spacial_anchor = False
+        self._init_include = False
 
 class GraspValid(ExprPredicate):
     """
@@ -2085,6 +2090,7 @@ class InGripper(PosePredicate):
         e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
         super(InGripper, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority=2)
         self.spacial_anchor = True
+        self._init_include = False
 
     def stacked_f(self, x):
         if self.eval_dim == 3:
@@ -2371,6 +2377,7 @@ class EEReachable(PosePredicate):
         super(EEReachable, self).__init__(name, e, self.attr_inds, params, expected_param_types, active_range = active_range, priority = 1)
         self.spacial_anchor = True
         self._rollout = True
+        self._init_include = False
 
     #@profile
     def stacked_f(self, x):
@@ -2858,6 +2865,7 @@ class Obstructs(CollisionPredicate):
         super(Obstructs, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1, debug=debug, tol=tol, priority=3)
         self.spacial_anchor = False
+        self._init_include = False
 
     def f(self, x):
         return self.coeff*self.robot_obj_collision(x)[0]
@@ -2942,6 +2950,7 @@ class ObstructsHolding(CollisionPredicate):
         e, self.neg_expr = LEqExpr(col_expr, val), LEqExpr(col_expr_neg, val)
         super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=1, debug = debug, tol=tol, priority=3)
         self.spacial_anchor = False
+        self._init_include = False
 
     def f(self, x):
         return self.coeff * (self.col_fn(x)[0] - self.offset)
@@ -3091,6 +3100,7 @@ class RCollides(CollisionPredicate):
                                         expected_param_types, ind0=0, ind1=1, priority = 3)
         self.spacial_anchor = False
         self.dsafe = const.RCOLLIDES_DSAFE
+        self._init_include = False
 
     def f(self, x):
         return self.coeff * self.robot_obj_collision(x)[0]
@@ -3451,6 +3461,7 @@ class AboveTable(ExprPredicate):
 
         super(AboveTable, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.spacial_anchor = True
+        self._init_include = False
 
 class LiftedAboveTable(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
@@ -3487,6 +3498,7 @@ class Lifted(ExprPredicate):
 
         super(Lifted, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.spacial_anchor = True
+        self._init_include = False
 
 class InReach(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
@@ -3495,7 +3507,9 @@ class InReach(ExprPredicate):
         attr_inds = OrderedDict([(self.obj, [("pose", np.array([2], dtype=np.int))])])
             
         A = np.array([[-1.]])
-        if self.robot.name.find('panda') >= 0:
+        if self.obj.name.find('upright') >= 0:
+            b = 0.8 * np.ones((1,1))
+        elif self.robot.name.find('panda') >= 0:
             b = 0.6 * np.ones((1,1))
         else:
             b = np.zeros((1,1))
@@ -3505,6 +3519,7 @@ class InReach(ExprPredicate):
 
         super(InReach, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.spacial_anchor = True
+        self._init_include = False
 
 class OffDesk(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):

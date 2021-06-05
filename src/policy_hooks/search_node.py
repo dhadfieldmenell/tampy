@@ -167,12 +167,13 @@ class LLSearchNode(SearchNode):
             state_timestep = last_action.active_timesteps[0]
         self.curr_plan.start = anum
         init_preds = self.curr_plan.prob.init_state.preds
+        invariants = self.curr_plan.prob.init_state.invariants
         preds = []
         if failed_negated:
             preds = [failed_pred]
         state_preds = self.parse_state(self.curr_plan, preds, state_timestep, init_preds)
         state_preds.extend(self.curr_plan.hl_preds)
-        new_state = State(state_name, state_params, state_preds, state_timestep)
+        new_state = State(state_name, state_params, state_preds, state_timestep, invariants)
         goal_preds = self.concr_prob.goal_preds.copy()
         new_problem = Problem(new_state, goal_preds, self.concr_prob.env, False, start_action=anum)
 

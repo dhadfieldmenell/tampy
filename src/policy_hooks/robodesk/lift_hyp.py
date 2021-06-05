@@ -155,7 +155,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                         #utils.END_POSE_ENUM,
                         #utils.END_ROT_ENUM,
                         utils.RIGHT_ENUM,
-                        #utils.RIGHT_EE_POS_ENUM,
+                        utils.RIGHT_EE_POS_ENUM,
                         utils.RIGHT_GRIPPER_ENUM,
                         utils.OBJ_ENUM,
                         utils.TARG_ENUM,
@@ -165,8 +165,8 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                              utils.ONEHOT_GOAL_ENUM,
                              #utils.RIGHT_EE_POS_ENUM,
                              #utils.RIGHT_EE_ROT_ENUM,
-                             #utils.RIGHT_ENUM,
-                             #utils.RIGHT_GRIPPER_ENUM,
+                             utils.RIGHT_ENUM,
+                             utils.RIGHT_GRIPPER_ENUM,
                              ],
         'val_obs_include': [utils.ONEHOT_GOAL_ENUM,
                             ],
@@ -205,8 +205,8 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'prim_filter_sizes': [7, 5],
         'cont_filters': [32, 16],
         'cont_filter_sizes': [7, 5],
-        'num_filters': [32, 32],
-        'filter_sizes': [7, 5],
+        'num_filters': [32, 32, 32],
+        'filter_sizes': [7, 5, 5],
     }
 
     #for o in range(no):

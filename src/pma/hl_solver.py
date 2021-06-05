@@ -215,7 +215,9 @@ class FFSolver(HLSolver):
             prob_str += "%s - %s\n"%(param.name, param.get_type())
         prob_str += ")\n\n(:init\n"
         used = []
-        for pred in concr_prob.init_state.preds:
+        init_state = concr_prob.init_state
+        init_preds = list(init_state.preds) + list(init_state.invariants)
+        for pred in init_preds:
             if not pred._init_include: continue
             cur_str = ''
             cur_str += "(%s "%pred.get_type()
@@ -231,6 +233,7 @@ class FFSolver(HLSolver):
             for pred in initial:
                 prob_str += pred
             concr_prob.initial = initial
+
         prob_str += ")\n\n(:goal\n(and "
         if goal is None:
             for pred in concr_prob.goal_preds:
