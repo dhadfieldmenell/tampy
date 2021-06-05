@@ -37,9 +37,9 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.tamp_agent import TAMPAgent
 
 
-const.NEAR_GRIP_COEFF = 2e-2
+const.NEAR_GRIP_COEFF = 1.6e-2 # 2e-2
 const.NEAR_APPROACH_COEFF = 8e-3
-const.NEAR_APPROACH_ROT_COEFF = 8e-3
+const.NEAR_APPROACH_ROT_COEFF = 4e-3 # 8e-3
 const.GRASP_DIST = 0.16 # 0.18
 const.APPROACH_DIST = 0.015 # 0.02
 const.RETREAT_DIST = 0.015 # 0.02
@@ -152,7 +152,7 @@ class EnvWrapper():
                   image = ImageOps.expand(image, border=border, fill=(0, 0, 0))
                   im_draw = ImageDraw.Draw(image)
                   _, texth = self.im_font.getsize(str_overlays[0])
-                  pos = [(2,2), (2, imsize+2*border-texth-2), (2, 4+texth)]
+                  pos = [(2,2), (2, imsize+2*border-texth-2), (2, 4+texth), (2, imsize+2*border-2*texth-4)]
                   for ind, ovr in enumerate(str_overlays):
                       w, h = self.im_font.getsize(ovr)
                       x, y = pos[ind]
@@ -510,6 +510,7 @@ class RobotAgent(TAMPAgent):
     def get_annotated_image(self, s, t, cam_id=None):
         x = s.get_X(t=t)
         self.reset_to_state(x, full=False)
+        targets = s.get(ONEHOT_GOAL_ENUM, t=t)
         task = s.get(FACTOREDTASK_ENUM, t=t).astype(int)
         pos = s.get(END_POSE_ENUM, t=t).round(3)
         truepos = s.get(TRUE_POSE_ENUM, t=t).round(3)
@@ -526,7 +527,11 @@ class RobotAgent(TAMPAgent):
         textover1 = 'TASK: {0}'.format(task)
         textover2 = 'COST: {0: <5} {1: <5}'.format(precost, postcost)
         textover3 = '{0}'.format(str(truepos-pos)[1:-1])
-        overlays = (textover1, textover2, textover3)
+        goalover = ''
+        for goal in self.prob.GOAL_OPTIONS:
+            if targets[self.target_inds[goal, 'value']] == 1.:
+                goalover += goal
+        overlays = (textover1, textover2, textover3, goalover)
         #for ctxt in self.base_env.sim.render_contexts:
         #    ctxt._overlay[mj_const.GRID_TOPLEFT] = ['{}'.format(task), '']
         #    ctxt._overlay[mj_const.GRID_BOTTOMLEFT] = ['{0: <7} {1: <7} {2}'.format(precost, postcost, gripcmd), '']
@@ -911,16 +916,16 @@ class RobotAgent(TAMPAgent):
                     suc = self._door_close(x, params[1])
                 elif key.find('stack') >= 0:
                     suc = self._stacked(x, params[0])
-                elif key.find('off_desk') >= 0:
+                elif key.find('near') >= 0 and params[1].find('off_desk') >= 0:
                     suc = self._off_desk(x, params[0])
-                elif key.find('in_bin') >= 0:
+                elif key.find('near') >= 0 and params[1].find('bin') >= 0:
                     suc = self._in_bin(x, params[0])
-                elif key.find('in_shelf') >= 0:
+                elif key.find('inslide') >= 0 and params[1].find('shelf') >= 0:
                     suc = self._in_shelf(x, params[0])
-                elif key.find('near') >= 0 and params[1].find('button') >= 0:
+                elif key.find('grip') >= 0 and params[1].find('button') >= 0:
                     suc = self._button(x, params[1])
                 else:
-                    raise NotImplementedError()
+                    raise NotImplementedError('Cannot parse goal for {} {}'.format(key, params))
 
                 cost += 1 if not suc else 0
 
@@ -1106,12 +1111,22 @@ class RobotAgent(TAMPAgent):
                 l[0] = i
                 break
 
+        ind = len(action.params)
+        if action.name.lower().find('move_to_grasp') >= 0:
+            ind =  2
+        elif action.name.lower().find('place_in_door') >= 0:
+            ind = 3
+        elif action.name.lower().find('lift') >= 0:
+            ind =  2
+        elif action.name.lower().find('hold') >= 0:
+            ind =  2
+
         for enum in prim_choices:
             if enum is TASK_ENUM: continue
             if hasattr(prim_choices[enum], '__len__'):
                 l.append(0)
                 for i, opt in enumerate(prim_choices[enum]):
-                    if opt in [p.name for p in action.params]:
+                    if opt in [p.name for p in action.params[:ind]]:
                         if action.name.lower().find('stack') >= 0:
                             if enum is OBJ_ENUM and opt.find('flat') >= 0:
                                 continue
@@ -1329,7 +1344,7 @@ class RobotAgent(TAMPAgent):
 
     def _in_bin(self, x, item_name):
         pos = x[self.state_inds[item_name, 'pose']]
-        return pos[0] > 0.25 and pos[0] < 0.55 and pos[1] > 0.4 and pos[1] < 0.7
+        return pos[0] > 0.25 and pos[0] < 0.55 and pos[1] > 0.4 and pos[1] < 0.65 and pos[2] < 0.6
 
 
     def _off_desk(self, x, item_name):
@@ -1346,20 +1361,18 @@ class RobotAgent(TAMPAgent):
 
 
     def _door_open(self, x, door_name):
-        door = list(self.plans.values()[0]).params[door_name]
+        door = list(self.plans.values())[0].params[door_name]
         open_val = door.geom.open_thresh
         pos = x[self.state_inds[door_name, 'hinge']][0]
         sgn = -1. if door.geom.open_val < door.geom.close_val else 1.
-        pos = x[self.state_inds[door_name, 'hinge']][0]
         return sgn*pos > sgn*open_val
 
 
     def _door_close(self, x, door_name):
-        door = list(self.plans.values()[0]).params[door_name]
+        door = list(self.plans.values())[0].params[door_name]
         close_val = door.geom.close_thresh
         pos = x[self.state_inds[door_name, 'hinge']][0]
         sgn = -1. if door.geom.open_val < door.geom.close_val else 1.
-        pos = x[self.state_inds[door_name, 'hinge']][0]
         return sgn*pos < sgn*close_val
 
 
@@ -1369,11 +1382,35 @@ class RobotAgent(TAMPAgent):
         return np.linalg.norm((pos1-pos2) - [0., 0., 0.037]) < 0.04
 
 
-    def _button(self, button_name):
+    def _button(self, x, button_name):
         color = button_name.split('_')[0]
         val = self.base_env.physics.named.data.qpos[color + '_light'][0]
         pressed = val < -0.00453
         return val
+
+
+    def _slide(self, x, door_name, door_open=True):
+        door = list(self.plans.values())[0].params[door_name]
+        hinge_val = x[self.state_inds[door_name, 'hinge']][0]
+        close_val, open_val = door.geom.close_thresh, door.geom.open_thresh
+        sgn = 1. if open_val < close_val else -1.
+        if door_open: return sgn*hinge_val < sgn*open_val
+        return sgn*hinge_val >= sgn*close_val
+
+
+    def _near(self, x, targets, obj_name, targ_name, near_tol=0.1):
+        obj_pos = x[self.state_inds[obj_name, 'pose']]
+        targ_pos = targets[self.target_inds[targ_name, 'value']]
+        return np.linalg.norm(obj_pos-targ_pos) < near_tol
+
+
+    def _off_desk(self, x, obj_name):
+        return x[self.state_inds[obj_name, 'pose']][2] < 0.6
+
+
+    def _in_drawer(self, x, obj_name):
+        pos = x[self.state_inds[obj_name, 'pose']]
+        return pos[2] < 0.7 and pos[0] > 0.25 and pos[0] < 0.55 and pos[1] > 0.35
 
 
     def postcond_cost(self, sample, task=None, t=None, debug=False, tol=1e-3, x0=None):
@@ -1402,6 +1439,9 @@ class RobotAgent(TAMPAgent):
             targ_offset = [0., 0., 0.03778]
             offset = np.linalg.norm((pos-base_pos) - targ_offset)
             return 0. if offset < 0.04 else offset
+        elif task_name.find('hold') >= 0 and obj_name.find('green_button') >= 0:
+            val = self.base_env.physics.named.data.qpos['green_light'][0]
+            return 0. if val < -0.00453 else 1.
 
         return self.cost_f(sample.get_X(t), task, sample.condition, active_ts=(-1, -1), targets=sample.targets, debug=debug, tol=tol, x0=x0)
 

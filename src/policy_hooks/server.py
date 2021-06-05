@@ -217,6 +217,7 @@ class Server(object):
         initial, goal = self.agent.get_hl_info(x0, targets)
         problem = list(self.agent.plans.values())[0].prob
         domain = list(self.agent.plans.values())[0].domain
+        problem.goal = goal
         abs_prob = self.agent.hl_solver.translate_problem(problem, goal=goal, initial=initial)
         ref_x0 = self.agent.clip_state(x0)
         for pname, attr in self.agent.state_inds:

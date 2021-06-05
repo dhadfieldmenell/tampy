@@ -26,7 +26,7 @@ GOAL_OPTIONS = [
                 '(InSlideDoor upright_block shelf)',
                 '(Near flat_block bin_target)',
                 '(Stacked upright_block flat_block)',
-                '(NearGripperRight panda green_button)',
+                '(InGripperRight panda green_button)',
                 ]
 
 
@@ -41,7 +41,7 @@ def get_prim_choices(task_list=None):
     else:
         out[utils.TASK_ENUM] = sorted(list(task_list))
 
-    out[utils.OBJ_ENUM] = ['ball', 'upright_block', 'flat_block']
+    out[utils.OBJ_ENUM] = ['ball', 'upright_block', 'flat_block', 'green_button']
     out[utils.TARG_ENUM] = ['bin_target', 'off_desk_target']
     out[utils.DOOR_ENUM] = ['drawer', 'shelf']
     for door in ['drawer', 'shelf']:
@@ -56,7 +56,7 @@ def get_vector(config):
         'panda': ['right', 'right_ee_pos', 'right_ee_rot', 'right_gripper', 'pose', 'rotation']
     }
 
-    for item in ['ball', 'upright_block', 'flat_block']:
+    for item in ['ball', 'upright_block', 'flat_block', 'green_button']:
         state_vector_include[item] = ['pose', 'rotation']
 
     for door in ['drawer', 'shelf']:
