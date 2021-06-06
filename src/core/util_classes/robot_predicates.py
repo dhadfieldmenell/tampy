@@ -1933,8 +1933,8 @@ class Stacked(ExprPredicate):
                                  (self.base_obj, [("pose", np.array([0,1,2], dtype=np.int)),
                                                 ("rotation", np.array([0,1,2], dtype=np.int))])])
 
-        self.coeff = 5e-2
-        self.rot_coeff = 1e-2
+        self.coeff = 2e-2
+        self.rot_coeff = 5e-3
         A = np.c_[np.eye(6), -np.eye(6)]
         A[:3] *= self.coeff
         A[3:] *= self.rot_coeff
@@ -3489,9 +3489,11 @@ class Lifted(ExprPredicate):
         A = np.array([[-1.]])
 
         if self.obj.name.lower().find('upright') >= 0:
-            b = 0.9 * np.ones((1,1))
+            #b = 0.9 * np.ones((1,1))
+            b = 0.93 * np.ones((1,1))
         else:
-            b = 0.85 * np.ones((1,1))
+            #b = 0.85 * np.ones((1,1))
+            b = 0.87 * np.ones((1,1))
         val = np.zeros((1,1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)

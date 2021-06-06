@@ -25,6 +25,8 @@ class PolicyServer(object):
         self.task_list = hyperparams['task_list']
         self.weight_dir = LOG_DIR+hyperparams['weight_dir']
         self.seed = int((1e2*time.time()) % 1000.)
+        np.random.seed(self.seed)
+        random.seed(self.seed)
         n_gpu = hyperparams['n_gpu']
         if n_gpu == 0:
             gpus = -1
@@ -36,8 +38,6 @@ class PolicyServer(object):
             #gpus = str(list(range(1, n_gpu+1)))[1:-1]
             #gpus = str(list(range(0, n_gpu)))[1:-1]
         os.environ['CUDA_VISIBLE_DEVICES'] = "{0}".format(gpus)
-        np.random.seed(self.seed)
-        random.seed(self.seed)
         self.start_t = hyperparams['start_t']
         self.config = hyperparams
         self.permute = hyperparams['permute_hl'] > 0

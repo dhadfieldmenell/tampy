@@ -37,17 +37,18 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.tamp_agent import TAMPAgent
 
 
-const.NEAR_GRIP_COEFF = 1.6e-2 # 2e-2
+const.NEAR_GRIP_COEFF = 2.4e-2 # 2.2e-2 # 1.8e-2 # 2e-2
 const.NEAR_APPROACH_COEFF = 8e-3
-const.NEAR_APPROACH_ROT_COEFF = 4e-3 # 8e-3
-const.GRASP_DIST = 0.16 # 0.18
-const.APPROACH_DIST = 0.015 # 0.02
-const.RETREAT_DIST = 0.015 # 0.02
-const.EEREACHABLE_COEFF = 2e-2
-const.EEREACHABLE_ROT_COEFF = 8e-3
+const.NEAR_APPROACH_ROT_COEFF = 8e-3
+const.GRASP_DIST = 0.15 # 0.16 # 0.18
+const.APPROACH_DIST = 0.0175 # 0.015 # 0.02
+const.RETREAT_DIST = 0.0175 # 0.015 # 0.02
+const.EEREACHABLE_COEFF = 3e-2 # 2e-2
+const.EEREACHABLE_ROT_COEFF = 1e-2 # 8e-3
 const.RCOLLIDES_COEFF = 3e-2 # 2e-2
 const.OBSTRUCTS_COEFF = 2e-2
 const.INIT_TRAJ_COEFF = 2e-2
+STACK_OFFSET = 0.06
 
 STEP = 0.1
 NEAR_TOL = 0.05
@@ -74,8 +75,8 @@ class optimal_pol:
             for param, attr in self.action_inds:
                 cur_val = X[self.state_inds[param, attr]] if (param, attr) in self.state_inds else None
                 if attr.find('grip') >= 0:
-                    val = self.opt_traj[min(t+1, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
-                    #val = self.opt_traj[min(t, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
+                    #val = self.opt_traj[min(t+1, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
+                    val = self.opt_traj[min(t, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
                     val = 0.045 if val > 0.01 else -0.005
                     u[self.action_inds[param, attr]] = val 
                 elif attr.find('ee_pos') >= 0:
@@ -123,7 +124,7 @@ class EnvWrapper():
         self.flat_rot = Rotation.from_euler('xyz', [0., 0., 0.])
         self.flat_rot_inv = self.flat_rot.inv()
         self.cur_obs = self.reset()
-        self.im_font = ImageFont.truetype('E:/PythonPillow/Fonts/FreeMono.ttf', 12)
+        self.im_font = ImageFont.truetype('E:/PythonPillow/Fonts/FreeMono.ttf', 10)
 
     def render(self, mode='rgb_array', resize=True, overlays=(), imsize=None):
         params = {'distance': 1.8, 'azimuth': 90, 'elevation': -60,
@@ -186,15 +187,18 @@ class EnvWrapper():
                 rot = T.quaternion_to_euler(rot, 'xyzw')
             return rot
 
+        use_vel = False
+        if attr.find('_vel') >= 0:
+            attr = attr[:attr.index('_vel')]
+            use_vel = True
+
         if attr in self.geom.jnt_names:
             jnts = self.geom.jnt_names[attr]
-            if attr in self.geom.arms:
-                vals = self.get_joints(jnts)
-                return vals
+            if use_vel:
+                vals = self.get_joint_vels(jnts)
             else:
-                #cv, ov = self.geom.get_gripper_closed_val(), self.geom.get_gripper_open_val()
                 vals = self.get_joints(jnts)
-                return vals
+            return vals
 
         if attr.find('hinge') >= 0:
             if obj.find('drawer') >= 0:
@@ -211,6 +215,9 @@ class EnvWrapper():
 
         if attr.find('rot') >= 0 or attr.find('quat') >= 0:
             return self.get_item_pose(obj, euler=euler)[1]
+
+        raise NotImplementedError('Could not retrieve', attr, 'of', obj)
+
 
     def set_attr(self, obj, attr, val, euler=False, forward=False):
         if attr in self.geom.jnt_names:
@@ -294,8 +301,9 @@ class EnvWrapper():
             pos = np.array([0., 0.85, 0.])
 
         if item_name.find('ball') >= 0:
-            quat = T.euler_to_quaternion([0., -0.8, 1.57], 'wxyz')
-
+            #quat = T.euler_to_quaternion([0., -0.8, 1.57], 'wxyz')
+            #quat = T.euler_to_quaternion([0., 0.8, -1.57], 'wxyz')
+            quat = T.euler_to_quaternion([0., 0.9, -1.57], 'wxyz')
 
         if item_name.find('button') >= 0:
             pos[1] -= 0.035
@@ -369,6 +377,14 @@ class EnvWrapper():
             ind = self.env.physics.model.name2id(jnt, 'joint')
             adr = self.env.physics.model.jnt_qposadr[ind]
             vals.append(self.env.physics.data.qpos[adr])
+        return np.array(vals)
+
+    def get_joint_vels(self, jnt_names):
+        vals = []
+        for jnt in jnt_names:
+            ind = self.env.physics.model.name2id(jnt, 'joint')
+            adr = self.env.physics.model.jnt_qposadr[ind]
+            vals.append(self.env.physics.data.qvel[adr])
         return np.array(vals)
 
     def set_joints(self, jnt_names, jnt_vals, forward=False):
@@ -445,8 +461,6 @@ class EnvWrapper():
 
     def reset(self):
         obs = self.env.reset()
-        ball_rot = T.euler_to_quaternion([0., -0.2, 1.57], 'xyzw')
-        self.set_item_pose('ball', None, ball_rot)
         #cur_pos = self.get_attr('panda', 'right_ee_pos')
         #cur_jnts = self.get_attr('panda', 'right')
         #dim = 9 if self.mode.find('joint') >= 0 else 8
@@ -713,12 +727,7 @@ class RobotAgent(TAMPAgent):
             targets = self.target_vecs[cond].copy()
 
         for (pname, aname), inds in self.state_inds.items():
-            if aname == 'left_ee_pos':
-                sample.set(LEFT_EE_POS_ENUM, mp_state[inds], t)
-                ee_pose = mp_state[inds]
-                ee_rot = mp_state[self.state_inds[pname, 'left_ee_rot']]
-                sample.set(LEFT_EE_ROT_ENUM, ee_rot, t)
-            elif aname == 'right_ee_pos':
+            if aname == 'right_ee_pos':
                 sample.set(RIGHT_EE_POS_ENUM, mp_state[inds], t)
                 ee_pose = mp_state[inds]
                 ee_rot = mp_state[self.state_inds[pname, 'right_ee_rot']]
@@ -746,13 +755,11 @@ class RobotAgent(TAMPAgent):
         robot = 'panda'
         if RIGHT_ENUM in self.sensor_dims:
             sample.set(RIGHT_ENUM, mp_state[self.state_inds[robot, 'right']], t)
-        if LEFT_ENUM in self.sensor_dims:
-            sample.set(LEFT_ENUM, mp_state[self.state_inds[robot, 'left']], t)
-        if LEFT_GRIPPER_ENUM in self.sensor_dims:
-            sample.set(LEFT_GRIPPER_ENUM, mp_state[self.state_inds[robot, 'left_gripper']], t)
+        if RIGHT_VEL_ENUM in self.sensor_dims:
+            sample.set(RIGHT_VEL_ENUM, self.mjc_env.get_attr('panda', 'right_vel'), t)
         if RIGHT_GRIPPER_ENUM in self.sensor_dims:
-            #sample.set(RIGHT_GRIPPER_ENUM, mp_state[self.state_inds[robot, 'right_gripper']], t)
-            sample.set(RIGHT_GRIPPER_ENUM, self.base_env.physics.data.ctrl[-2:], t)
+            sample.set(RIGHT_GRIPPER_ENUM, mp_state[self.state_inds[robot, 'right_gripper']], t)
+            sample.set(GRIP_CMD_ENUM, self.base_env.physics.data.ctrl[-2:], t)
 
         prim_choices = self.prob.get_prim_choices(self.task_list)
         if task is not None:
@@ -966,7 +973,7 @@ class RobotAgent(TAMPAgent):
             val = self.mjc_env.get_attr(pname, aname, euler=True)
 
             if clip:
-                if aname in ['left', 'right']:
+                if aname in ['right']:
                     lb, ub = self.mjc_env.geom.get_joint_limits(aname)
                     val = np.maximum(np.minimum(val, ub), lb)
                 elif aname.find('gripper') >= 0:
@@ -1339,7 +1346,8 @@ class RobotAgent(TAMPAgent):
 
     def _in_shelf(self, x, item_name):
         pos = x[self.state_inds[item_name, 'pose']]
-        return pos[0] > 0.2 and pos[1] > 0.9
+        #return pos[0] > 0.2 and pos[1] > 0.9
+        return pos[0] > 0.1 and pos[1] > 0.9
 
 
     def _in_bin(self, x, item_name):
@@ -1379,7 +1387,8 @@ class RobotAgent(TAMPAgent):
     def _stacked(self, x, item_name, base_item='flat_block'):
         pos1 = x[self.state_inds[item_name, 'pose']]
         pos2 = x[self.state_inds[base_item, 'pose']]
-        return np.linalg.norm((pos1-pos2) - [0., 0., 0.037]) < 0.04
+        #return np.linalg.norm((pos1-pos2) - [0., 0., 0.037]) < 0.04
+        return np.linalg.norm((pos1-pos2) - [0., 0., 0.038]) < STACK_OFFSET
 
 
     def _button(self, x, button_name):
@@ -1429,6 +1438,7 @@ class RobotAgent(TAMPAgent):
                 return 0. if (pos[0] > -0.3 and pos[0] < 0.3 and pos[2] < 0.73 and pos[2] > 0.6) else 1.
         elif task_name.find('place') >= 0:
             pos = x[self.state_inds[obj_name, 'pose']]
+            if debug: print('POSTCOND INFO PLACE:', obj_name, targ_name, pos)
             if targ_name.find('bin') >= 0:
                 return 0. if (pos[2] < 0.6 and pos[0] > 0.25 and pos[0] < 0.55 and pos[1] > 0.35) else 1.
             elif targ_name.find('off') >= 0:
@@ -1438,7 +1448,8 @@ class RobotAgent(TAMPAgent):
             base_pos = x[self.state_inds['flat_block', 'pose']]
             targ_offset = [0., 0., 0.03778]
             offset = np.linalg.norm((pos-base_pos) - targ_offset)
-            return 0. if offset < 0.04 else offset
+            if debug: print('POSTCOND INFO STACK:', obj_name, pos, base_pos, offset)
+            return 0. if offset < STACK_OFFSET else offset
         elif task_name.find('hold') >= 0 and obj_name.find('green_button') >= 0:
             val = self.base_env.physics.named.data.qpos['green_light'][0]
             return 0. if val < -0.00453 else 1.

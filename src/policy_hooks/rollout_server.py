@@ -76,6 +76,7 @@ class RolloutServer(Server):
         self.failed_trajs = [] # Each entry should be (traj, list of ts, list of prob under policy)
         self.prev_suc = [] # Each entry is a state and a list of time, success pairs
         self.prev_fail = [] # Each entry is a state and a list of time, success pairs
+        self.suc_per_goal = {}
 
 
     def init_supervisor(self):
@@ -298,7 +299,12 @@ class RolloutServer(Server):
         hor = self.agent.hor
         nt = rlen * hor
 
+        goal = self.agent.goal(0, targets)
         val, path = self.test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], eta=eta, lab=-5, hor=hor)
+        if goal not in self.suc_per_goal:
+            self.suc_per_goal[goal] = []
+        self.suc_per_goal[goal].append(val)
+
         adj_val = val
         #if not self.adj_eta:
         #    self.adj_eta = True
@@ -346,7 +352,7 @@ class RolloutServer(Server):
         if save:
             if all([s.opt_strength == 0 for s in path]): self.hl_data.append(res)
             if val > 1-1e-2:
-                print('-----> SUCCESS! Rollout succeeded in test!', self.id)
+                print('-----> SUCCESS! Rollout succeeded in test!', goal, self.id)
             # if self.use_qfunc: self.log_td_error(path)
             np.save(self.hl_test_log.format('', 'rerun_' if ckpt_ind is not None else ''), np.array(self.hl_data))
 
@@ -521,6 +527,8 @@ class RolloutServer(Server):
                 info['{0}_successes'.format(key)] = np.mean(self.task_successes[key][-wind:])
             else:
                 info['{0}_successes'.format(key)] = 0. 
+
+        info['per_goal_success'] = {goal: np.mean(self.suc_per_goal[goal][-1:]) for goal in self.suc_per_goal}
 
         return info
 
