@@ -91,8 +91,9 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             attempt += 1
 
         if not len(iks): return None
-        if a_name.find('lift') >= 0:
+        if a_name.find('lift') >= 0 and obj.name.find('upright') >= 0:
             iks[-1] += 1.57 if iks[-1] < -1.25 else -1.57
+            #iks[-1] += 1.57 if iks[-1] < 0. else -1.57
         arm_pose = np.array(iks).reshape((-1,1))
         pose = {arm: arm_pose}
         gripper = robot.geom.get_gripper(arm)
@@ -227,6 +228,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         if a_name.find('move') < 0 and \
            a_name.find('lift') >= 0:
             rel_pos = False
+            disp[1] = -0.04
 
         if a_name.find('move') < 0 and \
             a_name.find('hold') >= 0:

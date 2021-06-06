@@ -38,13 +38,13 @@ from policy_hooks.tamp_agent import TAMPAgent
 
 
 const.NEAR_GRIP_COEFF = 2.4e-2 # 2.2e-2 # 1.8e-2 # 2e-2
-const.NEAR_APPROACH_COEFF = 8e-3
-const.NEAR_APPROACH_ROT_COEFF = 8e-3
+const.NEAR_APPROACH_COEFF = 6e-3 # 8e-3
+const.NEAR_APPROACH_ROT_COEFF = 6e-3 # 8e-3
 const.GRASP_DIST = 0.15 # 0.16 # 0.18
-const.APPROACH_DIST = 0.0175 # 0.015 # 0.02
-const.RETREAT_DIST = 0.0175 # 0.015 # 0.02
+const.APPROACH_DIST = 0.015 # 0.015 # 0.02
+const.RETREAT_DIST = 0.015 # 0.015 # 0.02
 const.EEREACHABLE_COEFF = 3e-2 # 2e-2
-const.EEREACHABLE_ROT_COEFF = 1e-2 # 8e-3
+const.EEREACHABLE_ROT_COEFF = 1.2e-2 # 8e-3
 const.RCOLLIDES_COEFF = 3e-2 # 2e-2
 const.OBSTRUCTS_COEFF = 2e-2
 const.INIT_TRAJ_COEFF = 2e-2
@@ -303,7 +303,7 @@ class EnvWrapper():
         if item_name.find('ball') >= 0:
             #quat = T.euler_to_quaternion([0., -0.8, 1.57], 'wxyz')
             #quat = T.euler_to_quaternion([0., 0.8, -1.57], 'wxyz')
-            quat = T.euler_to_quaternion([0., 0.9, -1.57], 'wxyz')
+            quat = T.euler_to_quaternion([0., 0.6, -1.57], 'wxyz')
 
         if item_name.find('button') >= 0:
             pos[1] -= 0.035
@@ -471,6 +471,7 @@ class EnvWrapper():
 
         self.forward()
         self.cur_obs = obs
+        self.init_obs = obs
         return obs
 
 

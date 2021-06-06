@@ -108,9 +108,7 @@ algorithm['mp_policy_prior'] = {
 
 def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.GOAL_OPTIONS = [
-                '(Lifted upright_block panda)',
-                #'(Lifted flat_block panda)',
-                #'(Lifted ball panda)',
+                '(Lifted ball panda)',
                 ]
     prob.NUM_OBJS = no
     prob.NUM_TARGS = nt
@@ -155,18 +153,23 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                         #utils.END_POSE_ENUM,
                         #utils.END_ROT_ENUM,
                         utils.RIGHT_ENUM,
-                        utils.RIGHT_EE_POS_ENUM,
+                        utils.RIGHT_VEL_ENUM,
+                        #utils.RIGHT_EE_POS_ENUM,
                         utils.RIGHT_GRIPPER_ENUM,
+                        utils.GRIP_CMD_ENUM,
                         utils.OBJ_ENUM,
                         utils.TARG_ENUM,
                         utils.DOOR_ENUM,
                         ],
         'prim_obs_include': [
                              utils.ONEHOT_GOAL_ENUM,
-                             #utils.RIGHT_EE_POS_ENUM,
-                             #utils.RIGHT_EE_ROT_ENUM,
+                             utils.RIGHT_EE_POS_ENUM,
+                             utils.RIGHT_EE_ROT_ENUM,
                              utils.RIGHT_ENUM,
+                             utils.RIGHT_VEL_ENUM,
                              utils.RIGHT_GRIPPER_ENUM,
+                             utils.GRIP_CMD_ENUM,
+                             #utils.RIGHT_GRIPPER_ENUM,
                              ],
         'val_obs_include': [utils.ONEHOT_GOAL_ENUM,
                             ],
@@ -193,7 +196,9 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.ATGOAL_ENUM: no,
                 utils.FACTOREDTASK_ENUM: len(list(prob.get_prim_choices().keys())),
                 utils.RIGHT_ENUM: 7,
+                utils.RIGHT_VEL_ENUM: 7,
                 utils.RIGHT_GRIPPER_ENUM: 2,
+                utils.GRIP_CMD_ENUM: 2,
                 # utils.INIT_OBJ_POSE_ENUM: 2,
             },
         'time_limit': TIME_LIMIT,

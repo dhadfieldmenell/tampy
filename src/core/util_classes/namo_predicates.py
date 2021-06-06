@@ -32,7 +32,7 @@ RS_SCALE = 0.5
 N_DIGS = 5
 GRIP_TOL = 5e-1
 COL_TS = 5 # 3
-NEAR_TOL = 0.4 # 0.3
+NEAR_TOL = 0.4
 GRIP_VAL = 1.
 
 

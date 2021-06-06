@@ -107,12 +107,12 @@ goal = '(and (InSlideDoor ball drawer) (Stacked upright_block flat_block) (NearG
 #goal = '(InSlideDoor ball drawer)'
 #goal = '(At flat_block bin_target)'
 #goal = '(At ball bin_target)'
-goal = '(InSlideDoor upright_block shelf)'
+#goal = '(InSlideDoor upright_block shelf)'
 #goal = '(InSlideDoor flat_block shelf)'
 #goal = '(and (At flat_block bin_target) (At upright_block off_desk_target))'
 #goal = '(and (InSlideDoor ball drawer) (NearGripperRight panda green_button))'
 #goal = '(NearGripperRight panda green_button)'
-goal = '(Lifted upright_block panda)'
+#goal = '(Lifted upright_block panda)'
 
 print('CONSISTENT?', problem.init_state.is_consistent())
 import ipdb; ipdb.set_trace()
