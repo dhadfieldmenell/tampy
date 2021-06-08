@@ -146,98 +146,7 @@ class RolloutServer(Server):
                 return False
 
         return True
-        
-    def plan_from_fail(self, augment=False, mode='start'):
-        self.cur_step += 1
-        val = 1.
-        i = 0
-        while val >= 1. and i < 10:
-            self.agent.replace_cond(0)
-            self.agent.reset(0)
-            val, path = self.test_hl(eta=self.explore_eta)
-            i += 1
-
-        if val < 1:
-            if mode == 'start':
-                s, t = 0, 0
-            elif mode == 'end':
-                s, t = -1, -1
-            elif mode == 'random':
-                s = np.random.randint(len(path))
-                t = np.random.randint(path[s].T)
-            elif mode == 'collision':
-                opts = []
-                for cur_s, sample in enumerate(path):
-                    if 1 in sample.col_ts:
-                        s = cur_s
-                        t = list(sample.col_ts).index(1) - 5
-                        if t < 0:
-                            if s == 0:
-                                s, t = 0, 0
-                            else:
-                                s -= 1
-                                t = path[s].T + t
-                        opts.append((s,t))
-                if len(opts):
-                    ind = np.random.randint(len(opts))
-                    s, t = opts[0]#opts[ind]
-                else:
-                    s = np.random.randint(len(path))
-                    t = np.random.randint(path[s].T)
-            elif mode == 'tail':
-                wts = np.exp(np.arange(len(path)) / 5.)
-                wts /= np.sum(wts)
-                s = np.random.choice(list(range(len(path))), p=wts)
-                t = np.random.randint(path[s].T)
-            elif mode == 'task':
-                breaks = find_task_breaks(path)
-                cost_f = lambda x, task: self.agent.cost_f(x, task, condition=0, targets=path[0].targets, active_ts=(-1,-1))
-                fail_pt = first_failed_state(cost_f, breaks, path)
-                if fail_pt is None:
-                    (s, t) = len(path)-1, path[-1].T-1
-                else:
-                    (s, t) = fail_pt
-            elif mode == 'switch':
-                cur_task = path[0].get(FACTOREDTASK_ENUM, t=0)
-                s, t = 0, 0
-                cur_s, cur_t = 0, 0
-                delta = 2
-                post_cost = 0
-                for s, sample in enumerate(path):
-                    for t in range(sample.T):
-                        if post_cost > 0: break
-                        if not self.agent.compare_tasks(cur_task, sample.get(FACTOREDTASK_ENUM, t=t)):
-                            post_cost = min([self.agent.postcond_cost(sample, 
-                                                                      task=tuple(cur_task.astype(int)),
-                                                                      t=i) 
-                                                for i in range(max(0,t-delta), min(sample.T-1,t+delta))])
-                            cur_task = sample.get(FACTOREDTASK_ENUM, t=t)
-                            if post_cost == 0:
-                                cur_s, cur_t = s, t
-                s, t = cur_s, cur_t
-            else:
-                raise NotImplementedError
-
-            x0 = path[s].get_X(t=t) # self.agent.x0[0]
-            targets = path[s].targets # self.agent.target_vecs[0]
-
-            initial, goal = self.agent.get_hl_info(x0, targets)
-            plan = self.agent.plans[tuple(path[s].get(FACTOREDTASK_ENUM, t=t))]
-            prob = plan.prob
-            domain = plan.domain
-            abs_prob = self.agent.hl_solver.translate_problem(prob, goal=goal, initial=initial)
-            set_params_attrs(plan.params, self.agent.state_inds, x0, 0)
-            hlnode = HLSearchNode(abs_prob,
-                                 domain,
-                                 prob,
-                                 priority=ROLL_PRIORITY,
-                                 x0=x0,
-                                 targets=targets,
-                                 expansions=0,
-                                 label='failed_rollout',
-                                 nodetype='dagger')
-            self.push_queue(hlnode, self.task_queue)
-
+       
 
     def check_hl_statistics(self, xvar=None, thresh=0):
         from tabulate import tabulate
@@ -272,6 +181,7 @@ class RolloutServer(Server):
             print(('Rolling out for index', ckpt_ind))
 
         self.set_policies()
+        self.agent._eval_mode = True
         if restore:
             self.policy_opt.restore_ckpts(ckpt_ind)
         elif self.policy_opt.share_buffers:
@@ -375,6 +285,7 @@ class RolloutServer(Server):
             if opt_path is not None: self.save_video(opt_path, val > 0, lab='_mp')
             print('Saved video. Rollout success was: ', val > 0)
         self.last_hl_test = time.time()
+        self.agent._eval_mode = False
         self.agent.debug = True
         return val, path
 
@@ -408,8 +319,6 @@ class RolloutServer(Server):
 
             self.send_rollout(node)
 
-            #if self.fail_plan:
-            #    self.plan_from_fail(mode=self.fail_mode)
 
             for task in self.alg_map:
                 data = self.agent.get_opt_samples(task, clear=True)

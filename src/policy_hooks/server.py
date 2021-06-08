@@ -237,7 +237,8 @@ class Server(object):
                              llnode=None,
                              x0=x0,
                              targets=targets,
-                             label=self.id)
+                             label=self.id,
+                             info=self.agent.get_hist_info())
         return hlnode
 
 

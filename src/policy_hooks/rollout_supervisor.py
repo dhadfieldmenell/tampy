@@ -79,8 +79,7 @@ class RolloutSupervisor():
             if task != curtask:
                 postcost = self.agent.postcond_cost(sample, curtask, t, x0=self.switch_x[-1], tol=self.tol)
                 if postcost > 0:
-                    #self.postcond_viols.append((self.cur_ids[-1], t))
-                    self.postcond_viols.append(self.switch_pts[-1])
+                    self.postcond_viols.append(self.switch_pts[-1]+(self.agent.get_hist_info(),))
                     task = curtask
                 else:
                     self.postcond_costs[self.agent.task_list[curtask[0]]].append(postcost)
@@ -88,8 +87,7 @@ class RolloutSupervisor():
         if task != curtask and self.check_precond:
             precost = self.agent.precond_cost(sample, task, t, tol=self.tol)
             if precost > 0:
-                self.precond_viols.append((self.cur_ids[-1], t))
-                #self.precond_viols.append(self.switch_pts[-1])
+                self.precond_viols.append((self.cur_ids[-1], t, self.agent.get_hist_info()))
                 if self.neg_precond: self.neg_samples.append((sample, t, truetask))
             
             n_tries = 0
@@ -105,7 +103,7 @@ class RolloutSupervisor():
                 n_tries += 1
 
             if precost > 0 and task != curtask:
-                self.expl_precond_viols.append((self.cur_ids[-1], t))
+                self.expl_precond_viols.append((self.cur_ids[-1], t, self.agent.get_hist_info()))
                 task = curtask
 
         if task == curtask:
@@ -129,6 +127,7 @@ class RolloutSupervisor():
 
 
     def rollout(self, x, targets, node):
+        self.agent._eval_mode = True
         self.agent.target_vecs[0] = targets
         self.agent.reset_to_state(x)
 
@@ -201,22 +200,22 @@ class RolloutSupervisor():
                 train_pts.append(tuple(bad_pt) + (fail_type,))
 
             bad_pt = self.switch_pts[-1]
-            train_pts.append(tuple(bad_pt) + (fail_type,))
-            train_pts.append((len(path)-1, path[-1].T-1, fail_type,))
+            train_pts.append(tuple(bad_pt) + (self.agent.get_hist_info(), fail_type))
+            train_pts.append((len(path)-1, path[-1].T-1, self.agent.get_hist_info(), fail_type,))
 
         if self.check_random and val < 1-1e-4:
             s = np.random.randint(len(path))
             t = np.random.randint(path[s].T)
-            train_pts.append((s, t, 'rollout_random_switch',))
+            train_pts.append((s, t, {}, 'rollout_random_switch',))
 
-        train_pts = list(set(train_pts))
+        #train_pts = list(set(train_pts))
         self.parse_midcond(path)
 
         if val >= 0.999:
-            print('Success in rollout. Pre: {} Post: {} Mid: {} Random: {}'.format(self.check_precond, \
-                                                                                self.check_postcond, \
-                                                                                self.check_midcond, \
-                                                                                self.check_random))
+            print('Success in rollout. Pre: {} Post: {} Mid: {} Goal: {}'.format(self.check_precond, \
+                                                                                 self.check_postcond, \
+                                                                                 self.check_midcond, \
+                                                                                 self.agent.goal(0, targets)))
             
             self.agent.add_task_paths([path])
             n_plans = self.hyperparams['policy_opt']['buffer_sizes']['n_rollout']
@@ -227,9 +226,10 @@ class RolloutSupervisor():
                 n_plans.value += 1
 
         else:
-            print('Failure in supervised rollout. {}'.format(train_pts))
+            print('Failure in supervised rollout. {}'.format([pt[:2] for pt in train_pts]))
 
         self.parse_train_pts(train_pts, path, targets, node)
+        self.agent._eval_mode = False
         return val, path
 
 
@@ -365,7 +365,7 @@ class RolloutSupervisor():
     def parse_train_pts(self, train_pts, path, targets, node):
         val = 1 - self.agent.goal_f(0, path[-1].get_X(path[-1].T-1), path[-1].targets)
         x0 = path[0].get_X(0)
-        for s, t, fail_type in train_pts:
+        for s, t, info, fail_type in train_pts:
             if s == 0 and t == 0: continue
             if val < 1:
                 self.n_fails += 1
@@ -393,7 +393,8 @@ class RolloutSupervisor():
                                       label=fail_type,
                                       x0=state,
                                       targets=targets,
-                                      nodetype='dagger')
+                                      nodetype='dagger',
+                                      info=info)
                 self.hl_nodes.append(hlnode)
 
 

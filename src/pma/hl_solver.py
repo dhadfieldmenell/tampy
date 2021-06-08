@@ -522,6 +522,20 @@ class FFSolver(HLSolver):
             plan_str[i] = "%s:%s"%(i, spl[1])
         return plan_str
 
+    def apply_action(self, initial, action):
+        new_initial = []
+        preds = [pred for pred in action.preds if pred['hl_info'] == 'eff']
+        pred_reps = {pred['pred'].get_rep(): pred for pred in preds}
+        for pred in initial:
+            if pred not in pred_reps or not pred_reps[pred]['negated']:
+                new_initial.append(pred)
+
+        for pred in pred_reps:
+            if not pred_reps[pred]['negated'] and pred not in new_initial:
+                new_initial.append(pred)
+
+        return new_initial
+
 class DummyHLSolver(HLSolver):
     def _translate_domain(self, domain_config):
         return "translate domain"

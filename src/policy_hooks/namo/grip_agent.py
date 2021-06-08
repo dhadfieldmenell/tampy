@@ -45,6 +45,23 @@ from policy_hooks.namo.namo_agent import NAMOSortingAgent
 
 bt_ll.INIT_TRAJ_COEFF = 1e-2
 
+HUMAN_TARGS = [
+                (9.0, 0.),
+                (9.0, -1.0),
+                (9.0, -2.0),
+                (9.0, -3.0),
+                (9.0, -4.0),
+                (9.0, -5.0),
+                (9.0, -6.0),
+                (-9.0, 0.),
+                (-9.0, -1.0),
+                (-9.0, -2.0),
+                (-9.0, -3.0),
+                (-9.0, -4.0),
+                (-9.0, -5.0),
+                (-9.0, -6.0),
+                ]
+
 MAX_SAMPLELISTS = 1000
 MAX_TASK_PATHS = 100
 GRIP_TOL = 0.
@@ -145,6 +162,16 @@ class NAMOGripAgent(NAMOSortingAgent):
             pos = next_trans[:3,3] # [next_trans[1,3], next_trans[0,3], next_trans[2,3]]
             items.append({'name': 'wall{0}'.format(i), 'type': 'box', 'is_fixed': True, 'pos': pos, 'dimensions': next_dim, 'rgba': (0.2, 0.2, 0.2, 1)})
 
+        self.humans = {}
+        for human_id in range(prob.N_HUMAN):
+            self.humans['human{}'.format(human_id)] = HUMAN_TARGS[np.random.randint(len(HUMAN_TARGS))]
+            items.append({'name': 'human{}'.format(human_id),
+                          'type': 'sphere',
+                          'is_fixed': False,
+                          'pos': [0., 0., 0.],
+                          'dimensions': 0.3,
+                          'rgba': (1., 1., 1., 1.)})
+
         no = self._hyperparams['num_objs']
         nt = self._hyperparams['num_targs']
         config['load_render'] = hyperparams['master_config'].get('load_render', False)
@@ -238,6 +265,16 @@ class NAMOGripAgent(NAMOSortingAgent):
     def run_policy_step(self, u, x):
         if not self._feasible:
             return False, 0
+
+        if self._eval_mode:
+            for human in self.humans:
+                vel = self.compute_human_act(human, x)
+                self.mjc_env.physics.named.data.qvel[human][:2] = vel
+            self.mjc_env.physics.forward()
+        else:
+            for human in self.humans:
+                self.mjc_env.physics.named.data.qvel[human][:2] = 0.
+            self.mjc_env.physics.forward()
 
         self._col = []
         poses = {}
@@ -968,5 +1005,33 @@ class NAMOGripAgent(NAMOSortingAgent):
 
     def feasible_state(self, x, targets):
         return self._feasible
+
+
+    def compute_human_act(self, human, vel=0.7):
+        if np.random.uniform() < 0.1:
+            self.humans[human] = HUMAN_TARGS[np.random.randint(len(HUMAN_TARGS))]
+
+        robot_pos = x[self.state_inds['pr2', 'pose']]
+        obj_pos = [x[self.state_inds[obj, 'pose']] for (obj, aname) in self.state_inds if obj.find('can') >= 0]
+        cur_pos = self.mjc_env.get_item_pos(human)[0]
+        targ_pos = self.human_goals[human]
+        targ_vec = targ_pos - cur_pos
+        targ_vec = vel * targ_vec / np.linalg.norm(targ_vec)
+        while not self.humn_act_valid(cur_pos+targ_vec, robot_pos, obj_pos):
+            targ_vec += np.random.normal(0., 0.5, (2,))
+            targ_vec = vel * targ_vec / np.linalg.norm(targ_vec)
+        return targ_vec
+
+
+    def human_act_valid(self, end_pos, robot_pos, obj_pos):
+        if np.linalg.norm(robot_pos - end_pos) < 1.4:
+            return False
+
+        for pos in obj_pos:
+            if np.linalg.norm(pos - end_pos) < 0.8:
+                return False
+
+        return True
+
 
 

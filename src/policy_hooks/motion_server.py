@@ -68,7 +68,7 @@ class MotionServer(Server):
             failed_prefix = ['ERROR IN FAIL CHECK', e]
 
         if len(failed_prefix) and node.hl:
-            print('BAD PREFIX! -->', plan.actions[:plan.start], 'FAILED', failed_prefix, node._trace)
+            #print('BAD PREFIX! -->', plan.actions[:plan.start], 'FAILED', failed_prefix, node._trace)
             plan.start = 0
 
         ts = (0, plan.actions[plan.start].active_timesteps[0])
@@ -112,6 +112,7 @@ class MotionServer(Server):
 
         wt = self.explore_wt if node.label.lower().find('rollout') >= 0 or node.nodetype.find('dagger') >= 0 else 1.
         verbose = self.verbose and (self.id.find('r0') >= 0 or np.random.uniform() < 0.05)
+        self.agent.store_hist_info(node.info)
         
         init_t = time.time()
         success, opt_suc, path, info = self.agent.backtrack_solve(plan, 
@@ -125,7 +126,8 @@ class MotionServer(Server):
                                                                  permute=self.permute_hl,
                                                                  label=node.nodetype,
                                                                  backup=self.backup,
-                                                                 verbose=verbose)
+                                                                 verbose=verbose,
+                                                                 hist_info=node.info)
         end_t = time.time()
         for step in path:
             step.wt = wt
@@ -143,11 +145,11 @@ class MotionServer(Server):
 
         if self.verbose and self.id.find('0') >= 0 and len(path):
             if node.nodetype.find('dagger') >= 0:
-                self.save_video(path, path[-1]._postsuc, lab='_fulldagger')
-            elif np.random.uniform() < 0.1:
-                self.save_video(path, path[-1]._postsuc, lab='_optimal', annotate=True)
-            elif not success and np.random.uniform() < 0.2:
-                self.save_video(path, path[-1]._postsuc, lab='_optimal_failed', annotate=True)
+                self.save_video(path, path[-1]._postsuc, lab='_suc_{}_dgr'.format(success))
+            elif np.random.uniform() < 0.5:
+                self.save_video(path, path[-1]._postsuc, lab='_suc_{}_opt'.format(success), annotate=True)
+            elif not success and np.random.uniform() < 0.5:
+                self.save_video(path, path[-1]._postsuc, lab='_suc_{}_opt_fail'.format(success), annotate=True)
 
         if self.verbose and self.render:
             for ind, batch in enumerate(info['to_render']):
@@ -159,7 +161,7 @@ class MotionServer(Server):
         self.log_path(path, 10)
         for step in path: step.source_label = node.nodetype
         if success and len(path):
-            print(self.id, 'Successful refine from', node.label, plan.actions[0].name, 'rollout success was:', path[-1]._postsuc, path[-1].success, 'first ts:', plan.start, cur_t, len(node.ref_traj))
+            print(self.id, 'succ. refine', node.label, plan.actions[0].name, 'rollout succ:', path[-1]._postsuc, path[-1].success, 'goal:', self.agent.goal(0, path[-1].targets))
 
         if len(path) and path[-1].success:
             n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_total']
@@ -171,6 +173,7 @@ class MotionServer(Server):
             n_plan.value += 1
 
         if not success:
+            print('Opt failure from', node.label, node.nodetype)
             n_fail = self._hyperparams['policy_opt']['buffer_sizes']['n_plan_{}_failed'.format(node.nodetype)]
             with n_fail.get_lock():
                 n_fail.value += 1
@@ -192,7 +195,7 @@ class MotionServer(Server):
 
         failed_preds = plan.get_failed_preds((prev_t, fail_step+fail_pred.active_range[1]), priority=-1)
         if len(failed_preds):
-            print('Refine failed with linear constr. viol.', node._trace, prev_t, failed_preds, len(node.ref_traj))
+            print('Refine failed with linear constr. viol.', node._trace, prev_t, failed_preds, len(node.ref_traj), node.label)
             return
 
         print('Refine failed:', plan.get_failed_preds((0, fail_step+fail_pred.active_range[1])), fail_pred, fail_step, plan.actions, node.label, node._trace, prev_t)
@@ -211,7 +214,8 @@ class MotionServer(Server):
                              targets=node.targets,
                              expansions=node.expansions+1,
                              label=self.id,
-                             nodetype=node.nodetype)
+                             nodetype=node.nodetype,
+                             info=node.info)
         self.push_queue(hlnode, self.task_queue)
         print(self.id, 'Failed to refine, pushing to task node.')
 

@@ -2442,10 +2442,7 @@ class EEReachable(PosePredicate):
     def get_rel_pt(self, rel_step):
         if rel_step <= 0:
             return rel_step*self.approach_dist*self.axis
-        elif rel_step <= self.pause:
-            return 0*self.axis
         else:
-            rel_step -= self.pause
             return -rel_step*self.retreat_dist*self.axis
 
     def resample(self, negated, t, plan):
@@ -2532,11 +2529,18 @@ class EEApproachLeft(EEReachable):
         self.arm = "left"
         super(EEApproachLeft, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
 
+class EEApproachAbsLeft(EEReachable):
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.arm = "left"
+        super(EEApproachAbsLeft, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
+        self.eval_rel = False
+
 class EEApproachStackLeft(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "left"
         self.stack_obj = params[2]
         super(EEApproachStackLeft, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
+        self.eval_rel = False
         h2 = params[2].geom.height if hasattr(params[2].geom, 'height') else params[2].geom.radius
         base_h = (params[1].geom.height + h2) 
         self.rel_pt += np.array([0., 0., base_h])
@@ -2545,6 +2549,7 @@ class EEApproachInDoorLeft(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "left"
         super(EEApproachInDoorLeft, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
+        self.eval_rel = True
         self.ref_orn = T.quat2mat(T.euler_to_quaternion(params[1].geom.in_orn, 'xyzw'))
         self.axis = self.ref_orn.dot(self.axis).round(4)
         self.rel_pt = params[1].geom.in_pos
@@ -2553,6 +2558,12 @@ class EERetreatLeft(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "left"
         super(EERetreatLeft, self).__init__(name, params, expected_param_types, (0, steps), env, debug)
+
+class EERetreatAbsLeft(EEReachable):
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.arm = "left"
+        super(EERetreatAbsLeft, self).__init__(name, params, expected_param_types, (0, steps), env, debug)
+        self.eval_rel = False
 
 class EERetreatStackLeft(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
@@ -2660,11 +2671,18 @@ class EEApproachRight(EEReachable):
         self.arm = "right"
         super(EEApproachRight, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
 
+class EEApproachAbsRight(EEReachable):
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.arm = "right"
+        super(EEApproachAbsRight, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
+        self.eval_rel = False
+
 class EEApproachStackRight(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "right"
         self.stack_obj = params[2]
         super(EEApproachStackRight, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
+        self.eval_rel = False
         h2 = params[2].geom.height if hasattr(params[2].geom, 'height') else params[2].geom.radius
         base_h = (params[1].geom.height + h2)
         self.rel_pt += np.array([0., 0., base_h])
@@ -2673,6 +2691,7 @@ class EEApproachInDoorRight(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "right"
         super(EEApproachInDoorRight, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
+        self.eval_rel = True
         self.ref_orn = T.quat2mat(T.euler_to_quaternion(params[1].geom.in_orn, 'xyzw'))
         self.axis = self.ref_orn.dot(self.axis).round(4)
         self.rel_pt = params[1].geom.in_pos
@@ -2681,6 +2700,12 @@ class EERetreatRight(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "right"
         super(EERetreatRight, self).__init__(name, params, expected_param_types, (0, steps), env, debug)
+
+class EERetreatAbsRight(EEReachable):
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.arm = "right"
+        super(EERetreatAbsRight, self).__init__(name, params, expected_param_types, (0, steps), env, debug)
+        self.eval_rel = False
 
 class EERetreatStackRight(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
@@ -3489,11 +3514,9 @@ class Lifted(ExprPredicate):
         A = np.array([[-1.]])
 
         if self.obj.name.lower().find('upright') >= 0:
-            #b = 0.9 * np.ones((1,1))
-            b = 0.93 * np.ones((1,1))
+            b = 0.9 * np.ones((1,1))
         else:
-            #b = 0.85 * np.ones((1,1))
-            b = 0.87 * np.ones((1,1))
+            b = 0.85 * np.ones((1,1))
         val = np.zeros((1,1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)

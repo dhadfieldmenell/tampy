@@ -37,18 +37,18 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.tamp_agent import TAMPAgent
 
 
-const.NEAR_GRIP_COEFF = 2.4e-2 # 2.2e-2 # 1.8e-2 # 2e-2
-const.NEAR_APPROACH_COEFF = 6e-3 # 8e-3
-const.NEAR_APPROACH_ROT_COEFF = 6e-3 # 8e-3
-const.GRASP_DIST = 0.15 # 0.16 # 0.18
-const.APPROACH_DIST = 0.015 # 0.015 # 0.02
-const.RETREAT_DIST = 0.015 # 0.015 # 0.02
-const.EEREACHABLE_COEFF = 3e-2 # 2e-2
-const.EEREACHABLE_ROT_COEFF = 1.2e-2 # 8e-3
+const.NEAR_GRIP_COEFF = 5e-2 # 2.2e-2 # 1.8e-2 # 2e-2
+const.NEAR_APPROACH_COEFF = 8e-3
+const.NEAR_APPROACH_ROT_COEFF = 1e-3
+const.GRASP_DIST = 0.14 # 0.18
+const.APPROACH_DIST = 0.0125 # 0.02
+const.RETREAT_DIST = 0.0125 # 0.02
+const.EEREACHABLE_COEFF = 1e-1 # 3e-2 # 2e-2
+const.EEREACHABLE_ROT_COEFF = 2e-2 # 8e-3
 const.RCOLLIDES_COEFF = 3e-2 # 2e-2
 const.OBSTRUCTS_COEFF = 2e-2
 const.INIT_TRAJ_COEFF = 2e-2
-STACK_OFFSET = 0.06
+STACK_OFFSET = 0.08
 
 STEP = 0.1
 NEAR_TOL = 0.05
@@ -75,8 +75,8 @@ class optimal_pol:
             for param, attr in self.action_inds:
                 cur_val = X[self.state_inds[param, attr]] if (param, attr) in self.state_inds else None
                 if attr.find('grip') >= 0:
-                    #val = self.opt_traj[min(t+1, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
-                    val = self.opt_traj[min(t, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
+                    val = self.opt_traj[min(t+1, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
+                    #val = self.opt_traj[min(t, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
                     val = 0.045 if val > 0.01 else -0.005
                     u[self.action_inds[param, attr]] = val 
                 elif attr.find('ee_pos') >= 0:
@@ -302,8 +302,7 @@ class EnvWrapper():
 
         if item_name.find('ball') >= 0:
             #quat = T.euler_to_quaternion([0., -0.8, 1.57], 'wxyz')
-            #quat = T.euler_to_quaternion([0., 0.8, -1.57], 'wxyz')
-            quat = T.euler_to_quaternion([0., 0.6, -1.57], 'wxyz')
+            quat = T.euler_to_quaternion([0., 0.9, -1.57], 'wxyz')
 
         if item_name.find('button') >= 0:
             pos[1] -= 0.035
@@ -408,10 +407,10 @@ class EnvWrapper():
                     self.env.physics.data.ctrl[0:9] = joint_position[0:9]
                     # Ensure gravity compensation stays enabled.
                     self.env.physics.data.qfrc_applied[0:9] = self.physics.data.qfrc_bias[0:9]
-                    if self.env.physics.data.ctrl[7] > 0.02:
-                        self.env.physics.named.data.xfrc_applied['ball'][2] = -10.
-                    else:
-                        self.env.physics.named.data.xfrc_applied['ball'][2] = 0.
+                    #if self.env.physics.data.ctrl[7] > 0.02:
+                    #    self.env.physics.named.data.xfrc_applied['ball'][2] = -10.
+                    #else:
+                    #    self.env.physics.named.data.xfrc_applied['ball'][2] = 0.
 
                     self.env.physics.step()
                     self.env.physics_copy.data.qpos[:] = self.physics.data.qpos[:]
@@ -472,7 +471,16 @@ class EnvWrapper():
         self.forward()
         self.cur_obs = obs
         self.init_obs = obs
+        self.trans_obs = obs
+        self._prev_task = None
         return obs
+
+
+    def get_trans_obs(self, task_name):
+        if task_name != self._prev_task:
+            self._prev_task = task_name
+            self.trans_obs = self.cur_obs
+        return self.trans_obs
 
 
     def close(self):
@@ -490,7 +498,7 @@ class RobotAgent(TAMPAgent):
         self._load_goals()
         self.rlen = 10 if not self.compound_goals else 30
 
-        freq = 20
+        freq = 25
         self.base_env = robodesk.RoboDesk(task='lift_ball', \
                                           reward='success', \
                                           action_repeat=freq, \
@@ -523,8 +531,11 @@ class RobotAgent(TAMPAgent):
 
 
     def get_annotated_image(self, s, t, cam_id=None):
-        x = s.get_X(t=t)
-        self.reset_to_state(x, full=False)
+        #x = s.get_X(t=t)
+        #self.reset_to_state(x, full=False)
+        qpos = s.get(QPOS_ENUM, t=t)
+        self.base_env.physics.data.qpos[:] = qpos
+        self.base_env.physics.forward()
         targets = s.get(ONEHOT_GOAL_ENUM, t=t)
         task = s.get(FACTOREDTASK_ENUM, t=t).astype(int)
         pos = s.get(END_POSE_ENUM, t=t).round(3)
@@ -744,6 +755,7 @@ class RobotAgent(TAMPAgent):
         sample.set(STATE_ENUM, mp_state, t)
         sample.set(DONE_ENUM, np.zeros(1), t)
         sample.set(TASK_DONE_ENUM, np.array([1, 0]), t)
+        sample.set(QPOS_ENUM, self.base_env.physics.data.qpos.copy(), t)
         if self.hist_len > 0:
             sample.set(TRAJ_HIST_ENUM, self._prev_U.flatten(), t)
             x_delta = self._x_delta[1:] - self._x_delta[:1]
@@ -901,6 +913,8 @@ class RobotAgent(TAMPAgent):
             if IM_ENUM in self._hyperparams['obs_include'] or \
                IM_ENUM in self._hyperparams['prim_obs_include']:
                 im = self.mjc_env.cur_obs['image']
+                if self.incl_init_obs:
+                    im = np.c_[im, self.mjc_env.init_obs['image']]
                 im = (im - 128.) / 128.
                 sample.set(IM_ENUM, im.flatten(), t)
 
@@ -1468,4 +1482,23 @@ class RobotAgent(TAMPAgent):
         sample.set(TRUE_ROT_ENUM, sample.get(END_ROT_ENUM, t=t), t=t)
         return old_vals
 
+
+    def get_hist_info(self):
+        info = {'cur_obs': self.mjc_env.cur_obs,
+                'init_obs': self.mjc_env.init_obs,
+                'trans_obs': self.mjc_env.trans_obs,
+                'qpos': self.base_env.physics.data.qpos.copy(),
+                }
+        return info
+
+
+    def store_hist_info(self, info):
+        self.mjc_env.cur_obs = info['cur_obs']
+        self.mjc_env.init_obs = info['init_obs']
+        self.mjc_env.trans_obs = info['trans_obs']
+
+    
+    def update_hist_info(self, info):
+        info['trans_obs'] = self.mjc_env.cur_obs
+        info['cur_obs'] = self.mjc_env.cur_obs
 

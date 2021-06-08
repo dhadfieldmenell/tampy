@@ -3,20 +3,22 @@ dom_str = """
 # Configuration file for CAN domain. Blank lines and lines beginning with # are filtered out.
 
 # implicity, all types require a name
-Types: Can, Target, RobotPose, Robot, Grasp, Obstacle, Rotation
+Types: Item, Target, RobotPose, Robot, Grasp, Obstacle, Rotation
 
 # Define the class location of each non-standard attribute type used in the above parameter type descriptions.
 
-Attribute Import Paths: RedCircle core.util_classes.items, BlueCircle core.util_classes.items, GreenCircle core.util_classes.items, Vector1d core.util_classes.matrix, Vector2d core.util_classes.matrix, Wall core.util_classes.items, NAMO core.util_classes.robots
+Attribute Import Paths: RedCircle core.util_classes.items, BlueCircle core.util_classes.items, GreenCircle core.util_classes.items, Vector1d core.util_classes.matrix, Vector2d core.util_classes.matrix, Wall core.util_classes.items, NAMO core.util_classes.robots; Sphere core.util_classes.items; Box core.util_classes.items
 
 Predicates Import Path: core.util_classes.namo_grip_predicates
 
+Subtypes: Can, Ball, Box - Item;
+
 """
 
-prim_pred_str = 'Primitive Predicates: geom, Can, RedCircle; pose, Can, Vector2d; geom, Target, BlueCircle; value, Target, Vector2d; value, RobotPose, Vector2d; gripper, RobotPose, Vector1d; geom, RobotPose, BlueCircle; geom, Robot, NAMO; pose, Robot, Vector2d; gripper, Robot, Vector1d; value, Grasp, Vector2d; geom, Obstacle, Wall; pose, Obstacle, Vector2d; value, Rotation, Vector1d; theta, Robot, Vector1d; theta, RobotPose, Vector1d; vel, RobotPose, Vector1d; acc, RobotPose, Vector1d; vel, Robot, Vector1d; acc, Robot, Vector1d'
+prim_pred_str = 'Primitive Predicates: geom, Item, RedCircle; pose, Item, Vector2d; geom, Target, BlueCircle; value, Target, Vector2d; value, RobotPose, Vector2d; gripper, RobotPose, Vector1d; geom, RobotPose, BlueCircle; geom, Robot, NAMO; pose, Robot, Vector2d; gripper, Robot, Vector1d; value, Grasp, Vector2d; geom, Obstacle, Wall; pose, Obstacle, Vector2d; value, Rotation, Vector1d; theta, Robot, Vector1d; theta, RobotPose, Vector1d; vel, RobotPose, Vector1d; acc, RobotPose, Vector1d; vel, Robot, Vector1d; acc, Robot, Vector1d; geom, Ball, Sphere; geom, Box, Box'
 dom_str += prim_pred_str + '\n\n'
 
-der_pred_str = 'Derived Predicates: At, Can, Target; AtInit, Can, Target; RobotAt, Robot, RobotPose; InGripper, Robot, Can, Grasp; Obstructs, Robot, Can, Can, Can; ObstructsHolding, Robot, Target, Target, Can, Can; WideObstructsHolding, Robot, Target, Target, Can, Can; StationaryRot, Robot; Stationary, Can; RobotStationary, Robot; StationaryNEq, Can, Can; IsMP, Robot; StationaryW, Obstacle; Collides, Can, Obstacle; RCollides, Robot, Obstacle; GripperClosed, Robot; Near, Can, Target;  RobotAtGrasp, Robot, Can, Grasp; RobotWithinReach, Robot, Target; RobotNearGrasp, Robot, Can, Grasp; RobotWithinBounds, Robot; WideObstructs, Robot, Can, Can, Can; AtNEq, Can, Can, Target; PoseCollides, RobotPose, Obstacle; TargetCollides, Target, Obstacle; TargetGraspCollides, Target, Obstacle, Grasp; TargetCanGraspCollides, Target, Can, Grasp; CanGraspCollides, Can, Obstacle, Grasp; HLPoseUsed, RobotPose; HLAtGrasp, Robot, Can, Grasp; RobotPoseAtGrasp, RobotPose, Target, Grasp; HLPoseAtGrasp, RobotPose, Target, Grasp; RobotRetreat, Robot, Grasp; RobotApproach, Robot, Grasp; LinearRetreat, Robot; LinearApproach, Robot; InGraspAngle, Robot, Can; NearGraspAngle, Robot, Can; TargNearGraspAngle, Robot, Target; AroundGraspAngle, Robot, Can; ThetaDirValid, Robot; ForThetaDirValid, Robot; RevThetaDirValid, Robot; ScalarVelValid, Robot; HLGraspFailed, Can; HLTransferFailed, Can, Target; HLPlaceFailed, Target; ApproachGraspAngle, Robot, Target'
+der_pred_str = 'Derived Predicates: At, Item, Target; AtInit, Item, Target; RobotAt, Robot, RobotPose; InGripper, Robot, Item, Grasp; Obstructs, Robot, Item, Item, Item; ObstructsHolding, Robot, Target, Target, Item, Item; WideObstructsHolding, Robot, Target, Target, Item, Item; StationaryRot, Robot; Stationary, Item; RobotStationary, Robot; StationaryNEq, Item, Item; IsMP, Robot; StationaryW, Obstacle; Collides, Item, Obstacle; RCollides, Robot, Obstacle; GripperClosed, Robot; Near, Item, Target;  RobotAtGrasp, Robot, Item, Grasp; RobotWithinReach, Robot, Target; RobotNearGrasp, Robot, Item, Grasp; RobotWithinBounds, Robot; WideObstructs, Robot, Item, Item, Item; AtNEq, Item, Item, Target; PoseCollides, RobotPose, Obstacle; TargetCollides, Target, Obstacle; TargetGraspCollides, Target, Obstacle, Grasp; TargetCanGraspCollides, Target, Item, Grasp; CanGraspCollides, Item, Obstacle, Grasp; HLPoseUsed, RobotPose; HLAtGrasp, Robot, Item, Grasp; RobotPoseAtGrasp, RobotPose, Target, Grasp; HLPoseAtGrasp, RobotPose, Target, Grasp; RobotRetreat, Robot, Grasp; RobotApproach, Robot, Grasp; LinearRetreat, Robot; LinearApproach, Robot; InGraspAngle, Robot, Item; NearGraspAngle, Robot, Item; TargNearGraspAngle, Robot, Target; AroundGraspAngle, Robot, Item; ThetaDirValid, Robot; ForThetaDirValid, Robot; RevThetaDirValid, Robot; ScalarVelValid, Robot; HLGraspFailed, Item; HLTransferFailed, Item, Target; HLPlaceFailed, Target; ApproachGraspAngle, Robot, Target'
 dom_str += der_pred_str + '\n'
 
 dom_str += """
@@ -61,13 +63,13 @@ class MoveTo(Action):
                 #('(At ?can ?target)', '{}:{}'.format(1, et)),
                 ('(forall (?obj - Can) (not (NearGraspAngle ?robot ?obj)))', '0:0'),
                 ('(not (GripperClosed ?robot))', '1:{0}'.format(et-1)),
-                ('(forall (?obj - Can) (Stationary ?obj))', '0:{0}'.format(et-1)),
+                ('(forall (?obj - Item) (Stationary ?obj))', '0:{0}'.format(et-1)),
                 ('(forall (?w - Obstacle) (StationaryW ?w))', '0:{0}'.format(et-1)),
                 ('(IsMP ?robot)', '0:{0}'.format(et-1)),
                 ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '1:{0}'.format(et-2)),
-                ('(forall (?obj - Can) (not (Obstructs ?robot ?can ?can ?obj)))', '0:1'),
-                ('(forall (?obj - Can) (not (WideObstructs ?robot ?can ?can ?obj)))', '2:{0}'.format(et-4)),
-                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?target ?target ?obj ?can)))', '{0}:{1}'.format(et-4, et-1)),
+                ('(forall (?obj - Item) (not (Obstructs ?robot ?can ?can ?obj)))', '0:1'),
+                ('(forall (?obj - Item) (not (WideObstructs ?robot ?can ?can ?obj)))', '2:{0}'.format(et-4)),
+                ('(forall (?obj - Item) (not (ObstructsHolding ?robot ?target ?target ?obj ?can)))', '{0}:{1}'.format(et-4, et-1)),
         ]
         self.eff = [\
                 ('(NearGraspAngle ?robot ?can)', '{0}:{1}'.format(et, et)),
@@ -75,7 +77,7 @@ class MoveTo(Action):
                 ('(forall (?targ - Target) (not (TargNearGraspAngle ?robot ?targ)))', '{}:{}'.format(et, et-1)),
                 ('(forall (?obj - Can / ?can) (not (NearGraspAngle ?robot ?obj)))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can / ?can) (not (InGraspAngle ?robot ?obj)))', '{0}:{1}'.format(et, et-1)),
-                ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Item) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
                 ('(StationaryRot ?robot)', '{0}:{1}'.format(et-4, et-1)),
                 ('(ForThetaDirValid ?robot)', '{0}:{1}'.format(et-4, et-1)),
         ]
@@ -97,12 +99,12 @@ class Transfer(Action):
                 ('(InGraspAngle ?robot ?c)', '0:0'),
                 ('(GripperClosed ?robot)', '1:{0}'.format(et-1)),
                 ('(InGraspAngle ?robot ?c)', '{0}:{0}'.format(et)),
-                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?t ?t ?obj ?c)))', '0:{0}'.format(0)),
-                ('(forall (?obj - Can) (not (WideObstructsHolding ?robot ?t ?t ?obj ?c)))', '2:{0}'.format(et-2)),
-                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?t ?t ?obj ?c)))', '1:{0}'.format(et-2)),
-                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?t ?t ?obj ?c)))', '{0}:{0}'.format(et-1)),
+                ('(forall (?obj - Item) (not (ObstructsHolding ?robot ?t ?t ?obj ?c)))', '0:{0}'.format(0)),
+                ('(forall (?obj - Item) (not (WideObstructsHolding ?robot ?t ?t ?obj ?c)))', '2:{0}'.format(et-2)),
+                ('(forall (?obj - Item) (not (ObstructsHolding ?robot ?t ?t ?obj ?c)))', '1:{0}'.format(et-2)),
+                ('(forall (?obj - Item) (not (ObstructsHolding ?robot ?t ?t ?obj ?c)))', '{0}:{0}'.format(et-1)),
                 # ('(forall (?obj - Can ) (not (Obstructs ?robot ?init ?t ?obj)))', '0:0'),
-                ('(forall (?obj - Can) (StationaryNEq ?obj ?c))', '0:{0}'.format(et-1)), 
+                ('(forall (?obj - Item) (StationaryNEq ?obj ?c))', '0:{0}'.format(et-1)), 
                 ('(forall (?w - Obstacle) (StationaryW ?w))', '0:{0}'.format(et-1)), 
                 ('(IsMP ?robot)', '0:{0}'.format(et-1)),
                 ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '2:{0}'.format(et-1)),
@@ -118,11 +120,11 @@ class Transfer(Action):
                 ('(forall (?targ - Target / ?t) (not (At ?c ?targ)))', '{}:{}'.format(et,et-1)),
                 ('(not (Near ?c ?init))', '{0}:{1}'.format(et, et-1)),
                 ('(not (At ?c ?init))', '{0}:{1}'.format(et, et-1)),
-                ('(forall (?obj - Can) (not (Obstructs ?robot ?obj ?obj ?c)))', '{0}:{1}'.format(et, et-1)),
-                ('(forall (?obj - Can) (not (WideObstructs ?robot ?obj ?obj ?c)))', '{0}:{1}'.format(et, et-1)),
-                ('(forall (?obj - Can) (forall (?targ - Target) (not (WideObstructsHolding ?robot ?targ ?targ ?c ?obj))))', '{0}:{1}'.format(et, et-1)),
-                ('(forall (?obj - Can) (forall (?targ - Target) (not (ObstructsHolding ?robot ?targ ?targ ?c ?obj))))', '{0}:{1}'.format(et, et-1)),
-                ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Item) (not (Obstructs ?robot ?obj ?obj ?c)))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Item) (not (WideObstructs ?robot ?obj ?obj ?c)))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Item) (forall (?targ - Target) (not (WideObstructsHolding ?robot ?targ ?targ ?c ?obj))))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Item) (forall (?targ - Target) (not (ObstructsHolding ?robot ?targ ?targ ?c ?obj))))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Item) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
                 ('(TargNearGraspAngle ?robot ?t)', '{}:{}'.format(et, et)),
                 ('(forall (?targ - Target / ?t) (not (TargNearGraspAngle ?robot ?t)))', '{}:{}'.format(et, et-1)),
         ]
@@ -143,10 +145,10 @@ class Place(Action):
                 ('(not (GripperClosed ?robot))', '1:{0}'.format(et-1)),
                 ('(TargNearGraspAngle ?robot ?t)', '0:0'),
                 ('(NearGraspAngle ?robot ?c)', '0:-1'),
-                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?t ?t ?obj ?c)))', '0:{0}'.format(et-3)),
+                ('(forall (?obj - Item) (not (ObstructsHolding ?robot ?t ?t ?obj ?c)))', '0:{0}'.format(et-3)),
                 #('(forall (?obj - Can) (not (ObstructsHolding ?robot ?t ?t ?obj ?c)))', '0:{0}'.format(0)),
-                ('(forall (?obj - Can ) (not (Obstructs ?robot ?c ?c ?obj)))', '4:{0}'.format(et-1)),
-                ('(forall (?obj - Can) (Stationary ?obj))', '0:{0}'.format(et-1)), 
+                ('(forall (?obj - Item ) (not (Obstructs ?robot ?c ?c ?obj)))', '4:{0}'.format(et-1)),
+                ('(forall (?obj - Item) (Stationary ?obj))', '0:{0}'.format(et-1)), 
                 ('(forall (?w - Obstacle) (StationaryW ?w))', '0:{0}'.format(et-1)), 
                 ('(IsMP ?robot)', '0:{0}'.format(et-1)),
                 ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '1:{0}'.format(et-1)),
@@ -166,7 +168,7 @@ class Place(Action):
                 ('(forall (?obj - Can) (not (InGraspAngle ?robot ?obj)))', '{0}:{1}'.format(et, et)),
                 ('(forall (?targ - Target) (not (TargNearGraspAngle ?robot ?targ)))', '{}:{}'.format(et, et)),
                 ('(ApproachGraspAngle ?robot ?t)', '{}:{}'.format(et, et)),
-                ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Item) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
         ]
 
 

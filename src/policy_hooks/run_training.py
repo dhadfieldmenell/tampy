@@ -353,6 +353,9 @@ def argsparser():
     parser.add_argument('-cont_image', '--add_cont_image', action='store_true', default=False)
     parser.add_argument('-imwidth', '--image_width', type=int, default=64)
     parser.add_argument('-imheight', '--image_height', type=int, default=64)
+    parser.add_argument('-imchannels', '--image_channels', type=int, default=3)
+    parser.add_argument('-init_obs', '--incl_init_obs', action='store_true', default=False)
+    parser.add_argument('-trans_obs', '--incl_transition_obs', action='store_true', default=False)
 
     # HL args
     parser.add_argument('-check_t', '--check_prim_t', type=int, default=1)

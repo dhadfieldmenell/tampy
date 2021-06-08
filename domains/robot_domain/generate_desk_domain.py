@@ -200,10 +200,14 @@ dp.add('EEReachableLeft', ['Robot', 'Reachable'])
 dp.add('EEReachableRight', ['Robot', 'Reachable'])
 dp.add('EEApproachLeft', ['Robot', 'Reachable'])
 dp.add('EEApproachRight', ['Robot', 'Reachable'])
+dp.add('EEApproachAbsLeft', ['Robot', 'Reachable'])
+dp.add('EEApproachAbsRight', ['Robot', 'Reachable'])
 dp.add('EEApproachStackLeft', ['Robot', 'Reachable', 'Reachable'])
 dp.add('EEApproachStackRight', ['Robot', 'Reachable', 'Reachable'])
 dp.add('EERetreatLeft', ['Robot', 'Reachable'])
 dp.add('EERetreatRight', ['Robot', 'Reachable'])
+dp.add('EERetreatAbsLeft', ['Robot', 'Reachable'])
+dp.add('EERetreatAbsRight', ['Robot', 'Reachable'])
 dp.add('EERetreatStackLeft', ['Robot', 'Reachable', 'Reachable'])
 dp.add('EERetreatStackRight', ['Robot', 'Reachable', 'Reachable'])
 dp.add('EEAtXYLeft', ['Robot', 'Reachable'])
@@ -694,7 +698,8 @@ class PutdownRight(PutdownArm):
 class Hold(Action):
     def __init__(self):
         self.name = 'hold'
-        self.timesteps = 5 + const.EEREACHABLE_STEPS
+        self.timesteps = 7 + const.EEREACHABLE_STEPS
+        #self.timesteps = 9 + const.EEREACHABLE_STEPS
         end = self.timesteps - 1
         self.end = end
         self.args = '(?robot - Robot ?item - Reachable ?target - Reachable)'
@@ -734,8 +739,9 @@ class HoldArm(Hold):
                         ('(not (InGripperLeft ?robot ?item))', '0:0'),
                         ('(not (NearGripperRight ?robot ?item))', '0:0'),
                         ('(not (NearGripperLeft ?robot ?item))', '0:0'),
-                        ('(EEApproach{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time, self.grasp_time)),
-                        ('(EEAt{}Rot ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time-steps, self.grasp_time)),
+                        #('(EEApproachAbs{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time, self.grasp_time)),
+                        ('(EEApproachAbs{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time, self.grasp_time)),
+                        ('(EEAt{}Rot ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time-steps-2, self.grasp_time)),
                         ('(OpenGripper{} ?robot)'.format(arm), '{0}:{1}'.format(1,self.grasp_time)),
                         #('(NearGripper{} ?robot ?item)'.format(arm), '{0}:{1}'.format(self.grasp_time, self.end-1)),
                         ('(forall (?obj - Item) (not (InGripper{} ?robot ?obj)))'.format(arm), '0:{}'.format(-1)),
@@ -819,7 +825,7 @@ class LiftArm(Lift):
                         ])
 
         self.eff.extend([#('(InGripper{} ?robot ?item)'.format(arm), '{0}:{1}'.format(self.end, self.end-1)),
-                         ('(NearGripper{} ?robot ?item)'.format(arm), '{0}:{1}'.format(self.end, self.end)),
+                         #('(NearGripper{} ?robot ?item)'.format(arm), '{0}:{1}'.format(self.end, self.end)),
                          #('(NearApproach{} ?robot ?target)'.format(arm), '{0}:{1}'.format(self.end, self.end-1)),
                         ])
 

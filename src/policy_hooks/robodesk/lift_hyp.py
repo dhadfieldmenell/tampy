@@ -109,6 +109,7 @@ algorithm['mp_policy_prior'] = {
 def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.GOAL_OPTIONS = [
                 '(Lifted ball panda)',
+                #'(Lifted upright_block panda)',
                 ]
     prob.NUM_OBJS = no
     prob.NUM_TARGS = nt
@@ -165,7 +166,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                              utils.ONEHOT_GOAL_ENUM,
                              utils.RIGHT_EE_POS_ENUM,
                              utils.RIGHT_EE_ROT_ENUM,
-                             utils.RIGHT_ENUM,
+                             #utils.RIGHT_ENUM,
                              utils.RIGHT_VEL_ENUM,
                              utils.RIGHT_GRIPPER_ENUM,
                              utils.GRIP_CMD_ENUM,
@@ -199,6 +200,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.RIGHT_VEL_ENUM: 7,
                 utils.RIGHT_GRIPPER_ENUM: 2,
                 utils.GRIP_CMD_ENUM: 2,
+                utils.QPOS_ENUM: 38,
                 # utils.INIT_OBJ_POSE_ENUM: 2,
             },
         'time_limit': TIME_LIMIT,

@@ -71,7 +71,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.action_inds = self._hyperparams['action_inds']
         self.image_width = hyperparams.get('image_width', utils.IM_W)
         self.image_height = hyperparams.get('image_height', utils.IM_H)
-        self.image_channels = 3
+        self.image_channels = hyperparams.get('image_channels', utils.IM_C)
         self.dU = self._hyperparams['dU']
         self.symbolic_bound = self._hyperparams['symbolic_bound']
         self.solver = self._hyperparams['solver']
@@ -79,6 +79,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.num_objs = self._hyperparams['num_objs']
         self.rlen = 4 + 2 * self.num_objs * len(self.task_list)
         self.hor = 20
+        self._eval_mode = False
         self.retime = hyperparams['master_config'].get('retime', False)
         if self.retime: self.rlen *= 2
         self.init_vecs = self._hyperparams['x0']
@@ -155,6 +156,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.prim_dims_keys = list(self.prim_dims.keys())
         self.permute_hl = self.master_config.get('permute_hl', False)
         self.opt_wt = self.master_config['opt_wt']
+        self.incl_init_obs = self.master_config.get('incl_init_obs', False)
+        self.incl_transition_obs = self.master_config.get('incl_transition_obs', False)
 
         # TAMP solver info
         bt_ll.COL_COEFF = self.master_config['col_coeff']
@@ -833,7 +836,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return self.backtrack_solve(plan, anum=anum, n_resamples=n_resamples, st=st)
 
 
-    def backtrack_solve(self, plan, anum=0, n_resamples=5, x0=None, targets=None, rollout=False, traj=[], st=0, backup=False, label=None, permute=False, verbose=False):
+    def backtrack_solve(self, plan, anum=0, n_resamples=5, x0=None, targets=None, rollout=False, traj=[], st=0, backup=False, label=None, permute=False, verbose=False, hist_info=None):
         # Handle to make PR Graph integration easier
         init_t = time.time()
         reset = True
@@ -877,12 +880,19 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
         smooth_cnts = []
         self.reset_to_state(x0)
+        if hist_info is not None:
+            self.store_hist_info(hist_info)
+        else:
+            hist_info = self.get_hist_info()
+
         for a in range(anum, len(plan.actions)):
             if permute:
                 perm_tasks, perm_targets, perm = self.permute_tasks(tasks, targets, plan)
 
             cur_x_hist = self._x_delta.copy()
+            self.update_hist_info(hist_info)
             self.reset_to_state(x0)
+            self.store_hist_info(hist_info)
             success = False
             act_ts = plan.actions[a].active_timesteps
             act_st, act_et = act_ts
@@ -925,12 +935,15 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 rollout_success = True
                 #next_x0 = ref_traj[-1]
                 next_x0 = sample.end_state if last_t is None else sample.get_X(t=last_t)
+                if last_t is None: last_t = sample.T-1
                 ref_x0 = next_x0.copy()
                 ref_x0 = self.clip_state(ref_x0)
                 path.append(sample)
                 sample._postsuc = True
                 sample.success = 1. - self.goal_f(0, next_x0, targets)
+                self.reset_to_state(next_x0)
                 set_params_attrs(plan.params, self.state_inds, ref_x0, act_et, plan=plan)
+                self._x_delta[:] = sample.get(STATE_HIST_ENUM, t=last_t).reshape(self._x_delta.shape)
             else:
                 set_params_attrs(plan.params, self.state_inds, prev_x0, act_st, plan=plan)
                 self.set_symbols(plan, task, anum=a, st=act_st, targets=targets)
@@ -963,7 +976,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                     #print('FAILED INFO:', plan.actions[a], state_dict, plan.get_failed_preds((act_st, act_st)), '\n\n\n')
                     return False, False, path, info
 
-                next_path, next_x0 = self.run_action(plan, a, x0, perm_targets, perm_task, act_st, reset=True, save=True, record=True, perm=perm, prev_hist=cur_x_hist)
+                next_path, next_x0 = self.run_action(plan, a, x0, perm_targets, perm_task, act_st, reset=True, save=True, record=True, perm=perm, prev_hist=cur_x_hist, hist_info=hist_info)
                 for sample in next_path:
                     sample.opt_strength = 1.
                     sample.source_label = label
@@ -998,89 +1011,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return success, True, path, info
 
 
-    def run_plan(self, plan, targets, tasks=None, reset=True, permute=False, save=True, amin=0, amax=None, record=True, wt=1., start_ts=0, verbose=False, label=None, env_state=None, x0=None, base_x0=None):
-        if record: self.n_plans_run += 1
-        path = []
-        log_info = {}
-        for taskname in self.task_list:
-            log_info['{}_opt_rollout_success'.format(taskname)] = []
-        start_ts = int(start_ts)
-        nzero = self.master_config.get('add_noop', 0)
-        if tasks is None:
-            tasks = self.encode_plan(plan)
-
-        if x0 is None:
-            x0 = np.zeros_like(self.x0[0])
-            fill_vector(plan.params, self.state_inds, x0, start_ts)
-
-        if base_x0 is None:
-            base_x0 = x0.copy()
-
-        perm = {}
-        old_x0 = x0.copy()
-        old_targets = targets
-        if permute:
-            tasks, targets, perm = self.permute_tasks(tasks, targets, plan)
-            for pname, aname in self.state_inds:
-                if pname in perm:
-                    x0[self.state_inds[perm[pname], aname]] = getattr(plan.params[pname], aname)[:,start_ts]
-        if reset:
-            self.reset_to_state(x0)
-
-        if amax is None:
-            amax = len(plan.actions)-1
-
-        x0s = []
-        for a in range(amin, amax+1):
-            next_path, next_x0 = self.run_action(plan, a, x0, targets, tasks[a], start_ts, reset, save, record, perm, add_noop=True)
-            path.extend(next_path)
-            for _ in range(len(next_path)):
-                x0s.append(x0)
-            x0 = next_x0
-
-        for sample in path:
-            sample.source_label = label
-
-        for ind, s in enumerate(path):
-            s._postsuc = False
-            end_s = [next_s for next_s in path[ind:] if next_s.task_end]
-            end_s = end_s[0] if len(end_s) else path[-1]
-            cost = self.postcond_cost(end_s, end_s.task, end_s.T-1, debug=False, x0=x0s[ind])
-            if cost < 1e-3:
-                s._postsuc = True
-
-        if label.find('dagger') >= 0 and self.dagger_window > 0:
-            path[0].success = path[-1].success
-            path = path[:1]
-            path[0].use_ts[self.dagger_window:] = 0.
-            path[0].prim_use_ts[self.dagger_window:] = 0.
-
-        if len(path) and path[-1].success > 0.99:
-            for sample in path: sample.opt_strength = 1.
-            if save: self.add_task_paths([path])
-            if record: self.n_plans_suc_run += 1
-        else:
-            print('Failed rollout of plan')
-
-        if len(path):
-            for ind, s in enumerate(path):
-                end_s = [next_s for next_s in path[ind:] if next_s.task_end]
-                end_s = end_s[0] if len(end_s) else path[-1]
-                cost = self.postcond_cost(end_s, end_s.task, end_s.T-1, debug=False, x0=x0s[ind])
-
-                if cost < 1e-3:
-                    self.optimal_samples[self.task_list[s.task[0]]].append(s)
-                    log_info['{}_opt_rollout_success'.format(self.task_list[s.task[0]])].append(1)
-                elif path[-1].success > 0.99:
-                    if ind == 0:
-                        print('Adding path w/postcond failure?', self.task_list[s.task[0]], self.process_id)
-                    log_info['{}_opt_rollout_success'.format(self.task_list[s.task[0]])].append(0)
-                    #self.optimal_samples[self.task_list[s.task[0]]].append(s)
-        print(('Plans run vs. success:', self.n_plans_run, self.n_plans_suc_run, self.process_id))
-        return path, log_info
-
-
-    def run_action(self, plan, anum, x0, targets, task, start_ts=0, end_ts=None, reset=True, save=True, record=True, perm={}, base_x0=None, add_noop=True, prev_hist=None):
+    def run_action(self, plan, anum, x0, targets, task, start_ts=0, end_ts=None, reset=True, save=True, record=True, perm={}, base_x0=None, add_noop=True, prev_hist=None, hist_info=None):
         x0 = x0.copy()
         static_x0 = x0.copy()
         start_ts = int(start_ts)
@@ -1116,6 +1047,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
         if reset: self.reset_to_state(x0)
         self._x_delta[:] = cur_hist
+        if hist_info is not None:
+            self.store_hist_info(hist_info)
 
         cur_len = len(path)
         if self.retime:
@@ -1262,37 +1195,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             if plan.params[pname].is_symbol(): continue
             x0[self.state_inds[pname, aname]] = getattr(plan.params[pname], aname)[:,0]
         return x0
-
-
-    def resample_hl_plan(self, plan, targets, n=5):
-        x0s, _ = self.prob.get_random_initial_state_vec(self.config, None, self.symbolic_bound, self.state_inds, n)
-        nsuc = 0
-        for x0 in x0s:
-            for pname, aname in self.state_inds:
-                plan.params['robot_init_pose'].value[:,0] = x0[self.state_inds['pr2', 'pose']]
-                if plan.params[pname].is_symbol(): continue
-                getattr(plan.params[pname], aname)[:,0] = x0[self.state_inds[pname, aname]]
-                plan.params[pname]._free_attrs[aname][:,0] = 1.
-                if '{0}_init_target'.format(pname) in plan.params:
-                    plan.params['{0}_init_target'.format(pname)].value[:,0] = x0[self.state_inds[pname, aname]]
-            suc = self.solver.solve(plan, traj_mean=np.array(x0).reshape((1,-1)), active_ts=(0,0))
-            for pname, aname in self.state_inds:
-                if plan.params[pname].is_symbol(): continue
-                x0[self.state_inds[pname, aname]] = getattr(plan.params[pname], aname)[:,0]
-            assert len(plan.get_failed_preds(active_ts=(0,0), tol=1e-3)) == 0
-            try:
-                success = self.solver._backtrack_solve(plan)
-            except Exception as e:
-                print(('Failed in resample of hl', e))
-                success = False
-            if success:
-                nsuc += 1
-                path = self.run_plan(plan, targets=targets)
-                print(('RESAMPLED!', nsuc))
-            else:
-                print(('Failed to resample', plan.get_failed_preds(), x0))
-        print(('Generated', x0s, 'for', plan.actions, 'success:', nsuc))
-        return x0s
 
 
     def _failed_preds(self, Xs, task, condition, active_ts=None, debug=False, targets=[], tol=1e-3, x0=None):
@@ -1556,4 +1458,13 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.image_height = old_h
         self.image_width = old_w
 
+
+    def get_hist_info(self):
+        return {}
+
+    def store_hist_info(self, info):
+        return
+
+    def update_hist_info(self, info):
+        return
 
