@@ -741,7 +741,7 @@ class HoldArm(Hold):
                         ('(not (NearGripperLeft ?robot ?item))', '0:0'),
                         #('(EEApproachAbs{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time, self.grasp_time)),
                         ('(EEApproachAbs{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time, self.grasp_time)),
-                        ('(EEAt{}Rot ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time-steps-2, self.grasp_time)),
+                        ('(EEAt{}Rot ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time-steps-3, self.grasp_time)),
                         ('(OpenGripper{} ?robot)'.format(arm), '{0}:{1}'.format(1,self.grasp_time)),
                         #('(NearGripper{} ?robot ?item)'.format(arm), '{0}:{1}'.format(self.grasp_time, self.end-1)),
                         ('(forall (?obj - Item) (not (InGripper{} ?robot ?obj)))'.format(arm), '0:{}'.format(-1)),

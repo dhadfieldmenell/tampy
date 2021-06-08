@@ -3514,9 +3514,9 @@ class Lifted(ExprPredicate):
         A = np.array([[-1.]])
 
         if self.obj.name.lower().find('upright') >= 0:
-            b = 0.9 * np.ones((1,1))
+            b = 0.92 * np.ones((1,1))
         else:
-            b = 0.85 * np.ones((1,1))
+            b = 0.88 * np.ones((1,1))
         val = np.zeros((1,1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)

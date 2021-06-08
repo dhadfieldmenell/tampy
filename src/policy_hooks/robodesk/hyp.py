@@ -155,7 +155,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                         #utils.END_ROT_ENUM,
                         utils.RIGHT_ENUM,
                         utils.RIGHT_VEL_ENUM,
-                        #utils.RIGHT_EE_POS_ENUM,
+                        utils.RIGHT_EE_POS_ENUM,
                         utils.RIGHT_GRIPPER_ENUM,
                         utils.GRIP_CMD_ENUM,
                         utils.OBJ_ENUM,

@@ -38,9 +38,9 @@ from policy_hooks.tamp_agent import TAMPAgent
 
 
 const.NEAR_GRIP_COEFF = 5e-2 # 2.2e-2 # 1.8e-2 # 2e-2
-const.NEAR_APPROACH_COEFF = 8e-3
+const.NEAR_APPROACH_COEFF = 7e-3 # 8e-3
 const.NEAR_APPROACH_ROT_COEFF = 1e-3
-const.GRASP_DIST = 0.14 # 0.18
+const.GRASP_DIST = 0.16 # 0.18
 const.APPROACH_DIST = 0.0125 # 0.02
 const.RETREAT_DIST = 0.0125 # 0.02
 const.EEREACHABLE_COEFF = 1e-1 # 3e-2 # 2e-2
@@ -302,7 +302,7 @@ class EnvWrapper():
 
         if item_name.find('ball') >= 0:
             #quat = T.euler_to_quaternion([0., -0.8, 1.57], 'wxyz')
-            quat = T.euler_to_quaternion([0., 0.9, -1.57], 'wxyz')
+            quat = T.euler_to_quaternion([0., 1.0, -1.57], 'wxyz')
 
         if item_name.find('button') >= 0:
             pos[1] -= 0.035
@@ -407,10 +407,10 @@ class EnvWrapper():
                     self.env.physics.data.ctrl[0:9] = joint_position[0:9]
                     # Ensure gravity compensation stays enabled.
                     self.env.physics.data.qfrc_applied[0:9] = self.physics.data.qfrc_bias[0:9]
-                    #if self.env.physics.data.ctrl[7] > 0.02:
-                    #    self.env.physics.named.data.xfrc_applied['ball'][2] = -10.
-                    #else:
-                    #    self.env.physics.named.data.xfrc_applied['ball'][2] = 0.
+                    if self.env.physics.data.ctrl[-1] > 0.03:
+                        self.env.physics.named.data.xfrc_applied['ball'][2] = -10.
+                    else:
+                        self.env.physics.named.data.xfrc_applied['ball'][2] = 1.
 
                     self.env.physics.step()
                     self.env.physics_copy.data.qpos[:] = self.physics.data.qpos[:]

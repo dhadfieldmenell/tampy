@@ -1,7 +1,7 @@
 import numpy as np
 
 
-MAX_BUFFER = 50000
+MAX_BUFFER = 40000
 MIN_BUFFER = 1000
 
 class DataBuffer(object):

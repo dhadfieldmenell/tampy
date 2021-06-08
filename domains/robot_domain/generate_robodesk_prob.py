@@ -35,7 +35,7 @@ SHELF_POS = [0., 0.85, 0.]
 SHELF_ROT = [0., 0., 0.]
 SHELF_HANDLE_POS = (np.array(SHELF_POS) + const.SHELF_HANDLE_POS).tolist()
 
-DESK_BODY_GEOM = [0.575, 0.25, 0.01] # [0.6, 0.275, 0.025]
+DESK_BODY_GEOM = [0.575, 0.265, 0.01] # [0.6, 0.275, 0.025]
 DESK_BODY_POS = [0., 0.85, 0.735]
 DESK_BODY_ROT = [0, 0, 0]
 
