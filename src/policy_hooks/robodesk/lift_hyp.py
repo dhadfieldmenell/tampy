@@ -108,8 +108,8 @@ algorithm['mp_policy_prior'] = {
 
 def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.GOAL_OPTIONS = [
-                '(Lifted ball panda)',
-                #'(Lifted upright_block panda)',
+                #'(Lifted ball panda)',
+                '(Lifted upright_block panda)',
                 ]
     prob.NUM_OBJS = no
     prob.NUM_TARGS = nt

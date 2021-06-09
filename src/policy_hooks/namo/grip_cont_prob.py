@@ -134,7 +134,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         pr2_loc = None
         spacing = 2.
         valid = [1 for _ in range(len(can_locs))]
-        while len(locs) < config['num_objs'] + N_HUMANS + 1:
+        while len(locs) < config['num_objs'] + N_HUMAN + 1:
             locs = []
             random.shuffle(can_locs)
             pr2_loc = can_locs[0]

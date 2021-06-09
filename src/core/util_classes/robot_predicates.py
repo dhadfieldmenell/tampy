@@ -799,6 +799,8 @@ class PosePredicate(RobotPredicate):
         self.handle = []
 
         self.arm = params[0].geom.arms[0] # Default to first arm in the list
+        self.mask = np.ones((3,1))
+        self.axes = np.eye(3)
         self.mats = {}
         self.quats = {}
         self.inv_mats = {}
@@ -846,6 +848,10 @@ class PosePredicate(RobotPredicate):
         robot_pos = robot_trans[:3, 3]
         obj_pos = np.dot(obj_trans, np.r_[gp, 1])[:3]
         dist_val = (robot_pos - obj_pos).reshape((3,1))
+        if np.any(self.mask < 1):
+            base_dist = dist_val
+            rel_offset = self.mask.reshape((3,1)) * np.linalg.inv(obj_trans[:3,:3]).dot(dist_val)
+            dist_val = obj_trans[:3,:3].dot(rel_offset).round(4)
         return dist_val
 
     #@profile
@@ -2083,6 +2089,9 @@ class InGripper(PosePredicate):
         self.arm = self.robot.geom.arms[0]
         if not hasattr(self, 'coeff'): self.coeff = const.IN_GRIPPER_COEFF
         if not hasattr(self, 'rot_coeff'): self.rot_coeff = const.IN_GRIPPER_ROT_COEFF
+        if hasattr(params[1], 'geom') and hasattr(params[1].geom, 'near_coeff'):
+            self.coeff *= params[1].geom.near_coeff
+
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
         self.rel_pt = np.array(params[1].geom.grasp_point) if hasattr(params[1], 'geom') and hasattr(params[1].geom, 'grasp_point') else np.zeros(3)
@@ -2398,7 +2407,8 @@ class EEReachable(PosePredicate):
         for s in range(start, end+1):
             rel_pt = self.rel_pt + self.get_rel_pt(s)
             if self.eval_rel:
-                f_res.append(self.mask * self.coeff * self.rel_ee_pos_check_f(x[i:i+self.attr_dim], rel_pt))
+                obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x[i:i+self.attr_dim])
+                f_res.append(self.coeff * self.rel_ee_pos_check_f(x[i:i+self.attr_dim], rel_pt))
             else:
                 f_res.append(self.mask * self.coeff * self.abs_ee_pos_check_f(x[i:i+self.attr_dim], rel_pt))
             i += self.attr_dim
@@ -2428,9 +2438,9 @@ class EEReachable(PosePredicate):
         for s in range(start, end+1):
             rel_pt = self.rel_pt + self.get_rel_pt(s)
             if self.eval_rel:
-                grad[j:j+dim, i:i+self.attr_dim] = self.coeff * self.mask * self.rel_ee_pos_check_jac(x[i:i+self.attr_dim], rel_pt)
+                grad[j:j+dim, i:i+self.attr_dim] = self.coeff * self.rel_ee_pos_check_jac(x[i:i+self.attr_dim], rel_pt)
             else:
-                grad[j:j+dim, i:i+self.attr_dim] = self.coeff * self.mask * self.abs_ee_pos_check_jac(x[i:i+self.attr_dim], rel_pt)
+                grad[j:j+dim, i:i+self.attr_dim] = self.coeff * self.abs_ee_pos_check_jac(x[i:i+self.attr_dim], rel_pt)
             j += dim
             i += self.attr_dim
 
@@ -2601,10 +2611,43 @@ class ApproachLeft(EEReachableLeft):
     def get_rel_pt(self, rel_step):
         return -self.approach_dist*self.axis
 
+class EEAtXRelLeft(EEReachableLeft):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.coeff = const.EEATXY_COEFF
+        super(EEAtXRelLeft, self).__init__(name, params, expected_param_types, env=env, debug=debug, steps=0)
+        self.mask = np.array([1., 0., 0.]).reshape((3,1))
+        self.approach_dist = const.GRASP_DIST
+        self.eval_rel = True
+
+    def get_rel_pt(self, rel_step):
+        return np.zeros(3)
+
+class EEAtYRelLeft(EEReachableLeft):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.coeff = const.EEATXY_COEFF
+        super(EEAtYRelLeft, self).__init__(name, params, expected_param_types, env=env, debug=debug, steps=0)
+        self.mask = np.array([0., 1., 0.]).reshape((3,1))
+        self.approach_dist = const.GRASP_DIST
+        self.eval_rel = True
+
+    def get_rel_pt(self, rel_step):
+        return np.zeros(3)
+
+class EEAtZRelLeft(EEReachableLeft):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.coeff = const.EEATXY_COEFF
+        super(EEAtZRelLeft, self).__init__(name, params, expected_param_types, env=env, debug=debug, steps=0)
+        self.mask = np.array([0., 0., 1.]).reshape((3,1))
+        self.approach_dist = const.GRASP_DIST
+        self.eval_rel = True
+
+    def get_rel_pt(self, rel_step):
+        return np.zeros(3)
+
 class EEAtXYLeft(EEReachableLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.coeff = const.EEATXY_COEFF
-        super(EEAtXYLeft, self).__init__(name, params, expected_param_types, env, debug)
+        super(EEAtXYLeft, self).__init__(name, params, expected_param_types, env=env, debug=debug, steps=0)
         self.mask = np.array([1., 1., 0.]).reshape((3,1))
         self.approach_dist = const.GRASP_DIST
         self.eval_rel = False
@@ -2620,7 +2663,7 @@ class EEAtRelXYLeft(EEAtXYLeft):
 class EEAtXZLeft(EEAtXYLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.axis = np.array([0., -1., 0.])
-        super(EEAtXZLeft, self).__init__(name, params, expected_param_types, env, debug,)
+        super(EEAtXZLeft, self).__init__(name, params, expected_param_types, env, debug)
         self.mask = np.array([1., 0., 1.]).reshape((3,1))
 
 class EEAtRelXZLeft(EEAtXZLeft):
@@ -2764,6 +2807,39 @@ class NearApproachRightRot(ApproachRightRot):
         self.coeff = const.NEAR_APPROACH_ROT_COEFF
         super(NearApproachRightRot, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
+
+class EEAtXRelRight(EEReachableRight):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.coeff = const.EEATXY_COEFF
+        super(EEAtXRelRight, self).__init__(name, params, expected_param_types, env=env, debug=debug, steps=0)
+        self.mask = np.array([1., 0., 0.]).reshape((3,1))
+        self.approach_dist = const.GRASP_DIST
+        self.eval_rel = True
+
+    def get_rel_pt(self, rel_step):
+        return np.zeros(3)
+
+class EEAtYRelRight(EEReachableRight):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.coeff = const.EEATXY_COEFF
+        super(EEAtYRelRight, self).__init__(name, params, expected_param_types, env=env, debug=debug, steps=0)
+        self.mask = np.array([0., 1., 0.]).reshape((3,1))
+        self.approach_dist = const.GRASP_DIST
+        self.eval_rel = True
+
+    def get_rel_pt(self, rel_step):
+        return np.zeros(3)
+
+class EEAtZRelRight(EEReachableRight):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.coeff = const.EEATXY_COEFF
+        super(EEAtZRelRight, self).__init__(name, params, expected_param_types, env=env, debug=debug, steps=0)
+        self.mask = np.array([0., 0., 1.]).reshape((3,1))
+        self.approach_dist = const.GRASP_DIST
+        self.eval_rel = True
+
+    def get_rel_pt(self, rel_step):
+        return np.zeros(3)
 
 class EEAtXYRight(EEReachableRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):

@@ -11,6 +11,7 @@ class Item(object):
         self._base_type = "item"
         self.col_links = set([-1])
         self.grasp_point = [0., 0., 0.]
+        self.near_coeff = 1.
 
     def get_types(self):
         return [self._type, self._base_type]
@@ -169,6 +170,7 @@ class Box(Obstacle):
         self.height = dim[2]
         z = max(0, self.height - 0.03)
         self.grasp_point = [0., 0., z]
+        self.near_coeff = 4e-1
 
 class Basket(Item):
     """

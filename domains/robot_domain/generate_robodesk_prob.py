@@ -94,10 +94,12 @@ def main():
     init_pos = [[0.15, 0.78, 0.85], [0.15, 0.63, 0.775], [-0.4, 0.7, 0.799], [-0.45, 0.59, 0.76], \
                 [-0.25, 0.59, 0.76], [-0.05, 0.59, 0.76], SHELF_HANDLE_POS, DRAWER_HANDLE_POS]
     dims = [[0.09, 0.023, 0.023], [0.08, 0.035, 0.015], [0.04], [0.035, 0.01], [0.035, 0.01], \
-            [0.035, 0.01], [0.01, 0.05], [0.01, 0.05]]
+            [0.035, 0.01], [0.01, 0.01, 0.01], [0.01, 0.01, 0.01]]
     item_types = []
     for item in items:
         if item.find('block') >= 0:
+            item_type = 'Box'
+        elif item.find('handle') >= 0:
             item_type = 'Box'
         elif item.find('ball') >= 0:
             item_type = 'Sphere'

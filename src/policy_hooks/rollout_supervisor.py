@@ -127,7 +127,7 @@ class RolloutSupervisor():
 
 
     def rollout(self, x, targets, node):
-        self.agent._eval_mode = True
+        self.agent._eval_mode = False
         self.agent.target_vecs[0] = targets
         self.agent.reset_to_state(x)
 

@@ -230,7 +230,6 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'policy_inf_coeff': algorithm['policy_inf_coeff'],
         'max_sample_queue': 5e2,
         'max_opt_sample_queue': 10,
-        'hl_plan_for_state': prob.hl_plan_for_state,
         'task_map_file': prob.mapping_file,
         'prob': prob,
         'get_vector': prob.get_vector,
@@ -263,23 +262,20 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'split_mcts_alg': True,
 
         'state_include': [utils.STATE_ENUM],
-        'obs_include': [#utils.LIDAR_ENUM,
+        'obs_include': [
                         utils.MJC_SENSOR_ENUM,
                         utils.TASK_ENUM,
-                        #utils.OBJ_POSE_ENUM,
-                        #utils.TARG_POSE_ENUM,
                         utils.END_POSE_ENUM,
+                        utils.VEL_ENUM,
                         utils.THETA_VEC_ENUM,
-                        # utils.GRASP_ENUM,
-                        #utils.TRAJ_HIST_ENUM,
-                        # utils.DONE_ENUM,
                         ],
         'prim_obs_include': [
                              utils.ONEHOT_GOAL_ENUM,
+                             utils.THETA_VEC_ENUM,
+                             utils.VEL_ENUM,
                              ],
         'val_obs_include': [utils.ONEHOT_GOAL_ENUM,
                             ],
-        #'prim_out_include': [utils.TASK_ENUM, utils.OBJ_ENUM, utils.TARG_ENUM, utils.GRASP_ENUM],
         'prim_out_include': discr_opts,
         'cont_obs_include': [opt for opt in discr_opts],
         'sensor_dims': {
@@ -320,7 +316,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'prim_first_wt': 1e1,
     }
 
-    config['prim_obs_include'].append(utils.EE_ENUM)
+    #config['prim_obs_include'].append(utils.EE_ENUM)
     #config['prim_obs_include'].append(utils.THETA_ENUM)
     for o in range(no):
         config['sensor_dims'][utils.OBJ_DELTA_ENUMS[o]] = 2

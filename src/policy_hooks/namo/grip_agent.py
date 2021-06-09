@@ -163,8 +163,10 @@ class NAMOGripAgent(NAMOSortingAgent):
             items.append({'name': 'wall{0}'.format(i), 'type': 'box', 'is_fixed': True, 'pos': pos, 'dimensions': next_dim, 'rgba': (0.2, 0.2, 0.2, 1)})
 
         self.humans = {}
-        for human_id in range(prob.N_HUMAN):
+        self.human_trajs = {}
+        for human_id in range(self.prob.N_HUMAN):
             self.humans['human{}'.format(human_id)] = HUMAN_TARGS[np.random.randint(len(HUMAN_TARGS))]
+            self.human_trajs['human{}'.format(human_id)] = np.zeros(2) 
             items.append({'name': 'human{}'.format(human_id),
                           'type': 'sphere',
                           'is_fixed': False,
@@ -181,100 +183,100 @@ class NAMOGripAgent(NAMOSortingAgent):
         self.targ_labels.update({i: self.targets[0]['aux_target_{0}'.format(i-no)] for i in range(no, no+self.prob.n_aux)})
 
 
-    #def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None, policies=None):
-    #    assert not np.any(np.isnan(state))
-    #    start_t = time.time()
-    #    # self.reset_to_state(state)
-    #    x0 = state[self._x_data_idx[STATE_ENUM]].copy()
-    #    task = tuple(task)
-    #    onehot_task = tuple([val for val in task if np.isscalar(val)])
-    #    if self.discrete_prim:
-    #        plan = self.plans[onehot_task]
-    #    else:
-    #        plan = self.plans[task[0]]
-    #    if hor is None:
-    #        if task_f is None:
-    #            self.T = plan.horizon
-    #        else:
-    #            self.T = max([p.horizon for p in list(self.plans.values())])
-    #    else:
-    #        self.T = hor
-    #    sample = Sample(self)
-    #    sample.init_t = 0
-    #    col_ts = np.zeros(self.T)
+    def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None, policies=None):
+        x0 = state[self._x_data_idx[STATE_ENUM]].copy()
+        task = tuple(task)
+        onehot_task = tuple([val for val in task if np.isscalar(val)])
+        plan = self.plans[onehot_task] if onehot_task in self.plans else self.plans[task[0]]
 
-    #    prim_choices = self.prob.get_prim_choices(self.task_list)
-    #    target_vec = np.zeros((self.target_dim,))
+        if hor is None:
+            hor = plan.horizon if task_f is None else max([p.horizon for p in list(self.plans.values())])
 
-    #    n_steps = 0
-    #    end_state = None
-    #    cur_state = self.get_state() # x0
-    #    sample.task = task
-    #    for t in range(0, self.T):
-    #        noise_full = np.zeros((self.dU,))
-    #        self.fill_sample(condition, sample, cur_state, t, task, fill_obs=True)
-    #        if task_f is not None:
-    #            prev_task = task
-    #            task = task_f(sample, t, task)
-    #            onehot_task = tuple([val for val in task if np.isscalar(val)])
-    #            if onehot_task not in self.plans:
-    #                task = self.task_to_onehot[task[0]]
-    #            self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
-    #            taskname = self.task_list[task[0]]
-    #            if policies is not None: policy = policies[taskname]
+        self.T = hor
+        sample = Sample(self)
+        sample.init_t = 0
+        col_ts = np.zeros(self.T)
+        prim_choices = self.prob.get_prim_choices(self.task_list)
+        sample.targets = self.target_vecs[condition].copy()
+        n_steps = 0
+        end_state = None
+        cur_state = self.get_state() # x0
+        sample.task = task
 
-    #        X = cur_state.copy()
-    #        U_full = policy.act(X, sample.get_obs(t=t).copy(), t, noise_full)
-    #        U_nogrip = U_full.copy()
-    #        U_nogrip[self.action_inds['pr2', 'gripper']] = 0.
-    #        if np.all(np.abs(U_nogrip)) < 1e-2:
-    #            self._noops += 1
-    #            self.eta_scale = 1. / np.log(self._noops+2)
-    #        else:
-    #            self._noops = 0
-    #            self.eta_scale = 1.
-    #        if len(self._prev_U): self._prev_U = np.r_[self._prev_U[1:], [U_full]]
-    #        sample.set(NOISE_ENUM, noise_full, t)
-    #        # U_full = np.clip(U_full, -MAX_STEP, MAX_STEP)
-    #        suc, col = self.run_policy_step(U_full, cur_state)
-    #        objname = prim_choices[OBJ_ENUM][task[1]]
-    #        tname = prim_choices[TASK_ENUM][task[0]]
-    #        if tname.find('transfer') and len(self._col) == 1 and self._col[0] == objname:
-    #            col = 0
-    #        col_ts[t] = col
-    #        sample.set(ACTION_ENUM, U_full, t)
+        self.fill_sample(condition, sample, cur_state.copy(), 0, task, fill_obs=True)
+        for t in range(0, self.T):
+            noise_full = np.zeros((self.dU,))
+            self.fill_sample(condition, sample, cur_state.copy(), t, task, fill_obs=True)
+            if task_f is not None:
+                prev_task = task
+                task = task_f(sample, t, task)
+                onehot_task = tuple([val for val in task if np.isscalar(val)])
+                self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
+                taskname = self.task_list[task[0]]
+                if policies is not None: policy = policies[taskname]
+                self.fill_sample(condition, sample, cur_state.copy(), t, task, fill_obs=False)
 
-    #        new_state = self.get_state()
-    #        if len(self._x_delta)-1: self._x_delta = np.r_[self._x_delta[1:], [new_state]]
-    #        if len(self._prev_task)-1:
-    #            self._prev_task = np.r_[self._prev_task[1:], [sample.get_prim_out(t=t)]]
+            prev_vals = {}
+            if policies is not None and 'cont' in policies and \
+               len(self.continuous_opts):
+                prev_vals = self.fill_cont(policies['cont'], sample, t)
 
-    #        if np.all(np.abs(cur_state - new_state) < 1e-3):
-    #            sample.use_ts[t] = 0
+            if self.prob.N_HUMAN > 0:
+                self.solve_humans(policy, task)
 
-    #        cur_state = new_state
+            sample.set(NOISE_ENUM, noise_full, t)
 
-    #    sample.end_state = new_state # end_state if end_state is not None else sample.get_X(t=self.T-1)
-    #    sample.task_cost = self.goal_f(condition, sample.end_state)
-    #    sample.prim_use_ts[:] = sample.use_ts[:]
-    #    sample.col_ts = col_ts
-    #    return sample
+            U_full = policy.act(cur_state.copy(), sample.get_obs(t=t).copy(), t, noise_full)
+            sample.set(ACTION_ENUM, U_full.copy(), t)
+
+            U_nogrip = U_full.copy()
+            for (pname, aname), inds in self.action_inds.items():
+                if aname.find('grip') >= 0: U_nogrip[inds] = 0.
+
+            if np.all(np.abs(U_nogrip)) < 1e-3:
+                self._noops += 1
+                self.eta_scale = 1. / np.log(self._noops+2)
+            else:
+                self._noops = 0
+                self.eta_scale = 1.
+
+            for enum, val in prev_vals.items():
+                sample.set(enum, val, t=t)
+            if len(self._prev_U): self._prev_U = np.r_[self._prev_U[1:], [U_full]]
+
+            suc, col = self.run_policy_step(U_full, cur_state)
+            col_ts[t] = col
+            new_state = self.get_state()
+
+            if len(self._x_delta)-1:
+                self._x_delta = np.r_[self._x_delta[1:], [new_state]]
+
+            if len(self._prev_task)-1:
+                self._prev_task = np.r_[self._prev_task[1:], [sample.get_prim_out(t=t)]]
+
+            if np.all(np.abs(cur_state - new_state) < 1e-3):
+                sample.use_ts[t] = 0
+
+            cur_state = new_state
+
+        sample.end_state = self.get_state()
+        sample.task_cost = self.goal_f(condition, sample.end_state)
+        sample.prim_use_ts[:] = sample.use_ts[:]
+        sample.col_ts = col_ts
+
+        if len(self.continuous_opts):
+            self.add_cont_sample(sample)
+
+        return sample
 
 
-    #def run_policy_step(self, u, x, plan, t, obj, grasp=None):
     def run_policy_step(self, u, x):
         if not self._feasible:
             return False, 0
 
-        if self._eval_mode:
-            for human in self.humans:
-                vel = self.compute_human_act(human, x)
-                self.mjc_env.physics.named.data.qvel[human][:2] = vel
-            self.mjc_env.physics.forward()
-        else:
-            for human in self.humans:
-                self.mjc_env.physics.named.data.qvel[human][:2] = 0.
-            self.mjc_env.physics.forward()
+        for human in self.humans:
+            self.mjc_env.physics.named.data.qvel[human][:2] = self.human_trajs[human]
+        self.mjc_env.physics.forward()
 
         self._col = []
         poses = {}
@@ -374,7 +376,9 @@ class NAMOGripAgent(NAMOSortingAgent):
         sample.set(THETA_ENUM, mp_state[self.state_inds['pr2', 'theta']], t)
         dirvec = np.array([-np.sin(theta), np.cos(theta)])
         sample.set(THETA_VEC_ENUM, dirvec, t)
-        sample.set(VEL_ENUM, mp_state[self.state_inds['pr2', 'vel']], t)
+        velx = self.mjc_env.physics.named.data.qvel['robot_x']
+        vely = self.mjc_env.physics.named.data.qvel['robot_y']
+        sample.set(VEL_ENUM, np.array([velx, vely]), t)
         sample.set(STATE_ENUM, mp_state, t)
         sample.set(GRIPPER_ENUM, mp_state[self.state_inds['pr2', 'gripper']], t)
         if self.hist_len > 0:
@@ -1007,31 +1011,60 @@ class NAMOGripAgent(NAMOSortingAgent):
         return self._feasible
 
 
-    def compute_human_act(self, human, vel=0.7):
-        if np.random.uniform() < 0.1:
-            self.humans[human] = HUMAN_TARGS[np.random.randint(len(HUMAN_TARGS))]
+    def human_cost(self, x, goal_wt=1e0, col_wt=2e-1, rcol_wt=1e2):
+        cost = 0
+        if goal_wt > 0:
+            for human in self.humans:
+                hpos = x[self.state_inds[human, 'pose']]
+                cost -= goal_wt * np.linalg.norm(hpos-self.humans[human])
 
-        robot_pos = x[self.state_inds['pr2', 'pose']]
-        obj_pos = [x[self.state_inds[obj, 'pose']] for (obj, aname) in self.state_inds if obj.find('can') >= 0]
-        cur_pos = self.mjc_env.get_item_pos(human)[0]
-        targ_pos = self.human_goals[human]
-        targ_vec = targ_pos - cur_pos
-        targ_vec = vel * targ_vec / np.linalg.norm(targ_vec)
-        while not self.humn_act_valid(cur_pos+targ_vec, robot_pos, obj_pos):
-            targ_vec += np.random.normal(0., 0.5, (2,))
-            targ_vec = vel * targ_vec / np.linalg.norm(targ_vec)
-        return targ_vec
-
-
-    def human_act_valid(self, end_pos, robot_pos, obj_pos):
-        if np.linalg.norm(robot_pos - end_pos) < 1.4:
-            return False
-
-        for pos in obj_pos:
-            if np.linalg.norm(pos - end_pos) < 0.8:
-                return False
-
-        return True
+            for (pname, aname), inds in self.state_inds.items():
+                if aname != 'pose': continue
+                if pname.find('pr2') >= 0 and np.linalg.norm(x[inds]-hpos) < 0.8:
+                    cost -= rcol_wt
+                elif pname.find('can') >= 0:
+                    cost -= col_wt * np.linalg.norm(x[inds]-hpos)
+        return cost
 
 
+    def solve_humans(self, policy, task, hor=5, N=30):
+        if not self._eval_mode:
+            for n in range(self.prob.N_HUMAN):
+                self.human_trajs['human{}'.format(n)] = np.zeros(2)
+            return
+
+        qpos = self.mjc_env.physics.data.qpos.copy()
+        qvel = self.mjc_env.physics.data.qvel.copy()
+        trajs = []
+        sample = Sample(self)
+        for _ in range(N):
+            self.mjc_env.physics.data.qpos[:] = qpos[:]
+            self.mjc_env.physics.data.qvel[:] = qvel[:]
+            self.mjc_env.physics.forward()
+            traj = np.random.uniform(-0.5, 0.5, (self.prob.N_HUMAN, hor, 2))
+            cost = 0
+            for t in range(hor):
+                x = self.get_state()
+                self.fill_sample(0, sample, x, t, task, fill_obs=True)
+                act = policy.act(sample.get_X(t=t), sample.get_obs(t=t), t)
+                for n in range(self.prob.N_HUMAN):
+                    self.human_trajs['human{}'.format(n)] = traj[n, t]
+                    self.mjc_env.physics.named.data.qvel['human{}'.format(n)][:2] = traj[n, t]
+                self.run_policy_step(act, x)
+                goal_wt = 0 if t < hor-1 else hor * 1e0
+                cost += self.human_cost(x, goal_wt=goal_wt)
+            trajs.append((cost, traj[:,0]))
+
+        self.mjc_env.physics.data.qpos[:] = qpos
+        self.mjc_env.physics.data.qvel[:] = qvel
+        self.mjc_env.physics.forward()
+        cur_cost, cur_traj = trajs[0]
+        for cost, traj in trajs:
+            if cost < cur_cost:
+                cur_cost = cost
+                cur_traj = traj
+
+        for n in range(self.prob.N_HUMAN):
+            self.human_trajs['human{}'.format(n)] = traj[n]
+        return traj
 
