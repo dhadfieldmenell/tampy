@@ -1,4 +1,4 @@
-FULL_INSTALL=true
+FULL_INSTALL=false
 cd ~
 mkdir -p Dropbox
 mkdir tamp_work
@@ -8,14 +8,16 @@ cd ~/tamp_work
 
 ### SETUP VIRTENV ###
 # Setup virtual env
-export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3.6
-virtualenv -p /usr/bin/python3.6 venv
+# NOTE: If you're on ubuntu 20.04, install python 3.6 manually by reading this: https://askubuntu.com/questions/1231543/problem-with-creating-python-3-6-virtual-environment-on-ubuntu-20-04
+export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3.6  
+virtualenv -p $VIRTUALENVWRAPPER_PYTHON venv
 source venv/bin/activate
 echo 'alias tampenv="source ~/tamp_env.sh; source ~/tamp_work/venv/bin/activate"' >> ~/.bashrc
 
 # Get python code
 pip install numpy==1.18.5
-pip install numba pandas pybullet dm_control numdifftools ipdb
+pip install pybullet==3.1.6 # NOTE: latest version (3.1.7) has strange installation issues....
+pip install numba pandas dm_control numdifftools ipdb
 pip install seaborn==0.9.0
 
 
@@ -47,7 +49,7 @@ wget https://packages.gurobi.com/9.0/gurobi9.0.1_linux64.tar.gz
 tar xvfz gurobi9.0.1_linux64.tar.gz 
 cd gurobi901/linux64
 
-source ~/.bashrc
+# source ~/.bashrc
 python setup.py install
 
 pip install --force-reinstall numpy==1.18.5

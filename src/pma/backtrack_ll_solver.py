@@ -306,12 +306,13 @@ class BacktrackLLSolver(LLSolver):
     def _solve_opt_prob(self, plan, priority, callback=None, init=True,
                         active_ts=None, verbose=False, resample=False, 
                         smoothing = False, init_traj=[]):
+
         if callback is not None: viewer = callback()
         self.plan = plan
         if active_ts==None:
             active_ts = (0, plan.horizon-1)
 
-        plan.save_free_attrs()
+        plan.save_free_attrs() # Copies the current free_attrs
         model = grb.Model()
         model.params.OutputFlag = 0
         self._prob = Prob(model, callback=callback)
@@ -389,6 +390,9 @@ class BacktrackLLSolver(LLSolver):
         self._update_ll_params()
         if priority >= 0:
             success = success and len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
+
+        # import pdb; pdb.set_trace()
+        # from IPython import embed; embed()
 
         '''
         if resample:
@@ -532,7 +536,7 @@ class BacktrackLLSolver(LLSolver):
     #@profile
     def create_variable(self, grb_vars, init_vals, save=False):
         """
-            if save is Ture
+            if save is True
             Update the grb_init_mapping so that each grb_var is mapped to
             the right initial values.
             Then find the sco variables that includes the grb variables we are updating and change the corresponding initial values inside of it.
@@ -859,7 +863,7 @@ class BacktrackLLSolver(LLSolver):
             forming a straight line between each end points.
 
             Where P is the KT x KT matrix, where Px is the difference of
-            value in current timestep compare to next timestep
+            value in current timestep compare to next timestep.
         """
         if active_ts == None:
             active_ts = (0, plan.horizon-1)
@@ -880,6 +884,8 @@ class BacktrackLLSolver(LLSolver):
                         d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
                         # [:,0] allows numpy to see v and d as one-dimensional so
                         # that numpy will create a diagonal matrix with v and d as a diagonal
+
+                        # v and d is computing the change in value between two timesteps
                         P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
                         Q = np.dot(np.transpose(P), P)
                         Q *= self.trajopt_coeff/float(plan.horizon)
@@ -894,9 +900,9 @@ class BacktrackLLSolver(LLSolver):
                         param_ll = self._param_to_ll[param]
                         ll_attr_val = getattr(param_ll, attr_name)
                         param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
-                        attr_val = getattr(param, attr_name)
+                        attr_val = getattr(param, attr_name) # This line is pulling out the actual matrix
                         init_val = attr_val[:, start:end+1].reshape((KT, 1), order='F')
-                        sco_var = self.create_variable(param_ll_grb_vars, init_val)
+                        sco_var = self.create_variable(param_ll_grb_vars, init_val) # param_ll is a mapping that tells you how to go from matrices in your plan to variables in sco. We pull out those and link them together - BoundEXPR now takes that 
                         bexpr = BoundExpr(quad_expr, sco_var)
                         traj_objs.append(bexpr)
         

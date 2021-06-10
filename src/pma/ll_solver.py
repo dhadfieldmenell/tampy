@@ -27,6 +27,8 @@ class LLSolver(object):
     def solve(self, plan):
         raise NotImplementedError("Override this.")
 
+    # NOTE: Probably want to keep this, but just have it return the relevant portions of matrix, not 
+    # make the mapping
     def _spawn_sco_var_for_pred(self, pred, t):
         x = np.empty(pred.x_dim , dtype=object)
         v = np.empty(pred.x_dim)
