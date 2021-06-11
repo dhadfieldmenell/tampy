@@ -23,7 +23,7 @@ GOAL_OPTIONS = [
                 '(Lifted upright_block panda)',
                 '(Lifted ball panda)',
                 '(Near upright_block off_desk_target)',
-                '(InSlideDoor upright_block shelf)',
+                '(InSlideDoor flat_block shelf)',
                 '(Near flat_block bin_target)',
                 '(Stacked upright_block flat_block)',
                 '(InGripperRight panda green_button)',

@@ -1868,6 +1868,7 @@ class SlideDoorOpen(ExprPredicate):
         #self.neg_expr = EgExpr(neg_aff_e, val)
         super(SlideDoorOpen, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.spacial_anchor = True
+        self._init_include = False
 
 
 class SlideDoorClose(ExprPredicate):
@@ -1893,6 +1894,7 @@ class SlideDoorClose(ExprPredicate):
         e = LEqExpr(aff_e, val)
         super(SlideDoorClose, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.spacial_anchor = True
+        self._init_include = False
 
     #def test(self, time, negated=False, tol=None):
     #    if not self.is_concrete(): return False
@@ -1924,15 +1926,16 @@ class InSlideDoor(ExprPredicate):
         b = np.r_[b, -np.array(self.door.geom.in_orn).reshape((-1,1))]
         b = np.r_[b, -b]
         val = np.zeros((6,1))
-        val[0] = 0.2
+        val[0] = self.door.geom.width
         val[1] = 0.02
-        val[2] = 0.1
-        val[3:6] = 0.1
+        val[2] = 0.05
+        val[3:6] = 0.2
         val = np.r_[val, val]
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(InSlideDoor, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
+        self._init_include = False
 
 class Stacked(ExprPredicate):
     #@profile
@@ -1958,6 +1961,7 @@ class Stacked(ExprPredicate):
 
         super(Stacked, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
+        self._init_include = False
 
 
 ### EE CONSTRAINTS - Non-linear constraints on end effector pos/orn
@@ -3627,7 +3631,7 @@ class InReach(ExprPredicate):
 
         super(InReach, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.spacial_anchor = True
-        self._init_include = True
+        self._init_include = False
 
 class Stackable(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):

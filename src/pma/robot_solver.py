@@ -15,6 +15,7 @@ from pma import backtrack_ll_solver
 #PANDA_REF_JNTS = [0.3, -0.8, 1.0, -2.5, 1.5, 1.87, 0.91]
 PANDA_REF_JNTS = [0.3, -0.8, 1.0, -2.5, 0.5, 1.87, 0.2]
 PANDA_REF_JNTS = [0.5, -0.8, 1.0, -2.5, 0.5, 1.87, 0.2]
+PANDA_REF_JNTS = [0.5, -0.8, 0.9, -2.3, 0.5, 1.6, 0.2]
 
 class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
@@ -232,8 +233,8 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             rel_pos = False
             #if obj.name.find('ball') >= 0:
             #    disp[1] = -const.GRASP_DIST
-            disp[1] = -0.1
-            disp[0] = -obj.pose[0,st] / 2.
+            disp[1] = -0.06
+            disp[0] = -obj.pose[0,st] * 2. / 3.
 
         if a_name.find('move') < 0 and \
             a_name.find('hold') >= 0:

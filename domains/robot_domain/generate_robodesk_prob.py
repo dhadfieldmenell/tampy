@@ -35,7 +35,7 @@ SHELF_POS = [0., 0.85, 0.]
 SHELF_ROT = [0., 0., 0.]
 SHELF_HANDLE_POS = (np.array(SHELF_POS) + const.SHELF_HANDLE_POS).tolist()
 
-DESK_BODY_GEOM = [0.575, 0.265, 0.01] # [0.6, 0.275, 0.025]
+DESK_BODY_GEOM = [0.575, 0.265, 0.015] # [0.6, 0.275, 0.025]
 DESK_BODY_POS = [0., 0.85, 0.735]
 DESK_BODY_ROT = [0, 0, 0]
 
@@ -93,13 +93,16 @@ def main():
              'shelf_handle', 'drawer_handle']
     init_pos = [[0.15, 0.78, 0.85], [0.15, 0.63, 0.775], [-0.4, 0.7, 0.799], [-0.45, 0.59, 0.76], \
                 [-0.25, 0.59, 0.76], [-0.05, 0.59, 0.76], SHELF_HANDLE_POS, DRAWER_HANDLE_POS]
-    dims = [[0.09, 0.023, 0.023], [0.08, 0.035, 0.015], [0.04], [0.035, 0.01], [0.035, 0.01], \
-            [0.035, 0.01], [0.01, 0.01, 0.01], [0.01, 0.01, 0.01]]
+    dims = [[0.09, 0.023, 0.023], [0.08, 0.035, 0.015], [0.04], \
+            [0.005, 0.005, 0.005], [0.005, 0.005, 0.005],  [0.005, 0.005, 0.005], \
+            [0.01, 0.01, 0.01], [0.01, 0.01, 0.01]]
     item_types = []
     for item in items:
         if item.find('block') >= 0:
             item_type = 'Box'
         elif item.find('handle') >= 0:
+            item_type = 'Box'
+        elif item.find('button') >= 0:
             item_type = 'Box'
         elif item.find('ball') >= 0:
             item_type = 'Sphere'
@@ -195,6 +198,7 @@ def main():
         s += "(Near {0} {0}_init_target), ".format(item)
         s += "(InReach {0} panda), ".format(item)
     s += "(RobotAt panda robot_init_pose),"
+    s += "(Stackable flat_block upright_block), "
     s += "(StationaryBase panda), "
     s += "(IsMP panda), "
     s += "(SlideDoorOpen shelf_handle shelf), "

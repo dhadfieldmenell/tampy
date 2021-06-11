@@ -113,10 +113,10 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 '(SlideDoorClose drawer_handle drawer)',
                 '(SlideDoorOpen drawer_handle drawer)',
                 '(InSlideDoor upright_block shelf)',
-                '(InSlideDoor flat_block shelf)',
-                '(InSlideDoor ball shelf)',
                 '(InSlideDoor upright_block drawer)',
+                '(InSlideDoor flat_block shelf)',
                 '(InSlideDoor flat_block drawer)',
+                #'(InSlideDoor ball shelf)',
                 '(InSlideDoor ball drawer)',
                 ]
     prob.NUM_OBJS = no
@@ -221,6 +221,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'cont_filter_sizes': [7, 5],
         'num_filters': [32, 32, 32],
         'filter_sizes': [7, 5, 5],
+        'compound_goals': True,
     }
 
     #for o in range(no):

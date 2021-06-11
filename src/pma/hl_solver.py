@@ -218,7 +218,7 @@ class FFSolver(HLSolver):
         init_state = concr_prob.init_state
         init_preds = list(init_state.preds) + list(init_state.invariants)
         for pred in init_preds:
-            if not pred._init_include: continue
+            if initial is not None and not pred._init_include: continue
             cur_str = ''
             cur_str += "(%s "%pred.get_type()
             for param in pred.params:

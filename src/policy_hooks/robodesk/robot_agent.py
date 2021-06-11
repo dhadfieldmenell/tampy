@@ -37,19 +37,20 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.tamp_agent import TAMPAgent
 
 
-const.NEAR_GRIP_COEFF = 5e-2 # 2.2e-2 # 1.8e-2 # 2e-2
-const.NEAR_APPROACH_COEFF = 7e-3 # 8e-3
-const.NEAR_APPROACH_ROT_COEFF = 1e-3
-const.GRASP_DIST = 0.14 # 0.16 # 0.18
-const.APPROACH_DIST = 0.0125 # 0.02
-const.RETREAT_DIST = 0.0125 # 0.02
-const.EEREACHABLE_COEFF = 4e-2 # 1e-1 # 3e-2 # 2e-2
-const.EEREACHABLE_ROT_COEFF = 5e-2 # 8e-3
-const.EEATXY_COEFF = 5e-2
-const.RCOLLIDES_COEFF = 3e-2 # 2e-2
+const.NEAR_GRIP_COEFF = 3e-2 # 2.2e-2 # 1.8e-2 # 2e-2
+const.NEAR_APPROACH_COEFF = 6e-3
+const.NEAR_APPROACH_ROT_COEFF = 4e-3
+const.GRASP_DIST = 0.18 # 0.18
+const.APPROACH_DIST = 0.015 # 0.02
+const.RETREAT_DIST = 0.015 # 0.02
+const.EEREACHABLE_COEFF = 3e-2 # 1e-1 # 3e-2 # 2e-2
+const.EEREACHABLE_ROT_COEFF = 4e-2 # 8e-3
+const.EEATXY_COEFF = 7e-2
+const.RCOLLIDES_COEFF = 2e-2 # 2e-2
 const.OBSTRUCTS_COEFF = 2e-2
 const.INIT_TRAJ_COEFF = 2e-2
 STACK_OFFSET = 0.08
+SHELF_Y = 0.9
 
 STEP = 0.1
 NEAR_TOL = 0.05
@@ -303,7 +304,7 @@ class EnvWrapper():
 
         if item_name.find('ball') >= 0:
             #quat = T.euler_to_quaternion([0., -0.8, 1.57], 'wxyz')
-            quat = T.euler_to_quaternion([0., 1.0, -1.57], 'wxyz')
+            quat = T.euler_to_quaternion([0., 0.9, -1.57], 'wxyz')
 
         if item_name.find('button') >= 0:
             pos[1] -= 0.035
@@ -408,10 +409,19 @@ class EnvWrapper():
                     self.env.physics.data.ctrl[0:9] = joint_position[0:9]
                     # Ensure gravity compensation stays enabled.
                     self.env.physics.data.qfrc_applied[0:9] = self.physics.data.qfrc_bias[0:9]
+                    ee_pos = self.env.physics.named.data.site_xpos['end_effector']
+                    self.env.physics.named.data.xfrc_applied['ball'][2] = 0.
+                    self.env.physics.named.data.xfrc_applied['flat_block'][2] = 0.
                     if self.env.physics.data.ctrl[-1] > 0.03:
-                        self.env.physics.named.data.xfrc_applied['ball'][2] = -10.
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.05):
+                            self.env.physics.named.data.xfrc_applied['ball'][2] = -7.
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.05):
+                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = -3.
                     else:
-                        self.env.physics.named.data.xfrc_applied['ball'][2] = 1.
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.05):
+                            self.env.physics.named.data.xfrc_applied['ball'][2] = 2.
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.05):
+                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = 4.
 
                     self.env.physics.step()
                     self.env.physics_copy.data.qpos[:] = self.physics.data.qpos[:]
@@ -495,11 +505,12 @@ class RobotAgent(TAMPAgent):
         self.optimal_pol_cls =  optimal_pol
         self.load_render = hyperparams['master_config'].get('load_render', False)
         self.ctrl_mode = 'joint' if ('panda', 'right') in self.action_inds else 'ee_pos'
-        self.compound_goals = hyperparams.get('compound_goals', False)
+        self.compound_goals = hyperparams['master_config'].get('compound_goals', False)
         self._load_goals()
         self.rlen = 10 if not self.compound_goals else 30
+        self.hor = 15
 
-        freq = 25
+        freq = 20
         self.base_env = robodesk.RoboDesk(task='lift_ball', \
                                           reward='success', \
                                           action_repeat=freq, \
@@ -555,9 +566,15 @@ class RobotAgent(TAMPAgent):
         textover2 = 'COST: {0: <5} {1: <5}'.format(precost, postcost)
         textover3 = '{0}'.format(str(truepos-pos)[1:-1])
         goalover = ''
+        targets = s.targets
+
         for goal in self.prob.GOAL_OPTIONS:
+            #if targets[self.target_inds[goal, 'value']] == 1.:
+            #    goalover += goal
             if targets[self.target_inds[goal, 'value']] == 1.:
-                goalover += goal
+                goalover += "1 "
+            else:
+                goalover += "0 "
         overlays = (textover1, textover2, textover3, goalover)
         #for ctxt in self.base_env.sim.render_contexts:
         #    ctxt._overlay[mj_const.GRID_TOPLEFT] = ['{}'.format(task), '']
@@ -915,7 +932,7 @@ class RobotAgent(TAMPAgent):
                IM_ENUM in self._hyperparams['prim_obs_include']:
                 im = self.mjc_env.cur_obs['image']
                 if self.incl_init_obs:
-                    im = np.c_[im, self.mjc_env.init_obs['image']]
+                    im = np.c_[im, im-self.mjc_env.init_obs['image']]
                 im = (im - 128.) / 128.
                 sample.set(IM_ENUM, im.flatten(), t)
 
@@ -945,6 +962,8 @@ class RobotAgent(TAMPAgent):
                     suc = self._in_bin(x, params[0])
                 elif key.find('inslide') >= 0 and params[1].find('shelf') >= 0:
                     suc = self._in_shelf(x, params[0])
+                elif key.find('inslide') >= 0 and params[1].find('drawer') >= 0:
+                    suc = self._in_drawer(x, params[0])
                 elif key.find('grip') >= 0 and params[1].find('button') >= 0:
                     suc = self._button(x, params[1])
                 else:
@@ -1054,13 +1073,18 @@ class RobotAgent(TAMPAgent):
         used_params = []
         goal_descrs = list(self.goals.keys())
         order = np.random.permutation(len(goal_descrs))
+
+        max_goal = 3
+        i = 0
         for ind in order:
             goal = goal_descrs[ind]
             key, params = self.goals[goal]
             if params[0] in used_params: continue
+            i += 1
             used_params.append(params[0])
             targets[goal] = 1
             if not self.compound_goals: break
+            if i >= max_goal: break
 
         return [x], [targets] 
    
@@ -1363,7 +1387,7 @@ class RobotAgent(TAMPAgent):
     def _in_shelf(self, x, item_name):
         pos = x[self.state_inds[item_name, 'pose']]
         #return pos[0] > 0.2 and pos[1] > 0.9
-        return pos[0] > 0.1 and pos[1] > 0.9
+        return pos[0] > 0. and pos[1] > SHELF_Y
 
 
     def _in_bin(self, x, item_name):
@@ -1435,7 +1459,7 @@ class RobotAgent(TAMPAgent):
 
     def _in_drawer(self, x, obj_name):
         pos = x[self.state_inds[obj_name, 'pose']]
-        return pos[2] < 0.7 and pos[0] > 0.25 and pos[0] < 0.55 and pos[1] > 0.35
+        return pos[2] < 0.7 and pos[2] > 0.5 and pos[0] > -0.3 and pos[0] < 0.3 # and pos[1] > 0.35
 
 
     def postcond_cost(self, sample, task=None, t=None, debug=False, tol=1e-3, x0=None):
@@ -1448,10 +1472,11 @@ class RobotAgent(TAMPAgent):
         x = sample.get_X(t=t)
         if task_name.find('place_in_door') >= 0:
             pos = x[self.state_inds[obj_name, 'pose']]
+            if debug: print('POSTCOND INFO PLACE IN DOOR:', obj_name, door_name, pos)
             if door_name.find('shelf') >= 0:
-                return 0. if (pos[0] > 0.25 and pos[1] > 0.9) else 1.
+                return 0. if (pos[0] > 0. and pos[1] > SHELF_Y) else 1.
             elif door_name.find('drawer') >= 0:
-                return 0. if (pos[0] > -0.3 and pos[0] < 0.3 and pos[2] < 0.73 and pos[2] > 0.6) else 1.
+                return 0. if (pos[0] > -0.3 and pos[0] < 0.3 and pos[2] < 0.73 and pos[2] > 0.5) else 1.
         elif task_name.find('place') >= 0:
             pos = x[self.state_inds[obj_name, 'pose']]
             if debug: print('POSTCOND INFO PLACE:', obj_name, targ_name, pos)

@@ -372,7 +372,7 @@ def resample_obstructs(pred, negated, t, plan):
     
     attempt, step = 0, 1
     new_pos = None
-    while attempt < 10 and len(collisions) > 0:
+    while attempt < 15 and len(collisions) > 0:
         attempt += 1
         target_ee = ee_pos + step * np.multiply(np.random.sample(3), const.RESAMPLE_FACTOR)
         rave_body.set_dof(dof_map)
@@ -387,8 +387,8 @@ def resample_obstructs(pred, negated, t, plan):
             new_pos = arm_pose
             break
 
-    if not const.PRODUCTION:
-        print("resampling at {} action".format(action.name))
+    #if not const.PRODUCTION:
+    #    print("resampling at {} action".format(action.name))
     act_start, act_end = action.active_timesteps
     res_arm = arm
     if new_pos is None:

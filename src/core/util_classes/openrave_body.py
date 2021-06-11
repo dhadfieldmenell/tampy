@@ -558,7 +558,7 @@ class OpenRAVEBody(object):
     #    return trans
 
     def get_link_pose(self, link_id, euler=True):
-        info = p.getLinkState(self.body_id, link_id)
+        info = P.getLinkState(self.body_id, link_id)
         pos, orn = info[0], info[1]
         if euler:
             orn = T.quaternion_to_euler(orn, order='xyzw')

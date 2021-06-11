@@ -699,9 +699,9 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return self.cost_f(sample.get_X(t), task, sample.condition, active_ts=(-1, -1), targets=sample.targets, debug=debug, tol=tol, x0=x0)
 
 
-    def precond_cost(self, sample, task=None, t=0, tol=1e-3, x0=None):
+    def precond_cost(self, sample, task=None, t=0, tol=1e-3, x0=None, debug=False):
         if task is None: task = tuple(sample.get(FACTOREDTASK_ENUM, t=t))
-        return self.cost_f(sample.get_X(t), task, sample.condition, active_ts=(0, 0), targets=sample.targets, tol=tol, x0=x0)
+        return self.cost_f(sample.get_X(t), task, sample.condition, active_ts=(0, 0), targets=sample.targets, tol=tol, x0=x0, debug=debug)
 
 
     def relabel_path(self, path):
@@ -870,7 +870,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             perm = {}
             perm_tasks = tasks
             perm_targets = targets
-        
+       
+        dummy_sample = Sample(self)
         #for param in plan.params.values():
         #    targ = '{}_init_target'.format(param.name)
         #    if targ in plan.params:
@@ -900,9 +901,15 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             prev_x0 = np.zeros_like(self.x0[0])
             fill_vector(plan.params, self.state_inds, prev_x0, act_st)
             prev_x0 = self.clip_state(self.get_state())
-
             task = tuple(tasks[a])
             perm_task = tuple(perm_tasks[a])
+            dummy_sample.set(STATE_ENUM, prev_x0, t=0)
+            dummy_sample.targets = targets
+            pre_cost = self.precond_cost(dummy_sample, task, 0)
+            if pre_cost > 1e-4:
+                print('FAILED EXECUTION OF PRECONDITIONS', plan.actions[a])
+                self.precond_cost(dummy_sample, task, 0, debug=True)
+                return False, False, path, info
             cost = 1.
             policy = self.policies[self.task_list[task[0]]]
             labels = None
@@ -1198,9 +1205,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
 
     def _failed_preds(self, Xs, task, condition, active_ts=None, debug=False, targets=[], tol=1e-3, x0=None):
-        if len(np.shape(Xs)) == 1:
-            Xs = Xs.reshape(1, Xs.shape[0])
-        Xs = Xs[:, self._x_data_idx[STATE_ENUM]]
+        Xs = Xs.reshape(1, Xs.shape[0])
+        Xs = Xs[:, self._x_data_idx[STATE_ENUM]].copy()
+        for n in range(len(Xs)):
+            Xs[n] = self.clip_state(Xs[n])
 
         true_task = task
         task = [val for val in true_task if np.isscalar(val)]
@@ -1224,7 +1232,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         if x0 is not None:
             set_params_attrs(plan.params, self.state_inds, x0, 0, plan=plan)
 
-        self.set_symbols(plan, task, condition)
+        self.set_symbols(plan, task)
 
         if len(Xs.shape) == 1:
             Xs = Xs.reshape(1, -1)
