@@ -127,6 +127,9 @@ class NAMOGripAgent(NAMOSortingAgent):
         self.robot_height = 1
         self.use_mjc = hyperparams.get('use_mjc', False)
         self.vel_rat = 0.05
+        self.rlen = self.num_objs * len(self.task_list)
+        if self.retime: self.rlen *= 2
+        self.hor = 15
         wall_dims = OpenRAVEBody.get_wall_dims('closet')
         config = {
             'obs_include': ['can{0}'.format(i) for i in range(hyperparams['num_objs'])],
@@ -171,7 +174,8 @@ class NAMOGripAgent(NAMOSortingAgent):
                           'type': 'sphere',
                           'is_fixed': False,
                           'pos': [0., 0., 0.],
-                          'dimensions': 0.3,
+                          'dimensions': [0.3],
+                          'mass': 40,
                           'rgba': (1., 1., 1., 1.)})
 
         no = self._hyperparams['num_objs']
@@ -376,8 +380,8 @@ class NAMOGripAgent(NAMOSortingAgent):
         sample.set(THETA_ENUM, mp_state[self.state_inds['pr2', 'theta']], t)
         dirvec = np.array([-np.sin(theta), np.cos(theta)])
         sample.set(THETA_VEC_ENUM, dirvec, t)
-        velx = self.mjc_env.physics.named.data.qvel['robot_x']
-        vely = self.mjc_env.physics.named.data.qvel['robot_y']
+        velx = self.mjc_env.physics.named.data.qvel['robot_x'][0]
+        vely = self.mjc_env.physics.named.data.qvel['robot_y'][0]
         sample.set(VEL_ENUM, np.array([velx, vely]), t)
         sample.set(STATE_ENUM, mp_state, t)
         sample.set(GRIPPER_ENUM, mp_state[self.state_inds['pr2', 'gripper']], t)
@@ -555,10 +559,11 @@ class NAMOGripAgent(NAMOSortingAgent):
             if param_name == 'pr2': continue
             if attr == 'pose':
                 pos = mp_state[self.state_inds[param_name, 'pose']].copy()
-                targ = self.target_vecs[0][self.target_inds['{0}_end_target'.format(param_name), 'value']]
                 self.mjc_env.set_item_pos(param_name, np.r_[pos, 0.5], forward=False)
-                #self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, 1.5], forward=False)
-                self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, -0.15], forward=False)
+                if param_name.find('can') >= 0:
+                    targ = self.target_vecs[0][self.target_inds['{0}_end_target'.format(param_name), 'value']]
+                    #self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, 1.5], forward=False)
+                    self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, -0.15], forward=False)
         self.mjc_env.physics.forward()
 
 
@@ -1027,7 +1032,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         return cost
 
 
-    def solve_humans(self, policy, task, hor=5, N=30):
+    def solve_humans(self, policy, task, hor=4, N=20):
         if not self._eval_mode:
             for n in range(self.prob.N_HUMAN):
                 self.human_trajs['human{}'.format(n)] = np.zeros(2)

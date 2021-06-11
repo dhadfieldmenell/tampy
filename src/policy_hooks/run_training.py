@@ -302,6 +302,7 @@ def argsparser():
     parser.add_argument('-motion', '--num_motion', type=int, default=16)
     parser.add_argument('-task', '--num_task', type=int, default=16)
     parser.add_argument('-rollout', '--num_rollout', type=int, default=16)
+    parser.add_argument('-num_test', '--num_test', type=int, default=0)
     parser.add_argument('-label', '--label_server', action='store_true', default=False)
     parser.add_argument('-class_label', '--classify_labels', action='store_true', default=False)
     parser.add_argument('-max_label', '--max_label', type=int, default=-1)

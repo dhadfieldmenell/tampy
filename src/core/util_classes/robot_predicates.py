@@ -1919,11 +1919,18 @@ class InSlideDoor(ExprPredicate):
 
         A = np.c_[np.eye(6), -np.eye(6)]
         A[-3:,-3:] = 0.
+        A = np.r_[A, -A]
         b = -np.array(self.door.geom.in_pos).reshape((-1,1))
         b = np.r_[b, -np.array(self.door.geom.in_orn).reshape((-1,1))]
+        b = np.r_[b, -b]
         val = np.zeros((6,1))
+        val[0] = 0.2
+        val[1] = 0.02
+        val[2] = 0.1
+        val[3:6] = 0.1
+        val = np.r_[val, val]
         aff_e = AffExpr(A, b)
-        e = EqExpr(aff_e, val)
+        e = LEqExpr(aff_e, val)
         super(InSlideDoor, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
 
@@ -2091,6 +2098,9 @@ class InGripper(PosePredicate):
         if not hasattr(self, 'rot_coeff'): self.rot_coeff = const.IN_GRIPPER_ROT_COEFF
         if hasattr(params[1], 'geom') and hasattr(params[1].geom, 'near_coeff'):
             self.coeff *= params[1].geom.near_coeff
+
+        if hasattr(params[1], 'geom') and 'sphere' in params[1].geom.get_types():
+            self.rot_coeff = 0.
 
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
@@ -2525,7 +2535,7 @@ class NearApproach(EEReachable):
 
 class NearApproachRot(EEReachable):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.coeff = const.NEAR_APPROACH_ROT_COEFF
+        self.rot_coeff = const.NEAR_APPROACH_ROT_COEFF
         super(NearApproachRot, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
@@ -2599,7 +2609,6 @@ class EEReachableLeftRot(EEReachableRot):
 
 class EEAtLeftRot(EEReachableRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
-        self.coeff = const.NEAR_APPROACH_ROT_COEFF
         self.arm = "left"
         super(EEReachableLeftRot, self).__init__(name, params, expected_param_types, (0, 0), env, debug)
 
@@ -2699,8 +2708,7 @@ class ApproachLeftRot(EEReachableLeftRot):
 
 class NearApproachLeftRot(ApproachLeftRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        # self.f_tol = 0.04
-        self.coeff = const.NEAR_APPROACH_ROT_COEFF
+        self.rot_coeff = const.NEAR_APPROACH_ROT_COEFF
         super(NearApproachLeftRot, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
@@ -2775,7 +2783,6 @@ class EEReachableRightRot(EEReachableRot):
 class EEAtRightRot(EEReachableRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
         self.arm = "right"
-        self.coeff = const.NEAR_APPROACH_ROT_COEFF
         super(EEAtRightRot, self).__init__(name, params, expected_param_types, (0, 0), env, debug)
 
 class ApproachRight(EEReachableRight):
@@ -2804,7 +2811,7 @@ class ApproachRightRot(EEReachableRightRot):
 class NearApproachRightRot(ApproachRightRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         # self.f_tol = 0.04
-        self.coeff = const.NEAR_APPROACH_ROT_COEFF
+        self.rot_coeff = const.NEAR_APPROACH_ROT_COEFF
         super(NearApproachRightRot, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
@@ -3620,7 +3627,26 @@ class InReach(ExprPredicate):
 
         super(InReach, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.spacial_anchor = True
-        self._init_include = False
+        self._init_include = True
+
+class Stackable(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        self.obj, self.item = params
+        attr_inds = OrderedDict([(self.obj, [("pose", np.array([2], dtype=np.int))])])
+            
+        A = np.array([[1.]])
+        if self.obj.name.find('flat') >= 0 and self.item.name.find('upright') >= 0:
+            b = -1. * np.ones((1,1))
+        else:
+            b = np.zeros((1,1))
+        val = np.zeros((1,1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+
+        super(Stackable, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        self.spacial_anchor = True
+        self._init_include = True
 
 class OffDesk(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):

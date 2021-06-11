@@ -476,6 +476,12 @@ class MultiProcessMain(object):
         hyperparams['id'] = 'moretest'
         hyperparams['view'] = False
         self.create_server(RolloutServer, copy.copy(hyperparams))
+        for n in range(hyperparams['num_test']):
+            hyperparams['id'] = 'test_server{}'.format(n)
+            hyperparams['view'] = hyperparams['view_policy']
+            hyperparams['load_render'] = hyperparams['load_render'] or hyperparams['view_policy']
+            hyperparams['check_precond'] = False
+            self.create_server(RolloutServer, copy.copy(hyperparams))
         hyperparams['run_hl_test'] = False
 
 

@@ -777,7 +777,7 @@ class HoldBallArm(Hold):
     def __init__(self, arm):
         self.timesteps = 9 + const.EEREACHABLE_STEPS
         super(HoldBallArm, self).__init__()
-        self.args = '(?robot - Robot ?item - Ball ?target - Reachable)'
+        self.args = '(?robot - Robot ?item - Sphere ?target - Reachable)'
         steps = const.EEREACHABLE_STEPS
         self.arm = arm.lower()
         arm = arm.lower().capitalize()
@@ -819,7 +819,6 @@ class HoldBallRight(HoldBallArm):
 
 class HoldBoxArm(Hold):
     def __init__(self, arm):
-        self.timesteps = 5 + const.EEREACHABLE_STEPS
         super(HoldBoxArm, self).__init__()
         self.args = '(?robot - Robot ?item - Box ?target - Reachable)'
         steps = const.EEREACHABLE_STEPS
@@ -832,7 +831,8 @@ class HoldBoxArm(Hold):
                         ('(not (InGripperLeft ?robot ?item))', '0:0'),
                         ('(not (NearGripperRight ?robot ?item))', '0:0'),
                         ('(not (NearGripperLeft ?robot ?item))', '0:0'),
-                        ('(EEApproach{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time, self.grasp_time)),
+                        ('(EEAtYRel{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time-steps-3, self.grasp_time-steps-1)),
+                        ('(EEApproachAbs{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time, self.grasp_time)),
                         ('(EEAt{}Rot ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time-steps-2, self.grasp_time)),
                         ('(OpenGripper{} ?robot)'.format(arm), '{0}:{1}'.format(1,self.grasp_time)),
                         ('(forall (?obj - Item) (not (InGripper{} ?robot ?obj)))'.format(arm), '0:{}'.format(-1)),
@@ -1510,7 +1510,7 @@ f.write(right_dom_str)
 
 
 ### RIGHT DESK DOMAIN
-actions = [MoveToGraspRight(), HoldRight(), LiftRight(), \
+actions = [MoveToGraspRight(), HoldBoxRight(), HoldBallRight(), LiftRight(), \
            SlideOpenRight(), SlideCloseRight(), PlaceRight(), \
            PlaceRight(), PlaceInDoorRight(), StackRight()]#, MoveToPlaceRight()]
 right_dom_str = door_dom_str

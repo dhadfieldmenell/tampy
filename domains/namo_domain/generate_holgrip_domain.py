@@ -7,11 +7,11 @@ Types: Item, Target, RobotPose, Robot, Grasp, Obstacle, Rotation
 
 # Define the class location of each non-standard attribute type used in the above parameter type descriptions.
 
-Attribute Import Paths: RedCircle core.util_classes.items, BlueCircle core.util_classes.items, GreenCircle core.util_classes.items, Vector1d core.util_classes.matrix, Vector2d core.util_classes.matrix, Wall core.util_classes.items, NAMO core.util_classes.robots; Sphere core.util_classes.items; Box core.util_classes.items
+Attribute Import Paths: RedCircle core.util_classes.items, BlueCircle core.util_classes.items, GreenCircle core.util_classes.items, Vector1d core.util_classes.matrix, Vector2d core.util_classes.matrix, Wall core.util_classes.items, NAMO core.util_classes.robots, Sphere core.util_classes.items, Box core.util_classes.items
 
 Predicates Import Path: core.util_classes.namo_grip_predicates
 
-Subtypes: Can, Ball, Box - Item;
+Subtypes: Can, Ball, Box - Item
 
 """
 

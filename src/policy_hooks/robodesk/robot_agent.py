@@ -836,7 +836,7 @@ class RobotAgent(TAMPAgent):
                 door_vec[task[2]] = 1.
                 sample.set(DOOR_ENUM, door_vec, t)
 
-            if task_name.lower() in ['move_to_grasp_right', 'lift_right', 'hold_right']:
+            if task_name.lower() in ['move_to_grasp_right', 'lift_right', 'hold_right', 'hold_box_right', 'hold_ball_right']:
                 sample.set(END_POSE_ENUM, obj_pose, t)
                 sample.set(END_ROT_ENUM, mp_state[self.state_inds[obj_name, 'rotation']], t)
                 sample.set(ABS_POSE_ENUM, mp_state[self.state_inds[obj_name, 'pose']], t)
@@ -1411,7 +1411,7 @@ class RobotAgent(TAMPAgent):
         color = button_name.split('_')[0]
         val = self.base_env.physics.named.data.qpos[color + '_light'][0]
         pressed = val < -0.00453
-        return val
+        return pressed
 
 
     def _slide(self, x, door_name, door_open=True):

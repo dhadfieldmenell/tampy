@@ -215,7 +215,7 @@ class Door(XMLItem):
             self.close_val = 0.6
             self.open_val = 0.
             self.open_thresh = 0.3
-            self.close_thresh = 0.5
+            self.close_thresh = 0.45
             self.open_dir = [-1., 0., 0.]
         else:
             raise NotImplementedError()

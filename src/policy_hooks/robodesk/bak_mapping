@@ -3,12 +3,8 @@
         '0: MOVE_TO_GRASP_RIGHT PANDA {0} {0}_INIT_TARGET',
     ],
 
-    'hold_box_right': [
-        '0: HOLD_BOX_RIGHT PANDA {0} {0}_INIT_TARGET'
-    ],
-
-    'hold_ball_right': [
-        '0: HOLD_BALL_RIGHT PANDA {0} {0}_INIT_TARGET'
+    'hold_right': [
+        '0: HOLD_RIGHT PANDA {0} {0}_INIT_TARGET'
     ],
 
    'lift_right': [

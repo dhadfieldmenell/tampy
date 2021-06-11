@@ -212,7 +212,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         robot = plan.params['pr2']
         act = [act for act in plan.actions if act.active_timesteps[0] <= active_ts[0] and act.active_timesteps[1] >= active_ts[1]][0]
         for param in plan.params.values():
-            if param._type not in ['Box', 'Can', 'Sphere']: continue
+            if param._type not in ['Box', 'Can', 'Sphere', 'Ball']: continue
             #if param in act.params: continue
             if act.name.lower().find('transfer') >= 0 and param in act.params: continue
             #if act.name.lower().find('move') >= 0 and param in act.params: continue

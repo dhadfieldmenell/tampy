@@ -104,6 +104,9 @@ def get_vector(config):
     for i in range(config['num_objs']):
         state_vector_include['can{0}'.format(i)] = ['pose']
 
+    for i in range(N_HUMAN):
+        state_vector_include['human{0}'.format(i)] = ['pose']
+
     action_vector_include = {
         'pr2': ['pose', 'gripper', 'theta']
     }
@@ -181,7 +184,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
             x0[state_inds['can{0}'.format(o), 'pose']] = locs[o+1]
 
         for h in range(N_HUMAN):
-            x0[state_inds['human{}'.format(h), 'pose']] = locs[0+config['num_objs']+1]
+            x0[state_inds['human{}'.format(h), 'pose']] = locs[h+config['num_objs']+1]
 
         x0[state_inds['pr2', 'gripper']] = -0.1
         x0s.append(x0)

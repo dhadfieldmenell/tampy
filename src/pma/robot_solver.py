@@ -53,6 +53,8 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                     euler = obj_geom.handle_orn
                 else:
                     euler = obj_geom.in_orn
+            elif a_name.find('lift') >= 0:
+                euler = [1.57, 0., 0.]
             else:
                 euler = obj.rotation[:,ts[0]] if not obj.is_symbol() else obj.rotation[:,0]
 
@@ -91,9 +93,9 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             attempt += 1
 
         if not len(iks): return None
-        if a_name.find('lift') >= 0 and obj.name.find('upright') >= 0:
-            #iks[-1] += 1.57 if iks[-1] < -1.25 else -1.57
-            iks[-1] += 1.57 if iks[-1] < 0. else -1.57
+        #if a_name.find('lift') >= 0 and obj.name.find('upright') >= 0:
+        #    iks[-1] += 1.57 if iks[-1] < -1.25 else -1.57
+        #    #iks[-1] += 1.57 if iks[-1] < 0. else -1.57
         arm_pose = np.array(iks).reshape((-1,1))
         pose = {arm: arm_pose}
         gripper = robot.geom.get_gripper(arm)
@@ -228,8 +230,10 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         if a_name.find('move') < 0 and \
            a_name.find('lift') >= 0:
             rel_pos = False
-            if obj.name.find('ball') >= 0:
-                disp[1] = -const.GRASP_DIST
+            #if obj.name.find('ball') >= 0:
+            #    disp[1] = -const.GRASP_DIST
+            disp[1] = -0.1
+            disp[0] = -obj.pose[0,st] / 2.
 
         if a_name.find('move') < 0 and \
             a_name.find('hold') >= 0:
