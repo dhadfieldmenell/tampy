@@ -11,6 +11,10 @@
         '0: HOLD_BALL_RIGHT PANDA {0} {0}_INIT_TARGET'
     ],
 
+    'hold_can_right': [
+        '0: HOLD_CAN_RIGHT PANDA {0} {0}_INIT_TARGET'
+    ],
+
    'lift_right': [
         '0: LIFT_RIGHT PANDA {0} {0}_INIT_TARGET',
     ],

@@ -37,7 +37,7 @@ from policy_hooks.utils.load_task_definitions import *
 
 MAX_SAMPLELISTS = 1000
 MAX_TASK_PATHS = 1000
-
+ROLL_TOL = 1e-3
 
 class optimal_pol:
     def __init__(self, dU, action_inds, state_inds, opt_traj):
@@ -371,6 +371,19 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return hasattr(policy, 'scale') and policy.scale is not None
 
 
+    def set_task_info(self, sample, cur_state, t, cur_task, task_f, policies=None):
+        if task_f is None: return cur_task, None
+        task = task_f(sample, t, cur_task)
+        onehot_task = tuple([val for val in task if np.isscalar(val)])
+        self.fill_sample(sample.condition, sample, cur_state, t, task, fill_obs=False)
+        taskname = self.task_list[task[0]]
+        policy = None
+        if policies is not None: policy = policies[taskname]
+        self.fill_sample(sample.condition, sample, cur_state.copy(), t, task, fill_obs=False)
+
+        return task, policy
+
+
     def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, hor=None, policies=None):
         x0 = state[self._x_data_idx[STATE_ENUM]].copy()
         task = tuple(task)
@@ -396,14 +409,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             noise_full = np.zeros((self.dU,))
 
             self.fill_sample(condition, sample, cur_state.copy(), t, task, fill_obs=True)
-            if task_f is not None:
-                prev_task = task
-                task = task_f(sample, t, task)
-                onehot_task = tuple([val for val in task if np.isscalar(val)])
-                self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
-                taskname = self.task_list[task[0]]
-                if policies is not None: policy = policies[taskname]
-                self.fill_sample(condition, sample, cur_state.copy(), t, task, fill_obs=False)
+            task, next_policy = self.set_task_info(sample, cur_state, t, task, task_f, policies)
+            if next_policy is not None: policy = next_policy
 
             prev_vals = {}
             if policies is not None and 'cont' in policies and \
@@ -856,8 +863,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             x0 = np.zeros_like(self.x0[0])
             fill_vector(plan.params, self.state_inds, x0, st)
 
-        ref_x0 = x0.copy()
-        ref_x0 = self.clip_state(ref_x0)
+
+        init_x0 = {}
+        init_x0[anum] = x0
+        ref_x0 = self.clip_state(x0)
         set_params_attrs(plan.params, self.state_inds, ref_x0, st, plan=plan)
         ref_traj = traj
         old_solve_priorities = self.ll_solver.solve_priorities
@@ -872,13 +881,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             perm_targets = targets
        
         dummy_sample = Sample(self)
-        #for param in plan.params.values():
-        #    targ = '{}_init_target'.format(param.name)
-        #    if targ in plan.params:
-        #        plan.params[targ].value[:,0] = param.pose[:,0]
-        #        if hasattr(param, 'rotation'):
-        #            plan.params[targ].rotation[:,0] = param.rotation[:,0]
-
         smooth_cnts = []
         self.reset_to_state(x0)
         if hist_info is not None:
@@ -886,36 +888,53 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         else:
             hist_info = self.get_hist_info()
 
-        for a in range(anum, len(plan.actions)):
+        a = anum
+        bad_rollout = []
+        used_rollout = False
+        x_hist = {}
+        act_seq = []
+        while a < len(plan.actions):
+            #path = path[:a]
+            act_seq.append(a)
             if permute:
                 perm_tasks, perm_targets, perm = self.permute_tasks(tasks, targets, plan)
 
-            cur_x_hist = self._x_delta.copy()
-            self.update_hist_info(hist_info)
-            self.reset_to_state(x0)
-            self.store_hist_info(hist_info)
+            if x_hist.get(a, None) is None:
+                cur_x_hist = self._x_delta.copy()
+                x_hist[a] = cur_x_hist
+            else:
+                cur_x_hist = x_hist[a]
+
             success = False
             act_ts = plan.actions[a].active_timesteps
             act_st, act_et = act_ts
             act_st = max(st, act_st)
-            prev_x0 = np.zeros_like(self.x0[0])
-            fill_vector(plan.params, self.state_inds, prev_x0, act_st)
-            prev_x0 = self.clip_state(self.get_state())
+            if a in init_x0:
+                x0 = init_x0[a]
+                ref_x0 = self.clip_state(x0)
+            else:
+                x0 = self.get_state()
+                ref_x0 = self.clip_state(x0)
+                init_x0[a] = x0
+
+            self.update_hist_info(hist_info)
+            self.reset_to_state(x0)
+            self.store_hist_info(hist_info)
+
             task = tuple(tasks[a])
             perm_task = tuple(perm_tasks[a])
-            dummy_sample.set(STATE_ENUM, prev_x0, t=0)
+            dummy_sample.set(STATE_ENUM, ref_x0, t=0)
             dummy_sample.targets = targets
             pre_cost = self.precond_cost(dummy_sample, task, 0)
             if pre_cost > 1e-4:
-                print('FAILED EXECUTION OF PRECONDITIONS', plan.actions[a])
+                print('FAILED EXECUTION OF PRECONDITIONS', plan.actions[a], plan.actions)
                 self.precond_cost(dummy_sample, task, 0, debug=True)
                 return False, False, path, info
+
             cost = 1.
             policy = self.policies[self.task_list[task[0]]]
             labels = None
-            if len(traj) > act_et:
-                ref_traj = traj[act_st:act_et+1]
-            elif (backup or rollout) and self.policy_initialized(policy):
+            if (backup or rollout) and a not in bad_rollout and self.policy_initialized(policy):
                 hor = 2 * (act_et - act_st)
                 if self.retime: hor *= 2
                 policies = {}
@@ -929,20 +948,17 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 else:
                     sample.use_ts[last_t:] = 0.
                     sample.prim_use_ts[last_t:] = 0.
-                cost = self.postcond_cost(sample, task, sample.T-1, x0=x0) if last_t is None else 0
-                #cost = self.postcond_cost(sample, task, sample.T-1, x0=x0)
+                cost = self.postcond_cost(sample, task, sample.T-1, x0=x0, tol=ROLL_TOL) if last_t is None else 0
                 ref_traj, _, labels, _ = self.reverse_retime([sample], (act_st, act_et), label=True, T=last_t)
-                #if cost < 1e-4 and rollout:
-                #    self.optimal_samples[self.task_list[task[0]]].append(sample)
             else:
                 ref_traj = []
 
-            if rollout and cost == 0:
+            if rollout and cost == 0 and a not in bad_rollout:
                 success = True
                 rollout_success = True
-                #next_x0 = ref_traj[-1]
-                next_x0 = sample.end_state if last_t is None else sample.get_X(t=last_t)
+                used_rollout = True
                 if last_t is None: last_t = sample.T-1
+                next_x0 = sample.get_X(t=last_t)
                 ref_x0 = next_x0.copy()
                 ref_x0 = self.clip_state(ref_x0)
                 path.append(sample)
@@ -952,7 +968,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 set_params_attrs(plan.params, self.state_inds, ref_x0, act_et, plan=plan)
                 self._x_delta[:] = sample.get(STATE_HIST_ENUM, t=last_t).reshape(self._x_delta.shape)
             else:
-                set_params_attrs(plan.params, self.state_inds, prev_x0, act_st, plan=plan)
+                set_params_attrs(plan.params, self.state_inds, ref_x0, act_st, plan=plan)
                 self.set_symbols(plan, task, anum=a, st=act_st, targets=targets)
                 old_free = plan.get_free_attrs()
                 if not rollout: ref_traj = []
@@ -973,15 +989,20 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 if not success:
                     self.n_fail_opt[task] = self.n_fail_opt.get(task, 0) + 1
                     try:
-                        print('FAILED TO SOLVE:', plan.actions[a], plan.get_failed_preds((act_st, act_et)))
+                        print('FAILED TO SOLVE:', plan.actions[a], plan.get_failed_preds((act_st, act_et)), used_rollout)
                     except Exception as e:
                         print('FAILED, Error IN FAIL CHECK', e)
-                    #state_dict = {(pname, aname): getattr(plan.params[pname], aname)[:, act_et] for pname, aname in self.state_inds if not plan.params[pname].is_symbol()}
-                    #for param in plan.params.values():
-                    #    if param.is_symbol():
-                    #        state_dict[param.name, 'value'] = param.value[:,0]
-                    #print('FAILED INFO:', plan.actions[a], state_dict, plan.get_failed_preds((act_st, act_st)), '\n\n\n')
-                    return False, False, path, info
+
+                    if not used_rollout:
+                        return False, False, path, info
+                    else:
+                        used_rollout = False
+                        bad_rollout.append(a-1)
+                        x_hist[a] = None
+                        path = path[:-1]
+                        print('BACKING UP', a, act_seq, self.process_id)
+                        a -= 1
+                        continue
 
                 next_path, next_x0 = self.run_action(plan, a, x0, perm_targets, perm_task, act_st, reset=True, save=True, record=True, perm=perm, prev_hist=cur_x_hist, hist_info=hist_info)
                 for sample in next_path:
@@ -989,13 +1010,21 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                     sample.source_label = label
 
                 path.extend(next_path)
-                if not next_path[-1]._postsuc:
+                if not next_path[-1]._postsuc and not used_rollout:
                     self.n_plans_run += 1
                     return False, True, path, info
+                elif not next_path[-1]._postsuc and used_rollout:
+                    bad_rollout.append(a-1)
+                    used_rollout = False
+                    x_hist[a] = None 
+                    path = path[:-1]
+                    print('BACKING UP', a, act_seq, self.process_id)
+                    a -=1
+                    continue
 
-            x0 = next_x0
-            ref_x0 = x0.copy()
-            ref_x0 = self.clip_state(ref_x0)
+                used_rollout = False
+
+            a += 1
            
         rollout_success = len(path) and self.goal_f(0, path[-1].end_state, targets) < 1e-3
         if success:
@@ -1012,9 +1041,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             self.n_plans_suc_run += 1
             self.add_task_paths([path])
 
-        if len(smooth_cnts):
-            print(self.process_id, 'N smooth:', smooth_cnts, time.time()-init_t, verbose)
-        print(('Plans run vs. success:', self.n_plans_run, self.n_plans_suc_run, self.process_id, time.time()-init_t))
+        print('Plans run vs. success:', self.n_plans_run, self.n_plans_suc_run, self.process_id, time.time()-init_t, success, rollout_success)
         return success, True, path, info
 
 
@@ -1123,8 +1150,8 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 x1 = path[0].get_X(t=0)
                 x2 = path[-1].end_state
                 s._postsuc = False
-                cost = self.postcond_cost(end_s, task, end_s.T-1, debug=True, x0=base_x0, tol=1e-3)
-                state_dict = {(pname, aname): (x1[self.state_inds[pname, aname]], x2[self.state_inds[pname, aname]], getattr(plan.params[pname], aname)[:,st], getattr(plan.params[pname], aname)[:,et]) for (pname, aname) in self.state_inds}
+                cost = self.postcond_cost(end_s, task, end_s.T-1, debug=(ind==0), x0=base_x0, tol=1e-3)
+                #state_dict = {(pname, aname): (x1[self.state_inds[pname, aname]], x2[self.state_inds[pname, aname]], getattr(plan.params[pname], aname)[:,st], getattr(plan.params[pname], aname)[:,et]) for (pname, aname) in self.state_inds}
                 #if ind == 0 and save: print('Ran opt path w/postcond failure?', task, plan.actions[anum], state_dict, self.process_id)
                 if ind == 0 and save: print('Ran opt path w/postcond failure?', task, plan.actions[anum], self.process_id)
 
@@ -1245,7 +1272,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
         failed_preds = [p for p in failed_preds if (p[1]._rollout or not type(p[1].expr) is EqExpr)]
         if debug:
-            print('FAILED:', failed_preds, self.process_id)
+            print('FAILED:', failed_preds, plan.actions, self.process_id)
         return failed_preds
 
 

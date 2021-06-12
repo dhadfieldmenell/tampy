@@ -95,6 +95,7 @@ class Can(Item):
         self.height = float(height)
         z = max(0, self.height - 0.03)
         self.grasp_point = [0., 0., z]
+        self.near_coeff = 3.5e-1
 
 class BlueCan(Can):
     def __init__(self, radius, height):
@@ -129,6 +130,7 @@ class Sphere(Item):
         self.color = "blue"
         self._type = "sphere"
         self.radius = float(radius)
+        self.near_coeff = 1.5
 
 class Obstacle(Item):
     """
@@ -170,7 +172,9 @@ class Box(Obstacle):
         self.height = dim[2]
         z = max(0, self.height - 0.03)
         self.grasp_point = [0., 0., z]
-        self.near_coeff = 5e-1
+        self.near_coeff = 1.3
+        if self.height < 0.02:
+            self.near_coeff = 1.
 
 class Basket(Item):
     """
@@ -202,8 +206,12 @@ class Door(XMLItem):
             self.hinge_type = 'prismatic'
             self.close_val = 0.
             self.open_val = -0.17 #-0.18
-            self.open_thresh = -0.12
-            self.close_thresh = -0.1
+            self.open_thresh = -0.15
+            self.close_thresh = -0.10
+            self.close_handle_pos = [0., -0.33, -0.03]
+            self.open_handle_pos = [0., -0.33, -0.03]
+            self.push_open_region = [0.02, 0.01, 0.02]
+            self.push_close_region = [0.08, 0.02, 0.02]
             self.open_dir = [0., -1., 0.]
             self.width = 0.1
         elif door_type.lower() == 'desk_shelf':
@@ -213,11 +221,15 @@ class Door(XMLItem):
             self.in_pos = const.IN_SHELF_POS
             self.handle_orn = const.SHELF_HANDLE_ORN
             self.in_orn = const.IN_SHELF_ORN
+            self.close_handle_pos = [-0.33, -0.03, 0.935]
+            self.open_handle_pos = [-0.27, -0.03, 0.935]
+            self.push_open_region = [0.02, 0.02, 0.07]
+            self.push_close_region = [0.02, 0.02, 0.07]
             self.width = 0.25
             self.close_val = 0.6
             self.open_val = 0.
-            self.open_thresh = 0.1
-            self.close_thresh = 0.5
+            self.open_thresh = 0.2
+            self.close_thresh = 0.4
             self.open_dir = [-1., 0., 0.]
         else:
             raise NotImplementedError()

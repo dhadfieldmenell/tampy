@@ -109,9 +109,9 @@ algorithm['mp_policy_prior'] = {
 def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.GOAL_OPTIONS = [
                 '(SlideDoorClose shelf_handle shelf)',
-                '(SlideDoorOpen shelf_handle shelf)',
+                #'(SlideDoorOpen shelf_handle shelf)',
                 '(SlideDoorClose drawer_handle drawer)',
-                '(SlideDoorOpen drawer_handle drawer)',
+                #'(SlideDoorOpen drawer_handle drawer)',
                 '(InSlideDoor upright_block shelf)',
                 '(InSlideDoor upright_block drawer)',
                 '(InSlideDoor flat_block shelf)',
@@ -222,6 +222,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'num_filters': [32, 32, 32],
         'filter_sizes': [7, 5, 5],
         'compound_goals': True,
+        'max_goals': 3,
     }
 
     #for o in range(no):
