@@ -94,7 +94,7 @@ def main():
     init_pos = [[0.15, 0.78, 0.85], [0.15, 0.63, 0.775], [-0.4, 0.7, 0.799], [-0.45, 0.59, 0.76], \
                 [-0.25, 0.59, 0.76], [-0.05, 0.59, 0.76], SHELF_HANDLE_POS, DRAWER_HANDLE_POS]
     dims = [[0.09, 0.023, 0.023], [0.08, 0.035, 0.015], [0.04], \
-            [0.005, 0.005, 0.005], [0.005, 0.005, 0.005],  [0.005, 0.005, 0.005], \
+            [0.01, 0.01, 0.015], [0.01, 0.01, 0.015],  [0.01, 0.01, 0.015], \
             [0.005, 0.005], [0.005, 0.005]]
     item_types = []
     for item in items:
@@ -121,8 +121,8 @@ def main():
 
         item_type = item_types[ind]
         s += "{} (name {}); ".format(item_type, item)
-        s += "Target (name {}_init_target); ".format(item)
-        s += "Target (name {}_end_target); ".format(item)
+        #s += "Target (name {}_init_target); ".format(item)
+        #s += "Target (name {}_end_target); ".format(item)
 
     s += "Target (name bin_target); "
     s += "Target (name off_desk_target); "
@@ -155,11 +155,11 @@ def main():
         s += "(pose {0} {1}), ".format(item, init_pos[ind])
         s += "(rotation {0} {1}), ".format(item, rot)
 
-        s += "(value {}_init_target {}), ".format(item, init_pos[ind])
-        s += "(rotation {}_init_target {}), ".format(item, rot)
+        #s += "(value {}_init_target {}), ".format(item, init_pos[ind])
+        #s += "(rotation {}_init_target {}), ".format(item, rot)
 
-        s += "(value {}_end_target {}), ".format(item, init_pos[ind])
-        s += "(rotation {}_end_target {}), ".format(item, rot)
+        #s += "(value {}_end_target {}), ".format(item, init_pos[ind])
+        #s += "(rotation {}_end_target {}), ".format(item, rot)
 
         #s += get_undefined_robot_pose_str("{0}_grasp_begin".format(item))
         #s += get_undefined_robot_pose_str("{0}_grasp_end".format(item))
@@ -194,8 +194,8 @@ def main():
 
     for item in items:
         if item.find('blue') >= 0 or item.find('red') >= 0: continue
-        s += "(At {0} {0}_init_target), ".format(item)
-        s += "(Near {0} {0}_init_target), ".format(item)
+        #s += "(At {0} {0}_init_target), ".format(item)
+        #s += "(Near {0} {0}_init_target), ".format(item)
         s += "(InReach {0} panda), ".format(item)
     s += "(RobotAt panda robot_init_pose),"
     s += "(Stackable flat_block upright_block), "

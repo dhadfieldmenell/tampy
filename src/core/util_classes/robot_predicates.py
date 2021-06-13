@@ -2642,6 +2642,14 @@ class EEApproachInDoorLeft(EEReachable):
         self.axis = self.ref_orn.dot(self.axis).round(4)
         self.rel_pt = params[1].geom.in_pos
 
+class NearApproachInDoorLeft(EEApproachInDoorLeft):
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.coeff = const.NEAR_APPROACH_COEFF
+        super(NearApproachInDoorLeft, self).__init__(name, params, expected_param_types, 0, env, debug)
+
+    def get_rel_pt(self, rel_step):
+        return -self.approach_dist*self.axis
+
 class EERetreatLeft(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "left"
@@ -2814,6 +2822,14 @@ class EEApproachInDoorRight(EEReachable):
         self.ref_orn = T.quat2mat(T.euler_to_quaternion(params[1].geom.in_orn, 'xyzw'))
         self.axis = self.ref_orn.dot(self.axis).round(4)
         self.rel_pt = params[1].geom.in_pos
+
+class NearApproachInDoorRight(EEApproachInDoorRight):
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.coeff = const.NEAR_APPROACH_COEFF
+        super(NearApproachInDoorRight, self).__init__(name, params, expected_param_types, 0, env, debug)
+
+    def get_rel_pt(self, rel_step):
+        return -self.approach_dist*self.axis
 
 class EERetreatRight(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):

@@ -37,17 +37,17 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.tamp_agent import TAMPAgent
 
 
-const.NEAR_GRIP_COEFF = 1.2e-2 # 2.2e-2 # 1.8e-2 # 2e-2
-const.NEAR_GRIP_ROT_COEFF = 2e-3
-const.NEAR_APPROACH_COEFF = 6e-3
+const.NEAR_GRIP_COEFF = 1.5e-2 # 2.2e-2 # 1.8e-2 # 2e-2
+const.NEAR_GRIP_ROT_COEFF = 6e-3
+const.NEAR_APPROACH_COEFF = 8e-3
 const.NEAR_APPROACH_ROT_COEFF = 2e-3
-const.GRASP_DIST = 0.15 # 0.18
-const.APPROACH_DIST = 0.015 # 0.02
-const.RETREAT_DIST = 0.015 # 0.02
-const.EEREACHABLE_COEFF = 3.5e-2 # 1e-1 # 3e-2 # 2e-2
+const.GRASP_DIST = 0.16 # 0.18
+const.APPROACH_DIST = 0.0125 # 0.02
+const.RETREAT_DIST = 0.0125 # 0.02
+const.EEREACHABLE_COEFF = 2.5e-2 # 1e-1 # 3e-2 # 2e-2
 const.EEREACHABLE_ROT_COEFF = 3e-2 # 8e-3
 const.EEREACHABLE_STEPS = 6
-const.EEATXY_COEFF = 7e-2
+const.EEATXY_COEFF = 8e-2
 const.RCOLLIDES_COEFF = 1.5e-2 # 2e-2
 const.OBSTRUCTS_COEFF = 2.5e-2
 const.INIT_TRAJ_COEFF = 2e-2
@@ -521,7 +521,7 @@ class RobotAgent(TAMPAgent):
         self.rlen = 10 if not self.compound_goals else 30
         self.hor = 15
 
-        freq = 15 # 20
+        freq = 25 
         self.base_env = robodesk.RoboDesk(task='lift_ball', \
                                           reward='success', \
                                           action_repeat=freq, \
@@ -1499,7 +1499,7 @@ class RobotAgent(TAMPAgent):
                 return 0. if (pos[0] > -0.3 and pos[0] < 0.3 and pos[2] < 0.73 and pos[2] > 0.5) else 1.
         elif task_name.find('place') >= 0:
             pos = x[self.state_inds[obj_name, 'pose']]
-            if debug: print('POSTCOND INFO PLACE:', obj_name, targ_name, pos)
+            if debug: print('POSTCOND INFO PLACE:', obj_name, targ_name, pos, sample.targets[self.target_inds[targ_name, 'value']])
             if targ_name.find('bin') >= 0:
                 return 0. if (pos[2] < 0.6 and pos[0] > 0.25 and pos[0] < 0.55 and pos[1] > 0.35) else 1.
             elif targ_name.find('off') >= 0:

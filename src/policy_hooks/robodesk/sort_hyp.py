@@ -112,10 +112,10 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 #'(SlideDoorOpen shelf_handle shelf)',
                 '(SlideDoorClose drawer_handle drawer)',
                 #'(SlideDoorOpen drawer_handle drawer)',
-                '(InSlideDoor upright_block shelf)',
-                '(InSlideDoor upright_block drawer)',
-                '(InSlideDoor flat_block shelf)',
-                '(InSlideDoor flat_block drawer)',
+                #'(InSlideDoor upright_block shelf)',
+                #'(InSlideDoor upright_block drawer)',
+                #'(InSlideDoor flat_block shelf)',
+                #'(InSlideDoor flat_block drawer)',
                 #'(InSlideDoor ball shelf)',
                 '(InSlideDoor ball drawer)',
                 ]
@@ -222,7 +222,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'num_filters': [32, 32, 32],
         'filter_sizes': [7, 5, 5],
         'compound_goals': True,
-        'max_goals': 3,
+        'max_goals': 2,
     }
 
     #for o in range(no):
