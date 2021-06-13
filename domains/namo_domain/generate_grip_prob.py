@@ -55,7 +55,7 @@ def main():
                 for i in range(N_END):
                     s += "(geom end_target_%d 0.3), (value end_target_%d %s), "%(i, i, list(coords[i]))
                 for i in range(NUM_HUMAN):
-                    s += "(geom human%d 0.3), (pose can%d %s), "%(i, i, list(coords[i]))
+                    s += "(geom human%d 0.3), (pose human%d %s), "%(i, i, list(coords[i]))
                 # s += "(value grasp0 undefined), "
                 s += "(value grasp0 [0, {0}]), ".format(-0.65-dsafe)
                 s += "(value grasp1 [0, {0}]), ".format(-0.65-dsafe)

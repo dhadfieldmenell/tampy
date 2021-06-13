@@ -2939,6 +2939,7 @@ class ColObjPred(CollisionPredicate):
 
         self.rs_scale = RS_SCALE
         self.radius = self.c.geom.radius + 2.5
+        self.col_ts = 2
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
@@ -2957,13 +2958,13 @@ class ColObjPred(CollisionPredicate):
         self.dsafe = 2.
 
     def f(self, x):
-        xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
+        xs = [float(self.col_ts-t)/self.col_ts*x[:4] + float(t)/self.col_ts*x[4:] for t in range(self.col_ts+1)]
         if USE_TF:
             cur_tensor = get_tf_graph('bump_out')
             in_tensor = get_tf_graph('bump_in')
             radius_tensor = get_tf_graph('bump_radius')
             vals = []
-            for i in range(COL_TS+1):
+            for i in range(self.col_ts):
                 pt = xs[i]
                 if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
                     vals.append(0)
@@ -2978,13 +2979,13 @@ class ColObjPred(CollisionPredicate):
         #return -self.distance_from_obj(x)[0] # twostep_f([x[:4]], self.distance_from_obj, 2, pts=1)
 
     def grad(self, x):
-        xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
+        xs = [float(self.col_ts-t)/self.col_ts*x[:4] + float(t)/self.col_ts*x[4:] for t in range(self.col_ts+1)]
         if USE_TF:
             cur_grads = get_tf_graph('bump_grads')
             in_tensor = get_tf_graph('bump_in')
             radius_tensor = get_tf_graph('bump_radius')
             vals = []
-            for i in range(COL_TS+1):
+            for i in range(self.col_ts):
                 pt = xs[i]
                 if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
                     vals.append(np.zeros((1,8)))
@@ -2992,7 +2993,7 @@ class ColObjPred(CollisionPredicate):
                     v = TF_SESS[0].run(cur_grads, feed_dict={in_tensor: pt, radius_tensor: self.radius**2}).T
                     v[np.isnan(v)] = 0.
                     v[np.isinf(v)] = 0.
-                    curcoeff = float(COL_TS-i)/COL_TS
+                    curcoeff = float(self.col_ts-i)/self.col_ts
                     vals.append(np.c_[curcoeff*v, (1-curcoeff)*v])
             return np.sum(vals, axis=0)
         return -self.coeff*self.distance_from_obj(x)[1] # twostep_f([x[:4]], self.distance_from_obj, 2, pts=1, grad=True)
@@ -3004,13 +3005,13 @@ class ColObjPred(CollisionPredicate):
         return -self.neg_grad_coeff * self.grad(x)
 
     def hess_neg(self, x):
-        xs = [float(COL_TS-t)/COL_TS*x[:4] + float(t)/COL_TS*x[4:] for t in range(COL_TS+1)]
+        xs = [float(self.col_ts-t)/self.col_ts*x[:4] + float(t)/self.col_ts*x[4:] for t in range(self.col_ts+1)]
         if USE_TF:
             cur_hess = get_tf_graph('bump_hess')
             in_tensor = get_tf_graph('bump_in')
             radius_tensor = get_tf_graph('bump_radius')
             vals = []
-            for i in range(COL_TS+1):
+            for i in range(self.col_ts):
                 pt = xs[i]
                 if np.sum((pt[:2]-pt[2:])**2) > (self.radius-1e-3)**2:
                     vals.append(np.zeros((8,8)))
@@ -3019,7 +3020,7 @@ class ColObjPred(CollisionPredicate):
                     v[np.isnan(v)] = 0.
                     v[np.isinf(v)] = 0.
                     v = v.reshape((4,4))
-                    curcoeff = float(COL_TS-i)/COL_TS
+                    curcoeff = float(self.col_ts-i)/self.col_ts
                     new_v = np.r_[np.c_[curcoeff*v, np.zeros((4,4))], np.c_[np.zeros((4,4)), (1-curcoeff)*v]]
                     vals.append(new_v.reshape((8,8)))
             return np.sum(vals, axis=0).reshape((8,8))
