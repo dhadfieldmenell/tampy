@@ -1905,6 +1905,69 @@ class CloseSlideDoorAt(ExprPredicate):
         self.spacial_anchor = True
 
 
+class SlideDoorAtOpen(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        assert params[1].geom.hinge_type == 'prismatic'
+        self.handle, self.door = params
+        ind = 0
+        for val in self.door.geom.open_dir:
+            if val != 0: break
+            ind += 1
+
+        attr_inds = OrderedDict([(self.door, [("hinge", np.array([0], dtype=np.int))])])
+
+        open_val = self.door.geom.open_val
+        close_val = self.door.geom.close_val
+        sgn = 1 if open_val < close_val else -1
+        self.coeff = 1. # 1e-3 / (np.abs(open_val-close_val) / 2.)
+        A = sgn*self.coeff*np.array([[1.]])
+        b = sgn*self.coeff*np.array([[-self.door.geom.open_val]])
+        val = np.zeros((1,1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+
+        #neg_b = self.coeff*np.array([[-self.door.geom.handle_pos[ind]], [0.]])
+        #neg_aff_e = AffExpr(A, neg_b)
+        #self.neg_expr = EgExpr(neg_aff_e, val)
+        super(SlideDoorAtOpen, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        self.spacial_anchor = True
+        self._init_include = False
+
+
+class SlideDoorAtClose(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        assert params[1].geom.hinge_type == 'prismatic'
+        self.handle, self.door = params
+        ind = 0
+        for val in self.door.geom.open_dir:
+            if val != 0: break
+            ind += 1
+
+        attr_inds = OrderedDict([(self.door, [("hinge", np.array([0], dtype=np.int))])])
+
+        open_val = self.door.geom.open_val
+        close_val = self.door.geom.close_val
+        sgn = 1 if open_val > close_val else -1
+        self.coeff = 1. # 1e-3 / (np.abs(open_val-close_val) / 2.)
+        A = sgn*self.coeff*np.array([[1.]])
+        b = sgn*self.coeff*np.array([[-self.door.geom.close_val]])
+        val = np.zeros((1,1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(SlideDoorAtClose, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        self.spacial_anchor = True
+        self._init_include = False
+
+    #def test(self, time, negated=False, tol=None):
+    #    if not self.is_concrete(): return False
+    #    if tol is None: tol = self.tol
+    #    expr = self.neg_expr if negated else expr
+    #    return expr.eval(self.get_param_vector(time), tol=tol, negated=False)
+
+
+
 class SlideDoorOpen(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2

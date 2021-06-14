@@ -276,6 +276,8 @@ door_dp.add('DeskHeightBlock', ['Item', 'Item'])
 door_dp.add('SlideDoorAt', ['Reachable', 'Door'])
 door_dp.add('SlideDoorOpen', ['Reachable', 'Door'])
 door_dp.add('SlideDoorClose', ['Reachable', 'Door'])
+door_dp.add('SlideDoorAtOpen', ['Reachable', 'Door'])
+door_dp.add('SlideDoorAtClose', ['Reachable', 'Door'])
 door_dp.add('InSlideDoor', ['Item', 'Door'])
 door_dp.add('EEApproachInDoorLeft', ['Robot', 'Door'])
 door_dp.add('EERetreatInDoorLeft', ['Robot', 'Door'])
@@ -1144,9 +1146,11 @@ class SlideDoor(Action):
 
         if open_door:
             self.eff.append(('(SlideDoorOpen ?item ?door)', '{0}:{1}'.format(putdown_time, end)))
+            self.eff.append(('(SlideDoorAtOpen ?item ?door)', '{0}:{1}'.format(putdown_time, end-1)))
             self.eff.append(('(not (SlideDoorClose ?item ?door))', '{0}:{1}'.format(end, end)))
         else:
             self.eff.append(('(SlideDoorClose ?item ?door)', '{0}:{1}'.format(putdown_time, end)))
+            self.eff.append(('(SlideDoorAtClose ?item ?door)', '{0}:{1}'.format(putdown_time, end-1)))
             self.eff.append(('(not (SlideDoorOpen ?item ?door))', '{0}:{1}'.format(end, end)))
 
 
