@@ -35,7 +35,7 @@ SHELF_POS = [0., 0.85, 0.]
 SHELF_ROT = [0., 0., 0.]
 SHELF_HANDLE_POS = (np.array(SHELF_POS) + const.SHELF_HANDLE_POS).tolist()
 
-DESK_BODY_GEOM = [0.575, 0.265, 0.015] # [0.6, 0.275, 0.025]
+DESK_BODY_GEOM = [0.575, 0.275, 0.025] # [0.6, 0.275, 0.025]
 DESK_BODY_POS = [0., 0.85, 0.735]
 DESK_BODY_ROT = [0, 0, 0]
 
@@ -94,7 +94,7 @@ def main():
     init_pos = [[0.15, 0.78, 0.85], [0.15, 0.63, 0.775], [-0.4, 0.7, 0.799], [-0.45, 0.59, 0.76], \
                 [-0.25, 0.59, 0.76], [-0.05, 0.59, 0.76], SHELF_HANDLE_POS, DRAWER_HANDLE_POS]
     dims = [[0.09, 0.023, 0.023], [0.08, 0.035, 0.015], [0.04], \
-            [0.01, 0.01, 0.015], [0.01, 0.01, 0.015],  [0.01, 0.01, 0.015], \
+            [0.02, 0.02, 0.02], [0.02, 0.02, 0.02],  [0.02, 0.02, 0.02], \
             [0.005, 0.005], [0.005, 0.005]]
     item_types = []
     for item in items:
@@ -113,7 +113,6 @@ def main():
         item_types.append(item_type)
 
     for ind, item in enumerate(items):
-        if item.find('blue') >= 0 or item.find('red') >= 0: continue
         #s += "PandaPose (name {}); ".format("{0}_grasp_begin".format(item))
         #s += "PandaPose (name {}); ".format("{0}_grasp_end".format(item))
         #s += "PandaPose (name {}); ".format("{0}_putdown_begin".format(item))
@@ -138,7 +137,6 @@ def main():
             'flat_block': [0., 0., 0.],
             'drawer_handle': const.DRAWER_HANDLE_ORN,}
     for ind, item in enumerate(items):
-        if item.find('blue') >= 0 or item.find('red') >= 0: continue
         dim = dims[ind]
         item_type = item_types[ind]
         if item_type.lower() == 'sphere':
@@ -219,9 +217,9 @@ def main():
     s += "(SlideDoorAt shelf_handle shelf), "
     s += "(SlideDoorAt drawer_handle drawer), "
     s += "(StationaryW desk_body), "
-    #s += "(Stationary red_button), "
+    s += "(Stationary red_button), "
     s += "(Stationary green_button), "
-    #s += "(Stationary blue_button), "
+    s += "(Stationary blue_button), "
     s += "\n\n"
 
     with open(filename, "w") as f:

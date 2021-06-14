@@ -18,7 +18,7 @@ class Item(object):
 
 
 class XMLItem(Item):
-    def __init__(self, shape):
+    def __init__(self, shape, col_links):
         super(XMLItem, self).__init__()
         self.initialized = False
         self._type = "xml_item"
@@ -26,6 +26,7 @@ class XMLItem(Item):
         self.shape = shape
         self.grasp_point = [0., 0., 0.]
         self.dof_map = {}
+        self.col_links = col_links
 
     def is_initialized(self):
         return self.initialized
@@ -130,7 +131,7 @@ class Sphere(Item):
         self.color = "blue"
         self._type = "sphere"
         self.radius = float(radius)
-        self.near_coeff = 1.5
+        self.near_coeff = 2.5
 
 class Obstacle(Item):
     """
@@ -172,9 +173,9 @@ class Box(Obstacle):
         self.height = dim[2]
         z = max(0, self.height - 0.03)
         self.grasp_point = [0., 0., z]
-        self.near_coeff = 1.4
+        self.near_coeff = 1.2
         if self.height < 0.02:
-            self.near_coeff = 1.
+            self.near_coeff = 0.8
 
 class Basket(Item):
     """
@@ -205,8 +206,8 @@ class Door(XMLItem):
             self.in_orn = const.IN_DRAWER_ORN
             self.hinge_type = 'prismatic'
             self.close_val = 0.
-            self.open_val = -0.17 #-0.18
-            self.open_thresh = -0.15
+            self.open_val = -0.18 #-0.18
+            self.open_thresh = -0.11
             self.close_thresh = -0.08
             self.close_handle_pos = [0., -0.33, -0.03]
             self.open_handle_pos = [0., -0.33, -0.03]
@@ -214,6 +215,7 @@ class Door(XMLItem):
             self.push_close_region = [0.08, 0.02, 0.02]
             self.open_dir = [0., -1., 0.]
             self.width = 0.1
+            col_links = set([-1, 0, 1])
         elif door_type.lower() == 'desk_shelf':
             shape = baxter_gym.__path__[0] + '/robot_info/robodesk/desk_shelf.xml'
             self.hinge_type = 'prismatic'
@@ -228,13 +230,14 @@ class Door(XMLItem):
             self.width = 0.25
             self.close_val = 0.6
             self.open_val = 0.
-            self.open_thresh = 0.2
-            self.close_thresh = 0.4
+            self.open_thresh = 0.15
+            self.close_thresh = 0.45
             self.open_dir = [-1., 0., 0.]
+            col_links = set([-1, 0, 1, 2])
         else:
             raise NotImplementedError()
 
-        super(Door, self).__init__(shape)
+        super(Door, self).__init__(shape, col_links)
         self._type = "door"
 
     def setup(self, robot=None):

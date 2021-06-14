@@ -39,13 +39,13 @@ from policy_hooks.tamp_agent import TAMPAgent
 
 const.NEAR_GRIP_COEFF = 1.5e-2 # 2.2e-2 # 1.8e-2 # 2e-2
 const.NEAR_GRIP_ROT_COEFF = 6e-3
-const.NEAR_APPROACH_COEFF = 8e-3
+const.NEAR_APPROACH_COEFF = 6e-3
 const.NEAR_APPROACH_ROT_COEFF = 2e-3
-const.GRASP_DIST = 0.16 # 0.18
-const.APPROACH_DIST = 0.0125 # 0.02
-const.RETREAT_DIST = 0.0125 # 0.02
-const.EEREACHABLE_COEFF = 2.5e-2 # 1e-1 # 3e-2 # 2e-2
-const.EEREACHABLE_ROT_COEFF = 3e-2 # 8e-3
+const.GRASP_DIST = 0.18
+const.APPROACH_DIST = 0.015 # 0.02
+const.RETREAT_DIST = 0.015 # 0.02
+const.EEREACHABLE_COEFF = 5e-2 # 1e-1 # 3e-2 # 2e-2
+const.EEREACHABLE_ROT_COEFF = 4e-2 # 8e-3
 const.EEREACHABLE_STEPS = 6
 const.EEATXY_COEFF = 8e-2
 const.RCOLLIDES_COEFF = 1.5e-2 # 2e-2
@@ -429,7 +429,7 @@ class EnvWrapper():
                         if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.05):
                             self.env.physics.named.data.xfrc_applied['ball'][2] = 3.
                         if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.05):
-                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = 4.
+                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = 6.
                         if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['upright_block']) < 0.05):
                             self.env.physics.named.data.xfrc_applied['upright_block'][2] = 2.
 

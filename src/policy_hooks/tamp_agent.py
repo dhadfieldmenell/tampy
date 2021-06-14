@@ -942,7 +942,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                     policies['cont'] = self.policies['cont']
                 sample = self.sample_task(policy, 0, x0.copy(), task, hor=hor, skip_opt=True, policies=policies)
                 sample.source_label = label
-                last_t = self.first_postcond(sample, x0=x0, task=task)
+                last_t = self.first_postcond(sample, x0=x0, task=task, tol=ROLL_TOL)
                 if last_t < 0:
                     last_t = None
                 else:
@@ -956,7 +956,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             if rollout and cost == 0 and a not in bad_rollout:
                 success = True
                 rollout_success = True
-                used_rollout = True
+                #used_rollout = True
                 if last_t is None: last_t = sample.T-1
                 next_x0 = sample.get_X(t=last_t)
                 ref_x0 = next_x0.copy()
@@ -1000,7 +1000,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                         bad_rollout.append(a-1)
                         x_hist[a] = None
                         path = path[:-1]
-                        print('BACKING UP', a, act_seq, self.process_id)
+                        print('BACKING UP', a, act_seq, plan.actions[a], self.process_id)
                         a -= 1
                         continue
 
@@ -1018,7 +1018,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                     used_rollout = False
                     x_hist[a] = None 
                     path = path[:-1]
-                    print('BACKING UP', a, act_seq, self.process_id)
+                    print('BACKING UP', a, act_seq, plan.actions[a], self.process_id)
                     a -=1
                     continue
 

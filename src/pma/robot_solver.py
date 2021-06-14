@@ -231,11 +231,10 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         if a_name.find('move') < 0 and \
            a_name.find('lift') >= 0:
             rel_pos = False
-            #if obj.name.find('ball') >= 0:
-            #    disp[1] = -const.GRASP_DIST
-            y_offset = max(-0.12, 0.55-obj.pose[1,st])
-            disp[0] = -obj.pose[0,st] * 2. / 3.
-            disp[1] = y_offset
+            y_offset = max(-0.16, 0.55-obj.pose[1,st])
+            disp[0] = -obj.pose[0,st] / 3.
+            #disp[1] = y_offset
+            disp[1] = 2 * (0.575-obj.pose[1,st]) / 3.
 
         if a_name.find('move') < 0 and \
             a_name.find('hold') >= 0:

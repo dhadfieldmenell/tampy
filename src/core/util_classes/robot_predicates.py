@@ -2644,7 +2644,8 @@ class EEApproachInDoorLeft(EEReachable):
 
 class NearApproachInDoorLeft(EEApproachInDoorLeft):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
-        self.coeff = const.NEAR_APPROACH_COEFF
+        self.coeff = const.NEAR_GRIP_COEFF
+        self.approach_dist = const.GRASP_DIST
         super(NearApproachInDoorLeft, self).__init__(name, params, expected_param_types, 0, env, debug)
 
     def get_rel_pt(self, rel_step):
@@ -2826,6 +2827,7 @@ class EEApproachInDoorRight(EEReachable):
 class NearApproachInDoorRight(EEApproachInDoorRight):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.coeff = const.NEAR_APPROACH_COEFF
+        self.approach_dist = const.GRASP_DIST
         super(NearApproachInDoorRight, self).__init__(name, params, expected_param_types, 0, env, debug)
 
     def get_rel_pt(self, rel_step):
@@ -3738,9 +3740,9 @@ class Lifted(ExprPredicate):
         A = np.array([[-1.]])
 
         if self.obj.name.lower().find('upright') >= 0:
-            b = 0.9 * np.ones((1,1))
+            b = 0.95 * np.ones((1,1))
         else:
-            b = 0.85 * np.ones((1,1))
+            b = 0.9 * np.ones((1,1))
         val = np.zeros((1,1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
