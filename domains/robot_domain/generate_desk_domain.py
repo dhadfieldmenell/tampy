@@ -939,14 +939,14 @@ class LiftArm(Lift):
         self.name = 'lift_{}'.format(self.arm)
         self.pre.extend([
                         ('(NearApproach{} ?robot ?item)'.format(arm), '0:0'),
-                        ('(NearApproach{}Rot ?robot ?item)'.format(arm), '0:0'),
+                        #('(NearApproach{}Rot ?robot ?item)'.format(arm), '0:0'),
                         ('(NearGripper{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time, self.end-1)),
                         #('(EEApproach{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time, self.grasp_time)),
                         ('(EEAtYRel{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time-steps-3, self.grasp_time-steps-1)),
                         ('(EEApproachAbs{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time, self.grasp_time)),
-                        ('(EEAt{}Rot ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time-steps+1, self.grasp_time)),
-                        ('(CloseGripper{} ?robot)'.format(arm), '{0}:{1}'.format(self.grasp_time+1,self.end-1)),
-                        ('(OpenGripper{} ?robot)'.format(arm), '{0}:{1}'.format(1, self.grasp_time)),
+                        ('(EEAt{}Rot ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time-steps+1, self.grasp_time-1)),
+                        ('(CloseGripper{} ?robot)'.format(arm), '{0}:{1}'.format(self.grasp_time,self.end-1)),
+                        ('(OpenGripper{} ?robot)'.format(arm), '{0}:{1}'.format(1, self.grasp_time-1)),
                         ])
 
         self.eff.extend([('(InGripper{} ?robot ?item)'.format(arm), '{0}:{1}'.format(self.end, self.end-1)),
@@ -1081,7 +1081,7 @@ class SlideDoor(Action):
     def __init__(self, open_door=True):
         self.name = 'slide_open' if open_door else 'slide_close'
         self.steps = const.EEREACHABLE_STEPS
-        self.timesteps = 13 + 2*const.EEREACHABLE_STEPS
+        self.timesteps = 14 + 2*const.EEREACHABLE_STEPS
         end = self.timesteps - 1
         self.end = end
         self.args = '(?robot - Robot ?door - Door ?item - Item)'
@@ -1165,9 +1165,9 @@ class SlideDoorArm(SlideDoor):
                          ('(NearApproach{} ?robot ?item)'.format(arm), '0:0'),
                          ('(NearGripper{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time, self.putdown_time)),
                          #('(EEAt{}Rot ?robot ?item)'.format(arm), 
-                         #    '{}:{}'.format(self.grasp_time-self.steps, self.grasp_time-self.steps)),
+                         #    '{}:{}'.format(self.grasp_time, self.putdown_time)),
                          ('(NearApproach{}Rot ?robot ?item)'.format(arm), 
-                             '{}:{}'.format(self.grasp_time-3, self.putdown_time+3)),
+                             '{}:{}'.format(self.grasp_time, self.putdown_time)),
                          #('(EEAtRelXZ{} ?robot ?item)'.format(arm), '{}:{}'.format(1, self.putdown_time)),
                          ('(EEApproach{} ?robot ?item)'.format(arm), 
                              '{}:{}'.format(self.grasp_time, self.grasp_time)),
@@ -1302,9 +1302,9 @@ class PlaceInDoorArm(PlaceInDoor):
                          ('(NearApproach{}Rot ?robot ?item)'.format(arm), 
                              '{}:{}'.format(self.putdown_time+self.steps, self.putdown_time+self.steps)),
                          ('(CloseGripper{} ?robot)'.format(arm), 
-                             '{}:{}'.format(1,  self.putdown_time)),
+                             '{}:{}'.format(1,  self.putdown_time-1)),
                          ('(OpenGripper{} ?robot)'.format(arm), 
-                             '{}:{}'.format(self.putdown_time+1,  self.end-1)),
+                             '{}:{}'.format(self.putdown_time,  self.end-1)),
                          ])
 
         self.eff.extend([('(forall (?obj - Reachable) \

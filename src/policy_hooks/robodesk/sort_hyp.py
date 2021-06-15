@@ -112,13 +112,14 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 #'(SlideDoorOpen shelf_handle shelf)',
                 '(SlideDoorClose drawer_handle drawer)',
                 #'(SlideDoorOpen drawer_handle drawer)',
-                #'(InSlideDoor upright_block shelf)',
-                #'(InSlideDoor upright_block drawer)',
-                #'(InSlideDoor flat_block shelf)',
-                #'(InSlideDoor flat_block drawer)',
+                '(InSlideDoor upright_block shelf)',
+                '(InSlideDoor upright_block drawer)',
+                '(InSlideDoor flat_block shelf)',
+                '(InSlideDoor flat_block drawer)',
                 #'(InSlideDoor ball shelf)',
                 '(InSlideDoor ball drawer)',
                 ]
+    prob.GOAL_OPTIONS = ['(Lifted ball panda)']
     prob.NUM_OBJS = no
     prob.NUM_TARGS = nt
     prob.N_GRASPS = N_GRASPS
@@ -164,6 +165,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                         utils.RIGHT_ENUM,
                         utils.RIGHT_VEL_ENUM,
                         utils.RIGHT_EE_POS_ENUM,
+                        utils.RIGHT_EE_ROT_ENUM,
                         utils.RIGHT_GRIPPER_ENUM,
                         utils.GRIP_CMD_ENUM,
                         utils.OBJ_ENUM,
@@ -173,11 +175,11 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'prim_obs_include': [
                              utils.ONEHOT_GOAL_ENUM,
                              utils.RIGHT_EE_POS_ENUM,
-                             #utils.RIGHT_EE_ROT_ENUM,
-                             utils.RIGHT_ENUM,
+                             utils.RIGHT_EE_ROT_ENUM,
+                             #utils.RIGHT_ENUM,
                              utils.RIGHT_VEL_ENUM,
-                             utils.RIGHT_GRIPPER_ENUM,
-                             utils.GRIP_CMD_ENUM,
+                             #utils.RIGHT_GRIPPER_ENUM,
+                             #utils.GRIP_CMD_ENUM,
                              ],
         'val_obs_include': [utils.ONEHOT_GOAL_ENUM,
                             ],
@@ -216,11 +218,11 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'expand_process': False,
         'her': False,
         'prim_filters': [32, 32],
-        'prim_filter_sizes': [7, 5],
+        'prim_filter_sizes': [5, 5],
         'cont_filters': [32, 16],
         'cont_filter_sizes': [7, 5],
-        'num_filters': [32, 32, 32],
-        'filter_sizes': [7, 5, 5],
+        'num_filters': [32, 32],
+        'filter_sizes': [5, 5],
         'compound_goals': True,
         'max_goals': 2,
     }

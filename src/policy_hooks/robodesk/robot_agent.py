@@ -37,14 +37,14 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.tamp_agent import TAMPAgent
 
 
-const.NEAR_GRIP_COEFF = 1.5e-2 # 2.2e-2 # 1.8e-2 # 2e-2
+const.NEAR_GRIP_COEFF = 4e-2 # 2.2e-2 # 1.8e-2 # 2e-2
 const.NEAR_GRIP_ROT_COEFF = 6e-3
-const.NEAR_APPROACH_COEFF = 6e-3
+const.NEAR_APPROACH_COEFF = 1e-2
 const.NEAR_APPROACH_ROT_COEFF = 2e-3
-const.GRASP_DIST = 0.18
+const.GRASP_DIST = 0.15
 const.APPROACH_DIST = 0.015 # 0.02
 const.RETREAT_DIST = 0.015 # 0.02
-const.EEREACHABLE_COEFF = 5e-2 # 1e-1 # 3e-2 # 2e-2
+const.EEREACHABLE_COEFF = 4e-2 # 1e-1 # 3e-2 # 2e-2
 const.EEREACHABLE_ROT_COEFF = 4e-2 # 8e-3
 const.EEREACHABLE_STEPS = 6
 const.EEATXY_COEFF = 8e-2
@@ -79,8 +79,8 @@ class optimal_pol:
             for param, attr in self.action_inds:
                 cur_val = X[self.state_inds[param, attr]] if (param, attr) in self.state_inds else None
                 if attr.find('grip') >= 0:
-                    val = self.opt_traj[min(t+1, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
-                    #val = self.opt_traj[min(t, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
+                    #val = self.opt_traj[min(t+1, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
+                    val = self.opt_traj[min(t, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
                     val = 0.045 if val > 0.01 else -0.005
                     u[self.action_inds[param, attr]] = val 
                 elif attr.find('ee_pos') >= 0:
@@ -307,7 +307,7 @@ class EnvWrapper():
         if item_name.find('ball') >= 0:
             #quat = T.euler_to_quaternion([0., -0.8, 1.57], 'wxyz')
             if pos[2] > 0.75:
-                quat = T.euler_to_quaternion([0., 1.0, -1.57], 'wxyz')
+                quat = T.euler_to_quaternion([0., 0.9, -1.57], 'wxyz')
             else:
                 quat = T.euler_to_quaternion([0., 0., 0.], 'wxyz')
 
@@ -419,18 +419,18 @@ class EnvWrapper():
                     self.env.physics.named.data.xfrc_applied['flat_block'][2] = 0.
                     self.env.physics.named.data.xfrc_applied['upright_block'][2] = 0.
                     if self.env.physics.data.ctrl[-1] > 0.03:
-                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.05):
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.04):
                             self.env.physics.named.data.xfrc_applied['ball'][2] = -7.
-                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.05):
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.04):
                             self.env.physics.named.data.xfrc_applied['flat_block'][2] = -5.
-                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['upright_block']) < 0.05):
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['upright_block']) < 0.03):
                             self.env.physics.named.data.xfrc_applied['upright_block'][2] = -2.
                     else:
-                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.05):
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.04):
                             self.env.physics.named.data.xfrc_applied['ball'][2] = 3.
-                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.05):
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.04):
                             self.env.physics.named.data.xfrc_applied['flat_block'][2] = 6.
-                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['upright_block']) < 0.05):
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['upright_block']) < 0.03):
                             self.env.physics.named.data.xfrc_applied['upright_block'][2] = 2.
 
                     self.env.physics.step()
@@ -493,6 +493,7 @@ class EnvWrapper():
         self.cur_obs = obs
         self.init_obs = obs
         self.trans_obs = obs
+        self.prev_obs = obs
         self._prev_task = None
         return obs
 
@@ -502,6 +503,12 @@ class EnvWrapper():
             self._prev_task = task_name
             self.trans_obs = self.cur_obs
         return self.trans_obs
+
+
+    def update_task(self, task):
+        if task != self._prev_task:
+            self._prev_task = task
+            self.trans_obs = self.cur_obs
 
 
     def close(self):
@@ -521,7 +528,7 @@ class RobotAgent(TAMPAgent):
         self.rlen = 10 if not self.compound_goals else 30
         self.hor = 15
 
-        freq = 25 
+        freq = 20
         self.base_env = robodesk.RoboDesk(task='lift_ball', \
                                           reward='success', \
                                           action_repeat=freq, \
@@ -561,6 +568,7 @@ class RobotAgent(TAMPAgent):
         self.base_env.physics.forward()
         targets = s.get(ONEHOT_GOAL_ENUM, t=t)
         task = s.get(FACTOREDTASK_ENUM, t=t).astype(int)
+        taskname = self.task_list[task[0]]
         pos = s.get(END_POSE_ENUM, t=t).round(3)
         truepos = s.get(TRUE_POSE_ENUM, t=t).round(3)
         precost = round(self.precond_cost(s, tuple(task), t), 4)
@@ -573,7 +581,7 @@ class RobotAgent(TAMPAgent):
 
         #textover1 = self.mjc_env.get_text_overlay(body='Task: {0} Err: {1}'.format(task, truepos-pos))
         #textover2 = self.mjc_env.get_text_overlay(body='{0: <6} {1: <6}'.format(precost, postcost), position='bottom left')
-        textover1 = 'TASK: {0}'.format(task)
+        textover1 = 'TASK: {0} {1}'.format(task, taskname)
         textover2 = 'COST: {0: <5} {1: <5}'.format(precost, postcost)
         textover3 = '{0}'.format(str(truepos-pos)[1:-1])
         goalover = ''
@@ -944,9 +952,13 @@ class RobotAgent(TAMPAgent):
             if IM_ENUM in self._hyperparams['obs_include'] or \
                IM_ENUM in self._hyperparams['prim_obs_include']:
                 im = self.mjc_env.cur_obs['image']
-                if self.incl_init_obs:
-                    im = np.c_[im, im-self.mjc_env.init_obs['image']]
                 im = (im - 128.) / 128.
+                if self.incl_init_obs:
+                    init_im = (self.mjc_env.cur_obs['image']-self.mjc_env.init_obs['image'])  / 256.
+                    im = np.c_[im, init_im]
+                if self.incl_trans_obs:
+                    trans_im = (self.mjc_env.cur_obs['image']-self.mjc_env.trans_obs['image'])  / 256.
+                    im = np.c_[im, trans_im]
                 sample.set(IM_ENUM, im.flatten(), t)
 
 
@@ -1475,7 +1487,9 @@ class RobotAgent(TAMPAgent):
 
 
     def set_task_info(self, sample, cur_state, t, cur_task, task_f, policies=None):
-        return super(RobotAgent, self).set_task_info(sample, cur_state, t, cur_task, task_f, policies)
+        task, policy = super(RobotAgent, self).set_task_info(sample, cur_state, t, cur_task, task_f, policies)
+        self.mjc_env.update_task(self.task_list[task[0]])
+        return task, policy
 
     def precond_cost(self, sample, task=None, t=0, tol=1e-3, x0=None, debug=False):
         if task is None: task = tuple(sample.get(FACTOREDTASK_ENUM, t=t))

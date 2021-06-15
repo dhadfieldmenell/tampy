@@ -56,7 +56,7 @@ def get_vector(config):
         'panda': ['right', 'right_ee_pos', 'right_ee_rot', 'right_gripper', 'pose', 'rotation']
     }
 
-    for item in ['ball', 'upright_block', 'flat_block', 'green_button']:
+    for item in ['ball', 'upright_block', 'flat_block', 'green_button', 'red_button', 'blue_button']:
         state_vector_include[item] = ['pose', 'rotation']
 
     for door in ['drawer', 'shelf']:
