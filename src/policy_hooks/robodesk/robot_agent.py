@@ -43,8 +43,11 @@ const.NEAR_GRIP_ROT_COEFF = 4e-3
 const.NEAR_APPROACH_COEFF = 8e-3
 const.NEAR_APPROACH_ROT_COEFF = 1e-3
 const.GRASP_DIST = 0.12
+const.PLACE_DIST = 0.2
 const.APPROACH_DIST = 0.01 # 0.02
 const.RETREAT_DIST = 0.01 # 0.02
+const.QUICK_APPROACH_DIST = 0.015 # 0.02
+const.QUICK_RETREAT_DIST = 0.015 # 0.02
 const.EEREACHABLE_COEFF = 4e-2 # 9e-2 # 1e-1 # 3e-2 # 2e-2
 const.EEREACHABLE_ROT_COEFF = 4e-2 # 8e-3
 const.EEREACHABLE_STEPS = 8
@@ -136,6 +139,13 @@ class EnvWrapper():
         params = {'distance': 1.8, 'azimuth': 90, 'elevation': -60,
                   'crop_box': (16.75, 25.0, 105.0, 88.75), 'size': 120}
         imsize = self.env.image_size if imsize is None else imsize
+        wid = 88.25
+        height = 63.75
+        ratio = imsize / max(wid, height)
+        if ratio > 1:
+            params['size'] = int(ratio * 120)
+            params['crop_box'] = (ratio*16.75, ratio*25., params['size']-ratio*15., params['size']-ratio*31.25)
+
         camera = mujoco.Camera(
             physics=self.physics, height=params['size'],
             width=params['size'], camera_id=-1)
@@ -527,7 +537,7 @@ class RobotAgent(TAMPAgent):
         self.compound_goals = hyperparams['master_config'].get('compound_goals', False)
         self.max_goals = hyperparams['master_config'].get('max_goals', 3)
         self._load_goals()
-        self.rlen = 10 if not self.compound_goals else 30
+        self.rlen = 10 if not self.compound_goals else 10 * self.max_goals
         self.hor = 15
 
         freq = 20
@@ -931,24 +941,12 @@ class RobotAgent(TAMPAgent):
         sample.set(TARGETS_ENUM, targets.copy(), t)
         sample.set(ONEHOT_GOAL_ENUM, targets, t)
         sample.targets = targets.copy()
-        #for i, obj in enumerate(prim_choices[OBJ_ENUM]):
-        #    grasp_pt = list(self.plans.values())[0].params[obj].geom.grasp_point
-        #    sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
-        #    targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
-        #    sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose+grasp_pt, t)
-        #    sample.set(TARG_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
-
-        #    obj_spat = Rotation.from_euler('xyz', mp_state[self.state_inds[obj, 'rotation']])
-        #    obj_quat = T.euler_to_quaternion(mp_state[self.state_inds[obj, 'rotation']], 'xyzw')
-        #    obj_mat = T.quat2mat(obj_quat)
-        #    goal_quat = T.mat2quat(obj_mat.dot(ee_mat))
-        #    rot_off = theta_error(ee_quat, goal_quat)
-        #    #sample.set(OBJ_ROTDELTA_ENUMS[i], rot_off, t)
-        #    sample.set(OBJ_ROTDELTA_ENUMS[i], (obj_spat.inv() * ee_spat).as_rotvec(), t)
-        #    targ_rot_off = theta_error(ee_quat, [0, 0, 0, 1])
-        #    targ_spat = Rotation.from_euler('xyz', [0., 0., 0.])
-        #    #sample.set(TARG_ROTDELTA_ENUMS[i], targ_rot_off, t)
-        #    sample.set(TARG_ROTDELTA_ENUMS[i], (targ_spat.inv() * ee_spat).as_rotvec(), t)
+        for i, obj in enumerate(prim_choices[OBJ_ENUM]):
+            grasp_pt = list(self.plans.values())[0].params[obj].geom.grasp_point
+            sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]+grasp_pt, t)
+            sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose+grasp_pt, t)
+            obj_spat = Rotation.from_euler('xyz', mp_state[self.state_inds[obj, 'rotation']])
+            sample.set(OBJ_ROTDELTA_ENUMS[i], (obj_spat.inv() * ee_spat).as_rotvec(), t)
 
         if fill_obs:
             if IM_ENUM in self._hyperparams['obs_include'] or \

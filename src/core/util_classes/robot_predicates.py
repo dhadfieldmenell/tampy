@@ -2885,25 +2885,33 @@ class EEApproachStackRight(EEReachable):
 class EEApproachInDoorRight(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "right"
-        self.approach_dist = const.GRASP_DIST
         super(EEApproachInDoorRight, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
         self.eval_rel = True
         self.ref_orn = T.quat2mat(T.euler_to_quaternion(params[1].geom.in_orn, 'xyzw'))
         self.axis = self.ref_orn.dot(self.axis).round(5)
         self.rel_pt = params[1].geom.in_pos
 
-    def get_rel_pt(self, rel_step):
-        return -self.approach_dist*self.axis
-
 class NearApproachInDoorRight(EEApproachInDoorRight):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.coeff = const.NEAR_APPROACH_COEFF
         super(NearApproachInDoorRight, self).__init__(name, params, expected_param_types, steps=0, env=env, debug=debug)
+        self.approach_dist = const.PLACE_DIST # const.GRASP_DIST
+
+    def get_rel_pt(self, rel_step):
+        return -self.approach_dist*self.axis
 
 class EERetreatRight(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "right"
         super(EERetreatRight, self).__init__(name, params, expected_param_types, (0, steps), env, debug)
+
+class EEWeakRetreatRight(EERetreatRight):
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.arm = "right"
+        self.coeff = const.NEAR_APPROACH_COEFF
+        super(EEWeakRetreatRight, self).__init__(name, params, expected_param_types, steps, env, debug)
+        self.approach_dist = const.QUICK_RETREAT_DIST
+        self.retreat_dist = const.QUICK_RETREAT_DIST
 
 class EERetreatAbsRight(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
@@ -3738,7 +3746,7 @@ class DeskHeightBlock(ExprPredicate):
         if self.goal_obj.name.find('shelf_handle') >= 0 and \
            self.block_obj.name.find('upright') >= 0:
             if block_pos[2] < 0.75 or block_pos[0] > 0.55 or \
-               block_pos[1] < 0.6 or block_pos[1] > 0.86:
+               block_pos[1] < 0.75 or block_pos[1] > 0.86:
                 return negated
 
             if goal_pos[0] > 0.1:

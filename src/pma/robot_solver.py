@@ -229,6 +229,9 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         rel_pos = True
         disp = np.array([0., 0., const.GRASP_DIST])
+        if a_name.find('place') >= 0:
+            disp = np.array([0., 0., const.PLACE_DIST])
+
         if a_name.find('move') < 0 and \
            a_name.find('lift') >= 0:
             rel_pos = False

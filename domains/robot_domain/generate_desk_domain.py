@@ -206,6 +206,7 @@ dp.add('EEApproachStackLeft', ['Robot', 'Reachable', 'Reachable'])
 dp.add('EEApproachStackRight', ['Robot', 'Reachable', 'Reachable'])
 dp.add('EERetreatLeft', ['Robot', 'Reachable'])
 dp.add('EERetreatRight', ['Robot', 'Reachable'])
+dp.add('EEWeakRetreatRight', ['Robot', 'Reachable'])
 dp.add('EERetreatAbsLeft', ['Robot', 'Reachable'])
 dp.add('EERetreatAbsRight', ['Robot', 'Reachable'])
 dp.add('EERetreatStackLeft', ['Robot', 'Reachable', 'Reachable'])
@@ -1290,16 +1291,16 @@ class PlaceInDoorArm(PlaceInDoor):
                          #    '{}:{}'.format(self.putdown_time, self.putdown_time)),
                          #('(EERetreatInDoor{} ?robot ?door)'.format(arm), 
                          #    '{}:{}'.format(self.putdown_time+1, self.putdown_time+1)),
-                         #('(EERetreat{} ?robot ?item)'.format(arm), 
-                         #    '{}:{}'.format(self.putdown_time, self.putdown_time)),
+                         ('(EEWeakRetreat{} ?robot ?item)'.format(arm), 
+                             '{}:{}'.format(self.putdown_time, self.putdown_time)),
                          #('(EEAt{}Rot ?robot ?item)'.format(arm), 
                          #    '{}:{}'.format(self.putdown_time-1, self.putdown_time+1)),
                          #('(EEAt{}Rot ?robot ?item)'.format(arm), 
                          #    '{}:{}'.format(self.putdown_time+1, self.putdown_time+2)),
                          #('(NearApproachInDoor{} ?robot ?door)'.format(arm), 
                          #    '{}:{}'.format(self.putdown_time-self.steps-2, self.putdown_time-self.steps-2)),
-                         ('(NearApproach{}Rot ?robot ?item)'.format(arm), 
-                             '{}:{}'.format(self.putdown_time+1, self.putdown_time+2)),
+                         #('(NearApproach{}Rot ?robot ?item)'.format(arm), 
+                         #    '{}:{}'.format(self.putdown_time+1, self.putdown_time+3)),
                          #('(NearApproach{}Rot ?robot ?item)'.format(arm), 
                          #    '{}:{}'.format(self.putdown_time+self.steps, self.putdown_time+self.steps)),
                          ('(CloseGripper{} ?robot)'.format(arm), 
