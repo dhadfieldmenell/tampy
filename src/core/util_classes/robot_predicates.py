@@ -2079,9 +2079,12 @@ class Stacked(ExprPredicate):
 
         self.coeff = 2e-2
         self.rot_coeff = 5e-3
-        A = np.c_[np.eye(6), -np.eye(6)]
-        A[:3] *= self.coeff
-        A[3:] *= self.rot_coeff
+        if self.obj is self.base_obj:
+            A = np.zeros((6,6))
+        else:
+            A = np.c_[np.eye(6), -np.eye(6)]
+            A[:3] *= self.coeff
+            A[3:] *= self.rot_coeff
         b, val = np.zeros((6, 1)), np.zeros((6, 1))
         b[2,0] = -self.coeff*(h1 + h2)
         aff_e = AffExpr(A, b)
@@ -2893,7 +2896,7 @@ class EEApproachInDoorRight(EEReachable):
 
 class NearApproachInDoorRight(EEApproachInDoorRight):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
-        self.coeff = const.NEAR_APPROACH_COEFF
+        self.coeff = 2e-2 # const.NEAR_APPROACH_COEFF
         super(NearApproachInDoorRight, self).__init__(name, params, expected_param_types, steps=0, env=env, debug=debug)
         self.approach_dist = const.PLACE_DIST # const.GRASP_DIST
 
@@ -2960,6 +2963,13 @@ class NearApproachRight(ApproachRight):
         self.coeff = const.NEAR_APPROACH_COEFF
         super(NearApproachRight, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
+
+class NearRetreatRight(ApproachRight):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        #self.f_tol = 0.04
+        self.coeff = const.NEAR_APPROACH_COEFF
+        super(NearRetreatRight, self).__init__(name, params, expected_param_types, env, debug)
+        self.approach_dist = const.PLACE_DIST
 
 class ApproachRightRot(EEReachableRightRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
@@ -3816,6 +3826,8 @@ class Lifted(ExprPredicate):
 
         if self.obj.name.lower().find('upright') >= 0:
             b = 0.925 * np.ones((1,1))
+        elif self.obj.name.lower().find('flat') >= 0:
+            b = 0.825 * np.ones((1,1))
         else:
             b = 0.875 * np.ones((1,1))
         val = np.zeros((1,1))

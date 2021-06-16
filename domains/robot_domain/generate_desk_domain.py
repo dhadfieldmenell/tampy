@@ -235,6 +235,7 @@ dp.add('ApproachRight', ['Robot', 'Reachable'])
 dp.add('NearApproach', ['Robot', 'Reachable'])
 dp.add('NearApproachLeft', ['Robot', 'Reachable'])
 dp.add('NearApproachRight', ['Robot', 'Reachable'])
+dp.add('NearRetreatRight', ['Robot', 'Reachable'])
 
 dp.add('EEReachableRot', ['Robot', 'Reachable'])
 dp.add('EEReachableLeftRot', ['Robot', 'Reachable'])
@@ -1192,7 +1193,8 @@ class SlideDoorArm(SlideDoor):
                              (not (NearApproach{} ?robot ?obj)))'.format(arm), '{0}:{1}'.format(self.end, self.end-1)),
                          ('(forall (?obj - Item) (not (EEAtXY{} ?robot ?obj)))'.format(arm), \
                             '{0}:{1}'.format(self.end, self.end-1)),
-                         ('(NearApproach{} ?robot ?item)'.format(arm), '{0}:{1}'.format(self.end, self.end)),
+                         #('(NearApproach{} ?robot ?item)'.format(arm), '{0}:{1}'.format(self.end, self.end)),
+                         ('(NearRetreat{} ?robot ?item)'.format(arm), '{0}:{1}'.format(self.end, self.end)),
                        ])
 
 

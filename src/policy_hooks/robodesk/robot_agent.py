@@ -41,8 +41,9 @@ from policy_hooks.tamp_agent import TAMPAgent
 const.NEAR_GRIP_COEFF = 2e-2 # 2.2e-2 # 1.8e-2 # 2e-2
 const.NEAR_GRIP_ROT_COEFF = 4e-3
 const.NEAR_APPROACH_COEFF = 8e-3
+const.NEAR_RETREAT_COEFF = 1.2e-2
 const.NEAR_APPROACH_ROT_COEFF = 1e-3
-const.GRASP_DIST = 0.12
+const.GRASP_DIST = 0.14
 const.PLACE_DIST = 0.2
 const.APPROACH_DIST = 0.01 # 0.02
 const.RETREAT_DIST = 0.01 # 0.02
@@ -52,7 +53,7 @@ const.EEREACHABLE_COEFF = 4e-2 # 9e-2 # 1e-1 # 3e-2 # 2e-2
 const.EEREACHABLE_ROT_COEFF = 4e-2 # 8e-3
 const.EEREACHABLE_STEPS = 8
 const.EEATXY_COEFF = 8e-2
-const.RCOLLIDES_COEFF = 3e-2 # 2e-2
+const.RCOLLIDES_COEFF = 2e-2 # 2e-2
 const.OBSTRUCTS_COEFF = 2.5e-2
 bt_ll.INIT_TRAJ_COEFF = 2e-2
 bt_ll.RS_COEFF = 1e1
@@ -117,7 +118,7 @@ class optimal_pol:
 
 
 class EnvWrapper():
-    def __init__(self, env, robot, mode='ee_pos'):
+    def __init__(self, env, robot, mode='ee_pos', render=True):
         self.env = env
         self.physics = env.physics
         self.robot = robot
@@ -133,7 +134,11 @@ class EnvWrapper():
         self.flat_rot = Rotation.from_euler('xyz', [0., 0., 0.])
         self.flat_rot_inv = self.flat_rot.inv()
         self.cur_obs = self.reset()
-        self.im_font = ImageFont.truetype('E:/PythonPillow/Fonts/FreeMono.ttf', 10)
+        self.use_render = render
+        if render:
+            self.im_font = ImageFont.truetype('E:/PythonPillow/Fonts/FreeMono.ttf', 10)
+        else:
+            self._get_obs = lambda: {'image': np.zeros((4,4,3))}
 
     def render(self, mode='rgb_array', resize=True, overlays=(), imsize=None):
         params = {'distance': 1.8, 'azimuth': 90, 'elevation': -60,
@@ -550,7 +555,8 @@ class RobotAgent(TAMPAgent):
         prim_options = self.prob.get_prim_choices(self.task_list)
         self.obj_list = prim_options[OBJ_ENUM]
         self.panda = list(self.plans.values())[0].params['panda']
-        self.mjc_env = EnvWrapper(self.base_env, self.panda, self.ctrl_mode)
+        load_render = hyperparams['master_config']['load_render']
+        self.mjc_env = EnvWrapper(self.base_env, self.panda, self.ctrl_mode, render=load_render)
         self.check_col = hyperparams['master_config'].get('check_col', True)
         self.use_glew = False
         self._viewer = None

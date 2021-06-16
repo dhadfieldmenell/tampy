@@ -229,7 +229,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         rel_pos = True
         disp = np.array([0., 0., const.GRASP_DIST])
-        if a_name.find('place') >= 0:
+        if a_name.find('place') >= 0 or a_name.find('slide') >= 0:
             disp = np.array([0., 0., const.PLACE_DIST])
 
         if a_name.find('move') < 0 and \
@@ -238,7 +238,8 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             y_offset = max(-0.14, 0.55-obj.pose[1,st])
             disp[0] = -obj.pose[0,st] / 3.
             #disp[1] = y_offset
-            disp[1] = (0.575-obj.pose[1,st]) / 2.
+            #disp[1] = (0.575-obj.pose[1,st]) / 2.
+            disp[1] = (0.575-obj.pose[1,st]) / 3.
 
         if a_name.find('move') < 0 and \
             a_name.find('hold') >= 0:
