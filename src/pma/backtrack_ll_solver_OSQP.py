@@ -1,22 +1,18 @@
 import itertools
 import random
 
-import gurobipy as grb
 import numpy as np
 
 from core.internal_repr.parameter import Object
 from core.util_classes.matrix import Vector
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
-from sco.expr import AffExpr, BoundExpr, QuadExpr
-from sco.prob import Prob
-from sco.solver import Solver
-from sco.variable import Variable
+from sco_OSQP.expr import AffExpr, BoundExpr, QuadExpr
+from sco_OSQP.prob import Prob
+from sco_OSQP.solver import Solver
+from sco_OSQP.variable import Variable
 
-from .ll_solver import LLParam, LLSolver
-
-GRB = grb.GRB
-
+from .ll_solver import LLParamOSQP, LLSolver
 
 MAX_PRIORITY = 3
 BASE_MOVE_COEFF = 1.0
@@ -31,7 +27,7 @@ BASE_SAMPLE_SIZE = 5
 DEBUG = False
 
 
-class BacktrackLLSolver(LLSolver):
+class BacktrackLLSolver_OSQP(LLSolver):
     def __init__(self, early_converge=False, transfer_norm="min-vel"):
         # To avoid numerical difficulties during optimization, try keep
         # range of coefficeint within 1e9
@@ -51,9 +47,9 @@ class BacktrackLLSolver(LLSolver):
         self.child_solver = None
         self.solve_priorities = [-2, -1, 0, 1, 2, 3]
         self.transfer_norm = transfer_norm
-        self.grb_init_mapping = {}
+        # self.grb_init_mapping = {}
         self.var_list = []
-        self._grb_to_var_ind = {}
+        # self._grb_to_var_ind = {}
         self.tol = 1e-3
         self.saved_params_free = {}
         self.fixed_objs = []
@@ -404,10 +400,11 @@ class BacktrackLLSolver(LLSolver):
             active_ts = (0, plan.horizon - 1)
 
         plan.save_free_attrs()  # Copies the current free_attrs
-        model = grb.Model()
-        model.params.OutputFlag = 0
-        self._prob = Prob(model, callback=callback)
-        self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
+
+        self._prob = Prob(callback=callback)
+
+        self._spawn_parameter_to_ll_mapping(plan, active_ts)
+
         obj_bexprs = []
         for param, values in self.fixed_objs:
             obj_bexprs.extend(
@@ -428,7 +425,11 @@ class BacktrackLLSolver(LLSolver):
                     plan, "min-vel", init_traj, active_ts=active_ts
                 )
             )
-        model.update()
+
+        import pdb
+
+        pdb.set_trace()
+
         initial_trust_region_size = self.initial_trust_region_size
         end_t = active_ts[1] - active_ts[0]
         if resample:
@@ -710,46 +711,6 @@ class BacktrackLLSolver(LLSolver):
         else:
             raise NotImplemented
         return transfer_objs
-
-    # @profile
-    def create_variable(self, grb_vars, init_vals, save=False):
-        """
-        if save is True
-        Update the grb_init_mapping so that each grb_var is mapped to
-        the right initial values.
-        Then find the sco variables that includes the grb variables we are updating and change the corresponding initial values inside of it.
-        if save is False
-        Iterate the var_list and use the last initial value used for each gurobi, and construct the sco variables
-        """
-        sco_var, grb_val_map, ret_val = None, {}, []
-
-        for grb, v in zip(grb_vars.flatten(), init_vals.flatten()):
-            grb_name = grb.VarName
-            if save:
-                self.grb_init_mapping[grb_name] = v
-            grb_val_map[grb_name] = self.grb_init_mapping.get(grb_name, v)
-            ret_val.append(grb_val_map[grb_name])
-            if grb_name in list(self._grb_to_var_ind.keys()):
-                for var, i in self._grb_to_var_ind[grb_name]:
-                    var._value[i] = grb_val_map[grb_name]
-                    if np.all(var._grb_vars is grb_vars):
-                        sco_var = var
-
-        if sco_var is None:
-            sco_var = Variable(grb_vars, np.array(ret_val).reshape((len(ret_val), 1)))
-            self.var_list.append(sco_var)
-            for i, grb in enumerate(grb_vars.flatten()):
-                index_val_list = self._grb_to_var_ind.get(grb.VarName, [])
-                index_val_list.append((sco_var, i))
-                self._grb_to_var_ind[grb.VarName] = index_val_list
-
-        # if DEBUG: self.check_sync()
-        return sco_var
-
-    # @profile
-    def check_grb_sync(self, grb_name):
-        for var, i in self._grb_to_var_ind[grb_name]:
-            print(var._grb_vars[i][0].VarName, var._value[i])
 
     # @profile
     def check_sync(self):
@@ -1097,11 +1058,11 @@ class BacktrackLLSolver(LLSolver):
             self.child_solver._update_ll_params()
 
     # @profile
-    def _spawn_parameter_to_ll_mapping(self, model, plan, active_ts=None):
+    def _spawn_parameter_to_ll_mapping(self, plan, active_ts=None):
         """
         This function creates low level parameters for each parameter in the plan,
         initializes the corresponding grb_vars for each attributes in each timestep,
-        update the grb models
+        updates the grb models
         adds in equality constraints,
         construct a dictionary as param-to-ll_param mapping.
         """
@@ -1111,12 +1072,13 @@ class BacktrackLLSolver(LLSolver):
         self._param_to_ll = {}
         self.ll_start = active_ts[0]
         for param in list(plan.params.values()):
-            ll_param = LLParam(model, param, horizon, active_ts)
-            ll_param.create_grb_vars()
+            ll_param = LLParamOSQP(param, horizon, active_ts)
             self._param_to_ll[param] = ll_param
-        model.update()
-        for ll_param in list(self._param_to_ll.values()):
-            ll_param.batch_add_cnts()
+
+        # TODO: The batch_add_cnts method is currently not implemented for LLParamOSQP
+
+        # for ll_param in list(self._param_to_ll.values()):
+        #     ll_param.batch_add_cnts()
 
     # @profile
     def _add_obj_bexprs(self, obj_bexprs):
@@ -1206,14 +1168,15 @@ class BacktrackLLSolver(LLSolver):
             for attr_name in value_map:  # param.__dict__.iterkeys():
                 attr_type = param.get_attr_type(attr_name)
                 if issubclass(attr_type, Vector):
-                    param_ll = self._param_to_ll[param]
                     if ts is None:
-                        active_ts = 0, param_ll.active_ts[1] - param_ll.active_ts[0]
+                        raise ValueError(
+                            "active_ts argument in call to _get_fixed_obj is None! This shouldn't ever happen"
+                        )
                     if param.is_symbol():
                         T = 1
                         attr_val = value_map[attr_name]
                     else:
-                        T = active_ts[1] - active_ts[0] + 1  # param_ll._horizon
+                        T = active_ts[1] - active_ts[0] + 1
                         attr_val = value_map[attr_name]
                     if np.any(np.isnan(attr_val)):
                         continue
@@ -1242,11 +1205,7 @@ class BacktrackLLSolver(LLSolver):
                     quad_expr = QuadExpr(
                         2 * transfer_coeff * Q, transfer_coeff * A, transfer_coeff * b
                     )
-                    ll_attr_val = getattr(param_ll, attr_name)
-                    if not param.is_symbol():
-                        ll_attr_val = ll_attr_val[:, active_ts[0] : active_ts[1] + 1]
-                    param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order="F")
-                    sco_var = self.create_variable(param_ll_grb_vars, cur_val)
+                    sco_var = Variable(cur_val)
                     bexpr = BoundExpr(quad_expr, sco_var)
                     transfer_objs.append(bexpr)
         else:
@@ -1309,9 +1268,7 @@ class BacktrackLLSolver(LLSolver):
                 quad_expr = QuadExpr(
                     2 * transfer_coeff * Q, transfer_coeff * A, transfer_coeff * b
                 )
-                ll_attr_val = getattr(param_ll, attr_name)[:, :T]
-                param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order="F")
-                sco_var = self.create_variable(param_ll_grb_vars, cur_val)
+                sco_var = Variable(cur_val)
                 bexpr = BoundExpr(quad_expr, sco_var)
                 transfer_objs.append(bexpr)
 
