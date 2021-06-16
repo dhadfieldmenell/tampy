@@ -108,18 +108,15 @@ algorithm['mp_policy_prior'] = {
 
 def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.GOAL_OPTIONS = [
-                '(SlideDoorClose shelf_handle shelf)',
-                #'(SlideDoorOpen shelf_handle shelf)',
-                '(SlideDoorClose drawer_handle drawer)',
-                #'(SlideDoorOpen drawer_handle drawer)',
                 '(InSlideDoor upright_block shelf)',
-                '(InSlideDoor upright_block drawer)',
-                '(InSlideDoor flat_block shelf)',
-                '(InSlideDoor flat_block drawer)',
+                #'(InSlideDoor upright_block drawer)',
+                #'(InSlideDoor flat_block shelf)',
+                #'(InSlideDoor flat_block drawer)',
                 #'(InSlideDoor ball shelf)',
-                '(InSlideDoor ball drawer)',
+                #'(InSlideDoor ball drawer)',
                 ]
-    prob.GOAL_OPTIONS = ['(Lifted ball panda)']
+    #prob.GOAL_OPTIONS = ['(Lifted ball panda)']
+    prob.INVARIANT_GOALS = ['(SlideDoorClose shelf_handle shelf)', '(SlideDoorClose drawer_handle drawer)']
     prob.NUM_OBJS = no
     prob.NUM_TARGS = nt
     prob.N_GRASPS = N_GRASPS
@@ -199,7 +196,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.TRUE_ROT_ENUM: 3,
                 utils.GRIPPER_ENUM: 1,
                 utils.GOAL_ENUM: 3*no,
-                utils.ONEHOT_GOAL_ENUM: 12 + len(prob.GOAL_OPTIONS),
+                utils.ONEHOT_GOAL_ENUM: 12 + len(prob.GOAL_OPTIONS)+len(prob.INVARIANT_GOALS),
                 utils.INGRASP_ENUM: no,
                 utils.TRUETASK_ENUM: 2,
                 utils.TRUEOBJ_ENUM: no,
@@ -224,7 +221,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'num_filters': [32, 32],
         'filter_sizes': [5, 5],
         'compound_goals': True,
-        'max_goals': 2,
+        'max_goals': 4,
     }
 
     #for o in range(no):

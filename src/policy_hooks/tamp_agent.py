@@ -695,7 +695,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
     def first_postcond(self, sample, tol=1e-3, x0=None, task=None):
         for t in range(sample.T):
             cost = self.postcond_cost(sample, t=t, tol=tol, x0=x0, task=task)
-            if cost < 1e-4:
+            if cost == 0.:
                 return t
         return -1
 
@@ -911,10 +911,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             act_st = max(st, act_st)
             if a in init_x0:
                 x0 = init_x0[a]
-                ref_x0 = self.clip_state(x0)
+                ref_x0 = self.clip_state(x0.copy())
             else:
                 x0 = self.get_state()
-                ref_x0 = self.clip_state(x0)
+                ref_x0 = self.clip_state(x0.copy())
                 init_x0[a] = x0
 
             self.update_hist_info(hist_info)
@@ -1143,7 +1143,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
         for ind, s in enumerate(path):
             s.opt_strength = 1.
-            if cost < 1e-4:
+            if cost < 1e-5:
                 s._postsuc = True
                 if save: self.optimal_samples[self.task_list[task[0]]].append(s)
             else:
@@ -1270,7 +1270,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             active_ts = (plan.horizon-1, plan.horizon-1)
 
         failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
-        failed_preds = [p for p in failed_preds if (p[1]._rollout or not type(p[1].expr) is EqExpr)]
+        failed_preds = [p for p in failed_preds if ((p[1]._rollout or not type(p[1].expr) is EqExpr) and not p[1]._nonrollout)]
         if debug:
             print('FAILED:', failed_preds, plan.actions, self.process_id)
         return failed_preds

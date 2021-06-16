@@ -6,7 +6,7 @@ from core.util_classes.robots import Robot
 import core.util_classes.transform_utils as T
 
 from functools import reduce
-import core.util_classes.baxter_constants as const
+import core.util_classes.common_constants as const
 from collections import OrderedDict
 from sco.expr import Expr
 import math

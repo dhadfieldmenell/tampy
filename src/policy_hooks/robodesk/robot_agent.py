@@ -25,6 +25,7 @@ from dm_control.mujoco import TextOverlay
 import pybullet as P
 import robodesk
 
+import pma.backtrack_ll_solver as bt_ll
 import core.util_classes.common_constants as const
 import core.util_classes.items as items
 from core.util_classes.openrave_body import OpenRAVEBody
@@ -37,20 +38,21 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.tamp_agent import TAMPAgent
 
 
-const.NEAR_GRIP_COEFF = 4e-2 # 2.2e-2 # 1.8e-2 # 2e-2
-const.NEAR_GRIP_ROT_COEFF = 6e-3
-const.NEAR_APPROACH_COEFF = 1e-2
-const.NEAR_APPROACH_ROT_COEFF = 2e-3
-const.GRASP_DIST = 0.15
-const.APPROACH_DIST = 0.015 # 0.02
-const.RETREAT_DIST = 0.015 # 0.02
-const.EEREACHABLE_COEFF = 4e-2 # 1e-1 # 3e-2 # 2e-2
+const.NEAR_GRIP_COEFF = 2e-2 # 2.2e-2 # 1.8e-2 # 2e-2
+const.NEAR_GRIP_ROT_COEFF = 4e-3
+const.NEAR_APPROACH_COEFF = 8e-3
+const.NEAR_APPROACH_ROT_COEFF = 1e-3
+const.GRASP_DIST = 0.12
+const.APPROACH_DIST = 0.01 # 0.02
+const.RETREAT_DIST = 0.01 # 0.02
+const.EEREACHABLE_COEFF = 4e-2 # 9e-2 # 1e-1 # 3e-2 # 2e-2
 const.EEREACHABLE_ROT_COEFF = 4e-2 # 8e-3
-const.EEREACHABLE_STEPS = 6
+const.EEREACHABLE_STEPS = 8
 const.EEATXY_COEFF = 8e-2
-const.RCOLLIDES_COEFF = 1.5e-2 # 2e-2
+const.RCOLLIDES_COEFF = 3e-2 # 2e-2
 const.OBSTRUCTS_COEFF = 2.5e-2
-const.INIT_TRAJ_COEFF = 2e-2
+bt_ll.INIT_TRAJ_COEFF = 2e-2
+bt_ll.RS_COEFF = 1e1
 STACK_OFFSET = 0.08
 SHELF_Y = 0.87
 
@@ -307,7 +309,7 @@ class EnvWrapper():
         if item_name.find('ball') >= 0:
             #quat = T.euler_to_quaternion([0., -0.8, 1.57], 'wxyz')
             if pos[2] > 0.75:
-                quat = T.euler_to_quaternion([0., 0.9, -1.57], 'wxyz')
+                quat = T.euler_to_quaternion([0., 0.7, -1.57], 'wxyz')
             else:
                 quat = T.euler_to_quaternion([0., 0., 0.], 'wxyz')
 
@@ -419,19 +421,19 @@ class EnvWrapper():
                     self.env.physics.named.data.xfrc_applied['flat_block'][2] = 0.
                     self.env.physics.named.data.xfrc_applied['upright_block'][2] = 0.
                     if self.env.physics.data.ctrl[-1] > 0.03:
-                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.04):
-                            self.env.physics.named.data.xfrc_applied['ball'][2] = -7.
-                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.04):
-                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = -5.
-                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['upright_block']) < 0.03):
-                            self.env.physics.named.data.xfrc_applied['upright_block'][2] = -2.
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.05):
+                            self.env.physics.named.data.xfrc_applied['ball'][2] = -3.
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.06):
+                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = -7.
+                        #if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['upright_block']) < 0.05):
+                        #    self.env.physics.named.data.xfrc_applied['upright_block'][2] = -2.
                     else:
-                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.04):
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.05):
                             self.env.physics.named.data.xfrc_applied['ball'][2] = 3.
-                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.04):
-                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = 6.
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.05):
+                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = 3.
                         if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['upright_block']) < 0.03):
-                            self.env.physics.named.data.xfrc_applied['upright_block'][2] = 2.
+                            self.env.physics.named.data.xfrc_applied['upright_block'][2] = 3.
 
                     self.env.physics.step()
                     self.env.physics_copy.data.qpos[:] = self.physics.data.qpos[:]
@@ -554,7 +556,7 @@ class RobotAgent(TAMPAgent):
 
     def _load_goals(self):
         self.goals = {}
-        for goal in self.prob.GOAL_OPTIONS:
+        for goal in self.prob.GOAL_OPTIONS + self.prob.INVARIANT_GOALS:
             descr = goal.replace('(', '').replace(')', '')
             descr = descr.split(' ')
             self.goals[goal] = [descr[0], descr[1:]]
@@ -587,7 +589,7 @@ class RobotAgent(TAMPAgent):
         goalover = ''
         targets = s.targets
 
-        for goal in self.prob.GOAL_OPTIONS:
+        for goal in self.prob.GOAL_OPTIONS + self.prob.INVARIANT_GOALS:
             #if targets[self.target_inds[goal, 'value']] == 1.:
             #    goalover += goal
             if targets[self.target_inds[goal, 'value']] == 1.:
@@ -1110,6 +1112,10 @@ class RobotAgent(TAMPAgent):
             if not self.compound_goals: break
             if i >= self.max_goals: break
 
+        for goal in self.prob.INVARIANT_GOALS:
+            key, params = self.goals[goal]
+            targets[goal] = 1
+
         return [x], [targets] 
    
 
@@ -1313,7 +1319,8 @@ class RobotAgent(TAMPAgent):
         x[self.state_inds['panda', 'right']] = np.clip(jnt_vals, lb, ub)
         cv, ov = self.panda.geom.get_gripper_closed_val(), self.panda.geom.get_gripper_open_val()
         grip_vals = x[self.state_inds['panda', 'right_gripper']]
-        grip_vals = ov if np.mean(np.abs(grip_vals-cv)) > np.mean(np.abs(grip_vals-ov)) else cv
+        #grip_vals = ov if np.mean(np.abs(grip_vals-cv)) > np.mean(np.abs(grip_vals-ov)) else cv
+        grip_vals = cv
         x[self.state_inds['panda', 'right_gripper']] = grip_vals
         return x
 
@@ -1508,9 +1515,9 @@ class RobotAgent(TAMPAgent):
             pos = x[self.state_inds[obj_name, 'pose']]
             if debug: print('POSTCOND INFO PLACE IN DOOR:', obj_name, door_name, pos)
             if door_name.find('shelf') >= 0:
-                return 0. if (pos[0] > 0. and pos[1] > SHELF_Y) else 1.
+                if (pos[0] < 0. or pos[1] < SHELF_Y): return 1.
             elif door_name.find('drawer') >= 0:
-                return 0. if (pos[0] > -0.3 and pos[0] < 0.3 and pos[2] < 0.73 and pos[2] > 0.5) else 1.
+                if not (pos[0] > -0.3 and pos[0] < 0.3 and pos[2] < 0.73 and pos[2] > 0.5): return 1.
         elif task_name.find('place') >= 0:
             pos = x[self.state_inds[obj_name, 'pose']]
             if debug: print('POSTCOND INFO PLACE:', obj_name, targ_name, pos, sample.targets[self.target_inds[targ_name, 'value']])
@@ -1524,7 +1531,7 @@ class RobotAgent(TAMPAgent):
             targ_offset = [0., 0., 0.03778]
             offset = np.linalg.norm((pos-base_pos) - targ_offset)
             if debug: print('POSTCOND INFO STACK:', obj_name, pos, base_pos, offset)
-            return 0. if offset < STACK_OFFSET else offset
+            if offset > STACK_OFFSET: return offset
         elif task_name.find('hold') >= 0 and obj_name.find('green_button') >= 0:
             val = self.base_env.physics.named.data.qpos['green_light'][0]
             return 0. if val < -0.00453 else 1.
@@ -1548,6 +1555,7 @@ class RobotAgent(TAMPAgent):
                 'init_obs': self.mjc_env.init_obs,
                 'trans_obs': self.mjc_env.trans_obs,
                 'qpos': self.base_env.physics.data.qpos.copy(),
+                'qvel': self.base_env.physics.data.qvel.copy(),
                 }
         return info
 
@@ -1556,9 +1564,14 @@ class RobotAgent(TAMPAgent):
         self.mjc_env.cur_obs = info['cur_obs']
         self.mjc_env.init_obs = info['init_obs']
         self.mjc_env.trans_obs = info['trans_obs']
+        #self.base_env.physics.data.qpos[:] = info['qpos']
+        #self.base_env.physics.data.qvel[:] = info['qvel']
+        #self.base_env.physics.forward()
 
     
     def update_hist_info(self, info):
         info['trans_obs'] = self.mjc_env.cur_obs
         info['cur_obs'] = self.mjc_env.cur_obs
+        info['qpos'] = self.base_env.physics.data.qpos.copy()
+        info['qvel'] = self.base_env.physics.data.qvel.copy()
 

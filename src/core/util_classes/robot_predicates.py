@@ -2054,15 +2054,16 @@ class InSlideDoor(ExprPredicate):
         b = np.r_[b, -b]
         val = np.zeros((6,1))
         val[0] = self.door.geom.width
-        val[1] = 0.02
+        val[1] = 0.01
         val[2] = 0.03
-        val[3:6] = 0.3
+        val[3:6] = 0.01
         val = np.r_[val, val]
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(InSlideDoor, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
         self._init_include = False
+        self._nonrollout = True
 
 class Stacked(ExprPredicate):
     #@profile
@@ -2089,6 +2090,7 @@ class Stacked(ExprPredicate):
         super(Stacked, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
         self._init_include = False
+        self._nonrollout = True
 
 
 ### EE CONSTRAINTS - Non-linear constraints on end effector pos/orn
@@ -2506,6 +2508,8 @@ class EEReachable(PosePredicate):
         if not hasattr(self, 'f_tol'): self.f_tol = 0
         if not hasattr(self, 'pause'): self.pause = 0 # extra time ee is at target pos
         if not hasattr(self, 'arm'): self.arm = self.robot.geom.arms[0]
+        if hasattr(params[1], 'geom'):
+            self.coeff *= params[1].geom.eereachable_coeff
 
         self.eval_rel = True
         self.eval_f = self.stacked_f
@@ -2881,20 +2885,20 @@ class EEApproachStackRight(EEReachable):
 class EEApproachInDoorRight(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "right"
+        self.approach_dist = const.GRASP_DIST
         super(EEApproachInDoorRight, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
         self.eval_rel = True
         self.ref_orn = T.quat2mat(T.euler_to_quaternion(params[1].geom.in_orn, 'xyzw'))
-        self.axis = self.ref_orn.dot(self.axis).round(4)
+        self.axis = self.ref_orn.dot(self.axis).round(5)
         self.rel_pt = params[1].geom.in_pos
+
+    def get_rel_pt(self, rel_step):
+        return -self.approach_dist*self.axis
 
 class NearApproachInDoorRight(EEApproachInDoorRight):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.coeff = const.NEAR_APPROACH_COEFF
-        self.approach_dist = const.GRASP_DIST
-        super(NearApproachInDoorRight, self).__init__(name, params, expected_param_types, 0, env, debug)
-
-    def get_rel_pt(self, rel_step):
-        return -self.approach_dist*self.axis
+        super(NearApproachInDoorRight, self).__init__(name, params, expected_param_types, steps=0, env=env, debug=debug)
 
 class EERetreatRight(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
@@ -3803,9 +3807,9 @@ class Lifted(ExprPredicate):
         A = np.array([[-1.]])
 
         if self.obj.name.lower().find('upright') >= 0:
-            b = 0.95 * np.ones((1,1))
+            b = 0.925 * np.ones((1,1))
         else:
-            b = 0.9 * np.ones((1,1))
+            b = 0.875 * np.ones((1,1))
         val = np.zeros((1,1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)

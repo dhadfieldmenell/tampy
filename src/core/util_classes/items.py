@@ -12,6 +12,7 @@ class Item(object):
         self.col_links = set([-1])
         self.grasp_point = [0., 0., 0.]
         self.near_coeff = 1.
+        self.eereachable_coeff = 1.
 
     def get_types(self):
         return [self._type, self._base_type]
@@ -132,6 +133,7 @@ class Sphere(Item):
         self._type = "sphere"
         self.radius = float(radius)
         self.near_coeff = 2.5
+        self.eereachable_coeff = 1.2e1
 
 class Obstacle(Item):
     """
@@ -227,7 +229,7 @@ class Door(XMLItem):
             self.open_handle_pos = [-0.27, -0.03, 0.935]
             self.push_open_region = [0.02, 0.02, 0.07]
             self.push_close_region = [0.02, 0.02, 0.07]
-            self.width = 0.25
+            self.width = 0.15
             self.close_val = 0.6
             self.open_val = 0.
             self.open_thresh = 0.15

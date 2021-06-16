@@ -29,6 +29,7 @@ GOAL_OPTIONS = [
                 '(InGripperRight panda green_button)',
                 ]
 
+INVARIANT_GOALS = []
 
 def prob_file(descr=None):
     return "../domains/robot_domain/probs/robodesk_prob.prob"
@@ -71,7 +72,7 @@ def get_vector(config):
         'bin_target': ['value', 'rotation'],
         'off_desk_target': ['value', 'rotation'],
     }
-    for goal in GOAL_OPTIONS:
+    for goal in GOAL_OPTIONS + INVARIANT_GOALS:
         target_vector_include[goal] = ['value']
 
     return state_vector_include, action_vector_include, target_vector_include

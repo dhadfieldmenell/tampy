@@ -11,10 +11,10 @@ import core.util_classes.transform_utils as T
 from pma import backtrack_ll_solver
 
 
-#PANDA_REF_JNTS = [-0.30, -0.4, 0.28, -2.5, 0.13, 1.87, 0.91]
+PANDA_REF_JNTS = [-0.30, -0.4, 0.28, -2.5, 0.13, 1.87, 0.91]
 #PANDA_REF_JNTS = [0.3, -0.8, 1.0, -2.5, 1.5, 1.87, 0.91]
-PANDA_REF_JNTS = [0.3, -0.8, 1.0, -2.5, 0.5, 1.87, 0.2]
-PANDA_REF_JNTS = [0.5, -0.8, 1.0, -2.5, 0.5, 1.87, 0.2]
+#PANDA_REF_JNTS = [0.3, -0.8, 1.0, -2.5, 0.5, 1.87, 0.2]
+#PANDA_REF_JNTS = [0.5, -0.8, 1.0, -2.5, 0.5, 1.87, 0.2]
 PANDA_REF_JNTS = [0.5, -0.8, 0.9, -2.3, 0.5, 1.6, 0.2]
 
 class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
@@ -54,8 +54,8 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
                     euler = obj_geom.handle_orn
                 else:
                     euler = obj_geom.in_orn
-            elif a_name.find('lift') >= 0:
-                euler = [1.57, 0., 0.]
+            #elif a_name.find('lift') >= 0:
+            #    euler = [1.57, 0., 0.]
             else:
                 euler = obj.rotation[:,ts[0]] if not obj.is_symbol() else obj.rotation[:,0]
 
@@ -83,6 +83,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             robot_body.set_pose(robot.pose[:,ts[0]], robot.rotation[:,ts[0]])
             if a_name.lower().find('move') >= 0:
                 robot_body.set_dof({arm: PANDA_REF_JNTS})
+                #robot_body.set_dof({arm: (getattr(robot, arm)[:, ts[0]]+PANDA_REF_JNTS)/2.})
             else:
                 robot_body.set_dof({arm: getattr(robot, arm)[:, ts[0]]})
 
@@ -231,10 +232,10 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
         if a_name.find('move') < 0 and \
            a_name.find('lift') >= 0:
             rel_pos = False
-            y_offset = max(-0.16, 0.55-obj.pose[1,st])
+            y_offset = max(-0.14, 0.55-obj.pose[1,st])
             disp[0] = -obj.pose[0,st] / 3.
             #disp[1] = y_offset
-            disp[1] = 2 * (0.575-obj.pose[1,st]) / 3.
+            disp[1] = (0.575-obj.pose[1,st]) / 2.
 
         if a_name.find('move') < 0 and \
             a_name.find('hold') >= 0:
