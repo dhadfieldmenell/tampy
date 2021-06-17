@@ -108,10 +108,10 @@ algorithm['mp_policy_prior'] = {
 
 def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.GOAL_OPTIONS = [
-                '(InSlideDoor upright_block shelf)',
-                #'(InSlideDoor upright_block drawer)',
+                #'(InSlideDoor upright_block shelf)',
+                '(InSlideDoor upright_block drawer)',
                 #'(InSlideDoor flat_block shelf)',
-                #'(InSlideDoor flat_block drawer)',
+                '(InSlideDoor flat_block drawer)',
                 #'(InSlideDoor ball shelf)',
                 #'(InSlideDoor ball drawer)',
                 ]
@@ -174,7 +174,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                              utils.RIGHT_EE_POS_ENUM,
                              utils.RIGHT_EE_ROT_ENUM,
                              #utils.RIGHT_ENUM,
-                             utils.RIGHT_VEL_ENUM,
+                             #utils.RIGHT_VEL_ENUM,
                              #utils.RIGHT_GRIPPER_ENUM,
                              #utils.GRIP_CMD_ENUM,
                              ],

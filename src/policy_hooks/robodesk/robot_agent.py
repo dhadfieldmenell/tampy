@@ -133,12 +133,12 @@ class EnvWrapper():
         self.upright_rot_inv = self.upright_rot.inv()
         self.flat_rot = Rotation.from_euler('xyz', [0., 0., 0.])
         self.flat_rot_inv = self.flat_rot.inv()
-        self.cur_obs = self.reset()
         self.use_render = render
         if render:
             self.im_font = ImageFont.truetype('E:/PythonPillow/Fonts/FreeMono.ttf', 10)
         else:
-            self._get_obs = lambda: {'image': np.zeros((4,4,3))}
+            self.env._get_obs = lambda: {'image': np.zeros((4,4,3))}
+        self.cur_obs = self.reset()
 
     def render(self, mode='rgb_array', resize=True, overlays=(), imsize=None):
         params = {'distance': 1.8, 'azimuth': 90, 'elevation': -60,
@@ -541,9 +541,11 @@ class RobotAgent(TAMPAgent):
         self.ctrl_mode = 'joint' if ('panda', 'right') in self.action_inds else 'ee_pos'
         self.compound_goals = hyperparams['master_config'].get('compound_goals', False)
         self.max_goals = hyperparams['master_config'].get('max_goals', 3)
+        self.max_goals = min(self.max_goals, len(self.prob.GOAL_OPTIONS))
+        self.max_goals += len(self.prob.INVARIANT_GOALS)
         self._load_goals()
-        self.rlen = 10 if not self.compound_goals else 10 * self.max_goals
-        self.hor = 15
+        self.rlen = 10 if not self.compound_goals else 5 * self.max_goals
+        self.hor = 18
 
         freq = 20
         self.base_env = robodesk.RoboDesk(task='lift_ball', \
@@ -572,7 +574,14 @@ class RobotAgent(TAMPAgent):
 
     def _load_goals(self):
         self.goals = {}
-        for goal in self.prob.GOAL_OPTIONS + self.prob.INVARIANT_GOALS:
+        self.base_goals = {}
+        for goal in self.prob.GOAL_OPTIONS:
+            descr = goal.replace('(', '').replace(')', '')
+            descr = descr.split(' ')
+            self.goals[goal] = [descr[0], descr[1:]]
+            self.base_goals[goal] = [descr[0], descr[1:]]
+
+        for goal in self.prob.INVARIANT_GOALS:
             descr = goal.replace('(', '').replace(')', '')
             descr = descr.split(' ')
             self.goals[goal] = [descr[0], descr[1:]]
@@ -1102,7 +1111,7 @@ class RobotAgent(TAMPAgent):
             targets[targ] = plan.params[targ].value[:,0].copy()
 
         used_params = []
-        goal_descrs = list(self.goals.keys())
+        goal_descrs = list(self.base_goals.keys())
         order = np.random.permutation(len(goal_descrs))
 
         i = 0
@@ -1110,6 +1119,7 @@ class RobotAgent(TAMPAgent):
             goal = goal_descrs[ind]
             key, params = self.goals[goal]
             if params[0] in used_params: continue
+            if key in self.prob.INVARIANT_GOALS: continue
             i += 1
             used_params.append(params[0])
             targets[goal] = 1
