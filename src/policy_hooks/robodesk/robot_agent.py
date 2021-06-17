@@ -40,22 +40,22 @@ from policy_hooks.tamp_agent import TAMPAgent
 
 const.NEAR_GRIP_COEFF = 2e-2 # 2.2e-2 # 1.8e-2 # 2e-2
 const.NEAR_GRIP_ROT_COEFF = 4e-3
-const.NEAR_APPROACH_COEFF = 8e-3
+const.NEAR_APPROACH_COEFF = 7e-3
 const.NEAR_RETREAT_COEFF = 1.2e-2
 const.NEAR_APPROACH_ROT_COEFF = 1e-3
-const.GRASP_DIST = 0.14
+const.GRASP_DIST = 0.16
 const.PLACE_DIST = 0.2
 const.APPROACH_DIST = 0.01 # 0.02
-const.RETREAT_DIST = 0.01 # 0.02
+const.RETREAT_DIST = 0.015 # 0.02
 const.QUICK_APPROACH_DIST = 0.015 # 0.02
 const.QUICK_RETREAT_DIST = 0.015 # 0.02
-const.EEREACHABLE_COEFF = 4e-2 # 9e-2 # 1e-1 # 3e-2 # 2e-2
-const.EEREACHABLE_ROT_COEFF = 4e-2 # 8e-3
-const.EEREACHABLE_STEPS = 8
-const.EEATXY_COEFF = 8e-2
+const.EEREACHABLE_COEFF = 3e-1 # 9e-2 # 1e-1 # 3e-2 # 2e-2
+const.EEREACHABLE_ROT_COEFF = 5e-2 # 8e-3
+const.EEREACHABLE_STEPS = 7
+const.EEATXY_COEFF = 3e-2 # 8e-2
 const.RCOLLIDES_COEFF = 2e-2 # 2e-2
 const.OBSTRUCTS_COEFF = 2.5e-2
-bt_ll.INIT_TRAJ_COEFF = 2e-2
+bt_ll.INIT_TRAJ_COEFF = 4e-2
 bt_ll.RS_COEFF = 1e1
 STACK_OFFSET = 0.08
 SHELF_Y = 0.87
@@ -324,7 +324,7 @@ class EnvWrapper():
         if item_name.find('ball') >= 0:
             #quat = T.euler_to_quaternion([0., -0.8, 1.57], 'wxyz')
             if pos[2] > 0.75:
-                quat = T.euler_to_quaternion([0., 0.7, -1.57], 'wxyz')
+                quat = T.euler_to_quaternion([0., 1.1, -1.57], 'wxyz')
             else:
                 quat = T.euler_to_quaternion([0., 0., 0.], 'wxyz')
 
@@ -439,7 +439,7 @@ class EnvWrapper():
                         if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.05):
                             self.env.physics.named.data.xfrc_applied['ball'][2] = -3.
                         if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.06):
-                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = -7.
+                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = -5.
                         #if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['upright_block']) < 0.05):
                         #    self.env.physics.named.data.xfrc_applied['upright_block'][2] = -2.
                     else:
@@ -542,9 +542,8 @@ class RobotAgent(TAMPAgent):
         self.compound_goals = hyperparams['master_config'].get('compound_goals', False)
         self.max_goals = hyperparams['master_config'].get('max_goals', 3)
         self.max_goals = min(self.max_goals, len(self.prob.GOAL_OPTIONS))
-        self.max_goals += len(self.prob.INVARIANT_GOALS)
+        self.rlen = 10 if not self.compound_goals else 5 * (len(self.prob.INVARIANT_GOALS) + self.max_goals)
         self._load_goals()
-        self.rlen = 10 if not self.compound_goals else 5 * self.max_goals
         self.hor = 18
 
         freq = 20
@@ -1575,7 +1574,7 @@ class RobotAgent(TAMPAgent):
 
 
     def store_hist_info(self, info):
-        self.mjc_env.cur_obs = info['cur_obs']
+        #self.mjc_env.cur_obs = info['cur_obs']
         self.mjc_env.init_obs = info['init_obs']
         self.mjc_env.trans_obs = info['trans_obs']
         #self.base_env.physics.data.qpos[:] = info['qpos']

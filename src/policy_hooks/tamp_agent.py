@@ -964,7 +964,10 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 path.append(sample)
                 sample._postsuc = True
                 sample.success = 1. - self.goal_f(0, next_x0, targets)
+                #self.update_hist_info(hist_info)
                 self.reset_to_state(next_x0)
+                self.update_hist_info(hist_info)
+                self.store_hist_info(hist_info)
                 set_params_attrs(plan.params, self.state_inds, ref_x0, act_et, plan=plan)
                 self._x_delta[:] = sample.get(STATE_HIST_ENUM, t=last_t).reshape(self._x_delta.shape)
             else:
