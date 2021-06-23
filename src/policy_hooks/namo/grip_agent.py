@@ -126,7 +126,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         self.check_col = hyperparams['master_config'].get('check_col', True)
         self.robot_height = 1
         self.use_mjc = hyperparams.get('use_mjc', False)
-        self.vel_rat = 0.05
+        self.vel_rat = 0.075
         self.rlen = 18
         self.hor = 18
         wall_dims = OpenRAVEBody.get_wall_dims('closet')
@@ -336,6 +336,10 @@ class NAMOGripAgent(NAMOSortingAgent):
         #    if np.any(np.abs(poses[pname]-new_poses[pname])) > 5e-2:
         #        self._col.append(pname)
         #        if pname.find('box') > 0: self._feasible = False
+
+        for human in self.humans:
+            if np.linalg.norm(self.mjc_env.get_item_pos(human)[:2] - self.mjc_env.get_item_pos('pr2')[:2]) < 0.7:
+                self._feasible = False
 
         col = 1 if len(self._col) > 0 else 0
         self._rew = self.reward()
@@ -1038,7 +1042,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         return cost
 
 
-    def solve_humans(self, policy, task, hor=3, N=20):
+    def solve_humans(self, policy, task, hor=2, N=30):
         if not self._eval_mode or not self.prob.N_HUMAN:
             for n in range(self.prob.N_HUMAN):
                 self.human_trajs['human{}'.format(n)] = np.zeros(2)
@@ -1047,6 +1051,9 @@ class NAMOGripAgent(NAMOSortingAgent):
         for human_id in range(self.prob.N_HUMAN):
             if np.random.uniform() < 0.05:
                 self.humans['human{}'.format(human_id)] = HUMAN_TARGS[np.random.randint(len(HUMAN_TARGS))]
+
+        old_feas = self._feasible
+        self._feasible = True
         init_t = time.time()
         qpos = self.mjc_env.physics.data.qpos.copy()
         qvel = self.mjc_env.physics.data.qvel.copy()
@@ -1059,6 +1066,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             self.mjc_env.physics.forward()
             #traj = np.random.uniform(-2, 2, (self.prob.N_HUMAN, hor, 2))
             traj = np.random.uniform(-1, 1, (self.prob.N_HUMAN, hor, 2))
+            traj[:,:,1] *= 0.5
             cost = 0
             for t in range(hor):
                 x = self.get_state()
@@ -1067,6 +1075,7 @@ class NAMOGripAgent(NAMOSortingAgent):
                 for n in range(self.prob.N_HUMAN):
                     self.human_trajs['human{}'.format(n)] = traj[n, t]
                 self.run_policy_step(act, x)
+                self._feasible = True
                 goal_wt = 0 if t < hor-1 else hor * 1e0
                 cost += self.human_cost(x, goal_wt=goal_wt)
             trajs.append((cost, traj[:,0]))
@@ -1084,5 +1093,6 @@ class NAMOGripAgent(NAMOSortingAgent):
             self.human_trajs['human{}'.format(n)] = traj[n]
 
         #print('TIME TO GET HUMAN ACTS FOR {} N {} HOR: {}'.format(N, hor, time.time() - init_t))
+        self._feasible = old_feas
         return traj
 

@@ -19,7 +19,7 @@ import policy_hooks.utils.policy_solver_utils as utils
 NO_COL = True
 NUM_OBJS = 4
 NUM_TARGS = 4
-N_HUMAN = 6
+N_HUMAN = 0#6
 SORT_CLOSET = False
 USE_PERTURB = False
 OPT_MCTS_FEEDBACK = True
@@ -36,27 +36,26 @@ pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
 descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.format(NUM_OBJS, SORT_CLOSET, USE_PERTURB, OPT_MCTS_FEEDBACK)
 
 END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
-#END_TARGETS.extend([(1., 2.),
-#                   (-1., 2.),
-#                   (2.8, 2.),
-#                   (-2.8, 2.),
-#                   (-4.6, 2.),
-#                   (4.6, 2.),
-#                   (6.4, 2.),
-#                   (-6.4, 2.),
-#                   ])
-
-
-END_TARGETS.extend([
-                   (6.4, 2.2),
-                   (-6.4, 2.2),
-                   (6.4, -8.2),
-                   (-6.4, -8.2),
-                   (3.2, 2.2),
-                   (-3.2, 2.2),
-                   (3.2, -8.2),
-                   (-3.2, -8.2),
+END_TARGETS.extend([(1., 2.),
+                   (-1., 2.),
+                   (2.8, 2.),
+                   (-2.8, 2.),
+                   (-4.6, 2.),
+                   (4.6, 2.),
+                   (6.4, 2.),
                    ])
+
+
+#END_TARGETS.extend([
+#                   (6.4, 2.2),
+#                   (-6.4, 2.2),
+#                   (6.4, -8.2),
+#                   (-6.4, -8.2),
+#                   (3.2, 2.2),
+#                   (-3.2, 2.2),
+#                   (3.2, -8.2),
+#                   (-3.2, -8.2),
+#                   ])
 
 n_aux = 4
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
