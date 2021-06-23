@@ -1,10 +1,14 @@
 {
     'move_to_grasp_right': [
-        '0: MOVE_TO_GRASP_RIGHT PANDA {0} BIN_TARGET',
+        '0: MOVE_TO_GRASP_RIGHT PANDA {0} {0}_INIT_TARGET',
+    ],
+
+    'hold_right': [
+        '0: HOLD_RIGHT PANDA {0} {0}_INIT_TARGET'
     ],
 
    'lift_right': [
-        '0: LIFT_RIGHT PANDA {0} BIN_TARGET',
+        '0: LIFT_RIGHT PANDA {0} {0}_INIT_TARGET',
     ],
 
     'place_right': [

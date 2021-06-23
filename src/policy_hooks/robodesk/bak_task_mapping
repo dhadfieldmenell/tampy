@@ -3,6 +3,18 @@
         '0: MOVE_TO_GRASP_RIGHT PANDA {0} BIN_TARGET',
     ],
 
+    'hold_box_right': [
+        '0: HOLD_BOX_RIGHT PANDA {0} BIN_TARGET'
+    ],
+
+    'hold_ball_right': [
+        '0: HOLD_BALL_RIGHT PANDA {0} BIN_TARGET'
+    ],
+
+    'hold_can_right': [
+        '0: HOLD_CAN_RIGHT PANDA {0} BIN_TARGET'
+    ],
+
    'lift_right': [
         '0: LIFT_RIGHT PANDA {0} BIN_TARGET',
     ],

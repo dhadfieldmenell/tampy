@@ -129,6 +129,10 @@ class NAMOGripAgent(NAMOSortingAgent):
         self.vel_rat = 0.075
         self.rlen = 18
         self.hor = 18
+        #self.vel_rat = 0.05
+        #self.rlen = self.num_objs * len(self.task_list)
+        #if self.retime: self.rlen *= 2
+        #self.hor = 15
         wall_dims = OpenRAVEBody.get_wall_dims('closet')
         config = {
             'obs_include': ['can{0}'.format(i) for i in range(hyperparams['num_objs'])],
@@ -174,6 +178,7 @@ class NAMOGripAgent(NAMOSortingAgent):
                           'is_fixed': False,
                           'pos': [0., 0., 0.],
                           'dimensions': [0.3],
+                          'mass': 40,
                           'rgba': (1., 1., 1., 1.)})
 
         no = self._hyperparams['num_objs']

@@ -23,12 +23,13 @@ GOAL_OPTIONS = [
                 '(Lifted upright_block panda)',
                 '(Lifted ball panda)',
                 '(Near upright_block off_desk_target)',
-                '(InSlideDoor upright_block shelf)',
+                '(InSlideDoor flat_block shelf)',
                 '(Near flat_block bin_target)',
                 '(Stacked upright_block flat_block)',
                 '(InGripperRight panda green_button)',
                 ]
 
+INVARIANT_GOALS = []
 
 def prob_file(descr=None):
     return "../domains/robot_domain/probs/robodesk_prob.prob"
@@ -56,7 +57,7 @@ def get_vector(config):
         'panda': ['right', 'right_ee_pos', 'right_ee_rot', 'right_gripper', 'pose', 'rotation']
     }
 
-    for item in ['ball', 'upright_block', 'flat_block', 'green_button']:
+    for item in ['ball', 'upright_block', 'flat_block', 'green_button', 'red_button', 'blue_button']:
         state_vector_include[item] = ['pose', 'rotation']
 
     for door in ['drawer', 'shelf']:
@@ -71,7 +72,7 @@ def get_vector(config):
         'bin_target': ['value', 'rotation'],
         'off_desk_target': ['value', 'rotation'],
     }
-    for goal in GOAL_OPTIONS:
+    for goal in GOAL_OPTIONS + INVARIANT_GOALS:
         target_vector_include[goal] = ['value']
 
     return state_vector_include, action_vector_include, target_vector_include

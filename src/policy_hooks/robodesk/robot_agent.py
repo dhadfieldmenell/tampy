@@ -25,6 +25,7 @@ from dm_control.mujoco import TextOverlay
 import pybullet as P
 import robodesk
 
+import pma.backtrack_ll_solver as bt_ll
 import core.util_classes.common_constants as const
 import core.util_classes.items as items
 from core.util_classes.openrave_body import OpenRAVEBody
@@ -37,19 +38,27 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.tamp_agent import TAMPAgent
 
 
-const.NEAR_GRIP_COEFF = 5e-2 # 2.2e-2 # 1.8e-2 # 2e-2
-const.NEAR_APPROACH_COEFF = 7e-3 # 8e-3
+const.NEAR_GRIP_COEFF = 2e-2 # 2.2e-2 # 1.8e-2 # 2e-2
+const.NEAR_GRIP_ROT_COEFF = 4e-3
+const.NEAR_APPROACH_COEFF = 7e-3
+const.NEAR_RETREAT_COEFF = 1.2e-2
 const.NEAR_APPROACH_ROT_COEFF = 1e-3
-const.GRASP_DIST = 0.14 # 0.16 # 0.18
-const.APPROACH_DIST = 0.0125 # 0.02
-const.RETREAT_DIST = 0.0125 # 0.02
-const.EEREACHABLE_COEFF = 4e-2 # 1e-1 # 3e-2 # 2e-2
+const.GRASP_DIST = 0.16
+const.PLACE_DIST = 0.2
+const.APPROACH_DIST = 0.01 # 0.02
+const.RETREAT_DIST = 0.015 # 0.02
+const.QUICK_APPROACH_DIST = 0.015 # 0.02
+const.QUICK_RETREAT_DIST = 0.015 # 0.02
+const.EEREACHABLE_COEFF = 3e-1 # 9e-2 # 1e-1 # 3e-2 # 2e-2
 const.EEREACHABLE_ROT_COEFF = 5e-2 # 8e-3
-const.EEATXY_COEFF = 5e-2
-const.RCOLLIDES_COEFF = 3e-2 # 2e-2
-const.OBSTRUCTS_COEFF = 2e-2
-const.INIT_TRAJ_COEFF = 2e-2
+const.EEREACHABLE_STEPS = 7
+const.EEATXY_COEFF = 3e-2 # 8e-2
+const.RCOLLIDES_COEFF = 2e-2 # 2e-2
+const.OBSTRUCTS_COEFF = 2.5e-2
+bt_ll.INIT_TRAJ_COEFF = 4e-2
+bt_ll.RS_COEFF = 1e1
 STACK_OFFSET = 0.08
+SHELF_Y = 0.87
 
 STEP = 0.1
 NEAR_TOL = 0.05
@@ -76,8 +85,8 @@ class optimal_pol:
             for param, attr in self.action_inds:
                 cur_val = X[self.state_inds[param, attr]] if (param, attr) in self.state_inds else None
                 if attr.find('grip') >= 0:
-                    val = self.opt_traj[min(t+1, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
-                    #val = self.opt_traj[min(t, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
+                    #val = self.opt_traj[min(t+1, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
+                    val = self.opt_traj[min(t, len(self.opt_traj)-1), self.state_inds[param, attr]][0]
                     val = 0.045 if val > 0.01 else -0.005
                     u[self.action_inds[param, attr]] = val 
                 elif attr.find('ee_pos') >= 0:
@@ -109,7 +118,7 @@ class optimal_pol:
 
 
 class EnvWrapper():
-    def __init__(self, env, robot, mode='ee_pos'):
+    def __init__(self, env, robot, mode='ee_pos', render=True):
         self.env = env
         self.physics = env.physics
         self.robot = robot
@@ -124,13 +133,24 @@ class EnvWrapper():
         self.upright_rot_inv = self.upright_rot.inv()
         self.flat_rot = Rotation.from_euler('xyz', [0., 0., 0.])
         self.flat_rot_inv = self.flat_rot.inv()
+        self.use_render = render
+        if render:
+            self.im_font = ImageFont.truetype('E:/PythonPillow/Fonts/FreeMono.ttf', 10)
+        else:
+            self.env._get_obs = lambda: {'image': np.zeros((4,4,3))}
         self.cur_obs = self.reset()
-        self.im_font = ImageFont.truetype('E:/PythonPillow/Fonts/FreeMono.ttf', 10)
 
     def render(self, mode='rgb_array', resize=True, overlays=(), imsize=None):
         params = {'distance': 1.8, 'azimuth': 90, 'elevation': -60,
                   'crop_box': (16.75, 25.0, 105.0, 88.75), 'size': 120}
         imsize = self.env.image_size if imsize is None else imsize
+        wid = 88.25
+        height = 63.75
+        ratio = imsize / max(wid, height)
+        if ratio > 1:
+            params['size'] = int(ratio * 120)
+            params['crop_box'] = (ratio*16.75, ratio*25., params['size']-ratio*15., params['size']-ratio*31.25)
+
         camera = mujoco.Camera(
             physics=self.physics, height=params['size'],
             width=params['size'], camera_id=-1)
@@ -303,7 +323,10 @@ class EnvWrapper():
 
         if item_name.find('ball') >= 0:
             #quat = T.euler_to_quaternion([0., -0.8, 1.57], 'wxyz')
-            quat = T.euler_to_quaternion([0., 1.0, -1.57], 'wxyz')
+            if pos[2] > 0.75:
+                quat = T.euler_to_quaternion([0., 1.1, -1.57], 'wxyz')
+            else:
+                quat = T.euler_to_quaternion([0., 0., 0.], 'wxyz')
 
         if item_name.find('button') >= 0:
             pos[1] -= 0.035
@@ -408,10 +431,24 @@ class EnvWrapper():
                     self.env.physics.data.ctrl[0:9] = joint_position[0:9]
                     # Ensure gravity compensation stays enabled.
                     self.env.physics.data.qfrc_applied[0:9] = self.physics.data.qfrc_bias[0:9]
+                    ee_pos = self.env.physics.named.data.site_xpos['end_effector']
+                    self.env.physics.named.data.xfrc_applied['ball'][2] = 0.
+                    self.env.physics.named.data.xfrc_applied['flat_block'][2] = 0.
+                    self.env.physics.named.data.xfrc_applied['upright_block'][2] = 0.
                     if self.env.physics.data.ctrl[-1] > 0.03:
-                        self.env.physics.named.data.xfrc_applied['ball'][2] = -10.
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.05):
+                            self.env.physics.named.data.xfrc_applied['ball'][2] = -3.
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.06):
+                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = -5.
+                        #if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['upright_block']) < 0.05):
+                        #    self.env.physics.named.data.xfrc_applied['upright_block'][2] = -2.
                     else:
-                        self.env.physics.named.data.xfrc_applied['ball'][2] = 1.
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.05):
+                            self.env.physics.named.data.xfrc_applied['ball'][2] = 3.
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.05):
+                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = 3.
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['upright_block']) < 0.03):
+                            self.env.physics.named.data.xfrc_applied['upright_block'][2] = 3.
 
                     self.env.physics.step()
                     self.env.physics_copy.data.qpos[:] = self.physics.data.qpos[:]
@@ -473,6 +510,7 @@ class EnvWrapper():
         self.cur_obs = obs
         self.init_obs = obs
         self.trans_obs = obs
+        self.prev_obs = obs
         self._prev_task = None
         return obs
 
@@ -482,6 +520,12 @@ class EnvWrapper():
             self._prev_task = task_name
             self.trans_obs = self.cur_obs
         return self.trans_obs
+
+
+    def update_task(self, task):
+        if task != self._prev_task:
+            self._prev_task = task
+            self.trans_obs = self.cur_obs
 
 
     def close(self):
@@ -495,11 +539,14 @@ class RobotAgent(TAMPAgent):
         self.optimal_pol_cls =  optimal_pol
         self.load_render = hyperparams['master_config'].get('load_render', False)
         self.ctrl_mode = 'joint' if ('panda', 'right') in self.action_inds else 'ee_pos'
-        self.compound_goals = hyperparams.get('compound_goals', False)
+        self.compound_goals = hyperparams['master_config'].get('compound_goals', False)
+        self.max_goals = hyperparams['master_config'].get('max_goals', 3)
+        self.max_goals = min(self.max_goals, len(self.prob.GOAL_OPTIONS))
+        self.rlen = 10 if not self.compound_goals else 5 * (len(self.prob.INVARIANT_GOALS) + self.max_goals)
         self._load_goals()
-        self.rlen = 10 if not self.compound_goals else 30
+        self.hor = 18
 
-        freq = 25
+        freq = 20
         self.base_env = robodesk.RoboDesk(task='lift_ball', \
                                           reward='success', \
                                           action_repeat=freq, \
@@ -509,7 +556,8 @@ class RobotAgent(TAMPAgent):
         prim_options = self.prob.get_prim_choices(self.task_list)
         self.obj_list = prim_options[OBJ_ENUM]
         self.panda = list(self.plans.values())[0].params['panda']
-        self.mjc_env = EnvWrapper(self.base_env, self.panda, self.ctrl_mode)
+        load_render = hyperparams['master_config']['load_render']
+        self.mjc_env = EnvWrapper(self.base_env, self.panda, self.ctrl_mode, render=load_render)
         self.check_col = hyperparams['master_config'].get('check_col', True)
         self.use_glew = False
         self._viewer = None
@@ -525,7 +573,14 @@ class RobotAgent(TAMPAgent):
 
     def _load_goals(self):
         self.goals = {}
+        self.base_goals = {}
         for goal in self.prob.GOAL_OPTIONS:
+            descr = goal.replace('(', '').replace(')', '')
+            descr = descr.split(' ')
+            self.goals[goal] = [descr[0], descr[1:]]
+            self.base_goals[goal] = [descr[0], descr[1:]]
+
+        for goal in self.prob.INVARIANT_GOALS:
             descr = goal.replace('(', '').replace(')', '')
             descr = descr.split(' ')
             self.goals[goal] = [descr[0], descr[1:]]
@@ -539,6 +594,7 @@ class RobotAgent(TAMPAgent):
         self.base_env.physics.forward()
         targets = s.get(ONEHOT_GOAL_ENUM, t=t)
         task = s.get(FACTOREDTASK_ENUM, t=t).astype(int)
+        taskname = self.task_list[task[0]]
         pos = s.get(END_POSE_ENUM, t=t).round(3)
         truepos = s.get(TRUE_POSE_ENUM, t=t).round(3)
         precost = round(self.precond_cost(s, tuple(task), t), 4)
@@ -551,13 +607,19 @@ class RobotAgent(TAMPAgent):
 
         #textover1 = self.mjc_env.get_text_overlay(body='Task: {0} Err: {1}'.format(task, truepos-pos))
         #textover2 = self.mjc_env.get_text_overlay(body='{0: <6} {1: <6}'.format(precost, postcost), position='bottom left')
-        textover1 = 'TASK: {0}'.format(task)
+        textover1 = 'TASK: {0} {1}'.format(task, taskname)
         textover2 = 'COST: {0: <5} {1: <5}'.format(precost, postcost)
         textover3 = '{0}'.format(str(truepos-pos)[1:-1])
         goalover = ''
-        for goal in self.prob.GOAL_OPTIONS:
+        targets = s.targets
+
+        for goal in self.prob.GOAL_OPTIONS + self.prob.INVARIANT_GOALS:
+            #if targets[self.target_inds[goal, 'value']] == 1.:
+            #    goalover += goal
             if targets[self.target_inds[goal, 'value']] == 1.:
-                goalover += goal
+                goalover += "1 "
+            else:
+                goalover += "0 "
         overlays = (textover1, textover2, textover3, goalover)
         #for ctxt in self.base_env.sim.render_contexts:
         #    ctxt._overlay[mj_const.GRID_TOPLEFT] = ['{}'.format(task), '']
@@ -836,7 +898,9 @@ class RobotAgent(TAMPAgent):
                 door_vec[task[2]] = 1.
                 sample.set(DOOR_ENUM, door_vec, t)
 
-            if task_name.lower() in ['move_to_grasp_right', 'lift_right', 'hold_right']:
+            if task_name.lower() in ['move_to_grasp_right', 'lift_right', \
+                                     'hold_right', 'hold_box_right', \
+                                     'hold_can_right', 'hold_ball_right']:
                 sample.set(END_POSE_ENUM, obj_pose, t)
                 sample.set(END_ROT_ENUM, mp_state[self.state_inds[obj_name, 'rotation']], t)
                 sample.set(ABS_POSE_ENUM, mp_state[self.state_inds[obj_name, 'pose']], t)
@@ -891,32 +955,24 @@ class RobotAgent(TAMPAgent):
         sample.set(TARGETS_ENUM, targets.copy(), t)
         sample.set(ONEHOT_GOAL_ENUM, targets, t)
         sample.targets = targets.copy()
-        #for i, obj in enumerate(prim_choices[OBJ_ENUM]):
-        #    grasp_pt = list(self.plans.values())[0].params[obj].geom.grasp_point
-        #    sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
-        #    targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
-        #    sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose+grasp_pt, t)
-        #    sample.set(TARG_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
-
-        #    obj_spat = Rotation.from_euler('xyz', mp_state[self.state_inds[obj, 'rotation']])
-        #    obj_quat = T.euler_to_quaternion(mp_state[self.state_inds[obj, 'rotation']], 'xyzw')
-        #    obj_mat = T.quat2mat(obj_quat)
-        #    goal_quat = T.mat2quat(obj_mat.dot(ee_mat))
-        #    rot_off = theta_error(ee_quat, goal_quat)
-        #    #sample.set(OBJ_ROTDELTA_ENUMS[i], rot_off, t)
-        #    sample.set(OBJ_ROTDELTA_ENUMS[i], (obj_spat.inv() * ee_spat).as_rotvec(), t)
-        #    targ_rot_off = theta_error(ee_quat, [0, 0, 0, 1])
-        #    targ_spat = Rotation.from_euler('xyz', [0., 0., 0.])
-        #    #sample.set(TARG_ROTDELTA_ENUMS[i], targ_rot_off, t)
-        #    sample.set(TARG_ROTDELTA_ENUMS[i], (targ_spat.inv() * ee_spat).as_rotvec(), t)
+        for i, obj in enumerate(prim_choices[OBJ_ENUM]):
+            grasp_pt = list(self.plans.values())[0].params[obj].geom.grasp_point
+            sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]+grasp_pt, t)
+            sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose+grasp_pt, t)
+            obj_spat = Rotation.from_euler('xyz', mp_state[self.state_inds[obj, 'rotation']])
+            sample.set(OBJ_ROTDELTA_ENUMS[i], (obj_spat.inv() * ee_spat).as_rotvec(), t)
 
         if fill_obs:
             if IM_ENUM in self._hyperparams['obs_include'] or \
                IM_ENUM in self._hyperparams['prim_obs_include']:
                 im = self.mjc_env.cur_obs['image']
-                if self.incl_init_obs:
-                    im = np.c_[im, self.mjc_env.init_obs['image']]
                 im = (im - 128.) / 128.
+                if self.incl_init_obs:
+                    init_im = (self.mjc_env.cur_obs['image']-self.mjc_env.init_obs['image'])  / 256.
+                    im = np.c_[im, init_im]
+                if self.incl_trans_obs:
+                    trans_im = (self.mjc_env.cur_obs['image']-self.mjc_env.trans_obs['image'])  / 256.
+                    im = np.c_[im, trans_im]
                 sample.set(IM_ENUM, im.flatten(), t)
 
 
@@ -945,6 +1001,8 @@ class RobotAgent(TAMPAgent):
                     suc = self._in_bin(x, params[0])
                 elif key.find('inslide') >= 0 and params[1].find('shelf') >= 0:
                     suc = self._in_shelf(x, params[0])
+                elif key.find('inslide') >= 0 and params[1].find('drawer') >= 0:
+                    suc = self._in_drawer(x, params[0])
                 elif key.find('grip') >= 0 and params[1].find('button') >= 0:
                     suc = self._button(x, params[1])
                 else:
@@ -1052,15 +1110,24 @@ class RobotAgent(TAMPAgent):
             targets[targ] = plan.params[targ].value[:,0].copy()
 
         used_params = []
-        goal_descrs = list(self.goals.keys())
+        goal_descrs = list(self.base_goals.keys())
         order = np.random.permutation(len(goal_descrs))
+
+        i = 0
         for ind in order:
             goal = goal_descrs[ind]
             key, params = self.goals[goal]
             if params[0] in used_params: continue
+            if key in self.prob.INVARIANT_GOALS: continue
+            i += 1
             used_params.append(params[0])
             targets[goal] = 1
             if not self.compound_goals: break
+            if i >= self.max_goals: break
+
+        for goal in self.prob.INVARIANT_GOALS:
+            key, params = self.goals[goal]
+            targets[goal] = 1
 
         return [x], [targets] 
    
@@ -1265,7 +1332,8 @@ class RobotAgent(TAMPAgent):
         x[self.state_inds['panda', 'right']] = np.clip(jnt_vals, lb, ub)
         cv, ov = self.panda.geom.get_gripper_closed_val(), self.panda.geom.get_gripper_open_val()
         grip_vals = x[self.state_inds['panda', 'right_gripper']]
-        grip_vals = ov if np.mean(np.abs(grip_vals-cv)) > np.mean(np.abs(grip_vals-ov)) else cv
+        #grip_vals = ov if np.mean(np.abs(grip_vals-cv)) > np.mean(np.abs(grip_vals-ov)) else cv
+        grip_vals = cv
         x[self.state_inds['panda', 'right_gripper']] = grip_vals
         return x
 
@@ -1363,7 +1431,7 @@ class RobotAgent(TAMPAgent):
     def _in_shelf(self, x, item_name):
         pos = x[self.state_inds[item_name, 'pose']]
         #return pos[0] > 0.2 and pos[1] > 0.9
-        return pos[0] > 0.1 and pos[1] > 0.9
+        return pos[0] > 0. and pos[1] > SHELF_Y
 
 
     def _in_bin(self, x, item_name):
@@ -1411,7 +1479,7 @@ class RobotAgent(TAMPAgent):
         color = button_name.split('_')[0]
         val = self.base_env.physics.named.data.qpos[color + '_light'][0]
         pressed = val < -0.00453
-        return val
+        return pressed
 
 
     def _slide(self, x, door_name, door_open=True):
@@ -1435,7 +1503,17 @@ class RobotAgent(TAMPAgent):
 
     def _in_drawer(self, x, obj_name):
         pos = x[self.state_inds[obj_name, 'pose']]
-        return pos[2] < 0.7 and pos[0] > 0.25 and pos[0] < 0.55 and pos[1] > 0.35
+        return pos[2] < 0.7 and pos[2] > 0.5 and pos[0] > -0.3 and pos[0] < 0.3 # and pos[1] > 0.35
+
+
+    def set_task_info(self, sample, cur_state, t, cur_task, task_f, policies=None):
+        task, policy = super(RobotAgent, self).set_task_info(sample, cur_state, t, cur_task, task_f, policies)
+        self.mjc_env.update_task(self.task_list[task[0]])
+        return task, policy
+
+    def precond_cost(self, sample, task=None, t=0, tol=1e-3, x0=None, debug=False):
+        if task is None: task = tuple(sample.get(FACTOREDTASK_ENUM, t=t))
+        return self.cost_f(sample.get_X(t), task, sample.condition, active_ts=(0, 0), targets=sample.targets, tol=tol, x0=x0, debug=debug)
 
 
     def postcond_cost(self, sample, task=None, t=None, debug=False, tol=1e-3, x0=None):
@@ -1448,13 +1526,14 @@ class RobotAgent(TAMPAgent):
         x = sample.get_X(t=t)
         if task_name.find('place_in_door') >= 0:
             pos = x[self.state_inds[obj_name, 'pose']]
+            if debug: print('POSTCOND INFO PLACE IN DOOR:', obj_name, door_name, pos)
             if door_name.find('shelf') >= 0:
-                return 0. if (pos[0] > 0.25 and pos[1] > 0.9) else 1.
+                if (pos[0] < 0. or pos[1] < SHELF_Y): return 1.
             elif door_name.find('drawer') >= 0:
-                return 0. if (pos[0] > -0.3 and pos[0] < 0.3 and pos[2] < 0.73 and pos[2] > 0.6) else 1.
+                if not (pos[0] > -0.3 and pos[0] < 0.3 and pos[2] < 0.73 and pos[2] > 0.5): return 1.
         elif task_name.find('place') >= 0:
             pos = x[self.state_inds[obj_name, 'pose']]
-            if debug: print('POSTCOND INFO PLACE:', obj_name, targ_name, pos)
+            if debug: print('POSTCOND INFO PLACE:', obj_name, targ_name, pos, sample.targets[self.target_inds[targ_name, 'value']])
             if targ_name.find('bin') >= 0:
                 return 0. if (pos[2] < 0.6 and pos[0] > 0.25 and pos[0] < 0.55 and pos[1] > 0.35) else 1.
             elif targ_name.find('off') >= 0:
@@ -1465,7 +1544,7 @@ class RobotAgent(TAMPAgent):
             targ_offset = [0., 0., 0.03778]
             offset = np.linalg.norm((pos-base_pos) - targ_offset)
             if debug: print('POSTCOND INFO STACK:', obj_name, pos, base_pos, offset)
-            return 0. if offset < STACK_OFFSET else offset
+            if offset > STACK_OFFSET: return offset
         elif task_name.find('hold') >= 0 and obj_name.find('green_button') >= 0:
             val = self.base_env.physics.named.data.qpos['green_light'][0]
             return 0. if val < -0.00453 else 1.
@@ -1489,17 +1568,23 @@ class RobotAgent(TAMPAgent):
                 'init_obs': self.mjc_env.init_obs,
                 'trans_obs': self.mjc_env.trans_obs,
                 'qpos': self.base_env.physics.data.qpos.copy(),
+                'qvel': self.base_env.physics.data.qvel.copy(),
                 }
         return info
 
 
     def store_hist_info(self, info):
-        self.mjc_env.cur_obs = info['cur_obs']
+        #self.mjc_env.cur_obs = info['cur_obs']
         self.mjc_env.init_obs = info['init_obs']
         self.mjc_env.trans_obs = info['trans_obs']
+        #self.base_env.physics.data.qpos[:] = info['qpos']
+        #self.base_env.physics.data.qvel[:] = info['qvel']
+        #self.base_env.physics.forward()
 
     
     def update_hist_info(self, info):
         info['trans_obs'] = self.mjc_env.cur_obs
         info['cur_obs'] = self.mjc_env.cur_obs
+        info['qpos'] = self.base_env.physics.data.qpos.copy()
+        info['qvel'] = self.base_env.physics.data.qvel.copy()
 

@@ -1841,6 +1841,133 @@ class SlideDoorAt(ExprPredicate):
         self.spacial_anchor = True
 
 
+class OpenSlideDoorAt(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        assert params[1].geom.hinge_type == 'prismatic'
+        self.handle, self.door = params
+        ind = 0
+        for val in self.door.geom.open_dir:
+            if val != 0: break
+            ind += 1
+
+        attr_inds = OrderedDict([(self.handle, [("pose", np.array([0, 1, 2], dtype=np.int))]),
+                                 (self.door, [("pose", np.array([0, 1, 2], dtype=np.int)),
+                                                ("hinge", np.array([0], dtype=np.int))])])
+
+        A = np.zeros((3,7))
+        for i in range(3):
+            A[i, i] = 1.
+            A[i, 3+i] = -1.
+            if i == ind:
+                A[i, -1] = -1.
+
+        A = np.r_[A, -A]
+        b = -np.array(self.door.geom.open_handle_pos).reshape((-1,1))
+        b = np.r_[b, -b]
+        val = np.array([self.door.geom.push_open_region])
+        val = np.r_[val, val].reshape((-1,1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(OpenSlideDoorAt, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
+        self.spacial_anchor = True
+
+
+class CloseSlideDoorAt(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        assert params[1].geom.hinge_type == 'prismatic'
+        self.handle, self.door = params
+        ind = 0
+        for val in self.door.geom.close_dir:
+            if val != 0: break
+            ind += 1
+
+        attr_inds = OrderedDict([(self.handle, [("pose", np.array([0, 1, 2], dtype=np.int))]),
+                                 (self.door, [("pose", np.array([0, 1, 2], dtype=np.int)),
+                                                ("hinge", np.array([0], dtype=np.int))])])
+
+        A = np.zeros((3,7))
+        for i in range(3):
+            A[i, i] = 1.
+            A[i, 3+i] = -1.
+            if i == ind:
+                A[i, -1] = -1.
+
+        A = np.r_[A, -A]
+        b = -np.array(self.door.geom.close_handle_pos).reshape((-1,1))
+        b = np.r_[b, -b]
+        val = np.array([self.door.geom.push_close_region])
+        val = np.r_[val, val].reshape((-1,1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(CloseSlideDoorAt, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
+        self.spacial_anchor = True
+
+
+class SlideDoorAtOpen(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        assert params[1].geom.hinge_type == 'prismatic'
+        self.handle, self.door = params
+        ind = 0
+        for val in self.door.geom.open_dir:
+            if val != 0: break
+            ind += 1
+
+        attr_inds = OrderedDict([(self.door, [("hinge", np.array([0], dtype=np.int))])])
+
+        open_val = self.door.geom.open_val
+        close_val = self.door.geom.close_val
+        sgn = 1 if open_val < close_val else -1
+        self.coeff = 1. # 1e-3 / (np.abs(open_val-close_val) / 2.)
+        A = sgn*self.coeff*np.array([[1.]])
+        b = sgn*self.coeff*np.array([[-self.door.geom.open_val]])
+        val = np.zeros((1,1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+
+        #neg_b = self.coeff*np.array([[-self.door.geom.handle_pos[ind]], [0.]])
+        #neg_aff_e = AffExpr(A, neg_b)
+        #self.neg_expr = EgExpr(neg_aff_e, val)
+        super(SlideDoorAtOpen, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        self.spacial_anchor = True
+        self._init_include = False
+
+
+class SlideDoorAtClose(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        assert params[1].geom.hinge_type == 'prismatic'
+        self.handle, self.door = params
+        ind = 0
+        for val in self.door.geom.open_dir:
+            if val != 0: break
+            ind += 1
+
+        attr_inds = OrderedDict([(self.door, [("hinge", np.array([0], dtype=np.int))])])
+
+        open_val = self.door.geom.open_val
+        close_val = self.door.geom.close_val
+        sgn = 1 if open_val > close_val else -1
+        self.coeff = 1. # 1e-3 / (np.abs(open_val-close_val) / 2.)
+        A = sgn*self.coeff*np.array([[1.]])
+        b = sgn*self.coeff*np.array([[-self.door.geom.close_val]])
+        val = np.zeros((1,1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(SlideDoorAtClose, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        self.spacial_anchor = True
+        self._init_include = False
+
+    #def test(self, time, negated=False, tol=None):
+    #    if not self.is_concrete(): return False
+    #    if tol is None: tol = self.tol
+    #    expr = self.neg_expr if negated else expr
+    #    return expr.eval(self.get_param_vector(time), tol=tol, negated=False)
+
+
+
 class SlideDoorOpen(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
@@ -1868,6 +1995,7 @@ class SlideDoorOpen(ExprPredicate):
         #self.neg_expr = EgExpr(neg_aff_e, val)
         super(SlideDoorOpen, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.spacial_anchor = True
+        self._init_include = False
 
 
 class SlideDoorClose(ExprPredicate):
@@ -1893,6 +2021,7 @@ class SlideDoorClose(ExprPredicate):
         e = LEqExpr(aff_e, val)
         super(SlideDoorClose, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.spacial_anchor = True
+        self._init_include = False
 
     #def test(self, time, negated=False, tol=None):
     #    if not self.is_concrete(): return False
@@ -1919,13 +2048,22 @@ class InSlideDoor(ExprPredicate):
 
         A = np.c_[np.eye(6), -np.eye(6)]
         A[-3:,-3:] = 0.
+        A = np.r_[A, -A]
         b = -np.array(self.door.geom.in_pos).reshape((-1,1))
         b = np.r_[b, -np.array(self.door.geom.in_orn).reshape((-1,1))]
+        b = np.r_[b, -b]
         val = np.zeros((6,1))
+        val[0] = self.door.geom.width
+        val[1] = 0.01
+        val[2] = 0.03
+        val[3:6] = 0.01
+        val = np.r_[val, val]
         aff_e = AffExpr(A, b)
-        e = EqExpr(aff_e, val)
+        e = LEqExpr(aff_e, val)
         super(InSlideDoor, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
+        self._init_include = False
+        self._nonrollout = True
 
 class Stacked(ExprPredicate):
     #@profile
@@ -1941,9 +2079,12 @@ class Stacked(ExprPredicate):
 
         self.coeff = 2e-2
         self.rot_coeff = 5e-3
-        A = np.c_[np.eye(6), -np.eye(6)]
-        A[:3] *= self.coeff
-        A[3:] *= self.rot_coeff
+        if self.obj is self.base_obj:
+            A = np.zeros((6,6))
+        else:
+            A = np.c_[np.eye(6), -np.eye(6)]
+            A[:3] *= self.coeff
+            A[3:] *= self.rot_coeff
         b, val = np.zeros((6, 1)), np.zeros((6, 1))
         b[2,0] = -self.coeff*(h1 + h2)
         aff_e = AffExpr(A, b)
@@ -1951,6 +2092,8 @@ class Stacked(ExprPredicate):
 
         super(Stacked, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
+        self._init_include = False
+        self._nonrollout = True
 
 
 ### EE CONSTRAINTS - Non-linear constraints on end effector pos/orn
@@ -2091,6 +2234,9 @@ class InGripper(PosePredicate):
         if not hasattr(self, 'rot_coeff'): self.rot_coeff = const.IN_GRIPPER_ROT_COEFF
         if hasattr(params[1], 'geom') and hasattr(params[1].geom, 'near_coeff'):
             self.coeff *= params[1].geom.near_coeff
+
+        if hasattr(params[1], 'geom') and 'sphere' in params[1].geom.get_types():
+            self.rot_coeff = 0.
 
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
@@ -2365,6 +2511,8 @@ class EEReachable(PosePredicate):
         if not hasattr(self, 'f_tol'): self.f_tol = 0
         if not hasattr(self, 'pause'): self.pause = 0 # extra time ee is at target pos
         if not hasattr(self, 'arm'): self.arm = self.robot.geom.arms[0]
+        if hasattr(params[1], 'geom'):
+            self.coeff *= params[1].geom.eereachable_coeff
 
         self.eval_rel = True
         self.eval_f = self.stacked_f
@@ -2525,7 +2673,7 @@ class NearApproach(EEReachable):
 
 class NearApproachRot(EEReachable):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.coeff = const.NEAR_APPROACH_ROT_COEFF
+        self.rot_coeff = const.NEAR_APPROACH_ROT_COEFF
         super(NearApproachRot, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
@@ -2564,6 +2712,15 @@ class EEApproachInDoorLeft(EEReachable):
         self.axis = self.ref_orn.dot(self.axis).round(4)
         self.rel_pt = params[1].geom.in_pos
 
+class NearApproachInDoorLeft(EEApproachInDoorLeft):
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.coeff = const.NEAR_GRIP_COEFF
+        self.approach_dist = const.GRASP_DIST
+        super(NearApproachInDoorLeft, self).__init__(name, params, expected_param_types, 0, env, debug)
+
+    def get_rel_pt(self, rel_step):
+        return -self.approach_dist*self.axis
+
 class EERetreatLeft(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "left"
@@ -2599,7 +2756,6 @@ class EEReachableLeftRot(EEReachableRot):
 
 class EEAtLeftRot(EEReachableRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
-        self.coeff = const.NEAR_APPROACH_ROT_COEFF
         self.arm = "left"
         super(EEReachableLeftRot, self).__init__(name, params, expected_param_types, (0, 0), env, debug)
 
@@ -2699,8 +2855,7 @@ class ApproachLeftRot(EEReachableLeftRot):
 
 class NearApproachLeftRot(ApproachLeftRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        # self.f_tol = 0.04
-        self.coeff = const.NEAR_APPROACH_ROT_COEFF
+        self.rot_coeff = const.NEAR_APPROACH_ROT_COEFF
         super(NearApproachLeftRot, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
@@ -2736,13 +2891,30 @@ class EEApproachInDoorRight(EEReachable):
         super(EEApproachInDoorRight, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
         self.eval_rel = True
         self.ref_orn = T.quat2mat(T.euler_to_quaternion(params[1].geom.in_orn, 'xyzw'))
-        self.axis = self.ref_orn.dot(self.axis).round(4)
+        self.axis = self.ref_orn.dot(self.axis).round(5)
         self.rel_pt = params[1].geom.in_pos
+
+class NearApproachInDoorRight(EEApproachInDoorRight):
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.coeff = 2e-2 # const.NEAR_APPROACH_COEFF
+        super(NearApproachInDoorRight, self).__init__(name, params, expected_param_types, steps=0, env=env, debug=debug)
+        self.approach_dist = const.PLACE_DIST # const.GRASP_DIST
+
+    def get_rel_pt(self, rel_step):
+        return -self.approach_dist*self.axis
 
 class EERetreatRight(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "right"
         super(EERetreatRight, self).__init__(name, params, expected_param_types, (0, steps), env, debug)
+
+class EEWeakRetreatRight(EERetreatRight):
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.arm = "right"
+        self.coeff = const.NEAR_APPROACH_COEFF
+        super(EEWeakRetreatRight, self).__init__(name, params, expected_param_types, steps, env, debug)
+        self.approach_dist = const.QUICK_RETREAT_DIST
+        self.retreat_dist = const.QUICK_RETREAT_DIST
 
 class EERetreatAbsRight(EEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
@@ -2775,7 +2947,6 @@ class EEReachableRightRot(EEReachableRot):
 class EEAtRightRot(EEReachableRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
         self.arm = "right"
-        self.coeff = const.NEAR_APPROACH_ROT_COEFF
         super(EEAtRightRot, self).__init__(name, params, expected_param_types, (0, 0), env, debug)
 
 class ApproachRight(EEReachableRight):
@@ -2793,6 +2964,13 @@ class NearApproachRight(ApproachRight):
         super(NearApproachRight, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
+class NearRetreatRight(ApproachRight):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        #self.f_tol = 0.04
+        self.coeff = const.NEAR_APPROACH_COEFF
+        super(NearRetreatRight, self).__init__(name, params, expected_param_types, env, debug)
+        self.approach_dist = const.PLACE_DIST
+
 class ApproachRightRot(EEReachableRightRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(ApproachRightRot, self).__init__(name, params, expected_param_types, env, debug, 0)
@@ -2804,7 +2982,7 @@ class ApproachRightRot(EEReachableRightRot):
 class NearApproachRightRot(ApproachRightRot):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         # self.f_tol = 0.04
-        self.coeff = const.NEAR_APPROACH_ROT_COEFF
+        self.rot_coeff = const.NEAR_APPROACH_ROT_COEFF
         super(NearApproachRightRot, self).__init__(name, params, expected_param_types, env, debug)
         self._rollout = True
 
@@ -3548,6 +3726,63 @@ class HeightBlock(ExprPredicate):
       
         return not negated
 
+class DeskHeightBlock(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.goal_obj, self.block_obj, = params
+        goal_geom, block_geom = self.goal_obj.geom, self.block_obj.geom
+        self.goal_h = goal_geom.height if hasattr(goal_geom, 'height') else goal_geom.radius
+        self.block_h = block_geom.height if hasattr(block_geom, 'height') else block_geom.radius
+        self.dist = 0.1
+
+        attr_inds = OrderedDict([(self.goal_obj, [("pose", np.array([0,1,2], dtype=np.int))]),
+                                 (self.block_obj, [("pose", np.array([0,1,2], dtype=np.int))])])
+
+        A = np.c_[np.r_[np.eye(3), -np.eye(3)], np.r_[-np.eye(3), np.eye(3)]]
+        A *= 0
+        b, val = np.zeros((6, 1)), NEAR_TOL*np.ones((6, 1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+
+        super(DeskHeightBlock, self).__init__(name, e, attr_inds, params, expected_param_types, tol=1e-3, priority=-2, active_range=(0,0))
+        self._init_include = False
+
+    def test(self, time, negated=False, tol=1e-3):
+        # Move taller objects first
+        if self.block_h <= self.goal_h:
+            return negated
+
+        block_pos = self.block_obj.pose[:, time]
+        goal_pos = self.goal_obj.pose[:, time]
+        if self.goal_obj.name.find('shelf_handle') >= 0 and \
+           self.block_obj.name.find('upright') >= 0:
+            if block_pos[2] < 0.75 or block_pos[0] > 0.55 or \
+               block_pos[1] < 0.75 or block_pos[1] > 0.86:
+                return negated
+
+            if goal_pos[0] > 0.1:
+                return negated
+            return not negated
+                      
+        if 'box' not in self.block_obj.geom.get_types():
+            return negated
+
+        if 'box' not in self.goal_obj.geom.get_types():
+            return negated
+
+        if block_pos[1] > 0.86:
+            return negated
+
+        if block_pos[2] < 0.75:
+            return negated
+
+        if block_pos[0] > 0.55:
+            return negated
+      
+        if block_pos[1] < 0.6:
+            return negated
+
+        return not negated
+
 class AboveTable(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
@@ -3590,9 +3825,11 @@ class Lifted(ExprPredicate):
         A = np.array([[-1.]])
 
         if self.obj.name.lower().find('upright') >= 0:
-            b = 0.92 * np.ones((1,1))
+            b = 0.925 * np.ones((1,1))
+        elif self.obj.name.lower().find('flat') >= 0:
+            b = 0.825 * np.ones((1,1))
         else:
-            b = 0.88 * np.ones((1,1))
+            b = 0.875 * np.ones((1,1))
         val = np.zeros((1,1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
@@ -3621,6 +3858,25 @@ class InReach(ExprPredicate):
         super(InReach, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.spacial_anchor = True
         self._init_include = False
+
+class Stackable(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        self.obj, self.item = params
+        attr_inds = OrderedDict([(self.obj, [("pose", np.array([2], dtype=np.int))])])
+            
+        A = np.array([[1.]])
+        if self.obj.name.find('flat') >= 0 and self.item.name.find('upright') >= 0:
+            b = -1. * np.ones((1,1))
+        else:
+            b = np.zeros((1,1))
+        val = np.zeros((1,1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+
+        super(Stackable, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        self.spacial_anchor = True
+        self._init_include = True
 
 class OffDesk(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):

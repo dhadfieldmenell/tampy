@@ -6,7 +6,7 @@ from core.util_classes.robots import Robot
 import core.util_classes.transform_utils as T
 
 from functools import reduce
-import core.util_classes.baxter_constants as const
+import core.util_classes.common_constants as const
 from collections import OrderedDict
 from sco.expr import Expr
 import math
@@ -337,7 +337,7 @@ def resample_gripper_down_rot(pred, negated, t, plan, arms=[]):
 def resample_obstructs(pred, negated, t, plan):
     # viewer = OpenRAVEViewer.create_viewer(plan.env)
     attr_inds, res = OrderedDict(), OrderedDict()
-    act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
+    act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] < t and  t <= act.active_timesteps[1]][0]
 
     robot, obstacle = pred.robot, pred.obstacle
     rave_body, obs_body = robot.openrave_body, obstacle.openrave_body
@@ -345,6 +345,7 @@ def resample_obstructs(pred, negated, t, plan):
     dof_map = {arm: getattr(robot, arm)[:,t] for arm in r_geom.arms}
     for gripper in r_geom.grippers: dof_map[gripper] = getattr(robot, gripper)[:,t]
     rave_body.set_pose(robot.pose[:,t], robot.rotation[:,t])
+    rave_body.set_dof(dof_map)
 
     for param in list(plan.params.values()):
         if not param.is_symbol() and param != robot:
@@ -355,7 +356,10 @@ def resample_obstructs(pred, negated, t, plan):
     for col in collisions:
         r_link, obj_link = col[3], col[4]
         for a in r_geom.arms:
-            if r_link in r_geom.get_arm_inds(a):
+            if r_link in r_geom.get_arm_inds(a) or \
+               r_link in r_geom.gripper_inds['{}_gripper'.format(a)] or \
+               r_link-1 in r_geom.get_arm_inds(a) or \
+               r_link-1 in r_geom.gripper_inds['{}_gripper'.format(a)]:
                 arm = a
                 break
         if arm is not None: break
@@ -363,48 +367,53 @@ def resample_obstructs(pred, negated, t, plan):
         return None, None
 
     ee_link = r_geom.get_ee_link(arm)
-    pos, orn = rave_body.get_link_pose(ee_link)
+    info = rave_body.fwd_kinematics(arm)
+    ee_pos, orn = info['pos'], info['quat']
     
     attempt, step = 0, 1
-    while attempt < 50 and len(collisions) > 0:
+    new_pos = None
+    while attempt < 15 and len(collisions) > 0:
         attempt += 1
-        target_ee = ee_pos + step * np.multiply(np.random.sample(3)+[-0.5,-0.5,0.25], const.RESAMPLE_FACTOR)
-        #ik_arm_poses = rave_body.get_ik_from_pose(target_ee, [0, np.pi/2, 0], arm)
-        ik_arm_poses = rave_body.get_ik_from_pose(target_ee, orn, arm, multiple=10)
-        arm_pose = closest_arm_pose(ik_arm_poses, getattr(robot, arm)[:, action.active_timesteps[0]])
-        if arm_pose is None:
-            step += 1
-            continue
+        target_ee = ee_pos + step * np.multiply(np.random.sample(3), const.RESAMPLE_FACTOR)
+        rave_body.set_dof(dof_map)
+        arm_pose = rave_body.get_ik_from_pose(target_ee, orn, arm)
+        step += 1
         rave_body.set_dof({arm: arm_pose})
         collisions = p.getClosestPoints(rave_body.body_id, obs_body.body_id, 0.01)
-        collisions = list(filter(lambda col: col[3] in r_geom.get_arm_inds(arm), collisions))
+        link_f = lambda col: col[3]-1 in r_geom.arm_inds[arm] or col[3]-1 in r_geom.gripper_inds['{}_gripper'.format(arm)]
+        collisions = list(filter(link_f, collisions))
         if not len(collisions):
             add_to_attr_inds_and_res(t, attr_inds, res, robot, [(arm, arm_pose)])
+            new_pos = arm_pose
+            break
 
-    if not const.PRODUCTION:
-        print("resampling at {} action".format(action.name))
+    #if not const.PRODUCTION:
+    #    print("resampling at {} action".format(action.name))
     act_start, act_end = action.active_timesteps
     res_arm = arm
-    if action.name.find("moveto") >=0  or action.name.find("moveholding") >= 0:
+    if new_pos is None:
+        return None, None
+
+    N_STEPS = 3
+    act_start = np.maximum(act_start+1, t-N_STEPS)
+    act_end = np.minimum(act_end-1, t+N_STEPS)
+    if True or action.name.find("moveto") >=0  or action.name.find("moveholding") >= 0:
         timesteps_1 = t - act_start
         pose_traj_1 = lin_interp_traj(robot.pose[:, act_start], robot.pose[:, t], timesteps_1)
-        add_to_attr_inds_and_res(i, attr_inds, res, robot, [('pose', pose_traj_1[:, traj_ind])])
-        for arm in r_geom.arms:
-            old_traj = getattr(robot, arm)
-            arm_traj_1 = lin_interp_traj(old_traj[:, act_start], old_traj[:, t], timesteps_1)
-            for i in range(act_start+1, t):
-                traj_ind = i - act_start
-                add_to_attr_inds_and_res(i, attr_inds, res, robot, [(arm, arm_traj_1[:, traj_ind])])
+        old_traj = getattr(robot, arm)
+        arm_traj_1 = lin_interp_traj(old_traj[:, act_start], new_pos, timesteps_1)
+        for i in range(act_start+1, t):
+            traj_ind = i - act_start
+            add_to_attr_inds_and_res(i, attr_inds, res, robot, [('pose', pose_traj_1[:, traj_ind])])
+            add_to_attr_inds_and_res(i, attr_inds, res, robot, [(arm, arm_traj_1[:, traj_ind])])
 
         timesteps_2 = act_end - t
+        arm_traj_2 = lin_interp_traj(new_pos, old_traj[:, act_end], timesteps_2)
         pose_traj_2 = lin_interp_traj(robot.pose[:, t], robot.pose[:, act_end], timesteps_2)
-        arm_traj_2 = lin_interp_traj(old_traj[:, t], old_traj[:, act_end], timesteps_1)
-
-        add_to_attr_inds_and_res(i, attr_inds, res, robot, [('pose', pose_traj_1[:, traj_ind])])
-        for arm in r_geom.arms:
-            for i in range(t+1, act_end):
-                traj_ind = i - t
-                add_to_attr_inds_and_res(i, attr_inds, res, robot, [(arm, arm_traj_2[:, traj_ind])])
+        for i in range(t+1, act_end):
+            traj_ind = i - t
+            add_to_attr_inds_and_res(i, attr_inds, res, robot, [('pose', pose_traj_2[:, traj_ind])])
+            add_to_attr_inds_and_res(i, attr_inds, res, robot, [(arm, arm_traj_2[:, traj_ind])])
 
     return res, attr_inds
 

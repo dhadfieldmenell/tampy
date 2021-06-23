@@ -36,6 +36,7 @@ class Sample(object):
         self.source_label = 'rollout'
         self.wt = 1.
         self.base_x = None
+        self.condition = 0
 
         self._X = np.empty((self.T, self.dX))
         self._X.fill(np.nan)
