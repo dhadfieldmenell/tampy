@@ -11,7 +11,7 @@ import time
 
 from policy_hooks.multiprocess_main import MultiProcessMain
 
-USE_BASELINES = False
+USE_BASELINES = True 
 if USE_BASELINES:
     from policy_hooks.baselines.argparse import argsparser as baseline_argsparser
 

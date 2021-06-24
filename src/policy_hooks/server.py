@@ -659,7 +659,7 @@ class Server(object):
         return np.array(buf)
 
 
-    def save_video(self, rollout, success=None, ts=None, lab='', annotate=True, st=0):
+    def save_video(self, rollout, success=None, ts=None, lab='', annotate=False, st=0):
         if not self.render: return
         init_t = time.time()
         old_h = self.agent.image_height
