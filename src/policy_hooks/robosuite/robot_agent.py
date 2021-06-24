@@ -123,7 +123,7 @@ class optimal_pol:
 
 
 class EnvWrapper():
-    def __init__(self, env, robot, mode='ee_pos'):
+    def __init__(self, env, robot, mode='ee_pos', render=False):
         self.env = env
         self.robot = robot
         self.geom = robot.geom
@@ -132,6 +132,8 @@ class EnvWrapper():
         self.model = env.mjpy_model
         self.z_offsets = {'cereal': 0.04, 'milk': 0.02, 'can': 0.03, 'bread': 0.03}
         self.mode = mode
+        self.render_context = None
+        self.render = render
 
     def get_attr(self, obj, attr, euler=False):
         if attr.find('ee_pos') >= 0:
@@ -285,8 +287,16 @@ class EnvWrapper():
         self.zero()
         self.env.sim.forward()
 
-    def reset(self):
+    def reset(self, settle=True):
         obs = self.env.reset()
+        if self.render:
+            del self.render_context
+            from mujoco_py import MjRenderContextOffscreen
+            self.render_context = MjRenderContextOffscreen(self.env.sim, device_id=0)
+            self.env.sim.add_render_context(self.render_context)
+            self.env.sim._render_context_offscreen.vopt.geomgroup[0] = 0
+            self.env.sim._render_context_offscreen.vopt.geomgroup[1] = 1
+
         #if P.getConnectionInfo()['isConnected'] and np.random.uniform() < 0.5:
         #    cur_pos = self.get_attr('sawyer', 'pose')
         #    cur_quat =  self.get_attr('sawyer', 'right_ee_rot', euler=False)
@@ -299,15 +309,16 @@ class EnvWrapper():
         #    ik = self.robot.openrave_body.get_ik_from_pose([x,y,z], cur_quat, 'right')
         #    self.set_attr('sawyer', 'right', ik, forward=True)
 
-        cur_pos = self.get_attr('sawyer', 'right_ee_pos')
-        cur_jnts = self.get_attr('sawyer', 'right')
-        dim = 8 if self.mode.find('joint') >= 0 else 7
-        for _ in range(40):
-            self.env.step(np.zeros(dim))
-            self.set_attr('sawyer', 'right', cur_jnts)
-            self.forward()
+        if settle:
+            cur_pos = self.get_attr('sawyer', 'right_ee_pos')
+            cur_jnts = self.get_attr('sawyer', 'right')
+            dim = 8 if self.mode.find('joint') >= 0 else 7
+            for _ in range(40):
+                self.env.step(np.zeros(dim))
+                self.set_attr('sawyer', 'right', cur_jnts)
+                self.forward()
 
-        self.forward()
+            self.forward()
         return obs
 
 
@@ -361,17 +372,18 @@ class RobotAgent(TAMPAgent):
                 initialization_noise={'magnitude': 0.1, 'type': 'gaussian'}
             )
 
-        if self.load_render:
-            from mujoco_py import MjRenderContextOffscreen
-            self.render_context = MjRenderContextOffscreen(self.base_env.sim, device_id=0)
-            self.base_env.sim.add_render_context(self.render_context)
-            self.render_context.vopt.geomgroup[0] = 0
-            self.render_context.vopt.geomgroup[1] = 1
-            self.base_env.sim._render_context_offscreen.vopt.geomgroup[0] = 0
-            self.base_env.sim._render_context_offscreen.vopt.geomgroup[1] = 1
+        #if self.load_render:
+        #    from mujoco_py import MjRenderContextOffscreen
+        #    self.render_context = MjRenderContextOffscreen(self.base_env.sim, device_id=0)
+        #    self.base_env.sim.add_render_context(self.render_context)
+        #    #self.mjc_env.render_context = self.render_context
+        #    self.render_context.vopt.geomgroup[0] = 0
+        #    self.render_context.vopt.geomgroup[1] = 1
+        #    self.base_env.sim._render_context_offscreen.vopt.geomgroup[0] = 0
+        #    self.base_env.sim._render_context_offscreen.vopt.geomgroup[1] = 1
 
         self.sawyer = list(self.plans.values())[0].params['sawyer']
-        self.mjc_env = EnvWrapper(self.base_env, self.sawyer, self.ctrl_mode)
+        self.mjc_env = EnvWrapper(self.base_env, self.sawyer, self.ctrl_mode, render=self.load_render)
 
         self.check_col = hyperparams['master_config'].get('check_col', True)
         self.camera_id = 1
@@ -904,7 +916,7 @@ class RobotAgent(TAMPAgent):
         self._x_delta[:] = x.reshape((1,-1))
         self._prev_task = np.zeros((self.task_hist_len, self.dPrimOut))
         self.cur_state = x.copy()
-        if full: self.base_env.reset()
+        if full: self.mjc_env.reset(settle=False)
         self.base_env.sim.reset()
         for (pname, aname), inds in self.state_inds.items():
             if pname == 'table': continue
