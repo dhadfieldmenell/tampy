@@ -509,12 +509,10 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
             solv.initial_penalty_coeff = self.init_penalty_coeff
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
 
+        # Call the solver on this problem now that it's been constructed
         success = solv.solve(self._prob, method="penalty_sqp", tol=tol, verbose=verbose)
 
-        from IPython import embed
-
-        embed()
-
+        # Update the values of the variables by leveraging the ll_param mapping
         self._update_ll_params()
         if priority >= 0:
             success = (
@@ -1058,11 +1056,14 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
     # @profile
     def _update_ll_params(self):
         """
-        update plan's parameters from low level grb_vars.
+        update plan's parameters from low level OSQPVars.
         expected to be called after each optimization.
         """
         for ll_param in list(self._param_to_ll.values()):
             ll_param.update_param()
+
+        # NOTE: this is null for the verify_namo_OSQP example, but needs
+        # to be handled well if that's not the case!
         if self.child_solver:
             self.child_solver._update_ll_params()
 

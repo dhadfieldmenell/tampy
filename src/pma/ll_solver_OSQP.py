@@ -121,35 +121,24 @@ class LLParamOSQP(object):
 
         raise NotImplementedError
 
-    # def grb_val_dict(self):
-    #     val_dict = {}
-    #     for attr in self._num_attrs:
-    #         val_dict[attr] = self._get_attr_val(attr)
-
-    # def _get_attr_val(self, attr):
-    #     grb_vars = getattr(self, attr)
-    #     value = np.zeros(grb_vars.shape)
-    #     for index, var in np.ndenumerate(grb_vars):
-    #         try:
-    #             value[index] = var.X
-    #         except grb.GurobiError:
-    #             value[index] = np.nan
-    #     return value
+    def _get_attr_val(self, attr):
+        osqp_vars = getattr(self, attr)
+        value = np.zeros(osqp_vars.shape)
+        for index, var in np.ndenumerate(osqp_vars):
+            value[index] = var.val
+        return value
 
     def update_param(self):
         """
         Updates the numerical attributes in the original parameter based off of
         the attribute's corresponding OSQP solution variables.
         """
-        # TODO: Implement OSQP version of this
-        # for attr in self._num_attrs:
-        #     value = self._get_attr_val(attr)
-        #     if np.any(np.isnan(value)):
-        #         continue
-        #     self.set_param_val(attr, value)
-        raise NotImplementedError
+        for attr in self._num_attrs:
+            value = self._get_attr_val(attr)
+            if np.any(np.isnan(value)):
+                continue
+            self.set_param_val(attr, value)
 
-    # NOTE: Not sure if the below functions are useful or necessary - just keeping them in for now...
     def get_param_val(self, attr):
         if self._param.is_symbol():
             return getattr(self._param, attr)[:, 0][:, None]
