@@ -1091,10 +1091,9 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
                 for osqp_var in getattr(ll_param, attr).flatten().tolist():
                     self._prob.add_osqp_var(osqp_var)
 
-        # TODO: The batch_add_cnts method is currently not implemented for LLParamOSQP
-
-        # for ll_param in list(self._param_to_ll.values()):
-        #     ll_param.batch_add_cnts()
+        for ll_param in list(self._param_to_ll.values()):
+            lin_eq_cnts = ll_param.batch_add_cnts()
+            self._prob.batch_add_lin_cnts(lin_eq_cnts)
 
     # @profile
     def _add_obj_bexprs(self, obj_bexprs):

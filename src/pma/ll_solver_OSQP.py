@@ -6,6 +6,7 @@ import numpy as np
 from core.util_classes import common_predicates
 from core.util_classes.matrix import Vector, Vector2d
 from sco_OSQP.expr import AffExpr, BoundExpr, EqExpr, QuadExpr
+from sco_OSQP.osqplinearconstraint import OSQPLinearConstraint
 from sco_OSQP.osqpvar import OSQPVar
 from sco_OSQP.prob import Prob
 from sco_OSQP.solver import Solver
@@ -107,19 +108,25 @@ class LLParamOSQP(object):
 
     def batch_add_cnts(self):
         """
-        Adds all the equality constraints.
+        Adds all the linear equality constraints.
         """
-        # TODO: Need to modify this for OSQP
-        # if self._param.is_defined():
-        #     for attr in self._num_attrs:
-        #         grb_vars = getattr(self, attr)
-        #         value = self.get_param_val(attr)
-        #         free_vars = self.get_free_vars(attr)
-        #         for index, value in np.ndenumerate(value):
-        #             if not free_vars[index] and not np.any(np.isnan(value)):
-        #                 self._model.addConstr(grb_vars[index], GRB.EQUAL, value)
-
-        raise NotImplementedError
+        linear_eq_cnts_list = []
+        if self._param.is_defined():
+            for attr in self._num_attrs:
+                osqp_vars = getattr(self, attr)
+                value = self.get_param_val(attr)
+                free_vars = self.get_free_vars(attr)
+                for index, value in np.ndenumerate(value):
+                    if not free_vars[index] and not np.any(np.isnan(value)):
+                        linear_eq_cnts_list.append(
+                            OSQPLinearConstraint(
+                                np.array([osqp_vars[index]]),
+                                np.array([1]),
+                                np.array([value]),
+                                np.array([value]),
+                            )
+                        )
+        return linear_eq_cnts_list
 
     def _get_attr_val(self, attr):
         osqp_vars = getattr(self, attr)
