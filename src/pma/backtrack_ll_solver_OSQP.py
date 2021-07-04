@@ -12,7 +12,7 @@ from sco_OSQP.prob import Prob
 from sco_OSQP.solver import Solver
 from sco_OSQP.variable import Variable
 
-from .ll_solver import LLParamOSQP, LLSolver
+from .ll_solver_OSQP import LLParamOSQP, LLSolverOSQP
 
 MAX_PRIORITY = 3
 BASE_MOVE_COEFF = 1.0
@@ -27,7 +27,7 @@ BASE_SAMPLE_SIZE = 5
 DEBUG = False
 
 
-class BacktrackLLSolver_OSQP(LLSolver):
+class BacktrackLLSolver_OSQP(LLSolverOSQP):
     def __init__(self, early_converge=False, transfer_norm="min-vel"):
         # To avoid numerical difficulties during optimization, try keep
         # range of coefficeint within 1e9
@@ -47,9 +47,9 @@ class BacktrackLLSolver_OSQP(LLSolver):
         self.child_solver = None
         self.solve_priorities = [-2, -1, 0, 1, 2, 3]
         self.transfer_norm = transfer_norm
-        # self.grb_init_mapping = {}
+        self.var_init_mapping = {}
         self.var_list = []
-        # self._grb_to_var_ind = {}
+        self._osqpvar_to_scovar_ind = {}
         self.tol = 1e-3
         self.saved_params_free = {}
         self.fixed_objs = []
@@ -400,9 +400,7 @@ class BacktrackLLSolver_OSQP(LLSolver):
             active_ts = (0, plan.horizon - 1)
 
         plan.save_free_attrs()  # Copies the current free_attrs
-
         self._prob = Prob(callback=callback)
-
         self._spawn_parameter_to_ll_mapping(plan, active_ts)
 
         obj_bexprs = []
@@ -425,10 +423,6 @@ class BacktrackLLSolver_OSQP(LLSolver):
                     plan, "min-vel", init_traj, active_ts=active_ts
                 )
             )
-
-        import pdb
-
-        pdb.set_trace()
 
         initial_trust_region_size = self.initial_trust_region_size
         end_t = active_ts[1] - active_ts[0]
@@ -470,6 +464,7 @@ class BacktrackLLSolver_OSQP(LLSolver):
                 """
                 obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
                 self._add_obj_bexprs(obj_bexprs)
+
                 self._add_first_and_last_timesteps_of_actions(
                     plan,
                     priority=MAX_PRIORITY,
@@ -477,6 +472,7 @@ class BacktrackLLSolver_OSQP(LLSolver):
                     verbose=verbose,
                     add_nonlin=False,
                 )
+
                 tol = 1e-3
                 initial_trust_region_size = 1e3
             elif priority == -1:
@@ -507,15 +503,18 @@ class BacktrackLLSolver_OSQP(LLSolver):
 
         solv = Solver()
         solv.initial_trust_region_size = initial_trust_region_size
-
         if smoothing:
             solv.initial_penalty_coeff = self.smooth_penalty_coeff
         else:
             solv.initial_penalty_coeff = self.init_penalty_coeff
-
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
 
         success = solv.solve(self._prob, method="penalty_sqp", tol=tol, verbose=verbose)
+
+        from IPython import embed
+
+        embed()
+
         self._update_ll_params()
         if priority >= 0:
             success = (
@@ -712,35 +711,44 @@ class BacktrackLLSolver_OSQP(LLSolver):
             raise NotImplemented
         return transfer_objs
 
-    # @profile
-    def check_sync(self):
+    def create_variable(self, osqp_vars, init_vals, save=False):
         """
-        This function checks whether all sco variable are synchronized
+        if save is True
+        Update the var_init_mapping so that each var_name is mapped to
+        the right initial values.
+        Then find the sco variables that includes the var names we are updating and change the corresponding initial values inside of it.
+        if save is False
+        Iterate the var_list and use the last initial value used for each var name, and construct the sco variables
         """
-        grb_val_map = {}
-        correctness = True
-        for grb_name in list(self._grb_to_var_ind.keys()):
-            for var, i in self._grb_to_var_ind[grb_name]:
-                try:
-                    correctness = np.allclose(
-                        grb_val_map[grb_name], var._value[i], equal_nan=True
-                    )
-                except KeyError:
-                    grb_val_map[grb_name] = var._value[i]
-                except:
-                    print("something went wrong")
-                    import ipdb
+        sco_var, var_val_map, ret_val = None, {}, []
 
-                    ipdb.set_trace()
-                if not correctness:
-                    import ipdb
+        # assert not np.any(np.isnan(init_vals))
 
-                    ipdb.set_trace()
+        for osqp_var, v in zip(osqp_vars.flatten(), init_vals.flatten()):
+            if save:
+                self.var_init_mapping[osqp_var] = v
+            var_val_map[osqp_var] = self.var_init_mapping.get(osqp_var, v)
+            ret_val.append(var_val_map[osqp_var])
+            if osqp_var in list(self._osqpvar_to_scovar_ind.keys()):
+                for var, i in self._osqpvar_to_scovar_ind[osqp_var]:
+                    var._value[i] = var_val_map[osqp_var]
+                    if np.all(var._osqp_vars is osqp_vars):
+                        sco_var = var
+
+        if sco_var is None:
+            sco_var = Variable(osqp_vars, np.array(ret_val).reshape((len(ret_val), 1)))
+            self.var_list.append(sco_var)
+            for i, var_name in enumerate(osqp_vars.flatten()):
+                index_val_list = self._osqpvar_to_scovar_ind.get(var_name, [])
+                index_val_list.append((sco_var, i))
+                self._osqpvar_to_scovar_ind[var_name] = index_val_list
+
+        return sco_var
 
     def reset_variable(self):
-        self.grb_init_mapping = {}
+        self.var_init_mapping = {}
         self.var_list = []
-        self._grb_to_var_ind = {}
+        self._osqpvar_to_scovar_ind = {}
 
     def monitor_update(
         self,
@@ -944,6 +952,7 @@ class BacktrackLLSolver_OSQP(LLSolver):
                                 ## this is good if e.g., a single trajectory quickly
                                 ## gets stuck
                                 groups.extend([param.name for param in pred.params])
+
                             self._prob.add_cnt_expr(bexpr, groups)
 
     def _add_first_and_last_timesteps_of_actions(
@@ -1073,7 +1082,13 @@ class BacktrackLLSolver_OSQP(LLSolver):
         self.ll_start = active_ts[0]
         for param in list(plan.params.values()):
             ll_param = LLParamOSQP(param, horizon, active_ts)
+            ll_param.create_osqp_vars()
             self._param_to_ll[param] = ll_param
+            # We need to add each new OSQPVar created in each new ll_param,
+            # to the prob
+            for attr in ll_param._num_attrs:
+                for osqp_var in getattr(ll_param, attr).flatten().tolist():
+                    self._prob.add_osqp_var(osqp_var)
 
         # TODO: The batch_add_cnts method is currently not implemented for LLParamOSQP
 
@@ -1089,7 +1104,6 @@ class BacktrackLLSolver_OSQP(LLSolver):
         for bexpr in obj_bexprs:
             self._prob.add_obj_expr(bexpr)
 
-    # @profile
     def _get_trajopt_obj(self, plan, active_ts=None):
         """
         This function selects parameter of type Robot and Can and returns
@@ -1133,18 +1147,15 @@ class BacktrackLLSolver_OSQP(LLSolver):
                             )
                         else:
                             quad_expr = QuadExpr(Q, np.zeros((1, KT)), np.zeros((1, 1)))
+
                         param_ll = self._param_to_ll[param]
                         ll_attr_val = getattr(param_ll, attr_name)
-                        param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order="F")
-                        attr_val = getattr(
-                            param, attr_name
-                        )  # This line is pulling out the actual matrix
+                        param_ll_var_names = ll_attr_val.reshape((KT, 1), order="F")
+                        attr_val = getattr(param, attr_name)
                         init_val = attr_val[:, start : end + 1].reshape(
                             (KT, 1), order="F"
                         )
-                        sco_var = self.create_variable(
-                            param_ll_grb_vars, init_val
-                        )  # param_ll is a mapping that tells you how to go from matrices in your plan to variables in sco. We pull out those and link them together - BoundEXPR now takes that
+                        sco_var = self.create_variable(param_ll_var_names, init_val)
                         bexpr = BoundExpr(quad_expr, sco_var)
                         traj_objs.append(bexpr)
 
@@ -1168,15 +1179,14 @@ class BacktrackLLSolver_OSQP(LLSolver):
             for attr_name in value_map:  # param.__dict__.iterkeys():
                 attr_type = param.get_attr_type(attr_name)
                 if issubclass(attr_type, Vector):
+                    param_ll = self._param_to_ll[param]
                     if ts is None:
-                        raise ValueError(
-                            "active_ts argument in call to _get_fixed_obj is None! This shouldn't ever happen"
-                        )
+                        active_ts = 0, param_ll.active_ts[1] - param_ll.active_ts[0]
                     if param.is_symbol():
                         T = 1
                         attr_val = value_map[attr_name]
                     else:
-                        T = active_ts[1] - active_ts[0] + 1
+                        T = active_ts[1] - active_ts[0] + 1  # param_ll._horizon
                         attr_val = value_map[attr_name]
                     if np.any(np.isnan(attr_val)):
                         continue
@@ -1205,7 +1215,11 @@ class BacktrackLLSolver_OSQP(LLSolver):
                     quad_expr = QuadExpr(
                         2 * transfer_coeff * Q, transfer_coeff * A, transfer_coeff * b
                     )
-                    sco_var = Variable(cur_val)
+                    ll_attr_val = getattr(param_ll, attr_name)
+                    if not param.is_symbol():
+                        ll_attr_val = ll_attr_val[:, active_ts[0] : active_ts[1] + 1]
+                    param_ll_var_names = ll_attr_val.reshape((KT, 1), order="F")
+                    sco_var = self.create_variable(param_ll_var_names, cur_val)
                     bexpr = BoundExpr(quad_expr, sco_var)
                     transfer_objs.append(bexpr)
         else:
@@ -1268,7 +1282,9 @@ class BacktrackLLSolver_OSQP(LLSolver):
                 quad_expr = QuadExpr(
                     2 * transfer_coeff * Q, transfer_coeff * A, transfer_coeff * b
                 )
-                sco_var = Variable(cur_val)
+                ll_attr_val = getattr(param_ll, attr_name)[:, :T]
+                param_ll_var_names = ll_attr_val.reshape((KT, 1), order="F")
+                sco_var = self.create_variable(param_ll_var_names, cur_val)
                 bexpr = BoundExpr(quad_expr, sco_var)
                 transfer_objs.append(bexpr)
 

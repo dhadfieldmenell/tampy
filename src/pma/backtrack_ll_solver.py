@@ -469,6 +469,7 @@ class BacktrackLLSolver(LLSolver):
                 """
                 obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
                 self._add_obj_bexprs(obj_bexprs)
+
                 self._add_first_and_last_timesteps_of_actions(
                     plan,
                     priority=MAX_PRIORITY,
@@ -476,6 +477,7 @@ class BacktrackLLSolver(LLSolver):
                     verbose=verbose,
                     add_nonlin=False,
                 )
+
                 tol = 1e-3
                 initial_trust_region_size = 1e3
             elif priority == -1:
@@ -743,7 +745,6 @@ class BacktrackLLSolver(LLSolver):
                 index_val_list.append((sco_var, i))
                 self._grb_to_var_ind[grb.VarName] = index_val_list
 
-        # if DEBUG: self.check_sync()
         return sco_var
 
     # @profile
@@ -1022,6 +1023,7 @@ class BacktrackLLSolver(LLSolver):
                         add_nonlin=add_nonlin,
                         verbose=verbose,
                     )
+
                 if action_end <= active_ts[1]:
                     self._add_pred_dict(
                         pred_dict,
@@ -1034,6 +1036,7 @@ class BacktrackLLSolver(LLSolver):
             timesteps = list(
                 range(max(action_start, active_ts[0]), min(action_end, active_ts[1]))
             )
+
             for pred_dict in action.preds:
                 self._add_pred_dict(
                     pred_dict,
@@ -1114,6 +1117,7 @@ class BacktrackLLSolver(LLSolver):
             ll_param = LLParam(model, param, horizon, active_ts)
             ll_param.create_grb_vars()
             self._param_to_ll[param] = ll_param
+
         model.update()
         for ll_param in list(self._param_to_ll.values()):
             ll_param.batch_add_cnts()
@@ -1171,6 +1175,7 @@ class BacktrackLLSolver(LLSolver):
                             )
                         else:
                             quad_expr = QuadExpr(Q, np.zeros((1, KT)), np.zeros((1, 1)))
+
                         param_ll = self._param_to_ll[param]
                         ll_attr_val = getattr(param_ll, attr_name)
                         param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order="F")

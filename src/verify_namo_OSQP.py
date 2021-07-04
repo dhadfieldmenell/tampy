@@ -9,7 +9,7 @@ from pma.hl_solver import *
 from pma.namo_solver_OSQP import *
 from pma.pr_graph import *
 
-domain_file = "../domains/namo_domain/namo_current.domain"
+domain_file = "../domains/namo_domain/namo_current_OSQP.domain"
 prob_file = "../domains/namo_domain/namo_probs/verify_2_object.prob"
 
 # Create a PyBulletViewer for viz purposes

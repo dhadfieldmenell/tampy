@@ -53,7 +53,7 @@ cd gurobi901/linux64
 python setup.py install
 
 pip install --force-reinstall numpy==1.18.5
-
+pip install osqp
 
 if ! $FULL_INSTALL; then
     exit 0

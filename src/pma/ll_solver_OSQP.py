@@ -1,17 +1,15 @@
 import itertools
 import random
 
-import gurobipy as grb
 import numpy as np
 
 from core.util_classes import common_predicates
 from core.util_classes.matrix import Vector, Vector2d
-from sco.expr import AffExpr, BoundExpr, EqExpr, QuadExpr
-from sco.prob import Prob
-from sco.solver import Solver
-from sco.variable import Variable
-
-GRB = grb.GRB
+from sco_OSQP.expr import AffExpr, BoundExpr, EqExpr, QuadExpr
+from sco_OSQP.osqpvar import OSQPVar
+from sco_OSQP.prob import Prob
+from sco_OSQP.solver import Solver
+from sco_OSQP.variable import Variable
 
 MAX_PRIORITY = 5
 WIDTH = 7
@@ -20,7 +18,7 @@ TRAJOPT_COEFF = 1e0
 dsafe = 1e-1
 
 
-class LLSolver(object):
+class LLSolverOSQP(object):
     """
     LLSolver solves the underlying optimization problem using motion planning.
     This is where different refinement strategies (e.g. backtracking,
@@ -59,32 +57,29 @@ class LLSolver(object):
         return Variable(x, v)
 
 
-class LLParam(object):
+class LLParamOSQP(object):
     """
-    LLParam creates the low-level representation of parameters (Numpy array of
-    Gurobi variables) that is used in the optimization. For every numerical
-    attribute in the original parameter, LLParam has the corresponding
-    attribute where the value is a numpy array of Gurobi variables. LLParam
-    updates its parameter based off of the value of the Gurobi variables.
-
-    create_grb_vars and batch_add_cnts aren't included in the
-    initialization because a Gurobi model update needs to be done before the
-    batch_add_cnts call. Model updates can be very slow, so we want to create
-    all the Gurobi variables for all the parameters before adding all the
-    constraints.
+    LLParamOSQP keeps track of the low-level representation of parameters
+    that is used in the optimization. For every numerical attribute in the
+    original parameter, LLParam keeps track of how the corresponding attribute
+    is represented in the constructed OSQP problem (i.e, what row of the matrix
+    this particular attribute is in). LLParam updates its parameter based off of
+    the returned value of these variables after OSQP solving.
     """
 
-    def __init__(self, model, param, horizon, active_ts):
-        self._model = model
+    def __init__(self, param, horizon, active_ts):
         self._param = param
         self._horizon = horizon
         self._num_attrs = []
         self.active_ts = active_ts
 
-    # @profile
-    def create_grb_vars(self):
+    def create_osqp_vars(self):
         """
-        Creates Gurobi variables for attributes of certain types.
+        Creates OSQPVars for attributes of certain types.
+        This is analogous to the 'create_grb_vars' function from the original
+        LLParam class.
+        The created variable names will be useful when creating sco_OSQP
+        Variables.
         """
         for k, _ in list(self._param.__dict__.items()):
             rows = None
@@ -101,62 +96,60 @@ class LLParam(object):
                     shape = (rows, 1)
                 else:
                     shape = (rows, self._horizon)
-
                 x = np.empty(shape, dtype=object)
                 name = "({}-{}-{})"
-
                 for index in np.ndindex(shape):
-                    # Note: it is easier for the sco code and update_param to
-                    # handle things if everything is a Gurobi variable
-                    x[index] = self._model.addVar(
-                        lb=-GRB.INFINITY,
-                        ub=GRB.INFINITY,
-                        name=name.format(self._param.name, k, index),
-                    )
+                    # NOTE: it is easier for the sco code and update_param to
+                    # # handle things if everything is a variable
+                    x[index] = OSQPVar(name.format(self._param.name, k, index))
 
                 setattr(self, k, x)
 
-    # @profile
     def batch_add_cnts(self):
         """
         Adds all the equality constraints.
         """
-        if self._param.is_defined():
-            for attr in self._num_attrs:
-                grb_vars = getattr(self, attr)
-                value = self.get_param_val(attr)
-                free_vars = self.get_free_vars(attr)
-                for index, value in np.ndenumerate(value):
-                    if not free_vars[index] and not np.any(np.isnan(value)):
-                        self._model.addConstr(grb_vars[index], GRB.EQUAL, value)
+        # TODO: Need to modify this for OSQP
+        # if self._param.is_defined():
+        #     for attr in self._num_attrs:
+        #         grb_vars = getattr(self, attr)
+        #         value = self.get_param_val(attr)
+        #         free_vars = self.get_free_vars(attr)
+        #         for index, value in np.ndenumerate(value):
+        #             if not free_vars[index] and not np.any(np.isnan(value)):
+        #                 self._model.addConstr(grb_vars[index], GRB.EQUAL, value)
 
-    def grb_val_dict(self):
-        val_dict = {}
-        for attr in self._num_attrs:
-            val_dict[attr] = self._get_attr_val(attr)
+        raise NotImplementedError
 
-    def _get_attr_val(self, attr):
-        grb_vars = getattr(self, attr)
-        value = np.zeros(grb_vars.shape)
-        for index, var in np.ndenumerate(grb_vars):
-            try:
-                value[index] = var.X
-            except grb.GurobiError:
-                value[index] = np.nan
-        return value
+    # def grb_val_dict(self):
+    #     val_dict = {}
+    #     for attr in self._num_attrs:
+    #         val_dict[attr] = self._get_attr_val(attr)
 
-    # @profile
+    # def _get_attr_val(self, attr):
+    #     grb_vars = getattr(self, attr)
+    #     value = np.zeros(grb_vars.shape)
+    #     for index, var in np.ndenumerate(grb_vars):
+    #         try:
+    #             value[index] = var.X
+    #         except grb.GurobiError:
+    #             value[index] = np.nan
+    #     return value
+
     def update_param(self):
         """
         Updates the numerical attributes in the original parameter based off of
-        the attribute's corresponding Gurobi variables.
+        the attribute's corresponding OSQP solution variables.
         """
-        for attr in self._num_attrs:
-            value = self._get_attr_val(attr)
-            if np.any(np.isnan(value)):
-                continue
-            self.set_param_val(attr, value)
+        # TODO: Implement OSQP version of this
+        # for attr in self._num_attrs:
+        #     value = self._get_attr_val(attr)
+        #     if np.any(np.isnan(value)):
+        #         continue
+        #     self.set_param_val(attr, value)
+        raise NotImplementedError
 
+    # NOTE: Not sure if the below functions are useful or necessary - just keeping them in for now...
     def get_param_val(self, attr):
         if self._param.is_symbol():
             return getattr(self._param, attr)[:, 0][:, None]
@@ -177,7 +170,7 @@ class LLParam(object):
         assert np.allclose(self.get_param_val(attr), value)
 
 
-class NAMOSolver(LLSolver):
+class NAMOSolverOSQP(LLSolverOSQP):
     def __init__(self, early_converge=True, transfer_norm="min-vel"):
         self.transfer_coeff = 1e1
         self.rs_coeff = 1e6
@@ -742,6 +735,6 @@ class NAMOSolver(LLSolver):
         return traj_objs
 
 
-class DummyLLSolver(LLSolver):
+class DummyLLSolverOSQP(LLSolverOSQP):
     def solve(self, plan):
         return "solve"
