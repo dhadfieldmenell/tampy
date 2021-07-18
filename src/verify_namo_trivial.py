@@ -10,8 +10,7 @@ from pma.namo_solver import *
 from pma.pr_graph import *
 
 domain_file = "../domains/namo_domain/namo_current.domain"
-prob_file = "../domains/namo_domain/namo_probs/verify_2_object.prob"
-
+prob_file = "../domains/namo_domain/namo_probs/verify_namo_trivial.prob"
 
 # Create a PyBulletViewer for viz purposes
 pbv = PyBulletViewer()
@@ -31,7 +30,7 @@ hl_solver = FFSolver(d_c)
 abs_domain = hl_solver.abs_domain
 
 
-### state represents the initial configuration of the world
+#### state represents the initial configuration of the world
 ### Normally these value are just set in the problem file itself
 ### However sometimes it's useful to adjust them at run-time; e.g. if you wish to programitically generate sample problems
 pr2_pose = [0, -5.0]
@@ -49,19 +48,12 @@ END_TARGETS = [
 ]
 state.params["pr2"].pose[:, 0] = pr2_pose
 state.params["robot_init_pose"].value[:, 0] = pr2_pose
-state.params["end_target_0"].value[:, 0] = END_TARGETS[0]
-state.params["end_target_1"].value[:, 0] = END_TARGETS[1]
-state.params["end_target_2"].value[:, 0] = END_TARGETS[2]
 state.params["end_target_3"].value[:, 0] = END_TARGETS[3]
-state.params["end_target_4"].value[:, 0] = END_TARGETS[4]
-state.params["end_target_5"].value[:, 0] = END_TARGETS[5]
-state.params["end_target_6"].value[:, 0] = END_TARGETS[6]
-state.params["end_target_7"].value[:, 0] = END_TARGETS[7]
-state.params["can0"].pose[:, 0] = can0_pose
-state.params["can0_init_target"].value[:, 0] = can0_pose
-state.params["can1"].pose[:, 0] = can1_pose
-state.params["can1_init_target"].value[:, 0] = can1_pose
-goal = "(and (Near can0 end_target_3) (Near can1 end_target_4))"
+# state.params["can0"].pose[:, 0] = can0_pose
+# state.params["can0_init_target"].value[:, 0] = can0_pose
+goal = "(RobotAt pr2 end_target_3)"
+# goal = "(Near can0 end_target_3)"
+
 
 # Call p_mod_abs to find a plan given the above described problem.
 plan, descr = p_mod_abs(

@@ -542,8 +542,12 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
 
         ##Restore free_attrs values
         plan.restore_free_attrs()
-
         self.reset_variable()
+
+        from IPython import embed
+
+        embed()
+
         return success
 
     # @profile
