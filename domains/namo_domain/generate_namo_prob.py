@@ -1,15 +1,17 @@
-from IPython import embed as shell
 import itertools
 import random
+
+from IPython import embed as shell
 
 SEED = 1234
 NUM_PROBS = 5
 WIDTH = 8
 HEIGHT = 9
 SIZE = 1
-NUM_CANS = 2 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
+NUM_CANS = 2  # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
 NUM_TARGETS = 3
 GOAL = "(At can0 target1), (At can1 target0)"
+
 
 def main():
     random.seed(SEED)
@@ -21,34 +23,34 @@ def main():
         s += "# The values after each attribute name are the values that get passed into the __init__ method for that attribute's class defined in the domain configuration.\n"
         s += "Objects: "
         for i in range(NUM_TARGETS):
-            s += "Target (name target%d); "%(i)
-            s += "RobotPose (name pdp_target%d); "%i
+            s += "Target (name target%d); " % (i)
+            s += "RobotPose (name pdp_target%d); " % i
             if i < NUM_CANS:
-                s += "Can (name can%d); "%i
+                s += "Can (name can%d); " % i
                 # s += "RobotPose (name gp_can%d); "%i
-        s += "Robot (name %s); "%"pr2"
+        s += "Robot (name %s); " % "pr2"
         s += "Grasp (name {}); ".format("grasp0")
-        s += "RobotPose (name %s); "%"robot_init_pose"
-        s += "RobotPose (name %s); "%"robot_end_pose"
-        s += "Obstacle (name %s) \n\n"%"obs0"
+        s += "RobotPose (name %s); " % "robot_init_pose"
+        s += "RobotPose (name %s); " % "robot_end_pose"
+        s += "Obstacle (name %s) \n\n" % "obs0"
 
         s += "Init: "
         for i in range(NUM_TARGETS):
-            s += "(geom target%d 1), (value target%d %s), "%(i, i, list(coords[i]))
-            s += "(value pdp_target%d undefined), "%i
+            s += "(geom target%d 1), (value target%d %s), " % (i, i, list(coords[i]))
+            s += "(value pdp_target%d undefined), " % i
         for i in range(NUM_CANS):
-            s += "(geom can%d 1), (pose can%d %s), "%(i, i, list(coords[i]))
+            s += "(geom can%d 1), (pose can%d %s), " % (i, i, list(coords[i]))
             # s += "(value gp_can%d undefined), "%i
         s += "(value grasp0 undefined), "
-        s += "(geom %s [1]), (pose %s %s), "%("pr2", "pr2", list(coords[NUM_TARGETS]))
+        s += "(geom %s [1]), (pose %s %s), " % ("pr2", "pr2", list(coords[NUM_TARGETS]))
         s += "(pose pr2 {}), ".format(list(coords[NUM_TARGETS]))
         s += "(gripper pr2 [1]), "
-        s += "(value %s %s), "%("robot_init_pose", list(coords[NUM_TARGETS]))
-        s += "(value %s %s), "%("robot_end_pose", list(coords[NUM_TARGETS]))
-        s += "(gripper %s [1]), "%("robot_init_pose")
-        s += "(gripper %s [1]), "%("robot_end_pose")
-        s += "(pose %s [0, 0]), "%"obs0"
-        s += "(geom %s %s); "%("obs0", "closet")
+        s += "(value %s %s), " % ("robot_init_pose", list(coords[NUM_TARGETS]))
+        s += "(value %s %s), " % ("robot_end_pose", list(coords[NUM_TARGETS]))
+        s += "(gripper %s [1]), " % ("robot_init_pose")
+        s += "(gripper %s [1]), " % ("robot_end_pose")
+        s += "(pose %s [0, 0]), " % "obs0"
+        s += "(geom %s %s); " % ("obs0", "closet")
 
         for i in range(NUM_CANS):
             s += "(At can{} target{}), ".format(i, i)
@@ -64,10 +66,11 @@ def main():
         s += "(IsMP pr2), "
         s += "(StationaryW obs0) \n\n"
 
-        s += "Goal: %s"%GOAL
+        s += "Goal: %s" % GOAL
 
-        with open("namo_probs/namo_%d_%d.prob"%(SEED, iteration), "w") as f:
+        with open("namo_probs/namo_%d_%d.prob" % (SEED, iteration), "w") as f:
             f.write(s)
+
 
 if __name__ == "__main__":
     main()

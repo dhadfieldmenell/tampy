@@ -132,6 +132,10 @@ class LLParamOSQP(object):
         osqp_vars = getattr(self, attr)
         value = np.zeros(osqp_vars.shape)
         for index, var in np.ndenumerate(osqp_vars):
+            # if var.var_name == "(can1-pose-(0, 2))":
+            #     import pdb
+
+            #     pdb.set_trace()
             value[index] = var.val
         return value
 
@@ -142,6 +146,12 @@ class LLParamOSQP(object):
         """
         for attr in self._num_attrs:
             value = self._get_attr_val(attr)
+
+            # if attr == "pose":
+            #     import pdb
+
+            #     pdb.set_trace()
+
             if np.any(np.isnan(value)):
                 continue
             self.set_param_val(attr, value)
@@ -163,6 +173,12 @@ class LLParamOSQP(object):
         if self._param.is_symbol():
             setattr(self._param, attr, value)
         getattr(self._param, attr)[:, self.active_ts[0] : self.active_ts[1] + 1] = value
+
+        # if attr == "pose":
+        #     import pdb
+
+        #     pdb.set_trace()
+
         assert np.allclose(self.get_param_val(attr), value)
 
 
@@ -689,7 +705,7 @@ class NAMOSolverOSQP(LLSolverOSQP):
         self._param_to_ll = {}
         self.ll_start = active_ts[0]
         for param in list(plan.params.values()):
-            ll_param = LLParam(model, param, horizon, active_ts)
+            ll_param = LLParamOSQP(model, param, horizon, active_ts)
             ll_param.create_grb_vars()
             self._param_to_ll[param] = ll_param
         model.update()

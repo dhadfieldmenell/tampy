@@ -544,10 +544,6 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
         plan.restore_free_attrs()
         self.reset_variable()
 
-        from IPython import embed
-
-        embed()
-
         return success
 
     # @profile
@@ -724,8 +720,6 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
         """
         sco_var, var_val_map, ret_val = None, {}, []
 
-        # assert not np.any(np.isnan(init_vals))
-
         for osqp_var, v in zip(osqp_vars.flatten(), init_vals.flatten()):
             if save:
                 self.var_init_mapping[osqp_var] = v
@@ -739,6 +733,14 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
 
         if sco_var is None:
             sco_var = Variable(osqp_vars, np.array(ret_val).reshape((len(ret_val), 1)))
+
+            # DEBUGGING!!!
+            # for i in range(osqp_vars.shape[0]):
+            #     if osqp_vars[i, 0].var_name == "(can1-pose-(0, 2))":
+            #         import pdb
+
+            #         pdb.set_trace()
+
             self.var_list.append(sco_var)
             for i, var_name in enumerate(osqp_vars.flatten()):
                 index_val_list = self._osqpvar_to_scovar_ind.get(var_name, [])
@@ -1154,12 +1156,20 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
 
                         param_ll = self._param_to_ll[param]
                         ll_attr_val = getattr(param_ll, attr_name)
-                        param_ll_var_names = ll_attr_val.reshape((KT, 1), order="F")
+                        param_ll_vars = ll_attr_val.reshape((KT, 1), order="F")
+
+                        # DEBUGGING!!!
+                        # for i in range(param_ll_vars.shape[0]):
+                        #     if param_ll_vars[i, 0].var_name == "(can1-pose-(0, 2))":
+                        #         import pdb
+
+                        #         pdb.set_trace()
+
                         attr_val = getattr(param, attr_name)
                         init_val = attr_val[:, start : end + 1].reshape(
                             (KT, 1), order="F"
                         )
-                        sco_var = self.create_variable(param_ll_var_names, init_val)
+                        sco_var = self.create_variable(param_ll_vars, init_val)
                         bexpr = BoundExpr(quad_expr, sco_var)
                         traj_objs.append(bexpr)
 

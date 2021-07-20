@@ -4,12 +4,12 @@ import sys
 import main
 from core.parsing import parse_domain_config, parse_problem_config
 from core.util_classes.viewer import PyBulletViewer
-from pma import backtrack_ll_solver as bt_ll
+from pma import backtrack_ll_solver_OSQP as bt_ll_OSQP
 from pma.hl_solver import *
-from pma.namo_solver import *
+from pma.namo_solver_OSQP import *
 from pma.pr_graph import *
 
-domain_file = "../domains/namo_domain/namo_4step.domain"
+domain_file = "../domains/namo_domain/namo_4step_OSQP.domain"
 prob_file = "../domains/namo_domain/namo_probs/verify_namo_trivial.prob"
 
 # Create a PyBulletViewer for viz purposes
@@ -23,9 +23,9 @@ problem = parse_problem_config.ParseProblemConfig.parse(
     p_c, domain, env=pbv.env, openrave_bodies={}, use_tf=False, sess=None
 )
 state = problem.init_state
-solver = NAMOSolver()
-bt_ll.DEBUG = True
-bt_ll.TRAJOPT_COEFF = 1e-3
+solver = NAMOSolver_OSQP()
+bt_ll_OSQP.DEBUG = True
+bt_ll_OSQP.TRAJOPT_COEFF = 1e-3
 hl_solver = FFSolver(d_c)
 abs_domain = hl_solver.abs_domain
 
