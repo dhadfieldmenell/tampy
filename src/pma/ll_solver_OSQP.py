@@ -6,8 +6,7 @@ import numpy as np
 from core.util_classes import common_predicates
 from core.util_classes.matrix import Vector, Vector2d
 from sco_OSQP.expr import AffExpr, BoundExpr, EqExpr, QuadExpr
-from sco_OSQP.osqplinearconstraint import OSQPLinearConstraint
-from sco_OSQP.osqpvar import OSQPVar
+from sco_OSQP.osqp_utils import OSQPLinearConstraint, OSQPVar
 from sco_OSQP.prob import Prob
 from sco_OSQP.solver import Solver
 from sco_OSQP.variable import Variable
@@ -132,10 +131,6 @@ class LLParamOSQP(object):
         osqp_vars = getattr(self, attr)
         value = np.zeros(osqp_vars.shape)
         for index, var in np.ndenumerate(osqp_vars):
-            # if var.var_name == "(can1-pose-(0, 2))":
-            #     import pdb
-
-            #     pdb.set_trace()
             value[index] = var.val
         return value
 

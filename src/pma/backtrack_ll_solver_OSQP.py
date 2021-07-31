@@ -701,8 +701,8 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
                             ll_attr_val = ll_attr_val[
                                 :, active_ts[0] : active_ts[1] + 1
                             ]
-                        param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order="F")
-                        sco_var = self.create_variable(param_ll_grb_vars, cur_val)
+                        param_ll_osqp_vars = ll_attr_val.reshape((KT, 1), order="F")
+                        sco_var = self.create_variable(param_ll_osqp_vars, cur_val)
                         bexpr = BoundExpr(quad_expr, sco_var)
                         transfer_objs.append(bexpr)
         else:
@@ -753,56 +753,6 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
         self.var_init_mapping = {}
         self.var_list = []
         self._osqpvar_to_scovar_ind = {}
-
-    def monitor_update(
-        self,
-        plan,
-        update_values,
-        callback=None,
-        n_resamples=5,
-        active_ts=None,
-        verbose=False,
-    ):
-        if callback is not None:
-            viewer = callback()
-        if active_ts == None:
-            active_ts = (0, plan.horizon - 1)
-
-        plan.save_free_attrs()
-        model = grb.Model()
-        model.params.OutputFlag = 0
-        self._prob = Prob(model, callback=callback)
-        # _free_attrs is paied attentioned in here
-        self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
-        model.update()
-        self._bexpr_to_pred = {}
-        tol = 1e-3
-        obj_bexprs = []
-        rs_obj = self._update(plan, update_values)
-        obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
-
-        self._add_all_timesteps_of_actions(
-            plan,
-            priority=MAX_PRIORITY,
-            add_nonlin=True,
-            active_ts=active_ts,
-            verbose=verbose,
-        )
-        obj_bexprs.extend(rs_obj)
-        self._add_obj_bexprs(obj_bexprs)
-        initial_trust_region_size = 1e-2
-
-        solv = Solver()
-        solv.initial_trust_region_size = initial_trust_region_size
-        solv.initial_penalty_coeff = self.init_penalty_coeff
-        solv.max_merit_coeff_increases = self.max_merit_coeff_increases
-        success = solv.solve(self._prob, method="penalty_sqp", tol=tol, verbose=verbose)
-        self._update_ll_params()
-
-        plan.restore_free_attrs()
-
-        self.reset_variable()
-        return success
 
     def _update(self, plan, update_values):
         bexprs = []
