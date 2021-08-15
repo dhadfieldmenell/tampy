@@ -12,7 +12,6 @@ from pma.pr_graph import *
 domain_file = "../domains/namo_domain/namo_current.domain"
 prob_file = "../domains/namo_domain/namo_probs/verify_2_object.prob"
 
-
 # Create a PyBulletViewer for viz purposes
 pbv = PyBulletViewer()
 pbv = pbv.create_viewer()

@@ -9,6 +9,7 @@ cd ~/tamp_work
 ### SETUP VIRTENV ###
 # Setup virtual env
 # NOTE: If you're on ubuntu 20.04, install python 3.6 manually by reading this: https://askubuntu.com/questions/1231543/problem-with-creating-python-3-6-virtual-environment-on-ubuntu-20-04
+# also, install python 3.6-dev manually (for use with robosuite): https://zoomadmin.com/HowToInstall/UbuntuPackage/python3.6-dev
 export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3.6  
 virtualenv -p $VIRTUALENVWRAPPER_PYTHON venv
 source venv/bin/activate
