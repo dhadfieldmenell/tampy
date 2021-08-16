@@ -99,7 +99,7 @@ env.sim.data.qvel[:] = 0
 env.sim.data.qacc[:] = 0
 env.sim.forward()
 
-ipdb.set_trace()
+# ipdb.set_trace()
 
 bt_ll.DEBUG = True
 openrave_bodies = None
@@ -242,7 +242,7 @@ for _ in range(40):
     env.sim.forward()
 
 
-ipdb.set_trace()
+# ipdb.set_trace()
 nsteps = 30
 cur_ind = 0
 tol = 1e-3
@@ -384,4 +384,4 @@ for act in plan.actions:
     # import ipdb; ipdb.set_trace()
 plan.params["sawyer"].right[:, t] = env.sim.data.qpos[:7]
 
-ipdb.set_trace()
+# ipdb.set_trace()
