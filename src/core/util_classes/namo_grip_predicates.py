@@ -1951,7 +1951,7 @@ class InGraspAngle(ExprPredicate):
         self.dist = 0.
         self.dsafe = dsafe
         self.gripdist = gripdist
-        self.coeff = 7e-2
+        self.coeff = 5e-2
         if self.r.is_symbol():
             k = 'value'
         else:

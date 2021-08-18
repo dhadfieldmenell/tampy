@@ -301,6 +301,7 @@ class RolloutServer(Server):
                 self._n_plans = n_plans.value
 
             if self.run_hl_test or time.time() - self.last_hl_test > 120:
+                self.agent._eval_mode = True
                 self.agent.replace_cond(0)
                 self.agent.reset(0)
                 n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans'].value

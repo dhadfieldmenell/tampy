@@ -239,11 +239,11 @@ def main():
     for ind, exp in enumerate(exps):
         mains = []
         for ind2, (c, cm) in enumerate(exp):
-            if len(args.test):
-                # c['weight_dir'] = args.test
-                m = MultiProcessMain(c)
-                m.run_test(c)
-                continue
+            #if len(args.test):
+            #    # c['weight_dir'] = args.test
+            #    m = MultiProcessMain(c)
+            #    m.run_test(c)
+            #    continue
 
             print('\n\n\n\n\n\nLOADING NEXT EXPERIMENT\n\n\n\n\n\n')
             old_dir = c['weight_dir']
@@ -259,6 +259,9 @@ def main():
                 m.monitor = False # If true, m will wait to finish before moving on
                 m.group_id = current_id
                 m.hl_only_retrain()
+            elif len(args.test):
+                m = MultiProcessMain(c, load_at_spawn=False)
+                m.run_test(m.config)
             else:
                 m = MultiProcessMain(c, load_at_spawn=True)
                 m.monitor = False # If true, m will wait to finish before moving on

@@ -95,7 +95,7 @@ class TaskServer(Server):
 
             with open(self.log_file, 'a+') as f:
                 state_info = {(pname, aname): node.x0[self.agent.state_inds[pname, aname]] for (pname, aname) in self.agent.state_inds}
-                info = '\n\n{} Task server could not plan for: {}\n{}\n\n'.format(node.label, node.abs_prob, state_info)
+                info = '\n\n{} Task server could not plan for: {}\n{}\nExpansions: {}\n\n'.format(node.label, node.abs_prob, state_info, node.expansions)
                 f.write(str(info))
             return
 

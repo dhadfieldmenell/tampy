@@ -181,6 +181,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         if not len(dirname):
             dirname = self.weight_dir
         try:
+            if dirname[-1] == '/':
+                dirname = dirname[:-1]
             self.saver.restore(self.sess, 'tf_saved/'+dirname+'/'+scope+'{0}.ckpt'.format(ext))
             if scope in self.task_map:
                 self.task_map[scope]['policy'].scale = np.load('tf_saved/'+dirname+'/'+scope+'_scale{0}.npy'.format(ext))

@@ -19,7 +19,7 @@ import policy_hooks.utils.policy_solver_utils as utils
 NO_COL = True
 NUM_OBJS = 4
 NUM_TARGS = 4
-N_HUMAN = 0
+N_HUMAN = 0#6
 SORT_CLOSET = False
 USE_PERTURB = False
 OPT_MCTS_FEEDBACK = True
@@ -29,8 +29,6 @@ FIX_TARGETS = True
 CONST_TARGETS = False
 CONST_ORDER = False
 
-hl_plan_for_state = None
-# domain_file = "../domains/namo_domain/new_namo.domain"
 domain_file = "../domains/namo_domain/namo_current_holgripper.domain"
 mapping_file = "policy_hooks/namo/grip_task_mapping"
 pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
@@ -38,26 +36,36 @@ pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
 descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.format(NUM_OBJS, SORT_CLOSET, USE_PERTURB, OPT_MCTS_FEEDBACK)
 
 END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
-END_TARGETS.extend([(1., 2.),
-                   (-1., 2.),
-                   (2.8, 2.),
-                   (-2.8, 2.),
-                   (-4.6, 2.),
-                   (4.6, 2.),
-                   (6.4, 2.),
-                   (-6.4, 2.),
+END_TARGETS.extend([(1.2, 2.),
+                   (-1.2, 2.),
+                   (3.6, 2.),
+                   (-3.6, 2.),
+                   (1.2, -8.),
+                   (-1.2, -8.),
+                   (3.6, -8.),
+                   (-3.6, -8.),
                    ])
 
+ALT_END_TARGETS = []
+ALT_END_TARGETS.extend([(-4.2, 2.),
+                       (4.2, 2.),
+                       (6.4, 2.),
+                       (-6.4, 2.),
+                       (-4.2, -8.),
+                       (4.2, -8.),
+                       (6.4, -8.),
+                       (-6.4, -8.),
+                       ])
 
 #END_TARGETS.extend([
-#                   (6.4, 2.3),
-#                   (-6.4, 2.3),
-#                   (6.4, -8.3),
-#                   (-6.4, -8.3),
-#                   (3.2, 2.3),
-#                   (-3.2, 2.3),
-#                   (3.2, -8.3),
-#                   (-3.2, -8.3),
+#                   (6.4, 2.2),
+#                   (-6.4, 2.2),
+#                   (6.4, -8.2),
+#                   (-6.4, -8.2),
+#                   (3.2, 2.2),
+#                   (-3.2, 2.2),
+#                   (3.2, -8.2),
+#                   (-3.2, -8.2),
 #                   ])
 
 n_aux = 4
@@ -65,7 +73,7 @@ possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25
 #possible_can_locs.extend(list(itertools.product(list(range(-45, 45, 4)), list(range(-40, -10, 2)))))
 #possible_can_locs.extend(list(itertools.product(list(range(-70, 70, 2)), list(range(-75, 0, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-70, 70, 2)), list(range(-60, 0, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-80, 80, 2)), list(range(-60, 0, 2)))))
 
 
 for i in range(len(possible_can_locs)):
@@ -94,7 +102,7 @@ def get_prim_choices(task_list=None):
     for i in range(len(END_TARGETS)):
         out[utils.TARG_ENUM] += ['end_target_{0}'.format(i)]
     #out[utils.GRASP_ENUM] = ['grasp{0}'.format(i) for i in range(N_GRASPS)]
-    out[utils.ABS_POSE_ENUM] = 2
+    #out[utils.ABS_POSE_ENUM] = 2
     return out
 
 
@@ -106,7 +114,7 @@ def get_vector(config):
         state_vector_include['can{0}'.format(i)] = ['pose']
 
     for i in range(N_HUMAN):
-        state_vector_include['human{0}'.format(i)] = ['pose']
+        state_vector_include['human{}'.format(i)] = ['pose']
 
     action_vector_include = {
         'pr2': ['pose', 'gripper', 'theta']
@@ -123,7 +131,7 @@ def get_vector(config):
     return state_vector_include, action_vector_include, target_vector_include
 
 
-def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
+def get_random_initial_state_vec(config, test_mode, dX, state_inds, conditions):
 # Information is track by the environment
     x0s = []
     targ_maps = []
@@ -136,7 +144,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         # can_locs = copy.deepcopy(END_TARGETS)
         locs = []
         pr2_loc = None
-        spacing = 2.
+        spacing = 2.4
         valid = [1 for _ in range(len(can_locs))]
         while len(locs) < config['num_objs'] + N_HUMAN + 1:
             locs = []
@@ -159,7 +167,6 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
                             if np.linalg.norm(np.array(can_locs[n]) - np.array(can_locs[m])) < spacing:
                                 valid[m] = 0
                         break
-            spacing -= 0.1
 
             for j in range(N_HUMAN):
                 for n in range(1, len(can_locs)):
@@ -189,10 +196,11 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
 
         x0[state_inds['pr2', 'gripper']] = -0.1
         x0s.append(x0)
-        inds = np.random.permutation(list(range(len(END_TARGETS))))
-        next_map = {'can{0}_end_target'.format(no): END_TARGETS[o] for no, o in enumerate(inds[:config['num_objs']])}
+        targs = END_TARGETS if not test_mode else ALT_END_TARGETS
+        inds = np.random.permutation(list(range(len(targs))))
+        next_map = {'can{0}_end_target'.format(no): targs[o] for no, o in enumerate(inds[:config['num_objs']])}
 
-        next_map.update({'end_target_{0}'.format(i): END_TARGETS[i] for i in range(len(END_TARGETS))})
+        next_map.update({'end_target_{0}'.format(i): targs[i] for i in range(len(targs))})
         for a in range(n_aux):
             if a == 0:
                 next_map['aux_target_{0}'.format(a)] = (0, 0)

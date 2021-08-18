@@ -1,4 +1,4 @@
-python3.6 -W ignore policy_hooks/run_training.py -c policy_hooks.robodesk.hyp \
+python3.6 -W ignore policy_hooks/run_training.py -c policy_hooks.robodesk.dummy_hyp \
                                                -no 1 -llus 5000  -hlus 5000 \
                                                -ff 1. -mask -hln 2 -lln 2 -hldim 64 -lldim 64 \
                                                -eta 5 \

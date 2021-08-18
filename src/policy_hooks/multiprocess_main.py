@@ -558,8 +558,8 @@ class MultiProcessMain(object):
         hyperparams['check_precond'] = False
         hyperparams['share_buffers'] = False
         hyperparams['load_render'] = True
-        hyperparams['agent']['image_height']  = 256
-        hyperparams['agent']['image_width']  = 256
+        #hyperparams['agent']['image_height']  = 256
+        #hyperparams['agent']['image_width']  = 256
         descr = hyperparams.get('descr', '')
         # hyperparams['weight_dir'] = hyperparams['weight_dir'].replace('exp_id0', 'rerun_{0}'.format(descr))
         hyperparams['id'] = 'test'
@@ -779,6 +779,8 @@ def setup_dirs(c, args):
             src = DIR_KEY + args.hl_data + '/hyp.py'
         elif hasattr(args, 'expert_path') and len(args.expert_path):
             src = args.expert_path+'/hyp.py'
+        elif len(args.test):
+            src = DIR_KEY + '/' + args.test + '/hyp.py'
         else:
             src = c['source'].replace('.', '/')+'.py'
         shutil.copyfile(src, DIR_KEY+c['weight_dir']+'/hyp.py')

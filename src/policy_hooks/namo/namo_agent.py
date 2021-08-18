@@ -1432,7 +1432,7 @@ class NAMOSortingAgent(TAMPAgent):
 
 
     def replace_cond(self, cond, curric_step=-1):
-        self.init_vecs[cond], self.targets[cond] = self.prob.get_random_initial_state_vec(self.config, self.targets, self.dX, self.state_inds, 1)
+        self.init_vecs[cond], self.targets[cond] = self.prob.get_random_initial_state_vec(self.config, self._eval_mode, self.dX, self.state_inds, 1)
         self.init_vecs[cond], self.targets[cond] = self.init_vecs[cond][0], self.targets[cond][0]
         if self.swap:
             objs = self.prim_choices[OBJ_ENUM]
@@ -1591,6 +1591,10 @@ class NAMOSortingAgent(TAMPAgent):
         targ_idx = None
         if TARG_ENUMS[0] in self._prim_obs_data_idx:
             targ_idx = [self._prim_obs_data_idx[TARG_ENUMS[n]] for n in range(no)]
+        targ_idx2 = None
+        if TARG_DELTA_ENUMS[0] in self._prim_obs_data_idx:
+            targ_idx2 = [self._prim_obs_data_idx[TARG_DELTA_ENUMS[n]] for n in range(no)]
+        goal_idx = self._prim_obs_data_idx[ONEHOT_GOAL_ENUM]
         goal_idx = self._prim_obs_data_idx[ONEHOT_GOAL_ENUM]
         hist_idx = self._prim_obs_data_idx.get(TASK_HIST_ENUM, None)
         xhist_idx = self._prim_obs_data_idx.get(STATE_DELTA_ENUM, None)
@@ -1623,6 +1627,7 @@ class NAMOSortingAgent(TAMPAgent):
                 if obs_idx is not None: new_obs[t:t+nperm][:,obs_idx[rev_order[n]]] = hl_obs[t:t+nperm][:,obs_idx[n]]
                 if obs_idx2 is not None: new_obs[t:t+nperm][:,obs_idx2[rev_order[n]]] = hl_obs[t:t+nperm][:,obs_idx2[n]]
                 if targ_idx is not None: new_obs[t:t+nperm][:,targ_idx[rev_order[n]]] = hl_obs[t:t+nperm][:,targ_idx[n]]
+                if targ_idx2 is not None: new_obs[t:t+nperm][:,targ_idx2[rev_order[n]]] = hl_obs[t:t+nperm][:,targ_idx2[n]]
             new_obs[t:t+nperm][:, goal_idx] = np.concatenate([old_goals[t:t+nperm][:,order[n]*ng:(order[n]+1)*ng] for n in range(no)], axis=-1)
             if hist_idx is not None:
                 hist = hl_obs[t:t+nperm][:,hist_idx].reshape((-1,self.task_hist_len,self.dPrimOut))
@@ -1863,21 +1868,31 @@ class NAMOSortingAgent(TAMPAgent):
         opts = self.prob.get_prim_choices(self.task_list)
         rew = 0
         eeinds = self.state_inds['pr2', 'pose']
+        robot_max_dist = 4
+        robot_dist = robot_max_dist
+        n_placed = 0
         for opt in opts[OBJ_ENUM]:
             xinds = self.state_inds[opt, 'pose']
             targinds = self.target_inds['{}_end_target'.format(opt), 'value']
             dist = np.linalg.norm(x[xinds]-targets[targinds])
             rew -= np.minimum(MAX_DIST, dist)
-            if center and dist > NEAR_TOL:
-                rew -= np.minimum(MAX_DIST, np.linalg.norm(x[xinds]-x[eeinds]))
+            if dist < NEAR_TOL:
+                n_placed += 1
+            else:
+                robot_dist = np.minimum(robot_dist, np.linalg.norm(x[xinds]-x[eeinds]))
+            #if center and dist > NEAR_TOL:
+            #    rew -= np.minimum(MAX_DIST, np.linalg.norm(x[xinds]-x[eeinds]))
 
+        if n_placed < len(opts[OBJ_ENUM]):
+            rew -= robot_dist
+        rew -= np.maximum(0, robot_max_dist * (len(opts[OBJ_ENUM])-n_placed-1))
         #rew /= (self.hor * self.rlen * len(opts[OBJ_ENUM]))
         #rew = np.exp(rew)
         return rew
 
 
     def get_random_initial_state_vec(self, config, plans, dX, state_inds, n=1):
-        xs, targets = self.prob.get_random_initial_state_vec(config, plans, dX, state_inds, n)
+        xs, targets = self.prob.get_random_initial_state_vec(config, self._eval_mode, dX, state_inds, n)
         if self.swap:
             objs = self.prim_choices[OBJ_ENUM]
             inds = np.random.permutation(len(objs))

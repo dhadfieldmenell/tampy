@@ -16,18 +16,14 @@ do
                                                        -rollout 0 \
                                                        -task 0 \
                                                        -warm 100 \
+                                                       -render \
                                                        -run_baseline \
                                                        -baseline stable \
                                                        --total_timesteps 4000000 \
                                                        --n_proc 60 \
                                                        -flat \
                                                        --algo ppo2 \
-                                                       -descr 2d_pickplace_1obj_baseline_PPO2 &
-
-        sleep 9h 
-        pkill -f run_train -9
-        pkill -f ros -9
-        sleep 5s
+                                                       -descr new_2d_pickplace_1obj_baseline_PPO2 &
 
 
         python3 -W ignore policy_hooks/run_training_spawn.py -c policy_hooks.namo.flathyp \
@@ -42,15 +38,16 @@ do
                                                        -rollout 0 \
                                                        -task 0 \
                                                        -warm 100 \
+                                                       -render \
                                                        -run_baseline \
                                                        -baseline stable \
                                                        --total_timesteps 4000000 \
                                                        --n_proc 60 \
                                                        -flat \
                                                        --algo ppo2 \
-                                                       -descr 2d_pickplace_2obj_baseline_PPO2 &
+                                                       -descr new_2d_pickplace_2obj_baseline_PPO2 &
 
-        sleep 9h 
+        sleep 6h 
         pkill -f run_train -9
         pkill -f ros -9
         sleep 5s

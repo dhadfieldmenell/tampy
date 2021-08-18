@@ -126,8 +126,8 @@ class NAMOGripAgent(NAMOSortingAgent):
         self.check_col = hyperparams['master_config'].get('check_col', True)
         self.robot_height = 1
         self.use_mjc = hyperparams.get('use_mjc', False)
-        self.vel_rat = 0.075
-        self.rlen = 18
+        self.vel_rat = 0.05
+        self.rlen = 30
         self.hor = 18
         #self.vel_rat = 0.05
         #self.rlen = self.num_objs * len(self.task_list)
@@ -139,7 +139,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             'include_files': [NAMO_XML],
             'include_items': [],
             'view': False,
-            'sim_freq': 25,
+            'sim_freq': 50,
             'timestep': 0.002,
             'image_dimensions': (hyperparams['image_width'], hyperparams['image_height']),
             'step_mult': 5e0,
@@ -158,8 +158,9 @@ class NAMOGripAgent(NAMOSortingAgent):
             # items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.4), 'rgba': tuple(cur_color), 'mass': 10.})
             #items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 10.})
             items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 40.})
-            targ_color = cur_color[:3] + [0.75] # [0.25]
-            items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (0.45, 0.45, 0.045), 'rgba': tuple(targ_color), 'mass': 1.})
+            targ_color = cur_color[:3] + [1.] # [0.75] # [0.25]
+            #items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (0.45, 0.45, 0.045), 'rgba': tuple(targ_color), 'mass': 1.})
+            items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (0.35, 0.35, 0.045), 'rgba': tuple(targ_color), 'mass': 1.})
 
         for i in range(len(wall_dims)):
             dim, next_trans = wall_dims[i]
@@ -187,6 +188,10 @@ class NAMOGripAgent(NAMOSortingAgent):
         config['xmlid'] = '{0}_{1}_{2}_{3}'.format(self.process_id, self.rank, no, nt)
         self.mjc_env = MJCEnv.load_config(config)
         self.targ_labels = {i: np.array(self.prob.END_TARGETS[i]) for i in range(len(self.prob.END_TARGETS))}
+        if hasattr(self.prob, 'ALT_END_TARGETS'):
+            self.alt_targ_labels = {i: np.array(self.prob.ALT_END_TARGETS[i]) for i in range(len(self.prob.ALT_END_TARGETS))}
+        else:
+            self.alt_targ_labels = self.targ_labels
         self.targ_labels.update({i: self.targets[0]['aux_target_{0}'.format(i-no)] for i in range(no, no+self.prob.n_aux)})
 
 
@@ -389,8 +394,14 @@ class NAMOGripAgent(NAMOSortingAgent):
         if targets is None:
             targets = self.target_vecs[cond].copy()
 
-        sample.set(EE_ENUM, ee_pose, t)
         theta = mp_state[self.state_inds['pr2', 'theta']][0]
+        if LOCAL_FRAME:
+            rot = np.array([[np.cos(-theta), -np.sin(-theta)],
+                            [np.sin(-theta), np.cos(-theta)]])
+        else:
+            rot = np.eye(2)
+
+        sample.set(EE_ENUM, ee_pose, t)
         sample.set(THETA_ENUM, mp_state[self.state_inds['pr2', 'theta']], t)
         dirvec = np.array([-np.sin(theta), np.cos(theta)])
         sample.set(THETA_VEC_ENUM, dirvec, t)
@@ -425,13 +436,6 @@ class NAMOGripAgent(NAMOSortingAgent):
         grasp = np.array([0, -0.601])
         onehottask = tuple([val for val in task if np.isscalar(val)])
         sample.set(FACTOREDTASK_ENUM, np.array(onehottask), t)
-
-        theta = mp_state[self.state_inds['pr2', 'theta']][0]
-        if LOCAL_FRAME:
-            rot = np.array([[np.cos(-theta), -np.sin(-theta)],
-                            [np.sin(-theta), np.cos(-theta)]])
-        else:
-            rot = np.eye(2)
 
         if OBJ_ENUM in prim_choices:
             obj_vec = np.zeros((len(prim_choices[OBJ_ENUM])), dtype='float32')
@@ -504,9 +508,9 @@ class NAMOGripAgent(NAMOSortingAgent):
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
             sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
             targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
-            sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose, t)
+            sample.set(OBJ_DELTA_ENUMS[i], rot.dot(mp_state[self.state_inds[obj, 'pose']]-ee_pose), t)
             sample.set(TARG_ENUMS[i], targ, t)
-            sample.set(TARG_DELTA_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
+            sample.set(TARG_DELTA_ENUMS[i], rot.dot(targ-mp_state[self.state_inds[obj, 'pose']]), t)
 
         if INGRASP_ENUM in self._hyperparams['sensor_dims']:
             vec = np.zeros(len(prim_choices[OBJ_ENUM]))
@@ -885,8 +889,9 @@ class NAMOGripAgent(NAMOSortingAgent):
         goal = ''
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
             targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
-            for ind in self.targ_labels:
-                if np.all(np.abs(targ - self.targ_labels[ind]) < NEAR_TOL):
+            targ_labels = self.targ_labels if not self._eval_mode else self.alt_targ_labels
+            for ind in targ_labels:
+                if np.all(np.abs(targ - targ_labels[ind]) < NEAR_TOL):
                     goal += '(Near {0} end_target_{1}) '.format(obj, ind)
                     break
         return goal
@@ -1100,4 +1105,58 @@ class NAMOGripAgent(NAMOSortingAgent):
         #print('TIME TO GET HUMAN ACTS FOR {} N {} HOR: {}'.format(N, hor, time.time() - init_t))
         self._feasible = old_feas
         return traj
+
+
+    def reward(self, x=None, targets=None, center=False, gamma=0.9):
+        if x is None: x = self.get_state()
+        if targets is None: targets = self.target_vecs[0]
+        l2_coeff = 1.
+        log_coeff = 1.
+
+        opts = self.prob.get_prim_choices(self.task_list)
+        rew = 0
+        eeinds = self.state_inds['pr2', 'pose']
+        ee_pos = x[eeinds]
+        ee_theta = x[self.state_inds['pr2', 'theta']][0]
+        dist = 0.61
+        tol_coeff = 0.75
+        grip_pos = ee_pos + [-dist*np.sin(ee_theta), dist*np.cos(ee_theta)]
+        max_per_obj = 12.
+        info_per_obj = []
+        min_dist = np.inf
+        for opt in opts[OBJ_ENUM]:
+            xinds = self.state_inds[opt, 'pose']
+            targinds = self.target_inds['{}_end_target'.format(opt), 'value']
+            dist_to_targ = np.linalg.norm(x[xinds]-targets[targinds])
+            dist_to_grip = np.linalg.norm(grip_pos - x[xinds])
+
+            if dist_to_targ < tol_coeff*NEAR_TOL:
+                rew += 2 * max_per_obj / (1-gamma)
+                info_per_obj.append((np.inf,0))
+            else:
+                grip_l2_term = -l2_coeff * dist_to_grip**2
+                grip_log_term = -np.log(log_coeff * dist_to_grip + 1e-5)
+                targ_l2_term = -l2_coeff * dist_to_targ**2
+                targ_log_term = -log_coeff * np.log(dist_to_targ + 1e-5)
+                grip_obj_rew = np.min([grip_l2_term + grip_log_term, max_per_obj])
+                targ_obj_rew = np.min([targ_l2_term + targ_log_term, max_per_obj])
+                rew += targ_obj_rew # Always penalize obj to target distance
+                min_dist = np.min([min_dist, dist_to_grip])
+                info_per_obj.append((dist_to_grip, grip_obj_rew)) # Only penalize closest object to gripper
+
+        for dist, obj_rew in info_per_obj:
+            if dist <= min_dist:
+                rew += obj_rew
+                break
+
+        return rew
+
+    def check_target(self, targ):
+        targ_labels = self.targ_labels if not self._eval_mode else self.alt_targ_labels
+        vec = np.zeros(len(list(targ_labels.keys())))
+        for ind in targ_labels:
+            if np.all(np.abs(targ - targ_labels[ind]) < NEAR_TOL):
+                vec[ind] = 1.
+                break
+        return vec
 

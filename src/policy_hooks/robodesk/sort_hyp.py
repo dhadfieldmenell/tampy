@@ -109,7 +109,7 @@ algorithm['mp_policy_prior'] = {
 def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.GOAL_OPTIONS = [
                 '(InSlideDoor upright_block shelf)',
-                #'(InSlideDoor upright_block drawer)',
+                '(InSlideDoor upright_block drawer)',
                 #'(InSlideDoor flat_block shelf)',
                 #'(InSlideDoor flat_block drawer)',
                 #'(InSlideDoor ball shelf)',
@@ -172,9 +172,9 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'prim_obs_include': [
                              utils.ONEHOT_GOAL_ENUM,
                              utils.RIGHT_EE_POS_ENUM,
-                             utils.RIGHT_EE_ROT_ENUM,
+                             #utils.RIGHT_EE_ROT_ENUM,
                              utils.RIGHT_ENUM,
-                             #utils.RIGHT_VEL_ENUM,
+                             utils.RIGHT_VEL_ENUM,
                              utils.RIGHT_GRIPPER_ENUM,
                              utils.GRIP_CMD_ENUM,
                              ],
@@ -214,12 +214,12 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'n_thresh': -1,
         'expand_process': False,
         'her': False,
-        'prim_filters': [32, 32],
+        'prim_filters': [64, 32],
         'prim_filter_sizes': [5, 5],
         'cont_filters': [32, 16],
-        'cont_filter_sizes': [7, 5],
-        'num_filters': [32, 32],
-        'filter_sizes': [7, 5],
+        'cont_filter_sizes': [5, 3],
+        'num_filters': [32, 32, 16],
+        'filter_sizes': [5, 5, 5],
         'compound_goals': True,
         'max_goals': 4,
     }

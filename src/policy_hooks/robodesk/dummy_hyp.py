@@ -111,7 +111,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 #'(InSlideDoor upright_block shelf)',
                 '(InSlideDoor upright_block drawer)',
                 #'(InSlideDoor flat_block shelf)',
-                '(InSlideDoor flat_block drawer)',
+                #'(InSlideDoor flat_block drawer)',
                 #'(InSlideDoor ball shelf)',
                 #'(InSlideDoor ball drawer)',
                 ]

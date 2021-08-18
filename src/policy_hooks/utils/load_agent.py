@@ -41,7 +41,7 @@ def load_agent(config):
     state_vector_include, action_vector_include, target_vector_include = config['get_vector'](config)
     dX, state_inds, dU, action_inds, symbolic_bound = utils.get_state_action_inds(list(plans.values())[0], config['robot_name'], config['attr_map'], state_vector_include, action_vector_include)
     target_dim, target_inds = utils.get_target_inds(list(plans.values())[0], config['attr_map'], target_vector_include)
-    x0, targets = prob.get_random_initial_state_vec(config, plans, dX, state_inds, conditions)
+    x0, targets = prob.get_random_initial_state_vec(config, False, dX, state_inds, conditions)
 
 
     im_h = config.get('image_height', utils.IM_H)

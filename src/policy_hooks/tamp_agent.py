@@ -576,7 +576,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
     def randomize_init_state(self, condition=0):
         self.targets[condition] = self.prob.get_end_targets(self.num_objs)
-        self.init_vecs[condition] = self.prob.get_random_initial_state_vec(self.config, self.num_objs, self.targets, self.dX, self.state_inds, 1)[0]
+        self.init_vecs[condition] = self.prob.get_random_initial_state_vec(self.config, False, self.targets, self.dX, self.state_inds, 1)[0]
         self.x0[condition] = self.init_vecs[condition][:self.symbolic_bound]
         target_vec = np.zeros((self.target_dim,))
         for target_name in self.targets[condition]:
@@ -590,7 +590,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             self.replace_cond(c, curric_step)
 
     def replace_cond(self, cond, curric_step=-1):
-        self.init_vecs[cond], self.targets[cond] = self.prob.get_random_initial_state_vec(self.config, self.plans, self.dX, self.state_inds, 1)
+        self.init_vecs[cond], self.targets[cond] = self.prob.get_random_initial_state_vec(self.config, False, self.dX, self.state_inds, 1)
         self.init_vecs[cond], self.targets[cond] = self.init_vecs[cond][0], self.targets[cond][0]
         self.x0[cond] = self.init_vecs[cond][:self.symbolic_bound]
         self.target_vecs[cond] = np.zeros((self.target_dim,))
@@ -1397,7 +1397,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
 
     def get_random_initial_state_vec(self, config, plans, dX, state_inds, n=1):
-        xs, targets = self.prob.get_random_initial_state_vec(config, plans, dX, state_inds, n)
+        xs, targets = self.prob.get_random_initial_state_vec(config, False, dX, state_inds, n)
         return xs, targets
 
     
