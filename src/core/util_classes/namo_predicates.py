@@ -1,19 +1,17 @@
-from core.internal_repr.predicate import Predicate
+import os
+from collections import OrderedDict
+
+import numpy as np
+import pybullet as P
+import tensorflow as tf
+
 from core.internal_repr.plan import Plan
+from core.internal_repr.predicate import Predicate
 from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import PredicateException
-from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
-import numpy as np
-import tensorflow as tf
-
-import pybullet as P
-
-from collections import OrderedDict
-import os
-
 from pma.ll_solver import NAMOSolver
-
+from sco.expr import AffExpr, EqExpr, Expr, LEqExpr
 
 """
 This file implements the predicates for the 2D NAMO domain.
