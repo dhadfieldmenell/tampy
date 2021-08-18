@@ -1,19 +1,20 @@
+import time
 import unittest
-from pma import hl_solver
-from pma import ll_solver
-from core.parsing import parse_domain_config
-from core.parsing import parse_problem_config
+
 import gurobipy as grb
 import numpy as np
+
+import main
+from core.internal_repr import parameter
+from core.parsing import parse_domain_config, parse_problem_config
+from core.util_classes import circle
+from core.util_classes.matrix import Vector2d
+from core.util_classes.viewer import OpenRAVEViewer
+from pma import hl_solver, ll_solver_gurobi
+from sco import expr
 from sco_gurobi.prob import Prob
 from sco_gurobi.solver import Solver
 from sco_gurobi.variable import Variable
-from sco import expr
-from core.util_classes.viewer import OpenRAVEViewer
-from core.util_classes import circle
-from core.util_classes.matrix import Vector2d
-from core.internal_repr import parameter
-import time, main
 
 
 class TestLLSolver(unittest.TestCase):

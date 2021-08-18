@@ -13,7 +13,7 @@ from sco_gurobi.expr import AffExpr, EqExpr, Expr, LEqExpr
 """
 This file implements the classes for commonly used predicates that are useful in a wide variety of
 typical domains.
-namo_domain specific predicates can be found in core/util_classes/namo_predicates.pu
+namo_domain specific predicates can be found in core/util_classes/namo_predicates_gurobi.pu
 pr2_domain specific predicates can be cound in core/util_classes/pr2_predicates.py
 """
 

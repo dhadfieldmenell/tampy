@@ -1,6 +1,6 @@
 from errors_exceptions import HLException, LLException, SolversConfigException
-from pma import hl_solver
-from pma import ll_solver
+from pma import hl_solver, ll_solver_gurobi
+
 
 class ParseSolversConfig(object):
     """

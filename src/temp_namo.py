@@ -12,7 +12,7 @@ prob.domain_file = "../domains/namo_domain/namo_current_arm.domain"
 from pma.namo_arm_solver import *
 from pma.hl_solver import *
 from pma.pr_graph import *
-from pma import backtrack_ll_solver as bt_ll
+from pma import backtrack_ll_solver_gurobias bt_ll
 from policy_hooks.utils.load_task_definitions import parse_state
 from core.util_classes.namo_grip_predicates import angle_diff
 import pybullet as P

@@ -14,7 +14,7 @@ from core.util_classes.transform_utils import *
 from core.util_classes.viewer import PyBulletViewer
 from pma.hl_solver import *
 from pma.pr_graph import *
-from pma import backtrack_ll_solver as bt_ll
+from pma import backtrack_ll_solver_gurobias bt_ll
 from pma.robot_solver import RobotSolver
 
 

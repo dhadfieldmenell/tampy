@@ -12,7 +12,7 @@ import pybullet as p
 
 from collections import OrderedDict
 
-from pma.ll_solver import NAMOSolver
+from pma.ll_solver_gurobi import NAMOSolver
 
 
 """

@@ -1,12 +1,11 @@
 import numpy as np
 
+from core.util_classes.namo_predicates_gurobi import ColObjPred
+from pma import backtrack_ll_solver_gurobi
 from sco_gurobi.expr import BoundExpr
 
-from core.util_classes.namo_predicates import ColObjPred
-from pma import backtrack_ll_solver
 
-
-class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
+class NAMOSolver(backtrack_ll_solver_gurobi.BacktrackLLSolver):
     def get_resample_param(self, a):
         return a.params[0]  # Experiment with avoiding robot pose symbols
 

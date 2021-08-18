@@ -8,12 +8,11 @@ from core.internal_repr.parameter import Object
 from core.util_classes.matrix import Vector
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
+from pma.ll_solver_gurobi import LLParam, LLSolver
 from sco_gurobi.expr import AffExpr, BoundExpr, QuadExpr
 from sco_gurobi.prob import Prob
 from sco_gurobi.solver import Solver
 from sco_gurobi.variable import Variable
-
-from .ll_solver import LLParam, LLSolver
 
 GRB = grb.GRB
 

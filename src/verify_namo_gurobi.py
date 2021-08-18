@@ -4,12 +4,12 @@ import sys
 import main
 from core.parsing import parse_domain_config, parse_problem_config
 from core.util_classes.viewer import PyBulletViewer
-from pma import backtrack_ll_solver as bt_ll
+from pma import backtrack_ll_solver_gurobi as bt_ll
 from pma.hl_solver import *
 from pma.namo_solver import *
 from pma.pr_graph import *
 
-domain_file = "../domains/namo_domain/namo_current.domain"
+domain_file = "../domains/namo_domain/namo_current_gurobi.domain"
 prob_file = "../domains/namo_domain/namo_probs/verify_2_object.prob"
 
 # Create a PyBulletViewer for viz purposes
