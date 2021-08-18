@@ -18,7 +18,7 @@ from core.util_classes.openrave_body import *
 from core.util_classes.robots import Baxter
 from core.util_classes.transform_utils import *
 from core.util_classes.viewer import PyBulletViewer
-from pma import backtrack_ll_solver_gurobias bt_ll
+from pma import backtrack_ll_solver_gurobi as bt_ll
 from pma.hl_solver import *
 from pma.pr_graph import *
 from pma.robosuite_solver import RobotSolver
