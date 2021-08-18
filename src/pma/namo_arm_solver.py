@@ -2,7 +2,7 @@ import numpy as np
 import pybullet as P
 
 from sco_gurobi.expr import BoundExpr, QuadExpr, AffExpr
-from pma import backtrack_ll_solver
+from pma import bactrack_ll_solver_gurobi
 from core.util_classes.namo_arm_predicates import (
     RETREAT_DIST,
     dsafe,
@@ -13,7 +13,7 @@ from core.util_classes.namo_arm_predicates import (
 )
 
 
-class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
+class NAMOSolver(backtrack_ll_solver_gurobi.BacktrackLLSolver):
     def get_resample_param(self, a):
         return a.params[0]  # Experiment with avoiding robot pose symbols
 

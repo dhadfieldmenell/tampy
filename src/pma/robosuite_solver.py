@@ -1,22 +1,20 @@
 import numpy as np
-import pybullet as p
 
-from sco_gurobi.expr import BoundExpr, QuadExpr, AffExpr
-from core.internal_repr.parameter import Object
-from core.util_classes.matrix import Vector
 import core.util_classes.common_constants as const
-from core.util_classes.openrave_body import OpenRAVEBody
 import core.util_classes.robot_sampling as robot_sampling
 import core.util_classes.transform_utils as T
-from pma import backtrack_ll_solver
-
+from core.internal_repr.parameter import Object
+from core.util_classes.matrix import Vector
+from core.util_classes.openrave_body import OpenRAVEBody
+from pma import backtrack_ll_solver_gurobi
+from sco_gurobi.expr import AffExpr, BoundExpr, QuadExpr
 
 REF_JNTS = np.array([0, -np.pi / 4, 0, np.pi / 4, 0, np.pi / 2, 0])
 REF_JNTS = np.array([0, -np.pi / 3, 0, np.pi / 3, 0, np.pi / 2, 0])
 # REF_JNTS = np.array([0, -np.pi/3, 0, np.pi/6, 0, 2*np.pi/3, 0])
 
 
-class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
+class RobotSolver(backtrack_ll_solver_gurobi.BacktrackLLSolver):
     def get_resample_param(self, a):
         if a.name.find("move") < 0 and a.name.find("grasp") >= 0:
             return [a.params[0], a.params[1]]
