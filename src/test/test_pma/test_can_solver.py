@@ -5,9 +5,9 @@ from core.parsing import parse_domain_config
 from core.parsing import parse_problem_config
 import gurobipy as grb
 import numpy as np
-from sco.prob import Prob
-from sco.solver import Solver
-from sco.variable import Variable
+from sco_gurobi.prob import Prob
+from sco_gurobi.solver import Solver
+from sco_gurobi.variable import Variable
 from sco import expr
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes import circle
@@ -16,11 +16,12 @@ from core.internal_repr import parameter, plan
 import time, main
 
 VIEWER = True
-FAKE_TOL = 1e-2 # Not used......
+FAKE_TOL = 1e-2  # Not used......
+
 
 class TestCanSolver(unittest.TestCase):
     def setUp(self):
-        domain_fname = '../domains/can_domain/can.domain'
+        domain_fname = "../domains/can_domain/can.domain"
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         hls = hl_solver.FFSolver(d_c)
@@ -43,7 +44,7 @@ class TestCanSolver(unittest.TestCase):
             # view.draw(objs, 0, 0.7)
             return hls.solve(abs_problem, domain, problem)
 
-        self.bmove = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
+        self.bmove = get_plan("../domains/can_domain/can_probs/can_1234_0.prob")
 
         # self.move_obs = get_plan('../domains/can_domain/can_probs/move_obs.prob')
 
@@ -74,7 +75,6 @@ class TestCanSolver(unittest.TestCase):
     # def test_backtrack_move(self):
     #     _test_backtrack_plan(self, self.move_no_obs, method='Backtrack', plot = True)
 
-
     def test_move_obs(self):
         pass
         # _test_plan(self, self.bmove)
@@ -92,13 +92,13 @@ class TestCanSolver(unittest.TestCase):
     #     np.random.seed(3) # demonstrates the need to use closest joint angles
     #     _test_resampling(self, self.grasp_obstructs0, n_resamples=3)
 
-        # demonstate base moving from farther away
-        # np.random.seed(2)
-        # _test_resampling(self, self.grasp_obstructs0, n_resamples=3)
+    # demonstate base moving from farther away
+    # np.random.seed(2)
+    # _test_resampling(self, self.grasp_obstructs0, n_resamples=3)
 
-        # demonstrates base moving
-        # np.random.seed(6) # forms right angle
-        # _test_resampling(self, self.grasp_obstructs1, n_resamples=3)
+    # demonstrates base moving
+    # np.random.seed(6) # forms right angle
+    # _test_resampling(self, self.grasp_obstructs1, n_resamples=3)
 
     def test_grasp_obstructs(self):
         pass
@@ -112,20 +112,27 @@ class TestCanSolver(unittest.TestCase):
         pass
         # _test_plan(self, self.gen_plan)
 
+
 def get_animate_fn(viewer, plan):
     def animate():
         viewer.animate_plan(plan)
+
     return animate
+
 
 def get_draw_ts_fn(viewer, plan):
     def draw_ts(ts):
         viewer.draw_plan_ts(plan, ts)
+
     return draw_ts
+
 
 def get_draw_cols_ts_fn(viewer, plan):
     def draw_cols_ts(ts):
         viewer.draw_cols_ts(plan, ts)
+
     return draw_cols_ts
+
 
 def _test_resampling(test_obj, plan, n_resamples=0):
     print("testing plan: {}".format(plan.actions))
@@ -138,6 +145,7 @@ def _test_resampling(test_obj, plan, n_resamples=0):
     animate = get_animate_fn(viewer, plan)
     draw_ts = get_draw_ts_fn(viewer, plan)
     draw_cols_ts = get_draw_cols_ts_fn(viewer, plan)
+
     def callback(set_trace=False):
         solver._update_ll_params()
         # draw_ts(20)
@@ -150,31 +158,41 @@ def _test_resampling(test_obj, plan, n_resamples=0):
         # time.sleep(0.03)
         # if set_trace:
         #     animate()
-            # import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
+
     """
     """
     solver = can_solver.CanSolver()
 
     # Initializing to sensible values
-    active_ts = (0, plan.horizon-1)
+    active_ts = (0, plan.horizon - 1)
     verbose = False
-    solver._solve_opt_prob(plan, priority=-2, callback=callback, active_ts=active_ts, verbose=verbose)
-    solver._solve_opt_prob(plan, priority=-1, callback=callback, active_ts=active_ts, verbose=verbose)
-
+    solver._solve_opt_prob(
+        plan, priority=-2, callback=callback, active_ts=active_ts, verbose=verbose
+    )
+    solver._solve_opt_prob(
+        plan, priority=-1, callback=callback, active_ts=active_ts, verbose=verbose
+    )
 
     for _ in range(n_resamples):
         ## refinement loop
         ## priority 0 resamples the first failed predicate in the plan
         ## and then solves a transfer optimization that only includes linear constraints
-        solver._solve_opt_prob(plan, priority=0, callback=callback, active_ts=active_ts, verbose=verbose)
+        solver._solve_opt_prob(
+            plan, priority=0, callback=callback, active_ts=active_ts, verbose=verbose
+        )
         fp = plan.get_failed_preds()
         # import ipdb; ipdb.set_trace()
 
-        solver._solve_opt_prob(plan, priority=1, callback=calloback, active_ts=active_ts, verbose=verbose)
+        solver._solve_opt_prob(
+            plan, priority=1, callback=calloback, active_ts=active_ts, verbose=verbose
+        )
         fp = plan.get_failed_preds()
         # import ipdb; ipdb.set_trace()
 
-        success = solver._solve_opt_prob(plan, priority=2, callback=callback, active_ts=active_ts, verbose=verbose)
+        success = solver._solve_opt_prob(
+            plan, priority=2, callback=callback, active_ts=active_ts, verbose=verbose
+        )
         fp = plan.get_failed_preds()
         # import ipdb; ipdb.set_trace()
         if len(fp) == 0:
@@ -203,15 +221,16 @@ def _test_plan(test_obj, plan, n_resamples=0):
     animate = get_animate_fn(viewer, plan)
     draw_ts = get_draw_ts_fn(viewer, plan)
     draw_cols_ts = get_draw_cols_ts_fn(viewer, plan)
+
     def callback(set_trace=False):
         solver._update_ll_params()
-    # #     obj_list = viewer._get_plan_obj_list(plan)
-    # #     # viewer.draw_traj(obj_list, [0,9,19,20,29,38])
-    # #     # viewer.draw_traj(obj_list, range(19,30))
-    # #     # viewer.draw_traj(obj_list, range(29,39))
-    # #     # viewer.draw_traj(obj_list, [38])
-    # #     # viewer.draw_traj(obj_list, range(19,39))
-    # #     # viewer.draw_plan_range(plan, [0,19,38])
+        # #     obj_list = viewer._get_plan_obj_list(plan)
+        # #     # viewer.draw_traj(obj_list, [0,9,19,20,29,38])
+        # #     # viewer.draw_traj(obj_list, range(19,30))
+        # #     # viewer.draw_traj(obj_list, range(29,39))
+        # #     # viewer.draw_traj(obj_list, [38])
+        # #     # viewer.draw_traj(obj_list, range(19,39))
+        # #     # viewer.draw_plan_range(plan, [0,19,38])
         # draw_ts(50)
         if set_trace:
             animate()
@@ -219,6 +238,7 @@ def _test_plan(test_obj, plan, n_resamples=0):
 
         # viewer.draw_plan(plan)
         # time.sleep(0.03)
+
     """
     """
     solver = can_solver.CanSolver()
@@ -234,6 +254,7 @@ def _test_plan(test_obj, plan, n_resamples=0):
 
     # test_obj.assertTrue(plan.satisfied(FAKE_TOL))
 
+
 def _test_backtrack_plan(test_obj, plan, n_resamples=0):
     print("testing plan: {}".format(plan.actions))
     callback = None
@@ -244,15 +265,17 @@ def _test_backtrack_plan(test_obj, plan, n_resamples=0):
     """
     viewer = OpenRAVEViewer.create_viewer()
     animate = get_animate_fn(viewer, plan)
+
     def callback(a):
         solver._update_ll_params()
         # viewer.clear()
         viewer.draw_plan_range(plan, a.active_timesteps)
         # time.sleep(0.3)
+
     """
     """
 
-    solver.backtrack_solve(plan, callback=None, anum = 0, verbose=True)
+    solver.backtrack_solve(plan, callback=None, anum=0, verbose=True)
 
     fp = plan.get_failed_preds()
     _, _, t = plan.get_failed_pred()
@@ -266,15 +289,24 @@ def _test_backtrack_plan(test_obj, plan, n_resamples=0):
     # import ipdb; ipdb.set_trace()
     test_obj.assertTrue(plan.satisfied(0))
 
-def _test_backtrack_plan(test_obj, plan, method='SQP', plot=False, animate=True, verbose=False,
-               early_converge=False):
+
+def _test_backtrack_plan(
+    test_obj,
+    plan,
+    method="SQP",
+    plot=False,
+    animate=True,
+    verbose=False,
+    early_converge=False,
+):
     print("testing plan: {}".format(plan.actions))
     if not plot:
         callback = None
         viewer = None
     else:
         viewer = OpenRAVEViewer.create_viewer()
-        if method=='SQP':
+        if method == "SQP":
+
             def callback():
                 solver._update_ll_params()
                 # viewer.draw_plan_range(plan, range(57, 77)) # displays putdown action
@@ -282,17 +314,20 @@ def _test_backtrack_plan(test_obj, plan, method='SQP', plot=False, animate=True,
                 viewer.draw_plan(plan)
                 # viewer.draw_cols(plan)
                 time.sleep(0.03)
-        elif method == 'Backtrack':
+
+        elif method == "Backtrack":
+
             def callback(a):
                 solver._update_ll_params()
                 viewer.clear()
                 viewer.draw_plan_range(plan, a.active_timesteps)
                 time.sleep(0.3)
+
     solver = can_solver.CanSolver(early_converge=early_converge)
     start = time.time()
-    if method == 'SQP':
+    if method == "SQP":
         solver.solve(plan, callback=callback, verbose=verbose)
-    elif method == 'Backtrack':
+    elif method == "Backtrack":
         solver.backtrack_solve(plan, callback=callback, verbose=verbose)
     print("Solve Took: {}".format(time.time() - start))
     fp = plan.get_failed_preds()
@@ -304,6 +339,7 @@ def _test_backtrack_plan(test_obj, plan, method='SQP', plot=False, animate=True,
             viewer.draw_plan_ts(plan, t)
 
     # test_obj.assertTrue(plan.satisfied())
+
 
 if __name__ == "__main__":
     unittest.main()

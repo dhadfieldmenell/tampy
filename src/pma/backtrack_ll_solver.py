@@ -8,10 +8,10 @@ from core.internal_repr.parameter import Object
 from core.util_classes.matrix import Vector
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
-from sco.expr import AffExpr, BoundExpr, QuadExpr
-from sco.prob import Prob
-from sco.solver import Solver
-from sco.variable import Variable
+from sco_gurobi.expr import AffExpr, BoundExpr, QuadExpr
+from sco_gurobi.prob import Prob
+from sco_gurobi.solver import Solver
+from sco_gurobi.variable import Variable
 
 from .ll_solver import LLParam, LLSolver
 

@@ -6,10 +6,10 @@ import numpy as np
 
 from core.util_classes import common_predicates
 from core.util_classes.matrix import Vector, Vector2d
-from sco.expr import AffExpr, BoundExpr, EqExpr, QuadExpr
-from sco.prob import Prob
-from sco.solver import Solver
-from sco.variable import Variable
+from sco_gurobi.expr import AffExpr, BoundExpr, EqExpr, QuadExpr
+from sco_gurobi.prob import Prob
+from sco_gurobi.solver import Solver
+from sco_gurobi.variable import Variable
 
 GRB = grb.GRB
 

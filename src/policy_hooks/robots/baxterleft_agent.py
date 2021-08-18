@@ -12,7 +12,7 @@ import scipy.interpolate
 
 import xml.etree.ElementTree as xml
 
-from sco.expr import *
+from sco_gurobi.expr import *
 
 import core.util_classes.common_constants as const
 import pybullet as P

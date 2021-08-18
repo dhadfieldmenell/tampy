@@ -40,7 +40,7 @@ truncate -s 0 ~/tamp_env.sh
 echo 'export GUROBI_HOME=/home/${USER}/tamp_work/gurobi901/linux64' >> ~/tamp_env.sh
 echo 'export PATH="${PATH}:${GUROBI_HOME}:${GUROBI_HOME}/bin":/home/${USER}/.local/bin' >> ~/tamp_env.sh
 echo 'export LD_LIBRARY_PATH="${GUROBI_HOME}/lib:/home/${USER}/.mujoco/mujoco200/bin"' >> ~/tamp_env.sh
-echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/sco:/home/${USER}/tamp_work/sco_OSQP:/home/${USER}/tamp_work/tampy/src' >> ~/tamp_env.sh
+echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/sco_gurobi:/home/${USER}/tamp_work/sco_OSQP:/home/${USER}/tamp_work/tampy/src' >> ~/tamp_env.sh
 echo 'source ~/tamp_env.sh' >> ~/.bashrc
 
 # Setup gurobi (need to get license separately)

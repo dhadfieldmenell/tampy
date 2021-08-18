@@ -22,7 +22,7 @@ from pma import backtrack_ll_solver as bt_ll
 from pma.hl_solver import *
 from pma.pr_graph import *
 from pma.robosuite_solver import RobotSolver
-from sco.expr import *
+from sco_gurobi.expr import *
 
 REF_QUAT = np.array([0, 0, -0.7071, -0.7071])
 
