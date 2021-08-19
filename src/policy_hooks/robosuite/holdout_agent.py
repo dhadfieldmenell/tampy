@@ -397,6 +397,10 @@ class RobotAgent(TAMPAgent):
             self.targ_labels[i] = list(self.plans.values())[0].params['{}_end_target'.format(obj)].value[:,0]
         self.cur_obs = self.mjc_env.reset()
         self.replace_cond(0)
+        self.end_targets = {'milk_end_target': np.array([0.0025, 0.1575, 0.885]), 
+                            'bread_end_target': np.array([0.1975, 0.1575, 0.845]), 
+                            'cereal_end_target': np.array([0.0025, 0.4025, 0.9]),
+                            'can_end_target': np.array([0.1975, 0.4025, 0.86])}
 
     def get_annotated_image(self, s, t, cam_id=None):
         x = s.get_X(t=t)
@@ -597,6 +601,8 @@ class RobotAgent(TAMPAgent):
                 if hasattr(plan.params[pname], 'rotation'):
                     plan.params['{0}_init_target'.format(pname)].rotation[:,0] = plan.params[pname].rotation[:,st]
 
+        for tname, val in self.end_targets.items():
+            plan.params[tname].value[:,0] = val
 
     def solve_sample_opt_traj(self, state, task, condition, traj_mean=[], inf_f=None, mp_var=0, targets=[], x_only=False, t_limit=60, n_resamples=10, out_coeff=None, smoothing=False, attr_dict=None):
         success = False
@@ -756,12 +762,13 @@ class RobotAgent(TAMPAgent):
                 sample.set(FACTOREDTASK_ENUM, np.array(task), t)
                 obj_name = list(prim_choices[OBJ_ENUM])[task[1]]
                 targ_name = list(prim_choices[TARG_ENUM])[task[2]]
+                targ = targets[self.target_inds[targ_name, 'value']] if targ_name not in self.end_targets else self.end_targets[targ_name]
                 for (pname, aname), inds in self.state_inds.items():
                     if aname.find('right_ee_pos') >= 0:
                         obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - mp_state[inds]
-                        targ_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[inds]
+                        targ_pose = targ - mp_state[inds]
                         break
-                targ_off_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds[obj_name, 'pose']]
+                targ_off_pose = targ - mp_state[self.state_inds[obj_name, 'pose']]
                 obj_quat = T.euler_to_quaternion(mp_state[self.state_inds[obj_name, 'rotation']], 'xyzw')
                 targ_quat = T.euler_to_quaternion(targets[self.target_inds[targ_name, 'rotation']], 'xyzw')
             else:
@@ -811,7 +818,8 @@ class RobotAgent(TAMPAgent):
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
             grasp_pt = list(self.plans.values())[0].params[obj].geom.grasp_point
             sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
-            targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
+            targ_name = '{}_end_target'.format(obj)
+            targ = targets[self.target_inds[targ_name, 'value']] if targ_name not in self.end_targets else self.end_targets[targ_name]
             sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose+grasp_pt, t)
             sample.set(TARG_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
 
@@ -879,6 +887,7 @@ class RobotAgent(TAMPAgent):
                 inds = self.target_inds['{0}_end_target'.format(param.name), 'value']
                 targ = targets[inds]
                 if np.all(targ == 0):
+                    cost -= 1
                     continue
 
                 if anywhere:
