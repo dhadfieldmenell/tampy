@@ -4,19 +4,32 @@ import sys
 import main
 from core.parsing import parse_domain_config, parse_problem_config
 from core.util_classes.viewer import PyBulletViewer
-from pma import backtrack_ll_solver_gurobi as bt_ll
 from pma.hl_solver import *
-from pma.namo_solver import *
 from pma.pr_graph import *
+import argparse
 
-domain_file = "../domains/namo_domain/namo_current_gurobi.domain"
+domain_file = "../domains/namo_domain/namo_current.domain"
 prob_file = "../domains/namo_domain/namo_probs/verify_2_object.prob"
+
+parser = argparse.ArgumentParser(description='Args for the verify NAMO example script')
+parser.add_argument('--solver', default='osqp', choices=['gurobi', 'osqp'], help='the backend solver to use. Currently, either osqp or gurobi (default: osqp)') 
+args = parser.parse_args()
+
+if args.solver == 'osqp':
+    from pma.namo_solver_OSQP import NAMOSolver_OSQP as NAMOSolver
+    from pma import backtrack_ll_solver_OSQP as bt_ll
+    custom_domain_args_dict = {'Predicates Import Path': 'core.util_classes.namo_predicates_OSQP'}
+elif args.solver == 'gurobi':
+    from pma.namo_solver_gurobi import NAMOSolverGurobi as NAMOSolver
+    from pma import backtrack_ll_solver_gurobi as bt_ll
+    custom_domain_args_dict = {'Predicates Import Path': 'core.util_classes.namo_predicates_gurobi'}
+
 
 # Create a PyBulletViewer for viz purposes
 pbv = PyBulletViewer()
 pbv = pbv.create_viewer()
 
-d_c = main.parse_file_to_dict(domain_file)
+d_c = main.parse_file_to_dict(domain_file, custom_domain_args_dict)
 domain = parse_domain_config.ParseDomainConfig.parse(d_c)
 p_c = main.parse_file_to_dict(prob_file)
 problem = parse_problem_config.ParseProblemConfig.parse(
@@ -30,9 +43,10 @@ hl_solver = FFSolver(d_c)
 abs_domain = hl_solver.abs_domain
 
 
-### state represents the initial configuration of the world
-### Normally these value are just set in the problem file itself
-### However sometimes it's useful to adjust them at run-time; e.g. if you wish to programitically generate sample problems
+# state represents the initial configuration of the world
+# Normally these value are just set in the problem file itself
+# However sometimes it's useful to adjust them at run-time; e.g.
+# if you wish to programitically generate sample problems
 pr2_pose = [0, -5.0]
 can0_pose = [-3.4, -3.8]
 can1_pose = [2.4, -1.2]
