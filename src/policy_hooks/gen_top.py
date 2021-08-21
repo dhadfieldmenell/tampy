@@ -816,7 +816,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                             l, b, w, h = sns_plot.fig.axes[-1]._position.bounds
                             sns_plot.fig.add_axes((l+w+0.1, b, w, h))
                             sub_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=style, kind='line', data=df, legend=False, ax=sns_plot.fig.axes[-1], dashes=dashes, markers=False, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws)
-                        sns_plot.fig.axes[-1].set_title('Robosuite', size=14)
+                        #sns_plot.fig.axes[-1].set_title('Robosuite', size=14)
                         sns_plot.fig.axes[-1].set(xlabel='Training Time (seconds)')
                         sns_plot.fig.axes[-1].set(ylabel='Success Rate')
                         if xlim is not None:
@@ -831,7 +831,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                 sns_plot.fig.get_axes()[0].legend(bbox_to_anchor=[-0.05, -0.15], loc='upper left', prop={'size': 12})
                 sns_plot.fig.get_axes()[0].xlabel('Training Time (seconds)')
                 sns_plot.fig.get_axes()[0].ylabel('Success Rate')
-                sns_plot.fig.get_axes()[0].title('Robosuite')
+                #sns_plot.fig.get_axes()[0].title('Robosuite')
                 sns_plot.savefig(SAVE_DIR+'/{0}{1}_{2}_goal_{3}.png'.format(fname, k, descr.replace(' ', '_'), goal_ind))
                 print(('PLOTTED for', k, descr))
                 sns.set()
@@ -871,7 +871,8 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                             '1 object': 'o', '2 object': 's', '4 object': '^', '4 object (noisy)': 'X'}
                     if sns_plot is None:
                         #sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, markers=True, dashes=dashes, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette(['black', 'dimgrey', 'silver', 'white'], n_colors=2))
-                        sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, dashes=False, markers=markers, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette(['silver', 'grey', 'dimgrey', 'black'], n_colors=4), hue_order=['1 object', '2 object', '4 object', '4 object (noisy)'])
+                        #sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, dashes=False, markers=markers, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette(['silver', 'grey', 'dimgrey', 'black'], n_colors=4), hue_order=['1 object', '2 object', '4 object', '4 object (noisy)'])
+                        sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, dashes=False, markers=markers, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette('colorblind', n_colors=4), hue_order=['1 object', '2 object', '4 object', '4 object (noisy)'], linewidth=3, markersize=10)
                         sns_plot.fig.set_figwidth(10)
                         sns_plot._legend.remove()
                         # sns_plot.fig.get_axes()[0].legend(loc=(0.0, -0.5), prop={'size': 12})
@@ -880,7 +881,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                         l, b, w, h = sns_plot.fig.axes[-1]._position.bounds
                         sns_plot.fig.add_axes((l+w+0.1, b, w, h))
                         sub_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=style, kind='line', data=df, legend=False, ax=sns_plot.fig.axes[-1], dashes=dashes, markers=False, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws)
-                    sns_plot.fig.axes[-1].set_title('{0} vs {1}'.format(xv, cur_y), size=14)
+                    #sns_plot.fig.axes[-1].set_title('{0} vs {1}'.format(xv, cur_y), size=14)
                     if xlim is not None:
                         sns_plot.fig.axes[-1].set(xlim=xlim[xind])
                     if ylim is not None:
@@ -891,7 +892,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
             sns_plot.fig.get_axes()[0].tick_params(axis='both', which='major', labelsize=18)
             sns_plot.fig.get_axes()[0].set(xlabel='')
             sns_plot.fig.get_axes()[0].set(ylabel='')
-            sns_plot.fig.get_axes()[0].set_title('Robosuite')
+            #sns_plot.fig.get_axes()[0].set_title('Robosuite')
             naxs = len(sns_plot.fig.get_axes())
             sns_plot.fig.get_axes()[0].legend(bbox_to_anchor=[1., -0.], loc='lower right', prop={'size': 18, 'family': 'serif'}, facecolor='white', title="")
             handles, labels = sns_plot.fig.get_axes()[0].get_legend_handles_labels()       
@@ -1048,8 +1049,8 @@ if __name__ == '__main__':
     while not terminate:
         if not perpetual:
             terminate = True
-        gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=450, window=900, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], xlim=[(0, 14000)], fname='endsucc_{}'.format(keywords[0]))
-        gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=300, window=600, xlim=[(0., 4.)], ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_{}'.format(keywords[0]))
+        #gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=450, window=900, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], xlim=[(0, 14000)], fname='endsucc_{}'.format(keywords[0]))
+        gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=600, window=600, xlim=[(0., 4.)], ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_{}'.format(keywords[0]))
         gen_data_plots(xvar='number of plans', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=100, window=1000, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_nplans_{}'.format(keywords[0]))
         #gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=True, include=include, inter=120, window=200, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='splitendsucc_{}'.format(keywords[0]))
 

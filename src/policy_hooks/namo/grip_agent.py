@@ -1107,7 +1107,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         return traj
 
 
-    def reward(self, x=None, targets=None, center=False, gamma=0.9):
+    def reward(self, x=None, targets=None, center=False, gamma=0.95):
         if x is None: x = self.get_state()
         if targets is None: targets = self.target_vecs[0]
         l2_coeff = 1.
@@ -1121,7 +1121,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         dist = 0.61
         tol_coeff = 0.75
         grip_pos = ee_pos + [-dist*np.sin(ee_theta), dist*np.cos(ee_theta)]
-        max_per_obj = 12.
+        max_per_obj = 3.
         info_per_obj = []
         min_dist = np.inf
         for opt in opts[OBJ_ENUM]:
@@ -1135,9 +1135,9 @@ class NAMOGripAgent(NAMOSortingAgent):
                 info_per_obj.append((np.inf,0))
             else:
                 grip_l2_term = -l2_coeff * dist_to_grip**2
-                grip_log_term = -np.log(log_coeff * dist_to_grip + 1e-5)
+                grip_log_term = -np.log(log_coeff * dist_to_grip + 1e-6)
                 targ_l2_term = -l2_coeff * dist_to_targ**2
-                targ_log_term = -log_coeff * np.log(dist_to_targ + 1e-5)
+                targ_log_term = -log_coeff * np.log(dist_to_targ + 1e-6)
                 grip_obj_rew = np.min([grip_l2_term + grip_log_term, max_per_obj])
                 targ_obj_rew = np.min([targ_l2_term + targ_log_term, max_per_obj])
                 rew += targ_obj_rew # Always penalize obj to target distance

@@ -3716,9 +3716,12 @@ class HeightBlock(ExprPredicate):
 
         # Ignore objects already placed
         block_pos = self.block_obj.pose[:, time]
-        goal_pos = self.goal_obj.pose[:, time]
+        goal_pos = self.goal_obj.pose[:, time] if not self.goal_obj.is_symbol() else self.goal_obj.value[:,0]
         # For now, hardcode in the fact positive means placed
-        if block_pos[1] > 0.0:
+        if block_pos[1] > 0.0 and not self.goal_obj.is_symbol():
+            return negated
+
+        if block_pos[1] < 0.0 and self.goal_obj.is_symbol():
             return negated
 
         #if np.sum((block_pos - self.block_targ.value[:,0])**2) < self.dist**2:

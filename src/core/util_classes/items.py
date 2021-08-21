@@ -97,7 +97,7 @@ class Can(Item):
         self.height = float(height)
         z = max(0, self.height - 0.03)
         self.grasp_point = [0., 0., z]
-        self.near_coeff = 4e-1
+        #self.near_coeff = 4e-1
 
 class BlueCan(Can):
     def __init__(self, radius, height):

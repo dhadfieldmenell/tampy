@@ -12,6 +12,7 @@ import numpy as np
 import scipy.interpolate
 from scipy.spatial.transform import Rotation
 
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 import xml.etree.ElementTree as xml
 
 from sco.expr import *
@@ -50,8 +51,14 @@ from robosuite.controllers import load_controller_config
 import robosuite.utils.transform_utils as robo_T
 
 
-TRAIN_PAIRS = [('cereal', 'bread'), ('cereal', 'can'), ('milk', 'bread'), ('milk', 'can')]
-TEST_PAIRS = [('cereal', 'milk'), ('can', 'bread')]
+TRAIN_PAIRS = [('cereal',), ('milk'), ('can'), ('bread'), \
+               ('cereal', 'bread'), ('cereal', 'can'), ('milk', 'can')]
+TEST_PAIRS = [('cereal', 'milk'), ('can', 'bread'), ('milk', 'bread')]
+
+
+#TRAIN_PAIRS = [('cereal', 'bread'), ('cereal', 'milk'), ('milk', 'bread'), ('milk', 'can'), ('cereal', 'can'), ('can', 'bread')]
+#TEST_PAIRS = TRAIN_PAIRS
+
 bt_ll.INIT_TRAJ_COEFF = 1e-1
 bt_ll.TRAJOPT_COEFF = 5e1
 
@@ -387,6 +394,7 @@ class RobotAgent(TAMPAgent):
 
         self.sawyer = list(self.plans.values())[0].params['sawyer']
         self.mjc_env = EnvWrapper(self.base_env, self.sawyer, self.ctrl_mode, render=self.load_render)
+        self.im_font = ImageFont.truetype('E:/PythonPillow/Fonts/FreeMono.ttf', 10)
 
         self.check_col = hyperparams['master_config'].get('check_col', True)
         self.camera_id = 1
@@ -406,6 +414,8 @@ class RobotAgent(TAMPAgent):
         x = s.get_X(t=t)
         self.reset_to_state(x, full=False)
         task = [int(val) for val in s.get(FACTOREDTASK_ENUM, t=t)]
+        onehot_goal = s.get(ONEHOT_GOAL_ENUM, t=t).astype(int)
+        goal_str = self.goal(0, s.targets)
         pos = s.get(END_POSE_ENUM, t=t)
         precost = round(self.precond_cost(s, tuple(task), t), 5)
         postcost = round(self.postcond_cost(s, tuple(task), t), 5)
@@ -415,15 +425,35 @@ class RobotAgent(TAMPAgent):
 
         gripcmd = round(s.get_U(t=t)[self.action_inds['sawyer', 'right_gripper']][0], 2)
 
-        for ctxt in self.base_env.sim.render_contexts:
-            ctxt._overlay[mj_const.GRID_TOPLEFT] = ['{}'.format(task), '']
-            ctxt._overlay[mj_const.GRID_BOTTOMLEFT] = ['{0: <7} {1: <7} {2}'.format(precost, postcost, gripcmd), '']
+        #for ctxt in self.base_env.sim.render_contexts:
+        #    ctxt._overlay[mj_const.GRID_TOPLEFT] = ['{}'.format(task), '']
+        #    ctxt._overlay[mj_const.GRID_BOTTOMLEFT] = ['{0: <7} {1: <7} {2}'.format(precost, postcost, gripcmd), '']
         #return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
-        im = self.base_env.sim.render(height=192, width=192, camera_name="frontview")
+
+        imsize = 192
+        im = self.base_env.sim.render(height=imsize, width=imsize, camera_name="frontview")
         im = np.flip(im, axis=0)
-        for ctxt in self.base_env.sim.render_contexts:
-            for key in list(ctxt._overlay.keys()):
-                del ctxt._overlay[key]
+        #for ctxt in self.base_env.sim.render_contexts:
+        #    for key in list(ctxt._overlay.keys()):
+        #        del ctxt._overlay[key]
+
+        str_overlays=['task: {}'.format(task), 
+                      'goal: {}'.format(goal_str),
+                      'onehot goal: {}'.format(onehot_goal),
+                      ]
+        image = Image.fromarray(im)
+        border = 30
+        image = ImageOps.expand(image, border=border, fill=(0, 0, 0))
+        im_draw = ImageDraw.Draw(image)
+        _, texth = self.im_font.getsize(str_overlays[0])
+        pos = [(2,2), (2, imsize+2*border-texth-2), (2, 4+texth), (2, imsize+2*border-2*texth-4)]
+        for ind, ovr in enumerate(str_overlays):
+            w, h = self.im_font.getsize(ovr)
+            x, y = pos[ind]
+            im_draw.rectangle((x, y, x+w, y+h), fill='black')
+            im_draw.text(pos[ind], ovr, fill=(255,255,255), font=self.im_font)
+        im = np.asarray(image)
+
         return im
 
     def get_image(self, x, depth=False, cam_id=None):
@@ -820,8 +850,13 @@ class RobotAgent(TAMPAgent):
             sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
             targ_name = '{}_end_target'.format(obj)
             targ = targets[self.target_inds[targ_name, 'value']] if targ_name not in self.end_targets else self.end_targets[targ_name]
+            true_targ = targets[self.target_inds[targ_name, 'value']]
             sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose+grasp_pt, t)
-            sample.set(TARG_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
+
+            if np.all(true_targ == 0):
+                sample.set(TARG_ENUMS[i], np.zeros(3), t)
+            else:
+                sample.set(TARG_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
 
             obj_spat = Rotation.from_euler('xyz', mp_state[self.state_inds[obj, 'rotation']])
             obj_quat = T.euler_to_quaternion(mp_state[self.state_inds[obj, 'rotation']], 'xyzw')
@@ -1149,8 +1184,6 @@ class RobotAgent(TAMPAgent):
             targ = targets[i:i+3]
             vec = self.check_target(targ)
             vecs.append(vec)
-        if debug:
-            print(('Encoded {0} as {1} {2}'.format(targets, vecs, self.prob.END_TARGETS)))
         return np.concatenate(vecs)
 
 
