@@ -13,7 +13,8 @@ def run(config):
     setup_dirs(config, args)
     if not os.path.exists(DIR_KEY+config['weight_dir']):
         os.makedirs(DIR_KEY+config['weight_dir'])
-
+    
+    log_dir = DIR_KEY + config['weight_dir']
     base_config = config
     new_config, config_module = load_config(args, config)
     new_config.update(config)
@@ -61,7 +62,12 @@ def run(config):
             nb_rollout_steps =2*n_envs,
             )
 
-    alg.learn(total_timesteps=1000000)
+    alg.learn(total_timesteps=1000000,
+              log_interval=2000,
+              eval_interval=50000,
+              save_interval=10000,
+              log_dir=log_dir,
+              )
 
 
 def test_run(eval_env, model, n_runs=1, agent=None):

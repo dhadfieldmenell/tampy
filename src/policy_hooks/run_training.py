@@ -128,6 +128,10 @@ def run_baseline(args):
         from policy_hooks.baselines.stable import run
         run(config=config)
 
+    elif baseline.lower() == 'hbaselines':
+        from policy_hooks.baselines.hbaselines import run
+        run(config=config)
+
     elif baseline.lower() == 'gail':
         from policy_hooks.baselines.gail import run, eval_ckpts
         config['id'] = 0

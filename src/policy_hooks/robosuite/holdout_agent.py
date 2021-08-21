@@ -52,8 +52,9 @@ import robosuite.utils.transform_utils as robo_T
 
 
 TRAIN_PAIRS = [('cereal',), ('milk'), ('can'), ('bread'), \
-               ('cereal', 'bread'), ('cereal', 'can'), ('milk', 'can')]
-TEST_PAIRS = [('cereal', 'milk'), ('can', 'bread'), ('milk', 'bread')]
+               ('cereal', 'bread'), ('cereal', 'milk'), ('milk', 'can'),
+               ('milk', 'can')]
+TEST_PAIRS = [('cereal', 'can'), ('can', 'bread')]
 
 
 #TRAIN_PAIRS = [('cereal', 'bread'), ('cereal', 'milk'), ('milk', 'bread'), ('milk', 'can'), ('cereal', 'can'), ('can', 'bread')]
