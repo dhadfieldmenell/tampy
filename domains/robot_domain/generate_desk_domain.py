@@ -527,7 +527,7 @@ class Grasp(Action):
         self.grasp_time = grasp_time
         self.pre = [('(At ?item ?target)', '0:{}'.format(0)),
                     ('(At ?item ?target)', '1:{}'.format(grasp_time)),
-                    ('(forall (?obj - Item) (not (HeightBlock ?item ?obj)))', '0:{}'.format(0)),
+                    #('(forall (?obj - Item) (not (HeightBlock ?item ?obj)))', '0:{}'.format(0)),
                     ('(forall (?obj - Item) (StationaryRot ?obj))', '0:{}'.format(grasp_time+const.EEREACHABLE_STEPS)),
                     ('(forall (?obj - Item) (Stationary ?obj))', '0:{}'.format(grasp_time-1)),
                     ('(forall (?obj - Item) (StationaryNEq ?obj ?item))', '0:{}'.format(end-1)),
@@ -577,7 +577,7 @@ class GraspArm(Grasp):
                         ])
 
         self.eff.extend([
-                         #('(InGripper{} ?robot ?item)'.format(arm), '{0}:{1}'.format(self.end, self.end-1)),
+                         ('(InGripper{} ?robot ?item)'.format(arm), '{0}:{1}'.format(self.end, self.end-1)),
                          ('(NearGripper{} ?robot ?item)'.format(arm), '{0}:{1}'.format(self.end, self.end)),
                          ('(not (NearApproach{} ?robot ?item))'.format(arm), '{0}:{1}'.format(self.end, self.end-1)),
                         ])
@@ -639,6 +639,7 @@ class Putdown(Action):
         self.eff = [('(At ?item ?target)', '{}:{}'.format(end, end-1)) ,
                     ('(not (AboveTable ?item))', '{}:{}'.format(end, end)),
                     ('(Near ?item ?target)', '{}:{}'.format(end, end)),
+                    ('(not (InReach ?item ?robot))', '{}:{}'.format(end, end-1)),
                     ('(forall (?obj - Target / ?target) (not (At ?item ?obj)))', 
                         '{}:{}'.format(end, end-1)),
                     ('(forall (?obj - Target / ?target) (not (Near ?item ?obj)))', 

@@ -198,6 +198,7 @@ dp.add('LeftEEValid', ['Robot'])
 dp.add('RightEEValid', ['Robot'])
 dp.add('HeightBlock', ['Item', 'Item'])
 dp.add('AboveTable', ['Item'])
+dp.add('InReach', ['Reachable', 'Robot'])
 
 dom_str += dp.get_str() + '\n'
 
