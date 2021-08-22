@@ -90,6 +90,8 @@ print("\n\n\n\n")
 if plan is None or type(plan) is str:
     print("PLANNING FAILED")
 elif len(plan.get_failed_preds()):
-    print("PLAN FINISHED WITH FAILED PREDICATES: {}".format(plan.get_failed_preds()))
+    print(f"PLAN FINISHED WITH FAILED PREDICATES: {plan.get_failed_preds()}")
 else:
     print("PLAN FINISHED SUCCESSFULLY")
+    print("Final High Level Plan:")
+    print(plan.actions)
