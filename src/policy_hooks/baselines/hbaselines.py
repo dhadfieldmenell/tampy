@@ -1,12 +1,14 @@
 import numpy as np
 import os
 import time
+from gym.spaces import Box
 
 from hbaselines.algorithms import RLAlgorithm
+from hbaselines.utils.env_util import ENV_ATTRIBUTES
 
 from policy_hooks.agent_env_wrapper import AgentEnvWrapper, gen_agent_env, register_env
 from policy_hooks.multiprocess_main import load_config, setup_dirs, DIR_KEY
-
+from policy_hooks.utils.policy_solver_utils import *
 
 def run(config):
     args = config['args']
@@ -23,9 +25,10 @@ def run(config):
     alg = config.get('algo', 'td3').lower()
     n_envs = config['n_proc']
 
-    def env_fn(process_id=None):
+    def env_fn(process_id=None, evaluate=False):
         new_config, config_module = load_config(args, base_config)
         new_config.update(base_config)
+        if process_id is None: process_id = np.random.randint(2**20)
         env = AgentEnvWrapper(config=new_config, max_ts=args.episode_timesteps, process_id=process_id)
         #env = Monitor(env, env.log_file, allow_early_resets=False,
         #              info_keywords=())
@@ -35,9 +38,28 @@ def run(config):
     eval_vec_env = SubprocVecEnv([make_env(env_fn, i) for i in range(n_envs)], start_method='spawn')
     check_env(eval_env)
     eval_callback = EvalAgentCallback(eval_vec_env, eval_env, eval_freq=2048)
-    #envname = 'TAMPEnv-v0'
-    #register_env(config, name=envname, max_ts=args.episode_timesteps)
+    envname = 'TAMPGym-v0'
+    register_env(config, name=envname, max_ts=args.episode_timesteps)
     vec_env = SubprocVecEnv([make_env(env_fn, i) for i in range(n_envs)])
+
+    n_obj = config['num_objs']
+    state_inds = []
+    for n in range(n_objs):
+        for enum_list in [OBJ_DELTA_ENUMS, OBJ_ROTDELTA_ENUMS, TARG_DELTA_ENUMS, TARG_ROTDELTA_ENUMS]:
+            if enum_list[n] in eval_env.agent._prim_obs_data_idx:
+                state_inds = np.r_[state_inds, eval_env.agent._prim_obs_data_idx[enum_list[n]]]
+
+    def meta_ac_fn(relative_goals, multiagent):
+        assert relative_goals, 'Not set up to use abs goals'
+        low = -15 * np.ones(len(state_inds))
+        high = 15 * np.ones(len(state_inds))
+        return Box(low=low, high=high, dtype=np.float32)
+
+    def state_fn(multiagent):
+        return state_inds
+
+    env_fn = lambda evaluate, render, n_levels, multiagent, shared, maddpg: env_fn(evaluate=evaluate)
+    ENV_ATTRIBUTES['TampGym-v0'] = {"meta_ac_space": meta_ac_fn, "state_indices": state_fn, "env": env_fn}
 
     if alg == 'td3':
         from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
