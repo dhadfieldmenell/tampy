@@ -10,7 +10,6 @@ from core.internal_repr.predicate import Predicate
 from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import PredicateException
-from pma.ll_solver_OSQP import NAMOSolverOSQP as NAMOSolver
 from expr import AffExpr, EqExpr, Expr, LEqExpr
 
 """
@@ -1620,68 +1619,6 @@ class WideObstructs(Obstructs):
             name, params, expected_param_types, env, debug=debug
         )
         self.dsafe = 0.05  # 0.8
-
-
-def sample_pose(plan, pose, robot, rs_scale):
-    targets = plan.get_param("InContact", 2, {0: robot, 1: pose})
-    # http://docs.scipy.org/doc/numpy/reference/generated/numpy.where.html
-    inds = np.where(pose._free_attrs["value"])
-    if np.sum(inds) == 0:
-        return None, None  ## no resampling for this one
-    if len(targets) == 1:
-        # print "one target", pose
-        random_dir = np.random.rand(2, 1) - 0.5
-        random_dir = random_dir / np.linalg.norm(random_dir)
-        # assumes targets are symbols
-        val = targets[0].value + random_dir * 3 * robot.geom.radius
-    elif len(targets) == 0:
-        ## old generator -- just add a random perturbation
-        # print "no targets", pose
-        val = np.random.normal(pose.value[:, 0], scale=rs_scale)[:, None]
-    else:
-        raise NotImplementedError
-    # print pose, val
-    pose.value = val
-
-    ## make the pose collision free
-    _, collision_preds = plan.get_param("RCollides", 1, negated=True, return_preds=True)
-    _, at_preds = plan.get_param(
-        "RobotAt", 1, {0: robot, 1: pose}, negated=False, return_preds=True
-    )
-    preds = [(collision_preds[0], True), (at_preds[0], False)]
-    old_pose = robot.pose.copy()
-    old_free = robot._free_attrs["pose"].copy()
-    robot.pose = pose.value.copy()
-    robot._free_attrs["pose"][:] = 1
-
-    wall = collision_preds[0].params[1]
-    old_w_pose = wall.pose.copy()
-    wall.pose = wall.pose[:, 0][:, None]
-
-    old_priority = [p.priority for p, n in preds]
-    for p, n in preds:
-        p.priority = -1
-    p = Plan.create_plan_for_preds(preds, collision_preds[0]._env)
-    s = NAMOSolver(transfer_norm="l2")
-    success = s._solve_opt_prob(p, 0, resample=False, verbose=False)
-
-    # print success
-
-    ## debugging
-    # import viewer
-    # v = viewer.OpenRAVEViewer.create_viewer()
-    # v.draw_plan_ts(p, 0)
-    # print pose.value, val
-
-    ## restore the old values
-    robot.pose = old_pose
-    robot._free_attrs["pose"] = old_free
-    for i, (p, n) in enumerate(preds):
-        p.priority = old_priority[i]
-
-    wall.pose = old_w_pose
-
-    return pose.value, inds
 
 
 class ObstructsHolding(CollisionPredicate):

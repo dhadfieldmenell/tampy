@@ -1,6 +1,6 @@
 import numpy as np
 
-from core.util_classes.namo_predicates_OSQP import ColObjPred
+from core.util_classes.namo_predicates import ColObjPred
 from pma import backtrack_ll_solver_OSQP
 from expr import BoundExpr
 

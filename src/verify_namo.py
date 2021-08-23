@@ -18,18 +18,15 @@ args = parser.parse_args()
 if args.solver == 'osqp':
     from pma.namo_solver_OSQP import NAMOSolver_OSQP as NAMOSolver
     from pma import backtrack_ll_solver_OSQP as bt_ll
-    custom_domain_args_dict = {'Predicates Import Path': 'core.util_classes.namo_predicates_OSQP'}
 elif args.solver == 'gurobi':
     from pma.namo_solver_gurobi import NAMOSolverGurobi as NAMOSolver
     from pma import backtrack_ll_solver_gurobi as bt_ll
-    custom_domain_args_dict = {'Predicates Import Path': 'core.util_classes.namo_predicates_gurobi'}
-
 
 # Create a PyBulletViewer for viz purposes
 pbv = PyBulletViewer()
 pbv = pbv.create_viewer()
 
-d_c = main.parse_file_to_dict(domain_file, custom_domain_args_dict)
+d_c = main.parse_file_to_dict(domain_file)
 domain = parse_domain_config.ParseDomainConfig.parse(d_c)
 p_c = main.parse_file_to_dict(prob_file)
 problem = parse_problem_config.ParseProblemConfig.parse(
