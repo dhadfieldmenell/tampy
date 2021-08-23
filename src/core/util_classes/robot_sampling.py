@@ -8,7 +8,7 @@ import core.util_classes.transform_utils as T
 from functools import reduce
 import core.util_classes.baxter_constants as const
 from collections import OrderedDict
-from sco_gurobi.expr import Expr
+from expr import Expr
 import math
 import numpy as np
 import pybullet as p

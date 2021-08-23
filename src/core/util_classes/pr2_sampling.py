@@ -7,7 +7,7 @@ from openravepy import (
     IkFilterOptions,
 )
 import core.util_classes.pr2_constants as const
-from sco_gurobi.expr import Expr
+from expr import Expr
 import math
 import numpy as np
 from functools import reduce

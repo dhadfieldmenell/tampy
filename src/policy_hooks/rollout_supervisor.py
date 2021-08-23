@@ -1,6 +1,6 @@
 import numpy as np
 
-from sco_gurobi.expr import EqExpr
+from expr import EqExpr
 
 from policy_hooks.sample import Sample
 from policy_hooks.save_video import save_video

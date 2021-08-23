@@ -12,7 +12,7 @@ from software_constants import *
 from PIL import Image
 from scipy.cluster.vq import kmeans2 as kmeans
 
-from sco_gurobi.expr import *
+from expr import *
 from core.internal_repr.plan import Plan
 from policy_hooks.sample import Sample
 from policy_hooks.sample_list import SampleList

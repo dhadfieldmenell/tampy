@@ -7,7 +7,7 @@ from core.internal_repr.parameter import Object
 from core.util_classes.matrix import Vector
 from core.util_classes.openrave_body import OpenRAVEBody
 from pma import backtrack_ll_solver_gurobi
-from sco_gurobi.expr import AffExpr, BoundExpr, QuadExpr
+from expr import AffExpr, BoundExpr, QuadExpr
 
 REF_JNTS = np.array([0, -np.pi / 4, 0, np.pi / 4, 0, np.pi / 2, 0])
 REF_JNTS = np.array([0, -np.pi / 3, 0, np.pi / 3, 0, np.pi / 2, 0])

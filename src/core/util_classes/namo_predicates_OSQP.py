@@ -10,8 +10,8 @@ from core.internal_repr.predicate import Predicate
 from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import PredicateException
-from pma.ll_solver_gurobi import NAMOSolver
-from sco_OSQP.expr import AffExpr, EqExpr, Expr, LEqExpr
+from pma.ll_solver_OSQP import NAMOSolverOSQP as NAMOSolver
+from expr import AffExpr, EqExpr, Expr, LEqExpr
 
 """
 This file implements the predicates for the 2D NAMO domain.

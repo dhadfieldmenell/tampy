@@ -7,10 +7,10 @@ from core.internal_repr.parameter import Object
 from core.util_classes.matrix import Vector
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
-from sco_OSQP.expr import AffExpr, BoundExpr, QuadExpr
-from sco_OSQP.prob import Prob
-from sco_OSQP.solver import Solver
-from sco_OSQP.variable import Variable
+from expr import AffExpr, BoundExpr, QuadExpr
+from sco_osqp.prob import Prob
+from sco_osqp.solver import Solver
+from sco_osqp.variable import Variable
 
 from .ll_solver_OSQP import LLParamOSQP, LLSolverOSQP
 

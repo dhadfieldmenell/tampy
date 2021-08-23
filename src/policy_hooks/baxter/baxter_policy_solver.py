@@ -4,7 +4,7 @@ import numpy as np
 
 import gurobipy as grb
 
-from sco_gurobi.expr import BoundExpr, QuadExpr, AffExpr
+from expr import BoundExpr, QuadExpr, AffExpr
 from sco_gurobi.prob import Prob
 from sco_gurobi.solver import Solver
 from sco_gurobi.variable import Variable

@@ -3,7 +3,7 @@ from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.pr2_sampling import get_expr_mult
 from core.util_classes.param_setup import ParamSetup
 import core.util_classes.common_constants as const
-from sco_gurobi.expr import Expr, AffExpr, EqExpr, LEqExpr
+from expr import Expr, AffExpr, EqExpr, LEqExpr
 from errors_exceptions import PredicateException
 from collections import OrderedDict
 import numpy as np

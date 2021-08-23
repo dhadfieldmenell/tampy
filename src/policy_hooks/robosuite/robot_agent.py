@@ -13,7 +13,7 @@ from scipy.spatial.transform import Rotation
 
 import xml.etree.ElementTree as xml
 
-from sco_gurobi.expr import *
+from expr import *
 
 import core.util_classes.common_constants as const
 import pybullet as P

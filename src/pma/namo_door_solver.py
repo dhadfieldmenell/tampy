@@ -1,6 +1,6 @@
 import numpy as np
 
-from sco_gurobi.expr import BoundExpr, QuadExpr, AffExpr
+from expr import BoundExpr, QuadExpr, AffExpr
 from pma import bactrack_ll_solver_gurobi
 from core.util_classes.namo_grip_predicates import (
     RETREAT_DIST,

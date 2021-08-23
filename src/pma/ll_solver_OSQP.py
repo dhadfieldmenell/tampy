@@ -5,11 +5,11 @@ import numpy as np
 
 from core.util_classes import common_predicates
 from core.util_classes.matrix import Vector, Vector2d
-from sco_OSQP.expr import AffExpr, BoundExpr, EqExpr, QuadExpr
-from sco_OSQP.osqp_utils import OSQPLinearConstraint, OSQPVar
-from sco_OSQP.prob import Prob
-from sco_OSQP.solver import Solver
-from sco_OSQP.variable import Variable
+from expr import AffExpr, BoundExpr, EqExpr, QuadExpr
+from sco_osqp.osqp_utils import OSQPLinearConstraint, OSQPVar
+from sco_osqp.prob import Prob
+from sco_osqp.solver import Solver
+from sco_osqp.variable import Variable
 
 MAX_PRIORITY = 5
 WIDTH = 7
@@ -78,7 +78,7 @@ class LLParamOSQP(object):
         Creates OSQPVars for attributes of certain types.
         This is analogous to the 'create_grb_vars' function from the original
         LLParam class.
-        The created variable names will be useful when creating sco_OSQP
+        The created variable names will be useful when creating sco_osqp
         Variables.
         """
         for k, _ in list(self._param.__dict__.items()):

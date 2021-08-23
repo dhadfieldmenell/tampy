@@ -2,7 +2,7 @@ import numpy as np
 
 from core.util_classes.namo_predicates_OSQP import ColObjPred
 from pma import backtrack_ll_solver_OSQP
-from sco_OSQP.expr import BoundExpr
+from expr import BoundExpr
 
 
 class NAMOSolver_OSQP(backtrack_ll_solver_OSQP.BacktrackLLSolver_OSQP):
