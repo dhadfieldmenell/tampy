@@ -28,9 +28,6 @@ def p_mod_abs(
     n_resamples=5,
     smoothing=False,
 ):
-    # hl_solver, ll_solver = ParseSolversConfig.parse(solvers_config, domain_config)
-    # domain = ParseDomainConfig.parse(domain_config)
-    # problem = ParseProblemConfig.parse(problem_config, domain)
     if goal is None and problem.goal_test():
         return None, "Goal is already satisfied. No planning done."
 
@@ -41,6 +38,7 @@ def p_mod_abs(
         priority=0,
         label=label,
     )
+
     Q = PriorityQueue()
     Q.put((n0.heuristic(), n0))
     for cur_iter in range(max_iter):
@@ -64,7 +62,6 @@ def p_mod_abs(
                 if smoothing:
                     suc = ll_solver.traj_smoother(n.curr_plan, n_resamples=n_resamples)
                 return n.curr_plan, None
-            # print('Failed iter', cur_iter, label)
             Q.put((n.heuristic(), n))
             if n.gen_child():
                 # Expand the node

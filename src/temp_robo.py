@@ -241,8 +241,6 @@ for _ in range(40):
     env.sim.data.qpos[:7] = params["sawyer"].right[:, 0]
     env.sim.forward()
 
-
-# ipdb.set_trace()
 nsteps = 30
 cur_ind = 0
 tol = 1e-3
@@ -381,7 +379,4 @@ for act in plan.actions:
             )
         if has_render:
             env.render()
-    # import ipdb; ipdb.set_trace()
 plan.params["sawyer"].right[:, t] = env.sim.data.qpos[:7]
-
-# ipdb.set_trace()
