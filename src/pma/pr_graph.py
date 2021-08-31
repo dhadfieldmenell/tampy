@@ -93,7 +93,7 @@ def p_mod_abs(
                         n.priority
                     )
                 )
-                # print "plan str: {}".format(n.curr_plan.get_plan_str())
+                print(f"plan str: {n.curr_plan.get_plan_str()}")
 
     print(("PR GRAPH hit iteration limit {0}".format(label)))
     return None, "Hit iteration limit, aborting."

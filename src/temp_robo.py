@@ -170,6 +170,7 @@ info = params["sawyer"].openrave_body.fwd_kinematics("right")
 params["sawyer"].right_ee_pos[:, 0] = info["pos"]
 params["sawyer"].right_ee_pos[:, 0] = T.quaternion_to_euler(info["quat"], "xyzw")
 
+
 # goal = '(NearGripperRight sawyer cereal)' #'(At cereal cereal_end_target)'
 goal = ""
 for obj in cur_objs:
@@ -183,8 +184,9 @@ if not replan:
 
 if replan:
     plan, descr = p_mod_abs(
-        hls, solver, domain, problem, goal=goal, debug=True, n_resamples=5
+        hls, solver, domain, problem, goal=goal, debug=True, n_resamples=8
     )
+
 if len(sys.argv) > 1 and sys.argv[1] == "end":
     sys.exit(0)
 
@@ -241,6 +243,8 @@ for _ in range(40):
     env.sim.data.qpos[:7] = params["sawyer"].right[:, 0]
     env.sim.forward()
 
+
+# ipdb.set_trace()
 nsteps = 30
 cur_ind = 0
 tol = 1e-3
