@@ -63,7 +63,8 @@ else:
     controller_config["output_max"] = 0.02  # [0.1, 0.1, 0.1, 2, 2, 2]
     controller_config["output_min"] = -0.02  # [-0.1, -0.1, -0.1, -2, -2, -2]
 
-visual = len(os.environ.get("DISPLAY", "")) > 0
+
+visual = len(os.environ.get("DISPLAY", "")) > 0 
 has_render = visual
 env = robosuite.make(
     "PickPlace",
@@ -99,7 +100,9 @@ env.sim.data.qvel[:] = 0
 env.sim.data.qacc[:] = 0
 env.sim.forward()
 
-# ipdb.set_trace()
+# Create a PyBulletViewer for viz purposes
+pbv = PyBulletViewer()
+pbv = pbv.create_viewer()
 
 bt_ll.DEBUG = True
 openrave_bodies = None
@@ -112,7 +115,7 @@ p_c = main.parse_file_to_dict(prob)
 visual = len(os.environ.get("DISPLAY", "")) > 0
 visual = False
 problem = parse_problem_config.ParseProblemConfig.parse(
-    p_c, domain, None, use_tf=True, sess=None, visual=visual
+    p_c, domain, pbv.env, use_tf=True, sess=None, visual=visual
 )
 params = problem.init_state.params
 # ll_plan_str = ["0: MOVE_TO_GRASP_LEFT BAXTER CLOTH0 ROBOT_INIT_POSE ROBOT_END_POSE"]
@@ -184,11 +187,13 @@ if not replan:
 
 if replan:
     plan, descr = p_mod_abs(
-        hls, solver, domain, problem, goal=goal, debug=True, n_resamples=8
+        hls, solver, domain, problem, goal=goal, debug=True, n_resamples=10
     )
 
 if len(sys.argv) > 1 and sys.argv[1] == "end":
     sys.exit(0)
+
+from IPython import embed; embed()
 
 # if load_traj:
 #    inds, traj = np.load('MotionServer0_17.npy', allow_pickle=True)
@@ -244,7 +249,7 @@ for _ in range(40):
     env.sim.forward()
 
 
-# ipdb.set_trace()
+
 nsteps = 30
 cur_ind = 0
 tol = 1e-3
