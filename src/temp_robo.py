@@ -23,7 +23,10 @@ from pma.hl_solver import *
 from pma.pr_graph import *
 from pma.robosuite_solver import RobotSolver
 from expr import *
+import random
 
+
+random.seed(23)
 REF_QUAT = np.array([0, 0, -0.7071, -0.7071])
 
 

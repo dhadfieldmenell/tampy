@@ -392,7 +392,7 @@ class FFSolver(HLSolver):
                     
                     preds.append({'negated': False, 'pred': init_pred, 'hl_info': 'hl_state', 'active_timesteps': (0,0)})
                 except TypeError as e:
-                    print((f"Predicate {pred}'s init method does not implement debug. Consider implementing'"))
+                    print((f"Predicate {pred}'s init method does not implement debug. Consider implementing"))
 
             # Invariant predicates are enforced every timestep
             for i, pred in enumerate(invariant_preds):
@@ -412,7 +412,7 @@ class FFSolver(HLSolver):
                     ts = (curr_h, curr_h + a_schema.horizon - 1)
                     preds.append({'negated': False, 'pred': invariant_pred, 'hl_info': 'invariant', 'active_timesteps': ts})
                 except TypeError as e:
-                    print((f"Predicate {pred}'s init method does not implement debug. Consider implementing'"))
+                    print((f"Predicate {pred}'s init method does not implement debug. Consider implementing"))
 
             for p_d in a_schema.preds:
                 pred_schema = domain.pred_schemas[p_d["type"]]
