@@ -1432,6 +1432,9 @@ class NAMOSortingAgent(TAMPAgent):
 
 
     def replace_cond(self, cond, curric_step=-1):
+        self.prob.NUM_OBJS = self.config['num_objs']
+        self.prob.NUM_TARGS = self.config['num_objs']
+        self.prob.n_aux = 0
         self.init_vecs[cond], self.targets[cond] = self.prob.get_random_initial_state_vec(self.config, self._eval_mode, self.dX, self.state_inds, 1)
         self.init_vecs[cond], self.targets[cond] = self.init_vecs[cond][0], self.targets[cond][0]
         if self.swap:

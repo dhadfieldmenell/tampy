@@ -866,10 +866,11 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                     err_style='band'
                     err_kws = {'alpha': 0.12}
                     markers = {
-                           '9 Task': '^', 'Put In Shelf': 'X'}
+                           '9 Task': 'o', 'Put In Shelf': 's'}
                     if sns_plot is None:
                         #sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, markers=True, dashes=dashes, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette(['black', 'dimgrey', 'silver', 'white'], n_colors=2))
-                        sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, dashes=False, markers=markers, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette(['dimgrey', 'black'], n_colors=2), hue_order=['9 Task', 'Put In Shelf'])
+                        #sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, dashes=False, markers=markers, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette(['dimgrey', 'black'], n_colors=2), hue_order=['9 Task', 'Put In Shelf'])
+                        sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, dashes=False, markers=markers, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette('colorblind', n_colors=2), hue_order=['9 Task', 'Put In Shelf'], linewidth=3, markersize=10)
                         sns_plot.fig.set_figwidth(10)
                         sns_plot._legend.remove()
                         # sns_plot.fig.get_axes()[0].legend(loc=(0.0, -0.5), prop={'size': 12})

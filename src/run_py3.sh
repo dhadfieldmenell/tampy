@@ -10,7 +10,7 @@ do
                                                        -retime -vel 0.3 -eta 5 -softev \
                                                        -lr_policy adaptive \
                                                        -obs_del -hist_len 2 -prim_first_wt 10 -lr 0.0002 \
-                                                       -hllr 0.0008 -lldec 0.0001 -hldec 0.001 \
+                                                       -hllr 0.0008 -lldec 0.0001 -hldec 0.0004 \
                                                        -add_noop 2 --permute_hl 1 \
                                                        -expl_wt 5 -expl_eta 4 \
                                                        -col_coeff 0.0 \
@@ -22,7 +22,7 @@ do
                                                        -warm 100 \
                                                        -neg_ratio 0. -opt_ratio 0.5 -dagger_ratio 0.5 \
                                                        -descr holdout_inner_goals_4obj & 
-        sleep 5h
+        sleep 7h
         pkill -f run_train -9
         pkill -f ros -9
         sleep 5s
@@ -34,7 +34,7 @@ do
                                                        -retime -vel 0.3 -eta 5 -softev \
                                                        -lr_policy adaptive \
                                                        -obs_del -hist_len 2 -prim_first_wt 10 -lr 0.0002 \
-                                                       -hllr 0.0008 -lldec 0.0001 -hldec 0.001 \
+                                                       -hllr 0.0008 -lldec 0.0001 -hldec 0.0004 \
                                                        -add_noop 2 --permute_hl 1 \
                                                        -expl_wt 5 -expl_eta 4 \
                                                        -col_coeff 0.0 \
@@ -46,7 +46,7 @@ do
                                                        -warm 100 \
                                                        -neg_ratio 0. -opt_ratio 0.5 -dagger_ratio 0.5 \
                                                        -descr holdout_flip_goals_4obj & 
-        sleep 5h 
+        sleep 7h 
         pkill -f run_train -9
         pkill -f ros -9
         sleep 5s

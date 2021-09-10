@@ -127,8 +127,9 @@ class NAMOGripAgent(NAMOSortingAgent):
         self.robot_height = 1
         self.use_mjc = hyperparams.get('use_mjc', False)
         self.vel_rat = 0.05
+        n_obj = hyperparams['master_config']['num_objs']
         self.rlen = 30
-        self.hor = 18
+        self.hor = 15 # 4 * n_obj + 4
         #self.vel_rat = 0.05
         #self.rlen = self.num_objs * len(self.task_list)
         #if self.retime: self.rlen *= 2
@@ -395,6 +396,11 @@ class NAMOGripAgent(NAMOSortingAgent):
             targets = self.target_vecs[cond].copy()
 
         theta = mp_state[self.state_inds['pr2', 'theta']][0]
+        while theta < -np.pi:
+            theta += 2*np.pi
+        while theta > np.pi:
+            theta -= 2*np.pi
+
         if LOCAL_FRAME:
             rot = np.array([[np.cos(-theta), -np.sin(-theta)],
                             [np.sin(-theta), np.cos(-theta)]])
@@ -402,7 +408,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             rot = np.eye(2)
 
         sample.set(EE_ENUM, ee_pose, t)
-        sample.set(THETA_ENUM, mp_state[self.state_inds['pr2', 'theta']], t)
+        sample.set(THETA_ENUM, np.array([theta]), t)
         dirvec = np.array([-np.sin(theta), np.cos(theta)])
         sample.set(THETA_VEC_ENUM, dirvec, t)
         velx = self.mjc_env.physics.named.data.qvel['robot_x'][0]
@@ -508,9 +514,11 @@ class NAMOGripAgent(NAMOSortingAgent):
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
             sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
             targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
-            sample.set(OBJ_DELTA_ENUMS[i], rot.dot(mp_state[self.state_inds[obj, 'pose']]-ee_pose), t)
+            #sample.set(OBJ_DELTA_ENUMS[i], rot.dot(mp_state[self.state_inds[obj, 'pose']]-ee_pose), t)
+            sample.set(OBJ_DELTA_ENUMS[i], mp_state[self.state_inds[obj, 'pose']]-ee_pose, t)
             sample.set(TARG_ENUMS[i], targ, t)
-            sample.set(TARG_DELTA_ENUMS[i], rot.dot(targ-mp_state[self.state_inds[obj, 'pose']]), t)
+            #sample.set(TARG_DELTA_ENUMS[i], rot.dot(targ-mp_state[self.state_inds[obj, 'pose']]), t)
+            sample.set(TARG_DELTA_ENUMS[i], targ-mp_state[self.state_inds[obj, 'pose']], t)
 
         if INGRASP_ENUM in self._hyperparams['sensor_dims']:
             vec = np.zeros(len(prim_choices[OBJ_ENUM]))
@@ -1107,11 +1115,13 @@ class NAMOGripAgent(NAMOSortingAgent):
         return traj
 
 
-    def reward(self, x=None, targets=None, center=False, gamma=0.95):
+    def reward(self, x=None, targets=None, center=False, gamma=0.9):
         if x is None: x = self.get_state()
         if targets is None: targets = self.target_vecs[0]
-        l2_coeff = 1.
+        l2_coeff = 2e-2 # 1e-2
         log_coeff = 1.
+        obj_coeff = 1.
+        targ_coeff = 1.
 
         opts = self.prob.get_prim_choices(self.task_list)
         rew = 0
@@ -1119,9 +1129,9 @@ class NAMOGripAgent(NAMOSortingAgent):
         ee_pos = x[eeinds]
         ee_theta = x[self.state_inds['pr2', 'theta']][0]
         dist = 0.61
-        tol_coeff = 0.75
+        tol_coeff = 0.8
         grip_pos = ee_pos + [-dist*np.sin(ee_theta), dist*np.cos(ee_theta)]
-        max_per_obj = 3.
+        max_per_obj = 3.2
         info_per_obj = []
         min_dist = np.inf
         for opt in opts[OBJ_ENUM]:
@@ -1131,15 +1141,15 @@ class NAMOGripAgent(NAMOSortingAgent):
             dist_to_grip = np.linalg.norm(grip_pos - x[xinds])
 
             if dist_to_targ < tol_coeff*NEAR_TOL:
-                rew += 2 * max_per_obj / (1-gamma)
+                rew += 2 * (obj_coeff + targ_coeff) * max_per_obj / (1-gamma)
                 info_per_obj.append((np.inf,0))
             else:
                 grip_l2_term = -l2_coeff * dist_to_grip**2
                 grip_log_term = -np.log(log_coeff * dist_to_grip + 1e-6)
                 targ_l2_term = -l2_coeff * dist_to_targ**2
                 targ_log_term = -log_coeff * np.log(dist_to_targ + 1e-6)
-                grip_obj_rew = np.min([grip_l2_term + grip_log_term, max_per_obj])
-                targ_obj_rew = np.min([targ_l2_term + targ_log_term, max_per_obj])
+                grip_obj_rew = obj_coeff * np.min([grip_l2_term + grip_log_term, max_per_obj])
+                targ_obj_rew = targ_coeff * np.min([targ_l2_term + targ_log_term, max_per_obj])
                 rew += targ_obj_rew # Always penalize obj to target distance
                 min_dist = np.min([min_dist, dist_to_grip])
                 info_per_obj.append((dist_to_grip, grip_obj_rew)) # Only penalize closest object to gripper
@@ -1149,7 +1159,7 @@ class NAMOGripAgent(NAMOSortingAgent):
                 rew += obj_rew
                 break
 
-        return rew
+        return rew / 1e1
 
     def check_target(self, targ):
         targ_labels = self.targ_labels if not self._eval_mode else self.alt_targ_labels

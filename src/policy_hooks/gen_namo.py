@@ -777,7 +777,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
         pd_frame.set_index(datetime_var, inplace=True)
         pd_frame.sort_index(inplace=True)
         #pd_frame.reset_index(inplace=True)
-        pd_frame['time'] /= 3600.
+        if 'time' in pd_frame: pd_frame['time'] /= 3600.
         if 'goal' in columns:
             base_frame = pd_frame
             goals = pd_frame['goal'].unique()
@@ -866,7 +866,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                     err_kws = {'alpha': 0.12}
                     if sns_plot is None:
                         #sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, markers=True, dashes=dashes, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette(['black', 'dimgrey', 'silver', 'white'], n_colors=2))
-                        sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, dashes=False, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette(['silver', 'grey', 'dimgrey', 'black'], n_colors=4), hue_order=['1 object (RGB)', '2 object (RGB)', '3 object (RGB)', '5 object'], markers={'1 object (RGB)': 'o', '2 object (RGB)': 's', '3 object (RGB)': '^', '5 object': 'X'})
+                        sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, dashes=False, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette('colorblind', n_colors=4), hue_order=['1 object (RGB)', '2 object (RGB)', '3 object (RGB)', '5 object'], markers={'1 object (RGB)': 'o', '2 object (RGB)': 's', '3 object (RGB)': '^', '5 object': 'X'}, linewidth=3, markersize=10)
                         sns_plot.fig.set_figwidth(10)
                         sns_plot._legend.remove()
                         # sns_plot.fig.get_axes()[0].legend(loc=(0.0, -0.5), prop={'size': 12})
@@ -881,7 +881,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                     if ylim is not None:
                         sns_plot.fig.axes[-1].set(ylim=ylim[yind])
                         sns_plot.fig.axes[-1].set_yticks(np.arange(0, ylim[yind][1], ylim[yind][1]/5.))
-            sns_plot.fig.axes[0].set_xticks([0,1,2])
+            if 'time' in pd_frame: sns_plot.fig.axes[0].set_xticks([0,1,2])
             sns_plot.fig.get_axes()[0].tick_params(axis='both', which='major', labelsize=18)
             sns_plot.fig.get_axes()[0].set(xlabel='Training Time (seconds)')
             sns_plot.fig.get_axes()[0].set(ylabel='')

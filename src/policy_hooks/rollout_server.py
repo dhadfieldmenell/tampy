@@ -207,10 +207,10 @@ class RolloutServer(Server):
 
         if rlen is None: rlen = self.agent.rlen
         hor = self.agent.hor
-        nt = rlen * hor
+        nt = 500 # rlen * hor
 
         goal = self.agent.goal(0, targets)
-        val, path = self.test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], eta=eta, lab=-5, hor=hor)
+        val, path = self.test_run(x0, targets, 20, hl=True, soft=self.config['soft_eval'], eta=eta, lab=-5, hor=25)
         if goal not in self.suc_per_goal:
             self.suc_per_goal[goal] = []
         self.suc_per_goal[goal].append(val)

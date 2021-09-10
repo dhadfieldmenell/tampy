@@ -65,7 +65,7 @@ def get_prim_choices(task_list=None):
         out[utils.TASK_ENUM] = sorted(list(get_tasks(mapping_file).keys()))
     else:
         out[utils.TASK_ENUM] = sorted(list(task_list))
-    out[utils.OBJ_ENUM] = ['cereal', 'milk', 'can', 'bread']
+    out[utils.OBJ_ENUM] = ['can', 'cereal', 'milk', 'bread']
     out[utils.TARG_ENUM] = []
     out[utils.TARG_ENUM] += ['cereal_end_target', 'milk_end_target', 'can_end_target', 'bread_end_target']
     return out

@@ -63,8 +63,24 @@ class AgentEnvWrapper(Env):
         self._rollout_data = []
         self.config = config
 
-        self.action_space = spaces.Box(-5, 5, [self.agent.dU], dtype='float32')
-        self.observation_space = spaces.Box(-3e2, 3e2, [self.agent.dPrim], dtype='float32')
+        #self.current_context = []
+        #for obj in self.agent.prob.get_prim_choices()[OBJ_ENUM]:
+        #    inds = self.agent.target_inds['{}_end_target'.format(obj), 'value']
+        #    self.current_context = np.r_[self.current_context, self.agent.target_vecs[0][inds]]
+        #self.context_space = spaces.Box(-2e1, 2e1, [len(self.current_context)], dtype='float32')
+
+        ac_low, ac_high = np.zeros(self.agent.dU), np.zeros(self.agent.dU)
+        for (pname, aname), inds in self.agent.action_inds.items():
+            if aname == 'gripper':
+                ac_low[inds], ac_high[inds] = -1, 1
+            elif aname == 'pose':
+                ac_low[inds], ac_high[inds] = -2, 2
+            elif aname == 'theta':
+                ac_low[inds], ac_high[inds] = -1.57, 1.57
+            else:
+                ac_low[inds], ac_high[inds] = -2, 2
+        self.action_space = spaces.Box(low=ac_low, high=ac_high, dtype='float32')
+        self.observation_space = spaces.Box(-5e1, 5e1, [self.agent.dPrim], dtype='float32')
         self.cur_state = self.agent.x0[0]
 
         self.n_runs = 0
@@ -75,17 +91,21 @@ class AgentEnvWrapper(Env):
 
         self.expert_paths = []
 
+    #def contextual_reward(self, states, goals, next_states):
+    #    x = self.agent.get_state()
+    #    return self.agent.reward(x)
 
     def step(self, action):
         self.n_step += 1
         self._cur_time += 1
         x = self.agent.get_state()
+        dummy_sample = Sample(self.agent)
         if self._reset_since_goal and self._reset_since_done:
             self.agent.run_policy_step(action, x)
 
         x = self.agent.get_state()
-        self.agent.fill_sample(0, self.dummy_sample, x[self.agent._x_data_idx[STATE_ENUM]], 0, list(self.agent.plans.keys())[0], fill_obs=True)
-        obs = self.dummy_sample.get_prim_obs(t=0).copy()
+        self.agent.fill_sample(0, dummy_sample, x[self.agent._x_data_idx[STATE_ENUM]], 0, list(self.agent.plans.keys())[0], fill_obs=True)
+        obs = dummy_sample.get_prim_obs(t=0).copy()
         self.cur_state = x
         targets = self.agent.target_vecs[0]
         reward = self.agent.reward(x, targets, center=True)
@@ -97,18 +117,20 @@ class AgentEnvWrapper(Env):
             print('\n Env {} reached goal!\n'.format(self._process_id))
             self.n_goal += 1
             self._reset_since_goal = False
-        done = self._cur_time >= self.horizon # (goal < 1e-3) or (self._cur_time >= self.horizon)
+        done = self._cur_time >= self.horizon# or (goal < 1e-3)
+        gamma = 0.95
         if done and self._reset_since_done:
             #self._goal.append(1.-goal)
             #self._rews.append(reward)
             self._reset_since_done = False
             #if reward > 0:
-            #    reward *= max(1, 1 + self.horizon - self._cur_time)
+            #    reward /= gamma 
         #elif not self._reset_since_done:
         #    reward = 0.
 
         self._ret += reward
-        info = {'cur_state': x, 'goal': 1.-goal, 'distance': dist, 'targets': self.agent.target_vecs[0]}
+        info = {'goal': 1.-goal, 'distance': dist, 'is_success': goal < 1e-3, 'cur_state': x, 'targets': self.agent.target_vecs[0]}
+        assert not np.isnan(reward)
         return obs, reward, done, info
 
 
@@ -138,8 +160,13 @@ class AgentEnvWrapper(Env):
         self.agent.reset(0)
         self.cur_state = self.agent.x0[0]
         x = self.agent.get_state()
+        self.dummy_sample = Sample(self.agent)
         self.agent.fill_sample(0, self.dummy_sample, x[self.agent._x_data_idx[STATE_ENUM]], 0, list(self.agent.plans.keys())[0], fill_obs=True)
         obs = self.dummy_sample.get_prim_obs(t=0).copy()
+        #self.current_context = []
+        #for obj in self.agent.prob.get_prim_choices()[OBJ_ENUM]:
+        #    inds = self.agent.target_inds['{}_end_target'.format(obj), 'value']
+        #    self.current_context = np.r_[self.current_context, self.agent.target_vecs[0][inds]]
         return obs.flatten()
 
 

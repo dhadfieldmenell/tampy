@@ -859,9 +859,10 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                     ci = None # 'sd' # if witherr else None
                     err_style='band'
                     err_kws = {'alpha': 0.12}
+                    markers={'RoboDesk': 'o', 'RoboSuite': 's'}
                     if sns_plot is None:
                         #sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, markers=True, dashes=dashes, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette(['black', 'dimgrey', 'silver', 'white'], n_colors=2))
-                        sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, dashes=False, markers=True, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette(['black', 'dimgrey', 'silver', 'white'], n_colors=2))
+                        sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, dashes=False, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette('colorblind', n_colors=2), linewidth=3, markersize=10, markers=markers)
                         sns_plot.fig.set_figwidth(10)
                         sns_plot._legend.remove()
                         # sns_plot.fig.get_axes()[0].legend(loc=(0.0, -0.5), prop={'size': 12})
@@ -876,7 +877,8 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                     if ylim is not None:
                         sns_plot.fig.axes[-1].set(ylim=ylim[yind])
                         sns_plot.fig.axes[-1].set_yticks(np.arange(0, ylim[yind][1], ylim[yind][1]/5.))
-            sns_plot.fig.axes[0].set_xticks([0,1,2,3,4,5,6])
+            #sns_plot.fig.axes[0].set_xticks([0,1,2,3,4,5,6])
+            sns_plot.fig.axes[0].set_xticks([0,1,2,3,4])
             sns_plot.fig.get_axes()[0].tick_params(axis='both', which='major', labelsize=18)
             naxs = len(sns_plot.fig.get_axes())
             #sns_plot.fig.get_axes()[0].legend(bbox_to_anchor=[-0.0, -0.], loc='lower left', prop={'size': 12, 'family': 'serif'}, facecolor='white')
@@ -1030,7 +1032,7 @@ if __name__ == '__main__':
         if not perpetual:
             terminate = True
 
-        gen_data_plots(xvar='time', yvar=['opt duration per ts'], keywords=keywords, lab='motion', label_vars=['descr'], separate=True, keyind=5, ylabel='move_policy_successes', exclude=exclude, split_runs=False, include=include, inter=1200, window=500, fname='tampspeedup', ylim=[(0., 3.)], xlim=[(0., 6.), (0., 12000), (0., 12000), (0., 10000)]) 
+        gen_data_plots(xvar='time', yvar=['opt duration per ts'], keywords=keywords, lab='motion', label_vars=['descr'], separate=True, keyind=5, ylabel='move_policy_successes', exclude=exclude, split_runs=False, include=include, inter=1200, window=500, fname='tampspeedup', ylim=[(0., 3.)], xlim=[(0., 4.), (0., 12000), (0., 12000), (0., 10000)]) 
         #gen_data_plots(xvar='time', yvar=['success rate'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='per_goal_success', exclude=exclude, split_runs=False, include=include, inter=10, window=100, fname='pergoal_success', split_goal=True)
         gen_data_plots(xvar='time', yvar=['dagger_success'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='per_goal_success', exclude=exclude, split_runs=False, include=include, inter=10, window=100, fname='dagger_success', split_goal=False)
         #gen_data_plots(xvar='time', yvar=['optimization time', 'plan length', 'opt duration per ts'], keywords=keywords, lab='motion', label_vars=['descr'], separate=True, keyind=5, ylabel='move_policy_successes', exclude=exclude, split_runs=False, include=include, inter=600, window=500, fname='tampspeedup') 

@@ -6,6 +6,9 @@ from gym.spaces import Box
 from hbaselines.algorithms import RLAlgorithm
 from hbaselines.utils.env_util import ENV_ATTRIBUTES
 
+from stable_baselines.common.env_checker import check_env
+from stable_baselines.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnv, sync_envs_normalization
+
 from policy_hooks.agent_env_wrapper import AgentEnvWrapper, gen_agent_env, register_env
 from policy_hooks.multiprocess_main import load_config, setup_dirs, DIR_KEY
 from policy_hooks.utils.policy_solver_utils import *
@@ -34,61 +37,101 @@ def run(config):
         #              info_keywords=())
         return env
 
-    eval_env = AgentEnvWrapper(config=config, max_ts=args.episode_timesteps, process_id='testenv')
-    eval_vec_env = SubprocVecEnv([make_env(env_fn, i) for i in range(n_envs)], start_method='spawn')
-    check_env(eval_env)
-    eval_callback = EvalAgentCallback(eval_vec_env, eval_env, eval_freq=2048)
     envname = 'TAMPGym-v0'
     register_env(config, name=envname, max_ts=args.episode_timesteps)
-    vec_env = SubprocVecEnv([make_env(env_fn, i) for i in range(n_envs)])
+    train_env = AgentEnvWrapper(config=config, max_ts=args.episode_timesteps, process_id='testenv')
+    eval_env = AgentEnvWrapper(config=config, max_ts=args.episode_timesteps, process_id='testenv')
+    eval_vec_env = SubprocVecEnv([make_env(env_fn, i) for i in range(4)], start_method='spawn')
+    check_env(eval_env)
+    #vec_env = SubprocVecEnv([make_env(env_fn, i) for i in range(n_envs)])
 
     n_obj = config['num_objs']
     state_inds = []
-    for n in range(n_objs):
-        for enum_list in [OBJ_DELTA_ENUMS, OBJ_ROTDELTA_ENUMS, TARG_DELTA_ENUMS, TARG_ROTDELTA_ENUMS]:
-            if enum_list[n] in eval_env.agent._prim_obs_data_idx:
-                state_inds = np.r_[state_inds, eval_env.agent._prim_obs_data_idx[enum_list[n]]]
+    low_meta_ac, high_meta_ac = [], []
+    agent = eval_env.agent
+    prob = agent.prob
+    if EE_ENUM in agent._prim_obs_data_idx:
+        new_inds = agent._prim_obs_data_idx[EE_ENUM]
+        state_inds = np.r_[state_inds, new_inds]
+        low_meta_ac = np.r_[low_meta_ac, -12*np.ones(len(new_inds))]
+        high_meta_ac = np.r_[high_meta_ac, 12*np.ones(len(new_inds))]
+
+    if THETA_ENUM in agent._prim_obs_data_idx:
+        new_inds = agent._prim_obs_data_idx[THETA_ENUM]
+        state_inds = np.r_[state_inds, new_inds]
+        low_meta_ac = np.r_[low_meta_ac, -4*np.ones(len(new_inds))]
+        high_meta_ac = np.r_[high_meta_ac, 4*np.ones(len(new_inds))]
+
+    if GRIPPER_ENUM in agent._prim_obs_data_idx:
+        new_inds = agent._prim_obs_data_idx[GRIPPER_ENUM]
+        state_inds = np.r_[state_inds, new_inds]
+        low_meta_ac = np.r_[low_meta_ac, -np.ones(len(new_inds))]
+        high_meta_ac = np.r_[high_meta_ac, np.ones(len(new_inds))]
+
+    #if THETA_VEC_ENUM in agent._prim_obs_data_idx:
+    #    new_inds = agent._prim_obs_data_idx[THETA_VEC_ENUM]
+    #    state_inds = np.r_[state_inds, new_inds]
+    #    low_meta_ac = np.r_[low_meta_ac, -np.ones(len(new_inds))]
+    #    high_meta_ac = np.r_[high_meta_ac, np.ones(len(new_inds))]
+
+    for n, obj in enumerate(prob.get_prim_choices()[OBJ_ENUM]):
+        if OBJ_DELTA_ENUMS[n] in agent._prim_obs_data_idx:
+            new_inds = agent._prim_obs_data_idx[OBJ_DELTA_ENUMS[n]]
+            state_inds = np.r_[state_inds, new_inds]
+            low_meta_ac = np.r_[low_meta_ac, -12*np.ones(len(new_inds))]
+            high_meta_ac = np.r_[high_meta_ac, 12*np.ones(len(new_inds))]
+        elif OBJ_ENUMS[n] in agent._prim_obs_data_idx:
+            new_inds = agent._prim_obs_data_idx[OBJ_ENUMS[n]]
+            state_inds = np.r_[state_inds, new_inds]
+            low_meta_ac = np.r_[low_meta_ac, -12*np.ones(len(new_inds))]
+            high_meta_ac = np.r_[high_meta_ac, 12*np.ones(len(new_inds))]
 
     def meta_ac_fn(relative_goals, multiagent):
         assert relative_goals, 'Not set up to use abs goals'
-        low = -15 * np.ones(len(state_inds))
-        high = 15 * np.ones(len(state_inds))
-        return Box(low=low, high=high, dtype=np.float32)
+        return Box(low=low_meta_ac, high=high_meta_ac, dtype=np.float32)
 
     def state_fn(multiagent):
         return state_inds
 
-    env_fn = lambda evaluate, render, n_levels, multiagent, shared, maddpg: env_fn(evaluate=evaluate)
-    ENV_ATTRIBUTES['TampGym-v0'] = {"meta_ac_space": meta_ac_fn, "state_indices": state_fn, "env": env_fn}
+    env_gen_fn = lambda evaluate, render, n_levels, multiagent, shared, maddpg: env_fn(evaluate=evaluate)
+    ENV_ATTRIBUTES['TampGym-v0'] = {"meta_ac_space": meta_ac_fn, "state_indices": state_fn, "env": env_gen_fn}
 
+    model_params = {"layers": [64,64]}
     if alg == 'td3':
         from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+        model_params['noise'] = 0.03
+        model_params['target_policy_noise'] = 0.05
+        model_params['target_noise_clip'] = 0.2
+        model_params['use_huber'] = True
     elif alg == 'ppo':
         from hbaselines.fcnet.ppo import FeedForwardPolicy
     elif alg == 'sac':
         from hbaselines.fcnet.sac import FeedForwardPolicy
         from hbaselines.goal_conditioned.sac import GoalConditionedPolicy
 
-    alg = RLALgorithm(
+    alg = RLAlgorithm(
             policy=GoalConditionedPolicy,
             policy_kwargs={
-                           "layers": [64,64],
                            "meta_period": 10,
                            "intrinsic_reward_type": "scaled_negative_distance",
                            "relative_goals": True,
                            "off_policy_corrections": True,
-                           }
+                           "model_params": model_params,
+                           },
             env=train_env,
             eval_env=eval_env,
             num_envs=n_envs,
-            nb_rollout_steps =2*n_envs,
+            nb_rollout_steps=5*n_envs,
+            total_steps=5000000,
+            nb_eval_episodes=10,
+            verbose=1,
             )
 
-    alg.learn(total_timesteps=1000000,
-              log_interval=2000,
-              eval_interval=50000,
+    alg.learn(log_interval=10000,
+              eval_interval=20000,
               save_interval=10000,
               log_dir=log_dir,
+              initial_exploration_steps=20000,
               )
 
 
@@ -155,75 +198,6 @@ def make_env(env_fn, rank, seed=0):
         env = env_fn(process_id=rank) 
         env.seed(seed + rank)
         return env
-    set_global_seeds(seed)
     return _init
-
-
-class EvalAgentCallback(EventCallback):
-    def __init__(self, eval_env,
-                 base_env,
-                 callback_on_new_best=None,
-                 n_eval_episodes=1,
-                 eval_freq=1000,
-                 log_path=None,
-                 best_model_save_path=None,
-                 deterministic=True,
-                 render=False,
-                 verbose=1):
-        super(EvalAgentCallback, self).__init__(callback_on_new_best, verbose=verbose)
-        self.n_eval_episodes = n_eval_episodes
-        self.eval_freq = eval_freq
-        self.best_mean_reward = -np.inf
-        self.last_mean_reward = -np.inf
-        self.deterministic = deterministic
-        self.render = render
-        self.base_env = base_env 
-        self._last_call = eval_freq + 1
-
-        # Convert to VecEnv for consistency
-        #if not isinstance(eval_env, VecEnv):
-        #    eval_env = DummyVecEnv([lambda: eval_env])
-
-        self.eval_env = eval_env
-        self.best_model_save_path = best_model_save_path
-        # Logs will be written in `evaluations.npz`
-        if log_path is not None:
-            log_path = os.path.join(log_path, 'evaluations')
-        self.log_path = log_path
-        self.evaluations_results = []
-        self.evaluations_timesteps = []
-        self.evaluations_length = []
-
-
-    def _on_step(self):
-        self._last_call += 1
-        if self.eval_freq > 0 and self._last_call > self.eval_freq:
-            self._last_call = 0.
-            init_t = time.time()
-            print('Running eval...')
-            sync_envs_normalization(self.training_env, self.eval_env)
-            print('Time to sync {}'.format(time.time() - init_t))
-
-            self.base_env._goal = []
-            self.base_env._rews = []
-            rets, rews, goals, dists, smallest_dists = test_run(self.eval_env, self.model, self.n_eval_episodes, self.base_env)
-            episode_rewards = rets
-            #episode_rewards, episode_lengths = evaluate_policy(self.model, self.eval_env,
-            #                                                   n_eval_episodes=self.n_eval_episodes,
-            #                                                   render=False,
-            #                                                   deterministic=self.deterministic,
-            #                                                   return_episode_rewards=True)
-            print('Finished eval for {} in {} seconds with mean reward {}, saving...'.format(self.n_eval_episodes, time.time() - init_t, np.mean(episode_rewards)))
-            #goals = self.base_env._goal
-            #rews = self.base_env._rews
-            self.base_env._goal = []
-            self.base_env._rews = []
-            #mean_reward, std_reward = np.mean(episode_rewards), np.std(episode_rewards)
-            #mean_ep_length, std_ep_length = np.mean(episode_lengths), np.std(episode_lengths)
-            for ind, rew in enumerate(episode_rewards):
-                self.base_env.add_test_info(rew, goals[ind], rews[ind], dists[ind], smallest_dists[ind])
-            self.base_env.save_log()
-
-        return True
 
 

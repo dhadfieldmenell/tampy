@@ -99,7 +99,9 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False,
                             for pts in buf:
                                 pt = pts[0]
                                 no, nt = int(pt[4]), int(pt[5])
-                                all_data[k][full_exp][cur_dir][cur_dir].append({'time': pt[3], 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'label': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9], 'number of plans': pt[10], 'subgoals anywhere': pt[11], 'subgoals closest distance': pt[12], 'collision': pt[8], 'exp id': i})
+                                #if label.find('cereal-and-milk') >= 0 and pt[10] > 1400: continue
+                                #pt[1] = pt[1] * 20 # Path len
+                                all_data[k][full_exp][cur_dir][cur_dir].append({'time': pt[3], 'success at end': pt[0], 'path length': 20. * pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'label': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9], 'number of plans': pt[10], 'subgoals anywhere': pt[11], 'subgoals closest distance': pt[12], 'collision': pt[8], 'exp id': i})
                                 if len(pt) > 13:
                                     all_data[k][full_exp][cur_dir][cur_dir][-1]['any target'] = pt[13]
                                 if len(pt) > 14:
@@ -110,6 +112,8 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False,
                                     all_data[k][full_exp][cur_dir][cur_dir][-1]['success with adj_eta'] = pt[17]
                                 if len(pt) > 18:
                                     all_data[k][full_exp][cur_dir][cur_dir][-1]['episode return'] = pt[18]
+                                if len(pt) > 19:
+                                    all_data[k][full_exp][cur_dir][cur_dir][-1]['episode reward'] = pt[19]
                                 # all_data[k][full_exp][cur_dir][cur_dir].append({'time': (pt[3]//tdelta+1)*tdelta, 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'description': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9], 'number of plans': pt[10]})
 
                     i += 1
@@ -238,11 +242,11 @@ def get_motion_data(keywords=[], exclude=[], include=[]):
                         for pt in r_data:
                             pt['exp id'] = 0
                             if full_exp.find('objs1') >= 0:
-                                pt['description'] = '1 object'
+                                pt['description'] = 'cereal-only'
                             if full_exp.find('objs2') >= 0:
-                                pt['description'] = '2 object'
+                                pt['description'] = 'cereal-and-milk'
                             if full_exp.find('objs4') >= 0:
-                                pt['description'] = '4 object'
+                                pt['description'] = 'all'
                             
                         print('MOTION: Loading {0} pts for {1}'.format(len(r_data), full_dir+'/'+r))
                         rollout_data['motion'].extend(r_data)
@@ -774,7 +778,9 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
         pd_frame = pd.DataFrame(data[k], columns=columns)
         datetime_var = xvars[0]+'_datetime'
         pd_frame[datetime_var] = pd.to_datetime(pd_frame[xvars[0]], unit='s')
-        pd_frame['time'] = pd_frame['time'] / 3600.
+        if 'time' in pd_frame: pd_frame['time'] = pd_frame['time'] / 3600.
+        if 'path length' in pd_frame:
+            pd_frame = pd_frame[pd_frame['success at end'] == 1.]
         pd_frame.set_index(datetime_var, inplace=True)
         pd_frame.sort_index(inplace=True)
         #pd_frame.reset_index(inplace=True)
@@ -868,11 +874,11 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                     err_style='band'
                     err_kws = {'alpha': 0.12}
                     markers = {
-                            '1 object': 'o', '2 object': 's', '4 object': '^', '4 object (noisy)': 'X'}
+                            'can-only': 'o', 'cereal-and-milk': 's', 'all': '^', 'all-noisy': 'X'}
                     if sns_plot is None:
                         #sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, markers=True, dashes=dashes, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette(['black', 'dimgrey', 'silver', 'white'], n_colors=2))
-                        #sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, dashes=False, markers=markers, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette(['silver', 'grey', 'dimgrey', 'black'], n_colors=4), hue_order=['1 object', '2 object', '4 object', '4 object (noisy)'])
-                        sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, dashes=False, markers=markers, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette('colorblind', n_colors=4), hue_order=['1 object', '2 object', '4 object', '4 object (noisy)'], linewidth=3, markersize=10)
+                        #sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, dashes=False, markers=markers, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette(['silver', 'grey', 'dimgrey', 'black'], n_colors=4), hue_order=['cereal-only', 'cereal-and-milk', 'all-objects', 'all-noisy'])
+                        sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, dashes=False, markers=markers, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette('colorblind', n_colors=4), hue_order=['can-only', 'cereal-and-milk', 'all', 'all-noisy'], linewidth=3, markersize=10)
                         sns_plot.fig.set_figwidth(10)
                         sns_plot._legend.remove()
                         # sns_plot.fig.get_axes()[0].legend(loc=(0.0, -0.5), prop={'size': 12})
@@ -888,7 +894,10 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                         sns_plot.fig.axes[-1].set(ylim=ylim[yind])
                         #sns_plot.fig.axes[-1].set_yticks(np.arange(0, ylim[yind][1], ylim[yind][1]/10.))
                         sns_plot.fig.axes[-1].set_yticks(np.arange(0, ylim[yind][1], ylim[yind][1]/5.))
-            sns_plot.fig.axes[0].set_xticks([0,1,2,3,4])
+            if 'time' in pd_frame:
+                sns_plot.fig.axes[0].set_xticks([0,1,2,3,4])
+            else:
+                sns_plot.fig.axes[0].set_xticks([0,1000,2000])
             sns_plot.fig.get_axes()[0].tick_params(axis='both', which='major', labelsize=18)
             sns_plot.fig.get_axes()[0].set(xlabel='')
             sns_plot.fig.get_axes()[0].set(ylabel='')
@@ -900,6 +909,20 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
             sns_plot.savefig(SAVE_DIR+'/{0}{1}_{2}.png'.format(fname, k, descr.replace(' ', '_')))
             print(('PLOTTED for', k, descr))
             sns.set()
+
+    if 'path length' in df:
+        print('LENGTHS:')
+        vals = df['# Objects'].unique()
+        for val in vals:
+            print(val, df[df['# Objects'] == val]['path length'].mean())
+        import ipdb; ipdb.set_trace()
+    if 'episode return' in df:
+        print('RETS:')
+        vals = df['# Objects'].unique()
+        for val in vals:
+            print(val, df[df['# Objects'] == val]['episode return'][-50:].mean())
+            print(val, df[df['# Objects'] == val]['episode reward'][-50:].mean())
+        import ipdb; ipdb.set_trace()
 
 
 def gen_label(exp_dir, label_vars=[], split_runs=False, run_ind=0):
@@ -915,16 +938,19 @@ def gen_label(exp_dir, label_vars=[], split_runs=False, run_ind=0):
     for v in label_vars:
         if v not in args: continue
         if args[v].find('nois') >= 0:
-            label = '4 object (noisy)'
+            label = 'all-noisy'
             break
-        if args[v].find('2obj') >= 0:
-            label = '2 object'
+        elif args[v].find('2obj') >= 0:
+            label = 'cereal-and-milk'
             break
-        if args[v].find('4obj') >= 0:
-            label = '4 object'
+        elif args[v].find('4obj') >= 0:
+            label = 'all'
             break
-        if args[v].find('hier') >= 0:
-            label = '1 object'
+        elif args[v].find('hier') >= 0:
+            label = 'cereal-only'
+            break
+        elif args[v].find('can') >= 0:
+            label = 'can-only'
             break
 
         if v == 'descr':
@@ -1050,8 +1076,10 @@ if __name__ == '__main__':
         if not perpetual:
             terminate = True
         #gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=450, window=900, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], xlim=[(0, 14000)], fname='endsucc_{}'.format(keywords[0]))
+        gen_data_plots(xvar='time', yvar=['episode return', 'episode reward'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=200, window=100, fname='endreturn_{}'.format(keywords[0]))
+        gen_data_plots(xvar='time', yvar=['success at end', 'path length'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=600, window=600, xlim=[(0., 4.)], fname='pathlen_{}'.format(keywords[0]))
         gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=600, window=600, xlim=[(0., 4.)], ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_{}'.format(keywords[0]))
-        gen_data_plots(xvar='number of plans', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=100, window=1000, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_nplans_{}'.format(keywords[0]))
+        gen_data_plots(xvar='number of plans', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=100, window=600, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_nplans_{}'.format(keywords[0]), xlim=[(0,2000)])
         #gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=True, include=include, inter=120, window=200, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='splitendsucc_{}'.format(keywords[0]))
 
         gen_data_plots(xvar='time', yvar=['opt duration per ts'], keywords=keywords, lab='motion', label_vars=['descr'], separate=True, keyind=5, ylabel='move_policy_successes', exclude=exclude, split_runs=False, include=include, inter=1200, window=500, fname='tampspeedup', ylim=[(0., 2.5)], xlim=[(0., 12000), (0., 12000), (0., 12000), (0., 10000)]) 

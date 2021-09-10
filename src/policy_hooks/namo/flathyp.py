@@ -271,7 +271,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                              # utils.DONE_ENUM,
                              # utils.STATE_ENUM,
                              #utils.GOAL_ENUM,
-                              utils.THETA_VEC_ENUM,
+                             utils.THETA_VEC_ENUM,
                              utils.ONEHOT_GOAL_ENUM,
                              ],
         'val_obs_include': [utils.ONEHOT_GOAL_ENUM,
@@ -313,16 +313,16 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'prim_first_wt': 1e1,
     }
 
-    config['prim_obs_include'].append(utils.EE_ENUM)
-    # config['prim_obs_include'].append(utils.THETA_ENUM)
+    #config['prim_obs_include'].append(utils.EE_ENUM)
+    config['prim_obs_include'].append(utils.THETA_ENUM)
     for o in range(no):
         config['sensor_dims'][utils.OBJ_DELTA_ENUMS[o]] = 2
         config['sensor_dims'][utils.TARG_DELTA_ENUMS[o]] = 2
         config['sensor_dims'][utils.OBJ_ENUMS[o]] = 2
         config['sensor_dims'][utils.TARG_ENUMS[o]] = 2
         config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
-        config['prim_obs_include'].append(utils.TARG_ENUMS[o])
-        config['prim_obs_include'].append(utils.OBJ_ENUMS[o])
+        #config['prim_obs_include'].append(utils.TARG_ENUMS[o])
+        #config['prim_obs_include'].append(utils.OBJ_ENUMS[o])
         config['prim_obs_include'].append(utils.TARG_DELTA_ENUMS[o])
     return config
 

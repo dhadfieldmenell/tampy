@@ -29,9 +29,8 @@ FIX_TARGETS = True
 CONST_TARGETS = False
 CONST_ORDER = False
 
-domain_file = "../domains/namo_domain/namo_current_holgripper.domain"
+domain_file = "../domains/namo_domain/namo_current_holgrip.domain"
 mapping_file = "policy_hooks/namo/grip_task_mapping"
-pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
 
 descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.format(NUM_OBJS, SORT_CLOSET, USE_PERTURB, OPT_MCTS_FEEDBACK)
 
@@ -57,7 +56,7 @@ END_TARGETS.extend([(1., 2.),
 #                   (-3.2, -8.2),
 #                   ])
 
-n_aux = 4
+n_aux = 0
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25
 #possible_can_locs.extend(list(itertools.product(list(range(-45, 45, 4)), list(range(-40, -10, 2)))))
