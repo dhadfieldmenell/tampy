@@ -10,7 +10,7 @@ from core.internal_repr.predicate import Predicate
 from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import PredicateException
-from expr import AffExpr, EqExpr, Expr, LEqExpr
+from sco.expr import AffExpr, EqExpr, Expr, LEqExpr
 
 """
 This file implements the predicates for the 2D NAMO domain.

@@ -1,5 +1,5 @@
 from core.util_classes import robot_predicates
-from expr import Expr, AffExpr, EqExpr, LEqExpr
+from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from core.util_classes.pr2_sampling import (
     ee_reachable_resample,
     resample_bp_around_target,

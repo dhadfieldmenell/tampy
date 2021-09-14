@@ -24,7 +24,7 @@ def argsparser(parser=None):
     parser.add_argument('--policy_hidden_size', type=int, default=100)
     parser.add_argument('--adversary_hidden_size', type=int, default=100)
     # Algorithms Configuration
-    parser.add_argument('--algo', type=str, choices=['trpo', 'ppo', 'ppo2', 'sac'], default='trpo')
+    parser.add_argument('--algo', type=str, choices=['trpo', 'ppo', 'ppo2', 'sac', 'td3'], default='trpo')
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--policy_entcoeff', help='entropy coefficiency of policy', type=float, default=0)
     parser.add_argument('--adversary_entcoeff', help='entropy coefficiency of discriminator', type=float, default=1e-3)

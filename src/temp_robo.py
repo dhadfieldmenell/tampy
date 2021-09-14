@@ -22,7 +22,7 @@ from pma import backtrack_ll_solver_gurobi as bt_ll
 from pma.hl_solver import *
 from pma.pr_graph import *
 from pma.robosuite_solver import RobotSolver
-from expr import *
+from sco.expr import *
 import random
 
 
@@ -177,7 +177,6 @@ params["sawyer"].right_ee_pos[:, 0] = info["pos"]
 params["sawyer"].right_ee_pos[:, 0] = T.quaternion_to_euler(info["quat"], "xyzw")
 
 
-# goal = '(NearGripperRight sawyer cereal)' #'(At cereal cereal_end_target)'
 goal = ""
 for obj in cur_objs:
     goal += "(At {} {}_end_target)".format(obj, obj)
@@ -196,7 +195,7 @@ if replan:
 if len(sys.argv) > 1 and sys.argv[1] == "end":
     sys.exit(0)
 
-from IPython import embed; embed()
+# from IPython import embed; embed()
 
 # if load_traj:
 #    inds, traj = np.load('MotionServer0_17.npy', allow_pickle=True)
@@ -253,9 +252,11 @@ for _ in range(40):
 
 
 
-nsteps = 30
+nsteps = 60
 cur_ind = 0
+
 tol = 1e-3
+
 true_lb, true_ub = plan.params["sawyer"].geom.get_joint_limits("right")
 factor = (np.array(true_ub) - np.array(true_lb)) / 5
 ref_jnts = env.sim.data.qpos[:7]
@@ -280,6 +281,7 @@ for act in plan.actions:
     # failed_preds = [p for p in failed_preds if (p[1]._rollout or not type(p[1].expr) is EqExpr)]
     print("FAILED:", t, failed_preds, act.name)
     old_state = env.sim.get_state()
+    from IPython import embed; embed()
     # import ipdb; ipdb.set_trace()
     # env.sim.reset()
     # env.sim.data.qpos[:7] = plan.params['sawyer'].right[:,t]
@@ -332,11 +334,19 @@ for act in plan.actions:
                 act[:7] = targ_jnts - env.sim.data.qpos[:7]
                 obs = env.step(act)
             end_jnts = env.sim.data.qpos[:7]
+
+            ee_to_sim_discrepancy = env.sim.data.site_xpos[grip_ind] - sawyer.right_ee_pos[:, t]
+
             print(
                 "EE PLAN VS SIM:",
-                env.sim.data.site_xpos[grip_ind] - sawyer.right_ee_pos[:, t],
+                ee_to_sim_discrepancy,
                 t,
             )
+
+            # if ee_to_sim_discrepancy[2] > 0.01:
+            #     from IPython import embed; embed()
+            
+
             # print('\n\n\n')
 
         else:

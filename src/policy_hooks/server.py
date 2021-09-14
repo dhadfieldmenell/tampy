@@ -11,7 +11,6 @@ from software_constants import *
 
 from PIL import Image
 import pybullet as P
-from scipy.cluster.vq import kmeans2 as kmeans
 # import tensorflow as tf
 
 from core.internal_repr.plan import Plan
@@ -65,8 +64,11 @@ class Server(object):
         elif n_gpu == 1:
             gpu = 0
         else:
-            gpus = str(list(range(1, n_gpu+1)))[1:-1]
+            #gpus = str(list(range(1, n_gpu+1)))[1:-1]
+            #gpus = str(list(range(0, n_gpu)))[1:-1]
+            gpus = np.random.choice(range(n_gpu))
         os.environ['CUDA_VISIBLE_DEVICES'] = "{0}".format(gpus)
+        #os.environ['CUDA_VISIBLE_DEVICES'] = ""
 
         self.solver = hyperparams['mp_solver_type'](hyperparams)
         self.opt_smooth = hyperparams.get('opt_smooth', False)
@@ -161,8 +163,8 @@ class Server(object):
                             getattr(param, attr)[:,:] = val.reshape((-1,1))
         self.expert_data_file = LOG_DIR+hyperparams['weight_dir']+'/'+str(self.id)+'_exp_data.npy'
         self.ff_data_file = LOG_DIR+hyperparams['weight_dir']+'/ff_samples_{0}_{1}.pkl'
-        self.log_file = LOG_DIR + hyperparams['weight_dir'] + '/{0}_log.txt'.format(self.id)
-        self.verbose_log_file = LOG_DIR + hyperparams['weight_dir'] + '/{0}_verbose.txt'.format(self.id)
+        self.log_file = LOG_DIR + hyperparams['weight_dir'] + '/rollout_logs/{0}_log.txt'.format(self.id)
+        self.verbose_log_file = LOG_DIR + hyperparams['weight_dir'] + '/rollout_logs/{0}_verbose.txt'.format(self.id)
         self.n_plans = 0
         self.n_failed = 0
 
@@ -215,11 +217,13 @@ class Server(object):
         initial, goal = self.agent.get_hl_info(x0, targets)
         problem = list(self.agent.plans.values())[0].prob
         domain = list(self.agent.plans.values())[0].domain
+        problem.goal = goal
         abs_prob = self.agent.hl_solver.translate_problem(problem, goal=goal, initial=initial)
+        ref_x0 = self.agent.clip_state(x0)
         for pname, attr in self.agent.state_inds:
             p = problem.init_state.params[pname]
             if p.is_symbol(): continue
-            getattr(p, attr)[:,0] = x0[self.agent.state_inds[pname, attr]]
+            getattr(p, attr)[:,0] = ref_x0[self.agent.state_inds[pname, attr]]
         for targ, attr in self.agent.target_inds:
             if targ in problem.init_state.params:
                 p = problem.init_state.params[targ]
@@ -233,12 +237,13 @@ class Server(object):
                              llnode=None,
                              x0=x0,
                              targets=targets,
-                             label=self.id)
+                             label=self.id,
+                             info=self.agent.get_hist_info())
         return hlnode
 
 
     def new_problem(self):
-        x0, targets = self.agent.get_random_initial_state_vec(self.config, self.agent.plans, self.agent.dX, self.agent.state_inds, 1)
+        x0, targets = self.agent.get_random_initial_state_vec(self.config, self.agent._eval_mode, self.agent.dX, self.agent.state_inds, 1)
         x0, targets = x0[0], targets[0]
         target_vec = np.zeros(self.agent.target_dim)
         for (tname, attr), inds in self.agent.target_inds.items():
@@ -377,7 +382,8 @@ class Server(object):
                                               scale=self.policy_opt.task_map[task if task in self.policy_opt.valid_scopes else 'control']['policy'].scale)
                                   for task in self.agent.task_list}
 
-        rollout_policies['cont'] = ContPolicy(self.policy_opt)
+        if len(self.agent.continuous_opts):
+            rollout_policies['cont'] = ContPolicy(self.policy_opt)
         self.agent.policies = rollout_policies
 
 
@@ -699,6 +705,9 @@ class Server(object):
 class ContPolicy:
     def __init__(self, policy_opt):
         self.policy_opt = policy_opt
+
+    def initialized(self):
+        return self.policy_opt.cont_policy.scale is not None
 
     def act(self, x, obs, t, noise=None):
         return self.policy_opt.cont_task(obs)

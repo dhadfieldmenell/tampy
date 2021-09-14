@@ -15,7 +15,7 @@ import traceback
 
 import numpy as np
 
-import pma.backtrack_ll_solver as bt_ll
+import pma.backtrack_ll_solver_gurobi as bt_ll
 from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
@@ -41,7 +41,7 @@ def load_agent(config):
     state_vector_include, action_vector_include, target_vector_include = config['get_vector'](config)
     dX, state_inds, dU, action_inds, symbolic_bound = utils.get_state_action_inds(list(plans.values())[0], config['robot_name'], config['attr_map'], state_vector_include, action_vector_include)
     target_dim, target_inds = utils.get_target_inds(list(plans.values())[0], config['attr_map'], target_vector_include)
-    x0, targets = prob.get_random_initial_state_vec(config, plans, dX, state_inds, conditions)
+    x0, targets = prob.get_random_initial_state_vec(config, False, dX, state_inds, conditions)
 
 
     im_h = config.get('image_height', utils.IM_H)
@@ -78,13 +78,13 @@ def load_agent(config):
         sensor_dims[enum] = config['sensor_dims'][enum]
 
     if 'cont_obs_include' not in config:
-        config['cont_obs_include'] = config['prim_obs_include']
+        config['cont_obs_include'] = copy.copy(config['prim_obs_include'])
 
-    if config['add_action_hist']:
+    if config.get('add_action_hist', False):
         config['prim_obs_include'].append(utils.TRAJ_HIST_ENUM)
-    if config['add_obs_delta']:
+    if config.get('add_obs_delta', False):
         config['prim_obs_include'].append(utils.STATE_DELTA_ENUM)
-    if config['add_task_hist']:
+    if config.get('add_task_hist', False):
         config['prim_obs_include'].append(utils.TASK_HIST_ENUM)
     if config.get('add_hl_image', False):
         config['prim_obs_include'].append(utils.IM_ENUM)
@@ -97,7 +97,7 @@ def load_agent(config):
         config['load_render'] = True
 
     options = prob.get_prim_choices(task_list)
-    if config['flat']:
+    if config.get('flat', False):
         obs_include = config['obs_include']
         config['obs_include'] = []
         for enum in obs_include:
@@ -151,7 +151,7 @@ def load_agent(config):
         prim_ind += sensor_dims[enum]
         prim_out.append(enum)
 
-    sensor_dims[utils.TASK_HIST_ENUM] = int(config['task_hist_len'] * prim_ind)
+    sensor_dims[utils.TASK_HIST_ENUM] = int(config.get('task_hist_len', 0) * prim_ind)
 
     aux_bounds = []
     if len(prim_bounds) > len(options.keys()):
@@ -201,20 +201,20 @@ def load_agent(config):
         'image_width': im_w,
         'image_height': im_h,
         'image_channels': im_c,
-        'hist_len': config['hist_len'],
+        'hist_len': config.get('hist_len', 0),
         'T': 1,
         'viewer': config.get('viewer', False),
         'model': None,
         'get_hl_plan': None,
         'env': env,
         'openrave_bodies': openrave_bodies,
-        'n_dirs': config['n_dirs'],
+        'n_dirs': config.get('n_dirs', 1),
         'prob': prob,
         'attr_map': config['attr_map'],
         'prim_dims': prim_dims,
         'mp_solver_type': config['mp_solver_type'],
         'robot_name': config['robot_name'],
-        'split_nets': config['split_nets'],
+        'split_nets': config.get('split_nets', True),
         'policy_inf_coeff': config['policy_inf_coeff'],
         'policy_out_coeff': config['policy_out_coeff'],
         'master_config': config,

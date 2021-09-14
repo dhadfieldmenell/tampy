@@ -227,7 +227,6 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'policy_inf_coeff': algorithm['policy_inf_coeff'],
         'max_sample_queue': 5e2,
         'max_opt_sample_queue': 10,
-        'hl_plan_for_state': prob.hl_plan_for_state,
         'task_map_file': prob.mapping_file,
         'prob': prob,
         'get_vector': prob.get_vector,
@@ -263,18 +262,14 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'obs_include': [#utils.LIDAR_ENUM,
                         utils.MJC_SENSOR_ENUM,
                         utils.TASK_ENUM,
-                        #utils.OBJ_POSE_ENUM,
-                        #utils.TARG_POSE_ENUM,
                         utils.END_POSE_ENUM,
+                        #utils.EE_ENUM,
+                        #utils.VEL_ENUM,
                         utils.THETA_VEC_ENUM,
-                        # utils.GRASP_ENUM,
-                        #utils.TRAJ_HIST_ENUM,
-                        # utils.DONE_ENUM,
                         ],
         'prim_obs_include': [
-                             # utils.DONE_ENUM,
-                             # utils.STATE_ENUM,
-                             #utils.GOAL_ENUM,
+                             utils.THETA_VEC_ENUM,
+                             #utils.VEL_ENUM,
                              utils.ONEHOT_GOAL_ENUM,
                              ],
         'val_obs_include': [utils.ONEHOT_GOAL_ENUM,
@@ -285,11 +280,11 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.OBJ_POSE_ENUM: 2,
                 utils.TARG_POSE_ENUM: 2,
                 utils.LIDAR_ENUM: N_DIRS,
-                utils.MJC_SENSOR_ENUM: 39,
+                utils.MJC_SENSOR_ENUM: 69,
                 utils.EE_ENUM: 2,
                 utils.END_POSE_ENUM: 2,
                 utils.GRIPPER_ENUM: 1,
-                utils.VEL_ENUM: 1,
+                utils.VEL_ENUM: 2,
                 utils.THETA_ENUM: 1,
                 utils.THETA_VEC_ENUM: 2,
                 utils.GRASP_ENUM: N_GRASPS,
@@ -317,13 +312,15 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     }
 
     #config['prim_obs_include'].append(utils.EE_ENUM)
-    # config['prim_obs_include'].append(utils.THETA_ENUM)
     for o in range(no):
         config['sensor_dims'][utils.OBJ_DELTA_ENUMS[o]] = 2
         config['sensor_dims'][utils.OBJ_ENUMS[o]] = 2
         config['sensor_dims'][utils.TARG_ENUMS[o]] = 2
+        config['sensor_dims'][utils.TARG_DELTA_ENUMS[o]] = 2
         config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
-        config['prim_obs_include'].append(utils.TARG_ENUMS[o])
+        #config['prim_obs_include'].append(utils.OBJ_ENUMS[o])
+        #config['prim_obs_include'].append(utils.TARG_ENUMS[o])
+        config['prim_obs_include'].append(utils.TARG_DELTA_ENUMS[o])
     return config
 
 config = refresh_config()

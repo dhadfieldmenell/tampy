@@ -4,7 +4,7 @@ from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.namo_predicates import NEAR_TOL
 from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import PredicateException
-from expr import Expr, AffExpr, EqExpr, LEqExpr
+from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 
 import numpy as np
 import tensorflow as tf

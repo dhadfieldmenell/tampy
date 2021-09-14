@@ -5,7 +5,6 @@ mkdir tamp_work
 cd ~/tamp_work
 
 
-
 ### SETUP VIRTENV ###
 # Setup virtual env
 # NOTE: If you're on ubuntu 20.04, install python 3.6 manually by reading this: https://askubuntu.com/questions/1231543/problem-with-creating-python-3-6-virtual-environment-on-ubuntu-20-04
@@ -21,10 +20,19 @@ pip install pybullet==3.1.6 # NOTE: latest version (3.1.7) has strange installat
 pip install numba pandas dm_control numdifftools ipdb
 pip install seaborn==0.9.0
 
-
 ### SETUP TAMP CODE ###
 git clone https://github.com/dhadfieldmenell/tampy.git
 git clone https://github.com/m-j-mcdonald/sco.git
+git clone https://github.com/m-j-mcdonald/BaxterGym.git
+git clone https://github.com/m-j-mcdonald/gps.git
+pip install robosuite
+pip install tensorflow==1.10.0
+pip install -e BaxterGym
+cd BaxterGym/baxter_gym
+mkdir local
+echo 'export MUJOCO_KEY_PATH=/home/${USER}/.mujoco/mjkey.txt' >> ~/tamp_env.sh
+echo 'export MUJOCO_GL=egl' >> ~/tamp_env.sh
+cd ~/tamp_work
 cd tampy
 git checkout python3 
 git pull origin python3 
@@ -40,7 +48,7 @@ truncate -s 0 ~/tamp_env.sh
 echo 'export GUROBI_HOME=/home/${USER}/tamp_work/gurobi901/linux64' >> ~/tamp_env.sh
 echo 'export PATH="${PATH}:${GUROBI_HOME}:${GUROBI_HOME}/bin":/home/${USER}/.local/bin' >> ~/tamp_env.sh
 echo 'export LD_LIBRARY_PATH="${GUROBI_HOME}/lib:/home/${USER}/.mujoco/mujoco200/bin"' >> ~/tamp_env.sh
-echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work/sco:/home/${USER}/tamp_work/tampy/src' >> ~/tamp_env.sh
+echo 'export PYTHONPATH=$PYTHONPATH:/home/${USER}/tamp_work:/home/${USER}/tamp_work/tampy/src:/home/${USER}/tamp_work/gps/python' >> ~/tamp_env.sh
 echo 'source ~/tamp_env.sh' >> ~/.bashrc
 
 # Setup gurobi (need to get license separately)

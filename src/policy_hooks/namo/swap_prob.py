@@ -8,8 +8,9 @@ import numpy as np
 import random
 import time
 
+import main
 from core.internal_repr.plan import Plan
-from core.util_classes.namo_predicates import dsafe, GRIP_VAL
+from core.util_classes.namo_predicates import dsafe
 from core.util_classes.openrave_body import *
 from pma.hl_solver import FFSolver
 from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
@@ -29,45 +30,37 @@ CONST_TARGETS = False
 CONST_ORDER = False
 
 # domain_file = "../domains/namo_domain/new_namo.domain"
-domain_file = "../domains/namo_domain/nopose.domain"
-mapping_file = "policy_hooks/namo/sorting_task_mapping_8"
+domain_file = "../domains/namo_domain/namo_current_holgripper.domain"
+mapping_file = "policy_hooks/namo/grip_task_mapping"
 pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
 
 descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.format(NUM_OBJS, SORT_CLOSET, USE_PERTURB, OPT_MCTS_FEEDBACK)
 
-# END_TARGETS = [(0., 5.8),
-#            (0., 5.),
-#            (0., 4.),
-#            (2., -2.),
-#            (0., -2.),
-#            (4., 0.),
-#            (-4, 0.),
-#            (4., -2.),
-#            (-4., -2.),
-#            (-2., -2.)]
+END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
+#END_TARGETS.extend([(0.8, 2.),
+#                   (-0.8, 2.),
+#                   (2.4, 2.),
+#                   (-2.4, 2.),
+#                   (-3.8, 2.),
+#                   (3.8, 2.),
+#                   (5.4, 2.),
+#                   (-5.4, 2.),
+#                   ])
 
-END_TARGETS =[(0., 4.5), (0., 3.5)]
-END_TARGETS.extend([(1.6, 2.),
-                   (-1.6, 2.),
-                   (3., 0.),
-                   (-3, 0.),
+END_TARGETS.extend([(2.8, 2.),
+                   (-2.8, 2.),
+                   (6.4, 2.),
+                   (-6.4, 2.),
+                   (2.8, -8.),
+                   (-2.8, -8.),
+                   (6.4, -8.),
+                   (-6.4, -8.),
                    ])
-
 n_aux = 4
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25
-# possible_can_locs.extend(list(itertools.product(range(-45, 45, 2), range(-35, MAX_Y, 2))))
-
-# possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-50, -10, 2))))
-#possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-40, 0, 2))))
-#possible_can_locs.extend(list(itertools.product(list(range(-70, 70, 2)), list(range(-60, 10, 2)))))
-# possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(6, 25, 4))))
-possible_can_locs.extend(list(itertools.product(list(range(-55, -40, 2)), list(range(10, 22, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-55, -40, 2)), list(range(-40, -15, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-10, 10, 2)), list(range(10, 22, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-10, 10, 2)), list(range(-40, -15, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(40, 55, 2)), list(range(10, 20, 2)))))
-possible_can_locs.extend(list(itertools.product(list(range(-40, 55, 2)), list(range(-40, -15, 2)))))
+#possible_can_locs.extend(list(itertools.product(list(range(-60, 60, 2)), list(range(-70, -20, 2)))))
+possible_can_locs.extend(list(itertools.product(list(range(-80, 80, 2)), list(range(-50, -10, 2)))))
 
 
 for i in range(len(possible_can_locs)):
@@ -79,7 +72,7 @@ for i in range(len(possible_can_locs)):
 
 def prob_file(descr=None):
     if descr is None:
-        descr = 'sort_closet_prob_{0}_{1}end_{2}_{3}aux'.format(NUM_OBJS, len(END_TARGETS), n_aux, N_GRASPS)
+        descr = 'grip_prob_{0}_{1}end_{2}aux'.format(NUM_OBJS, len(END_TARGETS), n_aux)
     return "../domains/namo_domain/namo_probs/{0}.prob".format(descr)
 
 
@@ -88,7 +81,7 @@ def get_prim_choices(task_list=None):
     if task_list is None:
         out[utils.TASK_ENUM] = sorted(list(get_tasks(mapping_file).keys()))
     else:
-        out[utils.TASK_ENUM] = sorted(task_list)
+        out[utils.TASK_ENUM] = sorted(list(task_list))
     out[utils.OBJ_ENUM] = ['can{0}'.format(i) for i in range(NUM_OBJS)]
     out[utils.TARG_ENUM] = []
     for i in range(n_aux):
@@ -98,19 +91,18 @@ def get_prim_choices(task_list=None):
             out[utils.TARG_ENUM] += ['end_target_{0}'.format(i)]
     else:
         out[utils.TARG_ENUM] += ['can{0}_end_target'.format(i) for i in range(NUM_OBJS)]
-    out[utils.GRASP_ENUM] = ['grasp{0}'.format(i) for i in range(N_GRASPS)]
     return out
 
 
 def get_vector(config):
     state_vector_include = {
-        'pr2': ['pose', 'gripper'] ,
+        'pr2': ['pose', 'gripper', 'theta', 'vel']
     }
     for i in range(config['num_objs']):
         state_vector_include['can{0}'.format(i)] = ['pose']
 
     action_vector_include = {
-        'pr2': ['pose', 'gripper']
+        'pr2': ['pose', 'gripper', 'theta']
     }
 
     target_vector_include = {
@@ -121,7 +113,6 @@ def get_vector(config):
     if FIX_TARGETS:
         for i in range(len(END_TARGETS)):
             target_vector_include['end_target_{0}'.format(i)] = ['value']
-
 
     return state_vector_include, action_vector_include, target_vector_include
 
@@ -136,63 +127,79 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         # x0[state_inds['pr2', 'pose']] = np.random.uniform([-3, -4], [3, -2]) # [0, -2]
         # x0[state_inds['pr2', 'pose']] = np.random.uniform([-3, -1], [3, 1])
         can_locs = copy.deepcopy(possible_can_locs)
-        targ_locs = copy.deepcopy(END_TARGETS)
         # can_locs = copy.deepcopy(END_TARGETS)
         locs = []
         pr2_loc = None
-        cur_spacing = 2.5
-        spacing = 2.5
+        spacing = 1.8 # 2.5
         valid = [1 for _ in range(len(can_locs))]
         while len(locs) < config['num_objs'] + 1:
             locs = []
             random.shuffle(can_locs)
-            random.shuffle(targ_locs)
             pr2_loc = can_locs[0]
             locs.append(pr2_loc)
-            cur_locs = can_locs
             valid = [1 for _ in range(len(can_locs))]
             valid[0] = 0
-            if np.random.uniform() < 0.5:
-                cur_locs = targ_locs
-                valid = [1 for _ in range(len(cur_locs))]
-                spacing = 0.
-            else:
-                spacing = cur_spacing
-                cur_locs = can_locs[1:]
-            valid = [1 for _ in range(len(cur_locs))]
-            for m in range(0, len(cur_locs)):
-                if np.linalg.norm(np.array(pr2_loc) - np.array(cur_locs[m])) < spacing:
+            for m in range(1, len(can_locs)):
+                if np.linalg.norm(np.array(pr2_loc) - np.array(can_locs[m])) < spacing:
                     valid[m] = 0
             for j in range(config['num_objs']):
-                for n in range(0, len(cur_locs)):
+                for n in range(1, len(can_locs)):
                     if valid[n]:
-                        locs.append(cur_locs[n])
+                        locs.append(can_locs[n])
                         valid[n] = 0
-                        for m in range(n+1, len(cur_locs)):
+                        for m in range(n+1, len(can_locs)):
                             if not valid[m]: continue
-                            if np.linalg.norm(np.array(cur_locs[n]) - np.array(cur_locs[m])) < spacing:
+                            if np.linalg.norm(np.array(can_locs[n]) - np.array(can_locs[m])) < spacing:
                                 valid[m] = 0
                         break
-            cur_spacing -= 0.1
+            spacing -= 0.1
+
+        spacing = 2
+        targs = []
+        can_targs = [can_locs[i] for i in range(len(can_locs)) if (valid[i] or not NO_COL)]
+        old_valid = copy.copy(valid)
+        while not FIX_TARGETS and len(targs) < config['num_targs']:
+            targs = []
+            pr2_loc = locs[0]
+            random.shuffle(can_targs)
+            valid = [1 for _ in range(len(can_targs))]
+            for m in range(0, len(can_targs)):
+                if np.linalg.norm(np.array(pr2_loc) - np.array(can_targs[m])) < spacing:
+                    valid[m] = 0
+            for j in range(config['num_targs']):
+                for n in range(0, len(can_targs)):
+                    if valid[n]:
+                        targs.append(can_targs[n])
+                        valid[n] = 0
+                        for m in range(n+1, len(can_targs)):
+                            if not valid[m]: continue
+                            if np.linalg.norm(np.array(can_targs[n]) - np.array(can_targs[m])) < spacing:
+                                valid[m] = 0
+                        break
+
+            spacing -= 0.1
 
         for l in range(len(locs)):
             locs[l] = np.array(locs[l])
         x0[state_inds['pr2', 'pose']] = locs[0]
         for o in range(config['num_objs']):
             x0[state_inds['can{0}'.format(o), 'pose']] = locs[o+1]
-        x0[state_inds['pr2', 'gripper']] = -1.
+        x0[state_inds['pr2', 'gripper']] = -0.1
+        x0[state_inds['pr2', 'theta']] = np.random.uniform(-np.pi, np.pi)
         x0s.append(x0)
-
-        spacing = 2.5
-        targs = []
-        old_valid = copy.copy(valid)
-        targ_range = list(range(config['num_objs'] - config['num_targs']))
-        inds = list(range(len(END_TARGETS))) if CONST_TARGETS else np.random.permutation(list(range(len(END_TARGETS))))
-        next_map = {'can{0}_end_target'.format(no): END_TARGETS[o] for no, o in enumerate(inds[:config['num_objs']])}
-        inplace = targ_range if CONST_ORDER else np.random.choice(list(range(config['num_objs'])), len(targ_range), replace=False)
-        for n in targ_range:
-            x0[state_inds['can{0}'.format(inplace[n]), 'pose']] = END_TARGETS[inds[inplace[n]]]
-        next_map.update({'end_target_{0}'.format(i): END_TARGETS[i] for i in range(len(END_TARGETS))})
+        if FIX_TARGETS:
+            targ_range = list(range(config['num_objs'] - config['num_targs']))
+            inds = list(range(len(EMD_TARGETS))) if CONST_TARGETS else np.random.permutation(list(range(len(END_TARGETS))))
+            next_map = {'can{0}_end_target'.format(no): END_TARGETS[o] for no, o in enumerate(inds[:config['num_objs']])}
+            inplace = targ_range if CONST_ORDER else np.random.choice(list(range(config['num_objs'])), len(targ_range), replace=False)
+            for n in targ_range:
+                x0[state_inds['can{0}'.format(inplace[n]), 'pose']] = END_TARGETS[inds[inplace[n]]]
+            next_map.update({'end_target_{0}'.format(i): END_TARGETS[i] for i in range(len(END_TARGETS))})
+        else:
+            inds = np.random.permutation(list(range(config['num_objs'])))
+            next_map = {'can{0}_end_target'.format(o): targs[no] for no, o in enumerate(inds[:config['num_targs']])}
+            if config['num_targs'] < config['num_objs']:
+                next_map.update({'can{0}_end_target'.format(o): locs[o+1] for o in inds[config['num_targs']:config['num_objs']]})
         for a in range(n_aux):
             if a == 0:
                 next_map['aux_target_{0}'.format(a)] = (0, 0)
@@ -216,36 +223,36 @@ def parse_hl_plan(hl_plan):
 def get_plans(use_tf=False):
     tasks = get_tasks(mapping_file)
     task_ids = sorted(list(tasks.keys()))
-    prim_options = get_prim_choices()
+    prim_options = get_prim_choices(task_ids)
     plans = {}
     openrave_bodies = {}
     env = None
     params = None
     sess = None
-    for task in tasks:
+    st = time.time()
+    prob_f = prob_file()
+    d_c = main.parse_file_to_dict(domain_file)
+    p_c = main.parse_file_to_dict(prob_f)
+    for task in task_ids:
         next_task_str = copy.deepcopy(tasks[task])
         for i in range(len(prim_options[utils.OBJ_ENUM])):
             for j in range(len(prim_options[utils.TARG_ENUM])):
-                for k in range(len(prim_options[utils.GRASP_ENUM])):
-                    obj = prim_options[utils.OBJ_ENUM][i]
-                    targ = prim_options[utils.TARG_ENUM][j]
-                    grasp = prim_options[utils.GRASP_ENUM][k]
-                    new_task_str = []
-                    for step in next_task_str:
-                        new_task_str.append(step.format(obj, targ, grasp))
-                    plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params, sess=sess, use_tf=use_tf)
-                    plan.params['pr2'].gripper[0,0] = -GRIP_VAL
-                    params = plan.params
-                    plans[(task_ids.index(task), i, j, k)] = plan
-                    if env is None:
-                        env = plan.env
-                        for param in list(plan.params.values()):
-                            if hasattr(param, 'geom'):
-                                if not hasattr(param, 'openrave_body') or param.openrave_body is None:
-                                    param.openrave_body = OpenRAVEBody(env, param.name, param.geom)
-                                openrave_bodies[param.name] = param.openrave_body
-                    sess = plan.sess
+                obj = prim_options[utils.OBJ_ENUM][i]
+                targ = prim_options[utils.TARG_ENUM][j]
+                new_task_str = []
+                for step in next_task_str:
+                    new_task_str.append(step.format(obj, targ, 'grasp0'))
+                plan = plan_from_str(new_task_str, prob_f, domain_file, env, openrave_bodies, params=params, sess=sess, use_tf=use_tf, d_c=d_c, p_c=p_c)
+                params = plan.params
+                plans[(task_ids.index(task), i, j)] = plan
+                if env is None:
+                    env = plan.env
 
+                for param in list(plan.params.values()):
+                    if hasattr(param, 'geom') and param.name not in openrave_bodies:
+                        if not hasattr(param, 'openrave_body') or param.openrave_body is None:
+                            param.openrave_body = OpenRAVEBody(env, param.name, param.geom)
+                        openrave_bodies[param.name] = param.openrave_body
     return plans, openrave_bodies, env
 
 def get_end_targets(num_cans=NUM_OBJS, num_targs=NUM_OBJS, targs=None, randomize=False, possible_locs=END_TARGETS):

@@ -7,7 +7,7 @@ from core.util_classes.robots import Robot
 from functools import reduce
 import core.util_classes.baxter_constants as const
 from collections import OrderedDict
-from expr import Expr
+from sco.expr import Expr
 import math
 import numpy as np
 

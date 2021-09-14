@@ -2,7 +2,7 @@ from core.util_classes import robot_predicates
 from core.util_classes.common_predicates import ExprPredicate
 from errors_exceptions import PredicateException
 from core.util_classes.openrave_body import OpenRAVEBody
-from expr import Expr, AffExpr, EqExpr, LEqExpr
+from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 import ctrajoptpy
 from collections import OrderedDict
 from openravepy import DOFAffine, Environment, quatRotateDirection, matrixFromQuat

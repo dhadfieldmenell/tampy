@@ -38,7 +38,7 @@ class SearchNode(object):
         raise NotImplementedError("Override this.")
 
 class HLSearchNode(SearchNode):
-    def __init__(self, abs_prob, domain, concr_prob, priority=0, prefix=None, label='', llnode=None, x0=None, targets=None, expansions=0, nodetype='optimal'):
+    def __init__(self, abs_prob, domain, concr_prob, priority=0, prefix=None, label='', llnode=None, x0=None, targets=None, expansions=0, nodetype='optimal', info={}):
         self.abs_prob = abs_prob
         self.domain = domain
         self.concr_prob = concr_prob
@@ -52,6 +52,7 @@ class HLSearchNode(SearchNode):
         self.llnode = llnode
         self.nodetype = nodetype
         self._trace = [label] 
+        self.info = info
         if llnode is not None:
             self._trace.extend(llnode._trace)
 
@@ -60,7 +61,7 @@ class HLSearchNode(SearchNode):
 
     def plan(self, solver):
         plan_obj = solver.solve(self.abs_prob, self.domain, self.concr_prob, self.prefix, label=self.label)
-        if self.ref_plan is not None:
+        if self.ref_plan is not None and type(plan_obj) is not str:
             if len(self.ref_plan.actions) < len(self.prefix):
                 raise IndexError('ref_plan must be compatible with prefix')
             plan_obj.fill(self.ref_plan, amin=0, amax=len(self.prefix)-1)
@@ -70,7 +71,7 @@ class HLSearchNode(SearchNode):
         return plan_obj
 
 class LLSearchNode(SearchNode):
-    def __init__(self, plan_str, domain, prob, initial, priority=1, keep_failed=False, ref_plan=None, x0=None, targets=None, expansions=0, label='', refnode=None, freeze_ts=-1, hl=True, ref_traj=[], nodetype='optimal', env_state=None):
+    def __init__(self, plan_str, domain, prob, initial, priority=1, keep_failed=False, ref_plan=None, x0=None, targets=None, expansions=0, label='', refnode=None, freeze_ts=-1, hl=True, ref_traj=[], nodetype='optimal', env_state=None, info={}):
         self.curr_plan = 'no plan'
         self.plan_str = plan_str
         self.domain = domain
@@ -88,6 +89,7 @@ class LLSearchNode(SearchNode):
         self.label = label
         self.ref_traj = ref_traj
         self.nodetype = nodetype
+        self.info = info
         #self.refnode = refnode
         self._trace = [label] 
         if refnode is not None:
@@ -167,12 +169,13 @@ class LLSearchNode(SearchNode):
             state_timestep = last_action.active_timesteps[0]
         self.curr_plan.start = anum
         init_preds = self.curr_plan.prob.init_state.preds
+        invariants = self.curr_plan.prob.init_state.invariants
         preds = []
         if failed_negated:
             preds = [failed_pred]
         state_preds = self.parse_state(self.curr_plan, preds, state_timestep, init_preds)
         state_preds.extend(self.curr_plan.hl_preds)
-        new_state = State(state_name, state_params, state_preds, state_timestep)
+        new_state = State(state_name, state_params, state_preds, state_timestep, invariants)
         goal_preds = self.concr_prob.goal_preds.copy()
         new_problem = Problem(new_state, goal_preds, self.concr_prob.env, False, start_action=anum)
 
@@ -190,7 +193,7 @@ class LLSearchNode(SearchNode):
         self.curr_plan = hl_solver.get_plan(self.plan_str, self.domain, self.concr_prob, self.initial)
         if type(self.curr_plan) is str: return
         if not len(self.curr_plan.actions):
-            print('Search node found bad plan for', self.initial, self.plan_str)
+            print('Search node found bad plan for', self.initial, self.plan_str, self.concr_prob.goal)
 
         if self.ref_plan is not None:
             self.curr_plan.start = self.ref_plan.start

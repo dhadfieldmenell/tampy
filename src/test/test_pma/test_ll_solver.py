@@ -12,9 +12,9 @@ from core.util_classes.matrix import Vector2d
 from core.util_classes.viewer import OpenRAVEViewer
 from pma import hl_solver, ll_solver_gurobi
 from sco import expr
-from sco_gurobi.prob import Prob
-from sco_gurobi.solver import Solver
-from sco_gurobi.variable import Variable
+from sco.sco_gurobi.prob import Prob
+from sco.sco_gurobi.solver import Solver
+from sco.sco_gurobi.variable import Variable
 
 
 class TestLLSolver(unittest.TestCase):

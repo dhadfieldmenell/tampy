@@ -11,7 +11,7 @@ import time
 
 from policy_hooks.multiprocess_main import MultiProcessMain
 
-USE_BASELINES = True
+USE_BASELINES = True 
 if USE_BASELINES:
     from policy_hooks.baselines.argparse import argsparser as baseline_argsparser
 
@@ -128,6 +128,10 @@ def run_baseline(args):
         from policy_hooks.baselines.stable import run
         run(config=config)
 
+    elif baseline.lower() == 'hbaselines':
+        from policy_hooks.baselines.hbaselines import run
+        run(config=config)
+
     elif baseline.lower() == 'gail':
         from policy_hooks.baselines.gail import run, eval_ckpts
         config['id'] = 0
@@ -239,11 +243,11 @@ def main():
     for ind, exp in enumerate(exps):
         mains = []
         for ind2, (c, cm) in enumerate(exp):
-            if len(args.test):
-                # c['weight_dir'] = args.test
-                m = MultiProcessMain(c)
-                m.run_test(c)
-                continue
+            #if len(args.test):
+            #    # c['weight_dir'] = args.test
+            #    m = MultiProcessMain(c)
+            #    m.run_test(c)
+            #    continue
 
             print('\n\n\n\n\n\nLOADING NEXT EXPERIMENT\n\n\n\n\n\n')
             old_dir = c['weight_dir']
@@ -259,6 +263,9 @@ def main():
                 m.monitor = False # If true, m will wait to finish before moving on
                 m.group_id = current_id
                 m.hl_only_retrain()
+            elif len(args.test):
+                m = MultiProcessMain(c, load_at_spawn=False)
+                m.run_test(m.config)
             else:
                 m = MultiProcessMain(c, load_at_spawn=True)
                 m.monitor = False # If true, m will wait to finish before moving on
@@ -297,11 +304,12 @@ def argsparser():
     # General setup
     parser.add_argument('-c', '--config', type=str, default='config')
     parser.add_argument('-test', '--test', type=str, default='')
-    parser.add_argument('-no', '--nobjs', type=int, default=0)
-    parser.add_argument('-nt', '--ntargs', type=int, default=0)
+    parser.add_argument('-no', '--nobjs', type=int, default=1)
+    parser.add_argument('-nt', '--ntargs', type=int, default=1)
     parser.add_argument('-motion', '--num_motion', type=int, default=16)
     parser.add_argument('-task', '--num_task', type=int, default=16)
     parser.add_argument('-rollout', '--num_rollout', type=int, default=16)
+    parser.add_argument('-num_test', '--num_test', type=int, default=0)
     parser.add_argument('-label', '--label_server', action='store_true', default=False)
     parser.add_argument('-class_label', '--classify_labels', action='store_true', default=False)
     parser.add_argument('-max_label', '--max_label', type=int, default=-1)
@@ -353,6 +361,9 @@ def argsparser():
     parser.add_argument('-cont_image', '--add_cont_image', action='store_true', default=False)
     parser.add_argument('-imwidth', '--image_width', type=int, default=64)
     parser.add_argument('-imheight', '--image_height', type=int, default=64)
+    parser.add_argument('-imchannels', '--image_channels', type=int, default=3)
+    parser.add_argument('-init_obs', '--incl_init_obs', action='store_true', default=False)
+    parser.add_argument('-trans_obs', '--incl_trans_obs', action='store_true', default=False)
 
     # HL args
     parser.add_argument('-check_t', '--check_prim_t', type=int, default=1)
@@ -387,7 +398,7 @@ def argsparser():
     parser.add_argument('-neg_ratio', '--perc_negative', type=float, default=0)
     parser.add_argument('-opt_ratio', '--perc_optimal', type=float, default=1.)
     parser.add_argument('-dagger_ratio', '--perc_dagger', type=float, default=1.)
-    parser.add_argument('-roll_ratio', '--perc_rollout', type=float, default=1.)
+    parser.add_argument('-roll_ratio', '--perc_rollout', type=float, default=0.)
     parser.add_argument('-human_ratio', '--perc_human', type=float, default=0.)
     parser.add_argument('-neg', '--negative', type=int, default=0)
     parser.add_argument('-neg_pre', '--neg_precond', action='store_true', default=False)

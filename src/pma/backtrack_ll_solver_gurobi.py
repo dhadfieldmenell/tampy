@@ -9,10 +9,10 @@ from core.util_classes.matrix import Vector
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
 from pma.ll_solver_gurobi import LLParam, LLSolver
-from expr import AffExpr, BoundExpr, QuadExpr
-from sco_gurobi.prob import Prob
-from sco_gurobi.solver import Solver
-from sco_gurobi.variable import Variable
+from sco.expr import AffExpr, BoundExpr, QuadExpr
+from sco.sco_gurobi.prob import Prob
+from sco.sco_gurobi.solver import Solver
+from sco.sco_gurobi.variable import Variable
 
 GRB = grb.GRB
 
@@ -381,6 +381,10 @@ class BacktrackLLSolver(LLSolver):
             print((plan.get_failed_preds(active_ts=active_ts, tol=1e-3), active_ts))
 
         self._cleanup_plan(plan, active_ts)
+
+        if not success:
+            from IPython import embed; embed()
+
         return success
 
     # @profile

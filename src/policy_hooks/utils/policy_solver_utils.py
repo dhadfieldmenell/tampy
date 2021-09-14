@@ -43,18 +43,15 @@ GOAL_ENUM = 37
 GRASP_ENUM = 38
 ONEHOT_GOAL_ENUM = 39
 ONEHOT_TASK_ENUM = 40
-
 ATGOAL_ENUM = 41
 INGRASP_ENUM = 42
 TRUETASK_ENUM = 43
 TRUEOBJ_ENUM = 44
 TRUETARG_ENUM = 45
 TRUEGRASP_ENUM = 46
-
 FACTOREDTASK_ENUM = 47
 DONE_ENUM = 48
 STATE_DELTA_ENUM = 49
-
 MJC_SENSOR_ENUM = 50
 STATE_HIST_ENUM = 51
 VEL_ENUM = 52
@@ -63,7 +60,6 @@ THETA_VEC_ENUM = 54
 TASK_DONE_ENUM = 55
 TASK_HIST_ENUM = 56
 OBJ_LIDAR_ENUM = 57
-
 ARM_ENUM = 58
 LEFT_ENUM = 59
 RIGHT_ENUM = 60
@@ -74,10 +70,14 @@ DOOR_ENUM = 64
 DOOR_THETA_ENUM = 65
 RIGHT_EE_ROT_ENUM = 66
 RIGHT_EE_QUAT_ENUM = 67
-
 END_ROT_ENUM = 68
 OBJ_ROT_ENUM = 69
 TARG_ROT_ENUM = 70
+TRUE_ROT_ENUM = 71
+GRIP_CMD_ENUM = 72
+RIGHT_VEL_ENUM = 73
+LEFT_VEL_ENUM = 74
+QPOS_ENUM = 75
 
 OBJ_ENUMS = {}
 for i in range(100):
@@ -237,14 +237,18 @@ def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
 def get_target_inds(plan, attr_map, include):
     cur_ind = 0
     target_inds = {}
-    for param in list(plan.params.values()):
-        if param.name in include:
-            for attr in include[param.name]:
-                #param_attr_map = attr_map[param._type]
+    for param_name in include:
+        if param_name in plan.params:
+            param = plan.params[param_name]
+            for attr in include[param_name]:
                 inds = np.arange(len(getattr(param, attr)[:,0])) + cur_ind
-                #inds = next(filter(lambda p: p[0]==attr, attr_map[param._type]))[1] + cur_ind
                 cur_ind = inds[-1] + 1
                 target_inds[param.name, attr] = inds
+        else:
+            dim = include[param_name] if type(include[param_name]) is int else len(include[param_name])
+            inds = np.arange(dim) + cur_ind
+            target_inds[param_name, 'value'] = inds
+            cur_ind = inds[-1] + 1
 
     return cur_ind, target_inds
 

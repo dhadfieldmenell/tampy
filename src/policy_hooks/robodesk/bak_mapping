@@ -1,0 +1,37 @@
+{
+    'move_to_grasp_right': [
+        '0: MOVE_TO_GRASP_RIGHT PANDA {0} {0}_INIT_TARGET',
+    ],
+
+    'hold_right': [
+        '0: HOLD_RIGHT PANDA {0} {0}_INIT_TARGET'
+    ],
+
+   'lift_right': [
+        '0: LIFT_RIGHT PANDA {0} {0}_INIT_TARGET',
+    ],
+
+    'place_right': [
+        '0: PLACE_RIGHT PANDA {1} {0}'
+    ],
+
+    'slide_open_right': [
+        '0: SLIDE_OPEN_RIGHT PANDA {2} {2}_HANDLE'
+    ],
+
+    'slide_close_right': [
+        '0: SLIDE_CLOSE_RIGHT PANDA {2} {2}_HANDLE'
+    ],
+
+    'place_in_door_right': [
+        '0: PLACE_IN_DOOR_RIGHT PANDA {2} {0} {2}_HANDLE'
+    ],
+
+    'stack_right': [
+        '0: STACK_RIGHT PANDA FLAT_BLOCK {0}'
+    ],
+
+};
+
+{
+}

@@ -12,10 +12,13 @@ import scipy.interpolate
 
 import xml.etree.ElementTree as xml
 
-from expr import *
+from sco.expr import *
 
 import core.util_classes.common_constants as const
-import pybullet as P
+if const.USE_OPENRAVE:
+    pass
+else:
+    import pybullet as P
 
 
 from gps.agent.agent_utils import generate_noise

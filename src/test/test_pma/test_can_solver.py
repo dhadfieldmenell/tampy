@@ -5,9 +5,9 @@ from core.parsing import parse_domain_config
 from core.parsing import parse_problem_config
 import gurobipy as grb
 import numpy as np
-from sco_gurobi.prob import Prob
-from sco_gurobi.solver import Solver
-from sco_gurobi.variable import Variable
+from sco.sco_gurobi.prob import Prob
+from sco.sco_gurobi.solver import Solver
+from sco.sco_gurobi.variable import Variable
 from sco import expr
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes import circle

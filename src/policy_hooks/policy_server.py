@@ -25,12 +25,19 @@ class PolicyServer(object):
         self.task_list = hyperparams['task_list']
         self.weight_dir = LOG_DIR+hyperparams['weight_dir']
         self.seed = int((1e2*time.time()) % 1000.)
-        n_gpu = hyperparams['n_gpu']
-        gpu = 0
-        if n_gpu == 0: gpu = -1
-        os.environ['CUDA_VISIBLE_DEVICES'] = "{0}".format(gpu)
         np.random.seed(self.seed)
         random.seed(self.seed)
+        n_gpu = hyperparams['n_gpu']
+        if n_gpu == 0:
+            gpus = -1
+        elif n_gpu == 1:
+            gpu = 0
+        else:
+            gpus = np.random.choice(range(n_gpu))
+            #gpus = n_gpu-1
+            #gpus = str(list(range(1, n_gpu+1)))[1:-1]
+            #gpus = str(list(range(0, n_gpu)))[1:-1]
+        os.environ['CUDA_VISIBLE_DEVICES'] = "{0}".format(gpus)
         self.start_t = hyperparams['start_t']
         self.config = hyperparams
         self.permute = hyperparams['permute_hl'] > 0
@@ -70,7 +77,11 @@ class PolicyServer(object):
             self.in_queue = hyperparams['ll_queue'][self.task]
 
         self.batch_size = hyperparams['batch_size']
-        normalize = self.task not in ['cont', 'primitive', 'label']
+        if self.task in ['cont', 'primitive', 'label']:
+            normalize = False
+        else:
+            normalize = IM_ENUM not in hyperparams['obs_include']
+
         feed_prob = hyperparams['end_to_end_prob']
         in_inds, out_inds = None, None
         if len(self.continuous_opts):
@@ -131,12 +142,12 @@ class PolicyServer(object):
             precShape = tf.TensorShape([None, dP, dP])
 
         data = tf.data.Dataset.from_tensor_slices([0, 1, 2, 3])
-        self.load_f = lambda x: tf.data.Dataset.from_generator(self.data_gen.gen_load, \
-                                                         output_types=tf.int32, \
-                                                         args=())
-        data = data.interleave(self.load_f, \
-                                 cycle_length=4, \
-                                 block_length=1)
+        #self.load_f = lambda x: tf.data.Dataset.from_generator(self.data_gen.gen_load, \
+        #                                                 output_types=tf.int32, \
+        #                                                 args=())
+        #data = data.interleave(self.load_f, \
+        #                         cycle_length=4, \
+        #                         block_length=1)
         self.gen_f = lambda x: tf.data.Dataset.from_generator(self.data_gen.gen_items, \
                                                          output_types=(tf.float32, tf.float32, tf.float32), \
                                                          output_shapes=(tf.TensorShape([None, dO]), tf.TensorShape([None, dU]), precShape),

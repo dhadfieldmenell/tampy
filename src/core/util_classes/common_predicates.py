@@ -8,7 +8,7 @@ from core.util_classes.common_constants import *
 from core.util_classes.matrix import Vector2d
 from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import PredicateException
-from expr import AffExpr, EqExpr, Expr, LEqExpr
+from sco.expr import AffExpr, EqExpr, Expr, LEqExpr
 
 """
 This file implements the classes for commonly used predicates that are useful in a wide variety of

@@ -1,7 +1,7 @@
 import numpy as np
 
 
-MAX_BUFFER = 25000 # 40000
+MAX_BUFFER = 40000
 MIN_BUFFER = 1000
 
 class DataBuffer(object):
@@ -83,9 +83,18 @@ class DataBuffer(object):
         if label in self.lens: return
 
         self.lens[label] = 0
-        size = self.sizes.get(label, self.default_size)
+        base_label = label.split('VAL_')[-1]
+        size = self.sizes.get(base_label, self.default_size)
+        if base_label not in self.sizes:
+            p = [self.ratios[l] for l in self.ratios]
+            perc = self.ratios[base_label] / np.sum(p)
+            size = int(MAX_BUFFER * perc)
+
         if label.find('VAL_') >= 0:
             size = int(self.val_ratio * size)
+
+        size = max(size, self._min_sample)
+        print('ADDED LABEL', label, 'WITH BUFFER SIZE', size)
 
         self.obs[label] = np.nan * np.zeros((size,)+dO, dtype=np.float32)
         self.mu[label] = np.nan * np.zeros((size,)+dU, dtype=np.float32)
@@ -227,6 +236,7 @@ class DataBuffer(object):
 
 
     def center(self, obs):
+        if not self.normalize: return obs
         obs[:, self.x_idx] = obs[:, self.x_idx].dot(self.scale) + self.bias
         return obs
 

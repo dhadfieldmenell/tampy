@@ -1,7 +1,7 @@
 from collections import OrderedDict
 import numpy as np
 
-from expr import Expr, AffExpr, EqExpr, LEqExpr
+from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 
 from core.util_classes.common_predicates import ExprPredicate
 
