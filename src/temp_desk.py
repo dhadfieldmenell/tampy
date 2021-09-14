@@ -115,12 +115,12 @@ goal = '(and (InSlideDoor ball drawer) (Stacked upright_block flat_block) (NearG
 #goal = '(Lifted upright_block panda)'
 
 print('CONSISTENT?', problem.init_state.is_consistent())
-import ipdb; ipdb.set_trace()
+# import ipdb; ipdb.set_trace()
 solver = RobotSolver()
 
 plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=3)
 
-import ipdb; ipdb.set_trace()
+# import ipdb; ipdb.set_trace()
 
 if visual:
     agent.add_viewer()

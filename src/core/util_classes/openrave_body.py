@@ -1,10 +1,14 @@
 import numpy as np
 from math import cos, sin, atan2
-import core.util_classes.common_constants as const
+
 import pybullet as P
+
+import core.util_classes.common_constants as const
 import core.util_classes.transform_utils as T
 from core.util_classes.robots import Robot, PR2, Baxter, Washer, NAMO
-from core.util_classes.items import Item, Box, Can, BlueCan, RedCan, Circle, BlueCircle, RedCircle, GreenCircle, Obstacle, Wall, Table, Basket
+from core.util_classes.items import Item, Box, Can, BlueCan, RedCan, Circle, \
+                                    BlueCircle, RedCircle, GreenCircle, Obstacle, \
+                                    Wall, Table, Basket, XMLItem, Door
 
 WALL_THICKNESS = 1
 CLOSET_POINTS = [[-6.0,-8.0],[-6.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[13.0,4.0],[13.0,-8.0],[-6.0,-8.0]]
@@ -12,6 +16,7 @@ CLOSET_POINTS = [[-7.0,-9.0],[-7.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],
 CLOSET_POINTS = [[-7.0,-10.0],[-7.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[14.0,4.0],[14.0,-10.0],[-7.0,-10.0]]
 CLOSET_POINTS = [[-7.0,-12.0],[-7.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[14.0,4.0],[14.0,-12.0],[-7.0,-12.0]]
 CLOSET_POINTS = [[-7.0,-10.0],[-7.0,4.0],[1.5,4.0],[1.5,8.0],[5.5,8.0],[5.5,4.0],[14.0,4.0],[14.0,-10.0],[-7.0,-10.0]]
+#CLOSET_POINTS = [[-7.0,-10.0],[-7.0,4.0],[1.5,4.0],[5.5,4.0],[14.0,4.0],[14.0,-10.0],[-7.0,-10.0]]
 
 class OpenRAVEBody(object):
     def __init__(self, env, name, geom):
@@ -21,10 +26,14 @@ class OpenRAVEBody(object):
 
         if isinstance(geom, Robot):
             self._add_robot(geom)
+        elif isinstance(geom, XMLItem):
+            self._add_xml_item(geom)
         elif isinstance(geom, Item):
             self._add_item(geom)
         else:
             raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)
+
+        # self.set_transparency(0.5)
 
     def delete(self):
         P.removeCollisionShape(self.body_id)
@@ -37,9 +46,15 @@ class OpenRAVEBody(object):
         for info in visual_infos:
             link_index = info[1]
             link_rgba = info[7]
-            P.changeVisualShape(self.body_id, link_index, rgbaColor=link_rgba[:3]+tuple([transparency]))
+            P.changeVisualShape(self.body_id, link_index, link_rgba[:3]+[transparency])
 
     def _add_robot(self, geom):
+        if not geom.is_initialized():
+            geom.setup(None)
+        self.env_body = geom.id
+        self.body_id = geom.id
+
+    def _add_xml_item(self, geom):
         if not geom.is_initialized():
             geom.setup(None)
         self.env_body = geom.id
@@ -51,7 +66,8 @@ class OpenRAVEBody(object):
             eval(fun_name)(geom)
         except Exception as e:
             print('Could not add', geom._type, e)
-            self._add_obj(geom)
+            raise e
+            #self._add_obj(geom)
 
     def _add_circle(self, geom):
         color = [1,0,0]
@@ -77,35 +93,36 @@ class OpenRAVEBody(object):
         self.col_body_id = P.createCollisionShape(shapeType=P.GEOM_CYLINDER, radius=geom.radius, height=geom.height)
         self.body_id = P.createMultiBody(1, self.col_body_id)
 
-    def _add_obstacle(self, geom):
-        obstacles = np.matrix('-0.576036866359447, 0.918128654970760, 1;\
-                        -0.806451612903226,-1.07017543859649, 1;\
-                        1.01843317972350,-0.988304093567252, 1;\
-                        0.640552995391705,0.906432748538011, 1;\
-                        -0.576036866359447, 0.918128654970760, -1;\
-                        -0.806451612903226,-1.07017543859649, -1;\
-                        1.01843317972350,-0.988304093567252, -1;\
-                        0.640552995391705,0.906432748538011, -1')
+    #def _add_obstacle(self, geom):
+    #    obstacles = np.matrix('-0.576036866359447, 0.918128654970760, 1;\
+    #                    -0.806451612903226,-1.07017543859649, 1;\
+    #                    1.01843317972350,-0.988304093567252, 1;\
+    #                    0.640552995391705,0.906432748538011, 1;\
+    #                    -0.576036866359447, 0.918128654970760, -1;\
+    #                    -0.806451612903226,-1.07017543859649, -1;\
+    #                    1.01843317972350,-0.988304093567252, -1;\
+    #                    0.640552995391705,0.906432748538011, -1')
 
-        body = RaveCreateKinBody(self._env, '')
-        vertices = np.array(obstacles)
-        indices = np.array([[0, 1, 2], [2, 3, 0], [4, 5, 6], [6, 7, 4], [0, 4, 5],
-                            [0, 1, 5], [1, 2, 5], [5, 6, 2], [2, 3, 6], [6, 7, 3],
-                            [0, 3, 7], [0, 4, 7]])
-        body.InitFromTrimesh(trimesh=TriMesh(vertices, indices), draw=True)
-        body.SetName(self.name)
-        for link in body.GetLinks():
-            for geom in link.GetGeometries():
-                geom.SetDiffuseColor((.9, .9, .9))
-        self.env_body = body
-        self._env.AddKinBody(body)
+    #    body = RaveCreateKinBody(self._env, '')
+    #    vertices = np.array(obstacles)
+    #    indices = np.array([[0, 1, 2], [2, 3, 0], [4, 5, 6], [6, 7, 4], [0, 4, 5],
+    #                        [0, 1, 5], [1, 2, 5], [5, 6, 2], [2, 3, 6], [6, 7, 3],
+    #                        [0, 3, 7], [0, 4, 7]])
+    #    body.InitFromTrimesh(trimesh=TriMesh(vertices, indices), draw=True)
+    #    body.SetName(self.name)
+    #    for link in body.GetLinks():
+    #        for geom in link.GetGeometries():
+    #            geom.SetDiffuseColor((.9, .9, .9))
+    #    self.env_body = body
+    #    self._env.AddKinBody(body)
 
     def _add_box(self, geom):
         self.col_body_id = P.createCollisionShape(shapeType=P.GEOM_BOX, halfExtents=geom.dim)
         self.body_id = P.createMultiBody(1, self.col_body_id)
 
     def _add_sphere(self, geom):
-        self.body_id = P.createCollisionShape(shapeType=P.GEOM_SPHERE, radius=geom.radius)
+        self.col_body_id = P.createCollisionShape(shapeType=P.GEOM_SPHERE, radius=geom.radius)
+        self.body_id = P.createMultiBody(1, self.col_body_id)
 
     def _add_door(self, geom):
         self.body_id, self.col_body_id = OpenRAVEBody.create_door(self._env, geom.length)
@@ -113,20 +130,20 @@ class OpenRAVEBody(object):
     def _add_wall(self, geom):
         self.body_id = OpenRAVEBody.create_wall(self._env, geom.wall_type)
 
-    def _add_obj(self, geom):
-        self.env_body = self._env.ReadKinBodyXMLFile(geom.shape)
-        self.env_body.SetName(self.name)
-        self._env.Add(self.env_body)
+    #def _add_obj(self, geom):
+    #    self.env_body = self._env.ReadKinBodyXMLFile(geom.shape)
+    #    self.env_body.SetName(self.name)
+    #    self._env.Add(self.env_body)
 
-    def _add_table(self, geom):
-        self.env_body = OpenRAVEBody.create_table(self._env, geom)
-        self.env_body.SetName(self.name)
-        self._env.Add(self.env_body)
+    #def _add_table(self, geom):
+    #    self.env_body = OpenRAVEBody.create_table(self._env, geom)
+    #    self.env_body.SetName(self.name)
+    #    self._env.Add(self.env_body)
 
-    def _add_basket(self, geom):
-        self.env_body = self._env.ReadKinBodyXMLFile(geom.shape)
-        self.env_body.SetName(self.name)
-        self._env.Add(self.env_body)
+    #def _add_basket(self, geom):
+    #    self.env_body = self._env.ReadKinBodyXMLFile(geom.shape)
+    #    self.env_body.SetName(self.name)
+    #    self._env.Add(self.env_body)
 
     def set_pose(self, base_pose, rotation = [0, 0, 0]):
         trans = None
@@ -185,44 +202,44 @@ class OpenRAVEBody(object):
         """
         pass
 
-    @staticmethod
-    def create_cylinder(env, body_name, t, dims, color=[0, 1, 1]):
-        infocylinder = OpenRAVEBody.create_body_info(GeometryType.Cylinder, dims, color)
-        if type(env) != Environment:
-            print("Environment object is not valid")
-        cylinder = RaveCreateKinBody(env, '')
-        cylinder.InitFromGeometries([infocylinder])
-        cylinder.SetName(body_name)
-        cylinder.SetTransform(t)
-        return cylinder
+    #@staticmethod
+    #def create_cylinder(env, body_name, t, dims, color=[0, 1, 1]):
+    #    infocylinder = OpenRAVEBody.create_body_info(GeometryType.Cylinder, dims, color)
+    #    if type(env) != Environment:
+    #        print("Environment object is not valid")
+    #    cylinder = RaveCreateKinBody(env, '')
+    #    cylinder.InitFromGeometries([infocylinder])
+    #    cylinder.SetName(body_name)
+    #    cylinder.SetTransform(t)
+    #    return cylinder
 
-    @staticmethod
-    def create_box(env, name, transform, dims, color=[0,0,1]):
-        infobox = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, dims, color, 0, True)
-        box = RaveCreateKinBody(env,'')
-        box.InitFromGeometries([infobox])
-        box.SetName(name)
-        box.SetTransform(transform)
-        return box
+    #@staticmethod
+    #def create_box(env, name, transform, dims, color=[0,0,1]):
+    #    infobox = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, dims, color, 0, True)
+    #    box = RaveCreateKinBody(env,'')
+    #    box.InitFromGeometries([infobox])
+    #    box.SetName(name)
+    #    box.SetTransform(transform)
+    #    return box
 
-    @staticmethod
-    def create_sphere(env, name, transform, dims, color=[0,0,1]):
-        infobox = OpenRAVEBody.create_body_info(GeometryType.Sphere, dims, color)
-        sphere = RaveCreateKinBody(env,'')
-        sphere.InitFromGeometries([infobox])
-        sphere.SetName(name)
-        sphere.SetTransform(transform)
-        return sphere
+    #@staticmethod
+    #def create_sphere(env, name, transform, dims, color=[0,0,1]):
+    #    infobox = OpenRAVEBody.create_body_info(GeometryType.Sphere, dims, color)
+    #    sphere = RaveCreateKinBody(env,'')
+    #    sphere.InitFromGeometries([infobox])
+    #    sphere.SetName(name)
+    #    sphere.SetTransform(transform)
+    #    return sphere
 
-    @staticmethod
-    def create_body_info(body_type, dims, color, transparency = 0.8, visible = True):
-        infobox = KinBody.Link.GeometryInfo()
-        infobox._type = body_type
-        infobox._vGeomData = dims
-        infobox._bVisible = True
-        infobox._fTransparency = transparency
-        infobox._vDiffuseColor = color
-        return infobox
+    #@staticmethod
+    #def create_body_info(body_type, dims, color, transparency = 0.8, visible = True):
+    #    infobox = KinBody.Link.GeometryInfo()
+    #    infobox._type = body_type
+    #    infobox._vGeomData = dims
+    #    infobox._bVisible = True
+    #    infobox._fTransparency = transparency
+    #    infobox._vDiffuseColor = color
+    #    return infobox
 
     @staticmethod
     def create_door(env, door_len):
@@ -284,10 +301,7 @@ class OpenRAVEBody(object):
             else:
                 transform[ind_diff, 3] = end[ind_diff] + length/2
             dims = [dim_x, dim_y, 1]
-
             box_infos.append((dims, transform[:3,3]))
-            # next_id = P.createCollisionShape(shapeType=P.GEOM_BOX, halfExtents=dims)
-            # box_infos.append(next_id)
         cols = [P.createCollisionShape(shapeType=P.GEOM_BOX, halfExtents=h) for h, t in box_infos]
         wall = P.createMultiBody(basePosition=[0,0,0],
                                 linkMasses=[1 for _ in cols],
@@ -300,7 +314,7 @@ class OpenRAVEBody(object):
                                 linkParentIndices=[0 for _ in cols],
                                 linkJointTypes=[P.JOINT_FIXED for _ in cols],
                                 linkJointAxis=[[0,0,1] for _ in cols]
-                                )
+                               )
         return wall
 
 
@@ -343,68 +357,68 @@ class OpenRAVEBody(object):
         return dims
 
 
-    @staticmethod
-    def create_basket_col(env):
+    #@staticmethod
+    #def create_basket_col(env):
 
-        long_info1 = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, [.3,.15,.015], [0, 0.75, 1])
-        long_info2 = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, [.3,.15,.015], [0, 0.75, 1])
-        short_info1 = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, [.015,.15,.2], [0, 0.75, 1])
-        short_info2 = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, [.015,.15,.2], [0, 0.75, 1])
-        bottom_info = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, [.3,.015,.2], [0, 0.75, 1])
+    #    long_info1 = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, [.3,.15,.015], [0, 0.75, 1])
+    #    long_info2 = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, [.3,.15,.015], [0, 0.75, 1])
+    #    short_info1 = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, [.015,.15,.2], [0, 0.75, 1])
+    #    short_info2 = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, [.015,.15,.2], [0, 0.75, 1])
+    #    bottom_info = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, [.3,.015,.2], [0, 0.75, 1])
 
-        long_info1._t = OpenRAVEBody.transform_from_obj_pose([0,-0.118,0.208],[0,0,0.055])
-        long_info2._t = OpenRAVEBody.transform_from_obj_pose([0,-0.118,-0.208],[0,0,-0.055])
-        short_info1._t = OpenRAVEBody.transform_from_obj_pose([0.309,-0.118,0],[-0.055,0,0])
-        short_info2._t = OpenRAVEBody.transform_from_obj_pose([-0.309,-0.118,0],[0.055,0,0])
-        bottom_info._t = OpenRAVEBody.transform_from_obj_pose([0,-0.25,0],[0,0,0])
-        basket = RaveCreateRobot(env, '')
-        basket.InitFromGeometries([long_info1, long_info2, short_info1, short_info2, bottom_info])
-        return basket
+    #    long_info1._t = OpenRAVEBody.transform_from_obj_pose([0,-0.118,0.208],[0,0,0.055])
+    #    long_info2._t = OpenRAVEBody.transform_from_obj_pose([0,-0.118,-0.208],[0,0,-0.055])
+    #    short_info1._t = OpenRAVEBody.transform_from_obj_pose([0.309,-0.118,0],[-0.055,0,0])
+    #    short_info2._t = OpenRAVEBody.transform_from_obj_pose([-0.309,-0.118,0],[0.055,0,0])
+    #    bottom_info._t = OpenRAVEBody.transform_from_obj_pose([0,-0.25,0],[0,0,0])
+    #    basket = RaveCreateRobot(env, '')
+    #    basket.InitFromGeometries([long_info1, long_info2, short_info1, short_info2, bottom_info])
+    #    return basket
 
-    @staticmethod
-    def create_table(env, geom):
-        thickness = geom.thickness
-        leg_height = geom.leg_height
-        back = geom.back
-        dim1, dim2 = geom.table_dim
-        legdim1, legdim2 = geom.leg_dim
+    #@staticmethod
+    #def create_table(env, geom):
+    #    thickness = geom.thickness
+    #    leg_height = geom.leg_height
+    #    back = geom.back
+    #    dim1, dim2 = geom.table_dim
+    #    legdim1, legdim2 = geom.leg_dim
 
-        table_color = [0.5, 0.2, 0.1]
-        component_type = KinBody.Link.GeomType.Box
-        tabletop = OpenRAVEBody.create_body_info(component_type, [dim1/2, dim2/2, thickness/2], table_color)
+    #    table_color = [0.5, 0.2, 0.1]
+    #    component_type = KinBody.Link.GeomType.Box
+    #    tabletop = OpenRAVEBody.create_body_info(component_type, [dim1/2, dim2/2, thickness/2], table_color)
 
-        leg1 = OpenRAVEBody.create_body_info(component_type, [legdim1/2, legdim2/2, leg_height/2], table_color)
-        leg1._t[0, 3] = dim1/2 - legdim1/2
-        leg1._t[1, 3] = dim2/2 - legdim2/2
-        leg1._t[2, 3] = -leg_height/2 - thickness/2
+    #    leg1 = OpenRAVEBody.create_body_info(component_type, [legdim1/2, legdim2/2, leg_height/2], table_color)
+    #    leg1._t[0, 3] = dim1/2 - legdim1/2
+    #    leg1._t[1, 3] = dim2/2 - legdim2/2
+    #    leg1._t[2, 3] = -leg_height/2 - thickness/2
 
-        leg2 = OpenRAVEBody.create_body_info(component_type, [legdim1/2, legdim2/2, leg_height/2], table_color)
-        leg2._t[0, 3] = dim1/2 - legdim1/2
-        leg2._t[1, 3] = -dim2/2 + legdim2/2
-        leg2._t[2, 3] = -leg_height/2 - thickness/2
+    #    leg2 = OpenRAVEBody.create_body_info(component_type, [legdim1/2, legdim2/2, leg_height/2], table_color)
+    #    leg2._t[0, 3] = dim1/2 - legdim1/2
+    #    leg2._t[1, 3] = -dim2/2 + legdim2/2
+    #    leg2._t[2, 3] = -leg_height/2 - thickness/2
 
-        leg3 = OpenRAVEBody.create_body_info(component_type, [legdim1/2, legdim2/2, leg_height/2], table_color)
-        leg3._t[0, 3] = -dim1/2 + legdim1/2
-        leg3._t[1, 3] = dim2/2 - legdim2/2
-        leg3._t[2, 3] = -leg_height/2 - thickness/2
+    #    leg3 = OpenRAVEBody.create_body_info(component_type, [legdim1/2, legdim2/2, leg_height/2], table_color)
+    #    leg3._t[0, 3] = -dim1/2 + legdim1/2
+    #    leg3._t[1, 3] = dim2/2 - legdim2/2
+    #    leg3._t[2, 3] = -leg_height/2 - thickness/2
 
-        leg4 = OpenRAVEBody.create_body_info(component_type, [legdim1/2, legdim2/2, leg_height/2], table_color)
-        leg4._t[0, 3] = -dim1/2 + legdim1/2
-        leg4._t[1, 3] = -dim2/2 + legdim2/2
-        leg4._t[2, 3] = -leg_height/2 - thickness/2
+    #    leg4 = OpenRAVEBody.create_body_info(component_type, [legdim1/2, legdim2/2, leg_height/2], table_color)
+    #    leg4._t[0, 3] = -dim1/2 + legdim1/2
+    #    leg4._t[1, 3] = -dim2/2 + legdim2/2
+    #    leg4._t[2, 3] = -leg_height/2 - thickness/2
 
-        if back:
-            back_plate = OpenRAVEBody.create_body_info(component_type, [legdim1/10, dim2/2, leg_height-thickness/2], table_color)
-            back_plate._t[0, 3] = dim1/2 - legdim1/10
-            back_plate._t[1, 3] = 0
-            back_plate._t[2, 3] = -leg_height/2 - thickness/4
+    #    if back:
+    #        back_plate = OpenRAVEBody.create_body_info(component_type, [legdim1/10, dim2/2, leg_height-thickness/2], table_color)
+    #        back_plate._t[0, 3] = dim1/2 - legdim1/10
+    #        back_plate._t[1, 3] = 0
+    #        back_plate._t[2, 3] = -leg_height/2 - thickness/4
 
-        table = RaveCreateRobot(env, '')
-        if not back:
-            table.InitFromGeometries([tabletop, leg1, leg2, leg3, leg4])
-        else:
-            table.InitFromGeometries([tabletop, leg1, leg2, leg3, leg4, back_plate])
-        return table
+    #    table = RaveCreateRobot(env, '')
+    #    if not back:
+    #        table.InitFromGeometries([tabletop, leg1, leg2, leg3, leg4])
+    #    else:
+    #        table.InitFromGeometries([tabletop, leg1, leg2, leg3, leg4, back_plate])
+    #    return table
 
     @staticmethod
     def base_pose_2D_to_mat(pose):
@@ -445,6 +459,17 @@ class OpenRAVEBody(object):
         matrix = T.pose2mat((pos, quat))
         return matrix
 
+    # @staticmethod
+    # def angle_pose_to_mat(pose):
+    #     assert len(pose) == 1
+    #     if USE_OPENRAVE:
+    #         q = quatFromAxisAngle((0, 0, pose)).tolist()
+    #         matrix = matrixFromPose(q + pos)
+    #     else:
+    #         quat = T.euler_to_quaternion([0, 0, pose], order='xyzw')
+    #         matrix = T.pose2mat((pos, quat))
+
+    #     return matrix
 
     @staticmethod
     def mat_to_base_pose(mat):
@@ -519,21 +544,21 @@ class OpenRAVEBody(object):
         quat /= np.linalg.norm(quat)
         return quat
 
-    @staticmethod
-    def get_ik_transform(pos, rot, right_arm = True):
-        trans = OpenRAVEBody.transform_from_obj_pose(pos, rot)
-        # Openravepy flip the rotation axis by 90 degree, thus we need to change it back
-        if right_arm:
-            quat = T.euler_to_quaternion([0, np.pi/2, 0], order='xyzw')
-        else:
-            quat = T.euler_to_quaternion([0, -np.pi/2, 0], order='xyzw')
-        rot_mat = T.pose2mat([[0, 0, 0], quat])
-        trans_mat = trans[:3, :3].dot(rot_mat[:3, :3])
-        trans[:3, :3] = trans_mat
-        return trans
+    #@staticmethod
+    #def get_ik_transform(pos, rot, right_arm = True):
+    #    trans = OpenRAVEBody.transform_from_obj_pose(pos, rot)
+    #    # Openravepy flip the rotation axis by 90 degree, thus we need to change it back
+    #    if right_arm:
+    #        quat = T.euler_to_quaternion([0, np.pi/2, 0], order='xyzw')
+    #    else:
+    #        quat = T.euler_to_quaternion([0, -np.pi/2, 0], order='xyzw')
+    #    rot_mat = T.pose2mat([[0, 0, 0], quat])
+    #    trans_mat = trans[:3, :3].dot(rot_mat[:3, :3])
+    #    trans[:3, :3] = trans_mat
+    #    return trans
 
     def get_link_pose(self, link_id, euler=True):
-        info = p.getLinkState(self.body_id, link_id)
+        info = P.getLinkState(self.body_id, link_id)
         pos, orn = info[0], info[1]
         if euler:
             orn = T.quaternion_to_euler(orn, order='xyzw')
@@ -640,4 +665,3 @@ class OpenRAVEBody(object):
             result[manip_name] = self.fwd_kinematics(manip_name, mat_result=mat_result)
 
         return result
-

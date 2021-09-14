@@ -141,10 +141,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.task_paths = []
 
         self.n_policy_calls = {}
-        if common_const.USE_OPENRAVE:
-            self._cc = openravepy.RaveCreateCollisionChecker(self.env, "ode")
-            self._cc.SetCollisionOptions(openravepy.CollisionOptions.Contacts)
-            self.env.SetCollisionChecker(self._cc)
         self.n_dirs = self._hyperparams['n_dirs']
         self.seed = 1234
         self.prim_dims = self._hyperparams['prim_dims']
