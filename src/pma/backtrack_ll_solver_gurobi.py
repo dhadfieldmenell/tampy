@@ -382,8 +382,8 @@ class BacktrackLLSolver(LLSolver):
 
         self._cleanup_plan(plan, active_ts)
 
-        if not success:
-            from IPython import embed; embed()
+        # if not success:
+        #     from IPython import embed; embed()
 
         return success
 

@@ -232,8 +232,8 @@ class Door(XMLItem):
             self.width = 0.15
             self.close_val = 0.6
             self.open_val = 0.
-            self.open_thresh = 0.15
-            self.close_thresh = 0.45
+            self.open_thresh = 0.2 # 0.15
+            self.close_thresh = 0.45 # 0.45
             self.open_dir = [-1., 0., 0.]
             col_links = set([-1, 0, 1, 2])
         else:

@@ -10,7 +10,7 @@ from sco.sco_gurobi.solver import Solver
 from sco.sco_gurobi.variable import Variable
 from sco import expr
 from core.util_classes.viewer import OpenRAVEViewer
-from core.util_classes import circle
+# from core.util_classes import circle
 from core.util_classes.matrix import Vector2d
 from core.internal_repr import parameter, plan
 import time, main

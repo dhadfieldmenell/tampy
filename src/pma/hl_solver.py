@@ -215,8 +215,10 @@ class FFSolver(HLSolver):
             prob_str += "%s - %s\n"%(param.name, param.get_type())
         prob_str += ")\n\n(:init\n"
         used = []
-        for pred in concr_prob.init_state.preds:
-            if not pred._init_include: continue
+        init_state = concr_prob.init_state
+        init_preds = list(init_state.preds) + list(init_state.invariants)
+        for pred in init_preds:
+            if initial is not None and not pred._init_include: continue
             cur_str = ''
             cur_str += "(%s "%pred.get_type()
             for param in pred.params:
@@ -231,6 +233,7 @@ class FFSolver(HLSolver):
             for pred in initial:
                 prob_str += pred
             concr_prob.initial = initial
+
         prob_str += ")\n\n(:goal\n(and "
         if goal is None:
             for pred in concr_prob.goal_preds:
@@ -267,14 +270,14 @@ class FFSolver(HLSolver):
             Plan Object for ll_solver to optimize. (internal_repr/plan)
         """
         plan_str = self.run_planner(abs_prob, self.abs_domain, prefix=prefix, label=label)
-        plan = self.get_plan(plan_str, domain, concr_prob, concr_prob.initial, debug=debug)
+        plan = self.get_plan(plan_str, domain, concr_prob, concr_prob.initial)
         if type(plan) is not str:
             plan.plan_str = plan_str
             plan.goal = concr_prob.goal
             plan.initial = concr_prob.initial
         return plan
 
-    def get_plan(self, plan_str, domain, concr_prob, initial=None, reuse_params=None, debug=False):
+    def get_plan(self, plan_str, domain, concr_prob, initial=None, reuse_params=None):
         """
         Argument:
             plan_str: list of high level plan. (List(String))
@@ -298,8 +301,7 @@ class FFSolver(HLSolver):
 
         actions = self._spawn_actions(plan_str, domain, params,
                                       plan_horizon, concr_prob, openrave_env,
-                                      initial, debug=debug)
-        
+                                      initial)
         plan = Plan(params, actions, plan_horizon, openrave_env, sess=sess)
         plan.start = concr_prob.start_action
         plan.prob = concr_prob
@@ -342,7 +344,7 @@ class FFSolver(HLSolver):
 
     def _spawn_actions(self, plan_str, domain, params,
                                        plan_horizon, concr_prob, env,
-                                       initial=[], debug=False):
+                                       initial=[]):
         """
         Argument:
             plan_str: list of high level plan. (List(String))
@@ -352,14 +354,13 @@ class FFSolver(HLSolver):
             plan_horizon: planning horizon for the entire plan. (Integer)
             concr_prob: problem that defines initial state and goal configuration.
                         (internal_repr/problem)
-            env: int corresponding to the environment
+            env: Openrave Environment for planning (openravepy/Environment)
         Return:
             list of actions to plan over (List(internal_repr/action))
         """
         actions = []
         curr_h = 0
         hl_state = HLState(concr_prob.init_state.preds)
-        
         for action_str in plan_str:
             spl = action_str.split()
             step = int(spl[0].split(":")[0])
@@ -388,11 +389,10 @@ class FFSolver(HLSolver):
                     init_pred = domain.pred_schemas[p_name].pred_class(name="initpred%d"%i,
                                                                           params=p_objs,
                                                                           expected_param_types=domain.pred_schemas[p_name].expected_params,
-                                                                          env=env,debug=debug)
-                    
+                                                                          env=env)
                     preds.append({'negated': False, 'pred': init_pred, 'hl_info': 'hl_state', 'active_timesteps': (0,0)})
                 except TypeError as e:
-                    print((f"Predicate {pred}'s init method does not implement debug. Consider implementing"))
+                    print(("type error for {}".format(pred)))
 
             # Invariant predicates are enforced every timestep
             for i, pred in enumerate(invariant_preds):
@@ -408,11 +408,11 @@ class FFSolver(HLSolver):
                     invariant_pred = domain.pred_schemas[p_name].pred_class(name="invariantpred%d"%i,
                                                                           params=p_objs,
                                                                           expected_param_types=domain.pred_schemas[p_name].expected_params,
-                                                                          env=env, debug=debug)
+                                                                          env=env)
                     ts = (curr_h, curr_h + a_schema.horizon - 1)
                     preds.append({'negated': False, 'pred': invariant_pred, 'hl_info': 'invariant', 'active_timesteps': ts})
                 except TypeError as e:
-                    print((f"Predicate {pred}'s init method does not implement debug. Consider implementing"))
+                    print(("type error for {}".format(pred)))
 
             for p_d in a_schema.preds:
                 pred_schema = domain.pred_schemas[p_d["type"]]
@@ -430,23 +430,21 @@ class FFSolver(HLSolver):
                         # arg_names_of_type = [k for k, v in params.items() if v.get_type() == p_type and k not in bound_names]
                         arg_names_of_type = [k for k, v in list(params.items()) if p_type in v.get_type(True) and k not in excl]
                         arg_valuations = [val + [(name, p_type)] for name in arg_names_of_type for val in arg_valuations]
-
                 for val in arg_valuations:
                     val, types = list(zip(*val))
-
-                    try:
-                        pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params, env=env, debug=debug)
-                    except:
-                        pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params, env=env)
-
+                    #try:
+                    #    assert list(types) == pred_schema.expected_params, "Expected params from schema don't match types! Bad task planner output."
+                    #except:
+                    #    import ipdb; ipdb.set_trace()
+                    # if list(types) != pred_schema.expected_params:
+                    #     import pdb; pdb.set_trace()
+                    pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params, env=env)
                     ts = (p_d["active_timesteps"][0] + curr_h, p_d["active_timesteps"][1] + curr_h)
                     preds.append({"negated": p_d["negated"], "hl_info": p_d["hl_info"], "active_timesteps": ts, "pred": pred})
-                                
             # updating hl_state
             hl_state.update(preds)
             actions.append(Action(step, a_name, (curr_h, curr_h + a_schema.horizon - 1), [params[arg] for arg in a_args], preds))
             curr_h += a_schema.horizon - 1
-
         return actions
 
 
@@ -469,7 +467,10 @@ class FFSolver(HLSolver):
         with open("%sprob.pddl"%(fprefix), "w") as f:
             f.write(abs_prob)
         with open("%sprob.output"%(fprefix), "w") as f:
-            subprocess.call([FFSolver.FF_EXEC, "-o", "%sdom.pddl"%(fprefix), "-f", "%sprob.pddl"%(fprefix)], stdout=f)
+            try:
+                subprocess.call([FFSolver.FF_EXEC, "-o", "%sdom.pddl"%(fprefix), "-f", "%sprob.pddl"%(fprefix)], stdout=f, timeout=300)
+            except subprocess.TimeoutExpired:
+                print('Error: FF solve timed out!')
         with open("%sprob.output"%(fprefix), "r") as f:
             s = f.read()
         if "goal can be simplified to FALSE" in s or "problem proven unsolvable" in s:
@@ -478,7 +479,7 @@ class FFSolver(HLSolver):
             try:
                 plan = [x for x in map(str.strip, s.split("found legal plan as follows")[1].split("time")[0].replace("step", "").split("\n")) if x]
             except:
-                print(('Error in filter for', s, fprefix))
+                print('Error in filter for', s, fprefix, '\n\n', abs_prob, '\n\n')
                 plan = Plan.IMPOSSIBLE
 
         if CLEANUP: 
@@ -520,6 +521,20 @@ class FFSolver(HLSolver):
             spl = plan_str[i].split(":", 1)
             plan_str[i] = "%s:%s"%(i, spl[1])
         return plan_str
+
+    def apply_action(self, initial, action):
+        new_initial = []
+        preds = [pred for pred in action.preds if pred['hl_info'] == 'eff']
+        pred_reps = {pred['pred'].get_rep(): pred for pred in preds}
+        for pred in initial:
+            if pred not in pred_reps or not pred_reps[pred]['negated']:
+                new_initial.append(pred)
+
+        for pred in pred_reps:
+            if not pred_reps[pred]['negated'] and pred not in new_initial:
+                new_initial.append(pred)
+
+        return new_initial
 
 class DummyHLSolver(HLSolver):
     def _translate_domain(self, domain_config):

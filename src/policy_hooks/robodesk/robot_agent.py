@@ -9,10 +9,7 @@ import traceback
 import xml.etree.ElementTree as xml
 
 import matplotlib
-try:
-    matplotlib.use("TkAgg")
-except:
-    pass
+matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 
 import numpy as np
@@ -559,7 +556,8 @@ class RobotAgent(TAMPAgent):
         load_render = hyperparams['master_config']['load_render']
         self.mjc_env = EnvWrapper(self.base_env, self.panda, self.ctrl_mode, render=load_render)
         self.check_col = hyperparams['master_config'].get('check_col', True)
-        self.use_glew = False
+        # self.use_glew = False
+        self.use_glew = True
         self._viewer = None
         self.cur_im = None
         self._matplot_im = None
@@ -640,7 +638,6 @@ class RobotAgent(TAMPAgent):
 
     def run_policy_step(self, u, x):
         self._col = []
-        ctrl = {attr: u[inds] for (param_name, attr), inds in self.action_inds.items()}
         cur_grip = x[self.state_inds['panda', 'right_gripper']][0]
 
         panda = list(self.plans.values())[0].params['panda']
@@ -1393,7 +1390,7 @@ class RobotAgent(TAMPAgent):
 
 
     def render_viewer(self, pixels):
-        if self.use_glew and self.viewer is not None:
+        if self.use_glew and self._viewer is not None:
             with self._window._context.make_current() as ctx:
                 ctx.call(
                     self._window._update_gui_on_render_thread, self._window._context.window, pixels)

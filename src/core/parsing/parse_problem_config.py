@@ -1,6 +1,7 @@
 import os
 
-import pybullet as P
+# import pybullet as P
+from core.util_classes.viewer import PyBulletViewer
 
 from core.internal_repr import problem, state
 from errors_exceptions import ProblemConfigException
@@ -34,12 +35,15 @@ class ParseProblemConfig(object):
         params = {}
 
         if env is None:
-            try:
-                P.disconnect()
-            except:
-                pass
-            env = P.connect(P.DIRECT)
-            P.resetSimulation()
+            # try:
+            #     P.disconnect()
+            # except:
+            #     pass
+            # env = P.connect(P.DIRECT)
+            # P.resetSimulation()
+            pbv = PyBulletViewer()
+            pbv = pbv.create_viewer()
+            env = pbv.env
 
         if "Objects" not in problem_config or not problem_config["Objects"]:
             raise ProblemConfigException("Problem file needs objects.")
