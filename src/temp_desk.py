@@ -27,8 +27,6 @@ args = argsparser()
 args.config = 'policy_hooks.robodesk.hyp'
 args.render = True
 
-# Create a PyBulletViewer for viz purposes
-
 base_config = hyp.refresh_config()
 base_config['id'] = 0
 base_config.update(vars(args))
@@ -113,10 +111,9 @@ goal = '(Lifted ball panda)'
 #goal = '(Lifted upright_block panda)'
 
 print('CONSISTENT?', problem.init_state.is_consistent())
-# import ipdb; ipdb.set_trace()
 solver = RobotSolver()
 
-plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=3)
+plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=False, n_resamples=3)
 
 agent.add_viewer()
 panda = plan.params['panda']
@@ -128,6 +125,3 @@ for act in plan.actions:
         ctrl = np.r_[panda.right[:,t], grip]
         obs, rew, done, info = agent.mjc_env.step(ctrl)
         agent.render_viewer(obs['image'])
-    #import ipdb; ipdb.set_trace()
-
-# import ipdb; ipdb.set_trace()
