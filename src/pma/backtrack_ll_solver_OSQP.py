@@ -24,7 +24,7 @@ RS_COEFF = 1e2  # 1e2
 COL_COEFF = 0
 SAMPLE_SIZE = 5
 BASE_SAMPLE_SIZE = 5
-DEBUG = False
+DEBUG = True
 
 
 class BacktrackLLSolver_OSQP(LLSolverOSQP):
@@ -310,6 +310,10 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
         force_init=False,
         init_traj=[],
     ):
+        # print(plan.params['ball'].pose[:,0])
+        # print(plan.params['ball'].pose[:,18])
+        print(plan.params['ball'].pose[0,:])
+
         success = False
         if callback is not None:
             viewer = callback()
@@ -378,6 +382,14 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
             print((plan.get_failed_preds(active_ts=active_ts, tol=1e-3), active_ts))
 
         self._cleanup_plan(plan, active_ts)
+
+        # if not success:
+        #     import ipdb; ipdb.set_trace()
+
+        # print(plan.params['ball'].pose[:,0])
+        # print(plan.params['ball'].pose[:,18])
+        print(plan.params['ball'].pose[0,:])
+
         return success
 
     # @profile
@@ -866,7 +878,7 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
         verbose=False,
     ):
         """
-        This function creates constraints for the predicate and added to
+        This function creates constraints for the predicate and adds to
         Prob class in sco.
         """
         ## for debugging
@@ -908,6 +920,7 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
                                 groups.extend([param.name for param in pred.params])
 
                             self._prob.add_cnt_expr(bexpr, groups)
+                            # import ipdb; ipdb.set_trace()
 
     def _add_first_and_last_timesteps_of_actions(
         self,

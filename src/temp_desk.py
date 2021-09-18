@@ -10,9 +10,11 @@ from core.util_classes.robots import Baxter
 from core.util_classes.openrave_body import *
 from core.util_classes.transform_utils import *
 from pma import backtrack_ll_solver_gurobi as bt_ll
+# from pma import backtrack_ll_solver_OSQP as bt_ll
 from pma.hl_solver import *
 from pma.pr_graph import *
-from pma.robot_solver import RobotSolver
+from pma.robot_solver import RobotSolverGurobi
+# from pma.robot_solver import RobotSolverOSQP
 import core.util_classes.transform_utils as T
 
 from policy_hooks.multiprocess_main import load_config, setup_dirs, DIR_KEY
@@ -95,11 +97,11 @@ for param in params:
 #goal = '(and (InSlideDoor ball drawer) (InSlideDoor upright_block shelf) (SlideDoorClose drawer_handle drawer) (SlideDoorClose shelf_handle shelf))'
 #goal = '(Stacked upright_block flat_block)'
 #goal = '(and (SlideDoorClose shelf_handle shelf) (InSlideDoor upright_block shelf))'
-#goal = '(Lifted flat_block panda)'
-#goal = '(Lifted upright_block panda)'
-goal = '(Lifted ball panda)'
-#goal = '(SlideDoorClose shelf_handle shelf)'
-#goal = '(SlideDoorOpen drawer_handle drawer)'
+# goal = '(Lifted flat_block panda)'
+# goal = '(Lifted upright_block panda)'
+# goal = '(Lifted ball panda)'
+# goal = '(SlideDoorClose shelf_handle shelf)'
+# goal = '(SlideDoorOpen drawer_handle drawer)'
 #goal = '(InSlideDoor ball drawer)'
 #goal = '(At flat_block bin_target)'
 #goal = '(At ball bin_target)'
@@ -107,13 +109,15 @@ goal = '(Lifted ball panda)'
 #goal = '(InSlideDoor flat_block shelf)'
 #goal = '(and (At flat_block bin_target) (At upright_block off_desk_target))'
 #goal = '(and (InSlideDoor ball drawer) (NearGripperRight panda green_button))'
-#goal = '(NearGripperRight panda green_button)'
-#goal = '(Lifted upright_block panda)'
+# goal = '(NearGripperRight panda green_button)'
+# goal = '(Lifted upright_block panda)'
+goal = '(NearApproachRight panda ball)'
 
 print('CONSISTENT?', problem.init_state.is_consistent())
-solver = RobotSolver()
+solver = RobotSolverGurobi()
+# solver = RobotSolverOSQP()
 
-plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=False, n_resamples=3)
+plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=3)
 
 agent.add_viewer()
 panda = plan.params['panda']
@@ -125,3 +129,4 @@ for act in plan.actions:
         ctrl = np.r_[panda.right[:,t], grip]
         obs, rew, done, info = agent.mjc_env.step(ctrl)
         agent.render_viewer(obs['image'])
+        print(obs['image'])

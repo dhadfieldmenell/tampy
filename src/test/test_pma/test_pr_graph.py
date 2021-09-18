@@ -5,32 +5,26 @@ from core.parsing import parse_problem_config
 import main
 
 class TestPRGraph(unittest.TestCase):
-
-
     def test_putaway2(self):
         prob_file = '../domains/namo_domain/namo_probs/putaway2.prob'
-        test_prg(self, prob_file)
+        helper_test_prg(self, prob_file)
     def test_move_grasp(self):
         prob_file = '../domains/namo_domain/namo_probs/move_grasp.prob'
-        test_prg(self, prob_file)
+        helper_test_prg(self, prob_file)
     def test_move_no_obs(self):
         prob_file = '../domains/namo_domain/namo_probs/move_no_obs.prob'
-        test_prg(self, prob_file)
+        helper_test_prg(self, prob_file)
     def test_move_w_obs(self):
         prob_file = '../domains/namo_domain/namo_probs/move_w_obs.prob'
-        test_prg(self, prob_file)
+        helper_test_prg(self, prob_file)
     def test_moveholding(self):
         prob_file = '../domains/namo_domain/namo_probs/moveholding.prob'
-        test_prg(self, prob_file)
+        helper_test_prg(self, prob_file)
     def test_place(self):
         prob_file = '../domains/namo_domain/namo_probs/place.prob'
-        test_prg(self, prob_file)
+        helper_test_prg(self, prob_file)
 
-    # def test_putaway3(self):
-    #     prob_file = '../domains/namo_domain/namo_probs/putaway3.prob'
-    #     test_prg(self, prob_file)
-
-def test_prg(self, prob_file):
+def helper_test_prg(self, prob_file):
 
     domain_fname = '../domains/namo_domain/namo.domain'
     problem_fname = prob_file
@@ -54,7 +48,3 @@ def test_prg(self, prob_file):
     # plan, msg = pr_graph.p_mod_abs(d_c, p_c, s_c,suggester = None, debug=True)
     # self.assertEqual(len(plan.get_failed_preds()), 0)
 
-
-
-if __name__ == '__main__':
-    unittest.main()

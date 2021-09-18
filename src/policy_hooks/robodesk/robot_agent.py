@@ -556,8 +556,7 @@ class RobotAgent(TAMPAgent):
         load_render = hyperparams['master_config']['load_render']
         self.mjc_env = EnvWrapper(self.base_env, self.panda, self.ctrl_mode, render=load_render)
         self.check_col = hyperparams['master_config'].get('check_col', True)
-        # self.use_glew = False
-        self.use_glew = True
+        self.use_glew = False
         self._viewer = None
         self.cur_im = None
         self._matplot_im = None
@@ -1571,7 +1570,7 @@ class RobotAgent(TAMPAgent):
 
 
     def store_hist_info(self, info):
-        #self.mjc_env.cur_obs = info['cur_obs']
+        self.mjc_env.cur_obs = info['cur_obs']
         self.mjc_env.init_obs = info['init_obs']
         self.mjc_env.trans_obs = info['trans_obs']
         #self.base_env.physics.data.qpos[:] = info['qpos']
