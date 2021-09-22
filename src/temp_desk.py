@@ -99,19 +99,19 @@ for param in params:
 #goal = '(and (SlideDoorClose shelf_handle shelf) (InSlideDoor upright_block shelf))'
 # goal = '(Lifted flat_block panda)'
 # goal = '(Lifted upright_block panda)'
-# goal = '(Lifted ball panda)'
+goal = '(Lifted ball panda)'
 # goal = '(SlideDoorClose shelf_handle shelf)'
 # goal = '(SlideDoorOpen drawer_handle drawer)'
 #goal = '(InSlideDoor ball drawer)'
 #goal = '(At flat_block bin_target)'
-#goal = '(At ball bin_target)'
+# goal = '(At ball bin_target)'
 #goal = '(InSlideDoor upright_block shelf)'
 #goal = '(InSlideDoor flat_block shelf)'
 #goal = '(and (At flat_block bin_target) (At upright_block off_desk_target))'
 #goal = '(and (InSlideDoor ball drawer) (NearGripperRight panda green_button))'
 # goal = '(NearGripperRight panda green_button)'
 # goal = '(Lifted upright_block panda)'
-goal = '(NearApproachRight panda ball)'
+# goal = '(NearApproachRight panda ball)'
 
 print('CONSISTENT?', problem.init_state.is_consistent())
 solver = RobotSolverGurobi()

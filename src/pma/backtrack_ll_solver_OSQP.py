@@ -312,7 +312,7 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
     ):
         # print(plan.params['ball'].pose[:,0])
         # print(plan.params['ball'].pose[:,18])
-        print(plan.params['ball'].pose[0,:])
+        # print(plan.params['ball'].pose[0,:])
 
         success = False
         if callback is not None:
@@ -388,7 +388,7 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
 
         # print(plan.params['ball'].pose[:,0])
         # print(plan.params['ball'].pose[:,18])
-        print(plan.params['ball'].pose[0,:])
+        # print(plan.params['ball'].pose[0,:])
 
         return success
 
@@ -920,7 +920,6 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
                                 groups.extend([param.name for param in pred.params])
 
                             self._prob.add_cnt_expr(bexpr, groups)
-                            # import ipdb; ipdb.set_trace()
 
     def _add_first_and_last_timesteps_of_actions(
         self,

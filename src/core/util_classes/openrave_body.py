@@ -46,7 +46,7 @@ class OpenRAVEBody(object):
         for info in visual_infos:
             link_index = info[1]
             link_rgba = info[7]
-            P.changeVisualShape(self.body_id, link_index, link_rgba[:3]+[transparency])
+            P.changeVisualShape(self.body_id, link_index, rgbaColor=list(link_rgba[:3])+[transparency])
 
     def _add_robot(self, geom):
         if not geom.is_initialized():
