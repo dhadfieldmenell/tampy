@@ -24,7 +24,7 @@ RS_COEFF = 1e2  # 1e2
 COL_COEFF = 0
 SAMPLE_SIZE = 5
 BASE_SAMPLE_SIZE = 5
-DEBUG = True
+DEBUG = False
 
 
 class BacktrackLLSolver_OSQP(LLSolverOSQP):
@@ -58,13 +58,9 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
         # certain constraints should be solved first
         success = False
         for priority in self.solve_priorities:
-            success = self._solve_opt_prob(
-                plan,
-                priority=priority,
-                callback=callback,
-                active_ts=active_ts,
-                verbose=verbose,
-            )
+            success = self._solve_opt_prob(plan, priority=priority,
+                            callback=callback, active_ts=active_ts,
+                            verbose=verbose)
 
         return success
 
@@ -243,20 +239,16 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
                 assert param in rs_params
                 for attr, val in rp[param].items():
                     if param.is_symbol():
-                        setattr(param, attr, val)
+                        getattr(param, attr)[:, 0] = val.flatten()
                     else:
                         getattr(param, attr)[:, active_ts[1]] = val.flatten()
-                self.child_solver.fixed_objs.append((param, rp[param]))
+                
+                if not self.freeze_rs_param(plan.actions[anum]):
+                    self.child_solver.fixed_objs.append((param, rp[param]))
+                success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
+                                              active_ts = active_ts, verbose=verbose,
+                                              force_init=True, init_traj=init_traj)
 
-            success = self.child_solver.solve(
-                plan,
-                callback=callback_a,
-                n_resamples=n_resamples,
-                active_ts=active_ts,
-                verbose=verbose,
-                force_init=True,
-                init_traj=init_traj,
-            )
             if success:
                 if recursive_solve():
                     break
@@ -328,48 +320,30 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
         #    return True
 
         for priority in self.solve_priorities:
-            if DEBUG:
-                print("solving at priority", priority)
+            if DEBUG: print('solving at priority', priority)
             for attempt in range(max(1, n_resamples)):
                 ## refinement loop
-                success = self._solve_opt_prob(
-                    plan,
-                    priority=priority,
-                    callback=callback,
-                    active_ts=active_ts,
-                    verbose=verbose,
-                    init_traj=init_traj,
-                )
+                success = self._solve_opt_prob(plan, priority=priority,
+                                callback=callback, active_ts=active_ts, verbose=verbose,
+                                init_traj=init_traj)
                 # success = len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) == 0
 
                 # No point in resampling if the endpoints or linear constraints can't be satisfied
                 if success or priority < 0 or n_resamples == 0:
                     break
 
-                # failed_preds = plan.get_failed_preds(active_ts=active_ts, tol=1e-3)
+                if DEBUG:
+                    print("pre-resample attempt {} failed:".format(attempt))
+                    print(plan.get_failed_preds(active_ts, priority=priority, tol=1e-3))
 
-                success = self._solve_opt_prob(
-                    plan,
-                    priority=priority,
-                    callback=callback,
-                    active_ts=active_ts,
-                    verbose=verbose,
-                    resample=True,
-                    init_traj=init_traj,
-                )
+                success = self._solve_opt_prob(plan, priority=priority, callback=callback, 
+                                               active_ts=active_ts, verbose=verbose, resample = True,
+                                               init_traj=init_traj)
 
                 if DEBUG:
-                    print(
-                        (
-                            "resample attempt: {} at priority {}".format(
-                                attempt, priority
-                            )
-                        )
-                    )
-                    print(
-                        (plan.get_failed_preds(active_ts, priority=priority, tol=1e-3))
-                    )
-
+                    print("resample attempt: {} at priority {}".format(attempt, priority))
+                    print(plan.get_failed_preds(active_ts, priority=priority, tol=1e-3))
+                
                 if success:
                     break
 
@@ -382,14 +356,6 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
             print((plan.get_failed_preds(active_ts=active_ts, tol=1e-3), active_ts))
 
         self._cleanup_plan(plan, active_ts)
-
-        # if not success:
-        #     import ipdb; ipdb.set_trace()
-
-        # print(plan.params['ball'].pose[:,0])
-        # print(plan.params['ball'].pose[:,18])
-        # print(plan.params['ball'].pose[0,:])
-
         return success
 
     # @profile
@@ -745,14 +711,6 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
 
         if sco_var is None:
             sco_var = Variable(osqp_vars, np.array(ret_val).reshape((len(ret_val), 1)))
-
-            # DEBUGGING!!!
-            # for i in range(osqp_vars.shape[0]):
-            #     if osqp_vars[i, 0].var_name == "(can1-pose-(0, 2))":
-            #         import pdb
-
-            #         pdb.set_trace()
-
             self.var_list.append(sco_var)
             for i, var_name in enumerate(osqp_vars.flatten()):
                 index_val_list = self._osqpvar_to_scovar_ind.get(var_name, [])
@@ -1271,24 +1229,3 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
 
     def _cleanup_plan(self, plan, active_ts):
         return None
-
-    def find_closest_feasible(self, plan, active_ts, priority=MAX_PRIORITY):
-        free_attrs = plan.get_free_attrs()
-        # for param in plan.params.values():
-        #    for attr in param._free_attrs:
-        #        param._free_attrs[attr][:,active_ts[0]] = 1.
-
-        model = grb.Model()
-        model.params.OutputFlag = 0
-        self._bexpr_to_pred = {}
-        self._prob = Prob(model)
-        self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
-        model.update()
-        self._add_all_timesteps_of_actions(
-            plan, priority=priority, add_nonlin=True, active_ts=active_ts
-        )
-        succ = self._prob.find_closest_feasible_point()
-        if succ:
-            self._update_ll_params()
-        plan.store_free_attrs(free_attrs)
-        return succ

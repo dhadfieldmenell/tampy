@@ -27,7 +27,7 @@ RS_COEFF = 1e2  # 1e2
 COL_COEFF = 0
 SAMPLE_SIZE = 5
 BASE_SAMPLE_SIZE = 5
-DEBUG = True
+DEBUG = False
 
 
 class BacktrackLLSolver(LLSolver):
@@ -540,7 +540,7 @@ class BacktrackLLSolver(LLSolver):
     #@profile
     def create_variable(self, grb_vars, init_vals, save=False):
         """
-            if save is Ture
+            if save is True
             Update the grb_init_mapping so that each grb_var is mapped to
             the right initial values.
             Then find the sco variables that includes the grb variables we are updating and change the corresponding initial values inside of it.
