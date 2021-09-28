@@ -1399,12 +1399,19 @@ class RobotAgent(TAMPAgent):
             self._matplot_im.set_data(pixels)
             plt.draw()
 
+    def exit_viewer(self):
+        self._kill_matplot_view()
+        plt.close()
+        import ipdb; ipdb.set_trace()
 
     def _run_matplot_view(self):
         self._matplot_view_thread = Thread(target=self._launch_matplot_view)
         self._matplot_view_thread.daemon = True
         self._matplot_view_thread.start()
 
+    def _kill_matplot_view(self):
+        if self._matplot_view_thread is not None:
+            self._matplot_view_thread.join()
 
     def _launch_matplot_view(self):
         try:

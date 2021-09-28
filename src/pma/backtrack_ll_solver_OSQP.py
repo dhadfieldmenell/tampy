@@ -24,7 +24,7 @@ RS_COEFF = 1e2  # 1e2
 COL_COEFF = 0
 SAMPLE_SIZE = 5
 BASE_SAMPLE_SIZE = 5
-DEBUG = False
+DEBUG = True
 
 
 class BacktrackLLSolver_OSQP(LLSolverOSQP):

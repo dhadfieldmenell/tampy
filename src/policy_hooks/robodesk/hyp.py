@@ -23,8 +23,8 @@ from policy_hooks.policy_mp_prior_gmm import PolicyMPPriorGMM
 from policy_hooks.policy_prior_gmm import PolicyPriorGMM
 
 from policy_hooks.robodesk.robot_agent import RobotAgent
-# from pma.robot_solver import RobotSolverGurobi as RobotSolver
-from pma.robot_solver import RobotSolverOSQP as RobotSolver
+from pma.robot_solver import RobotSolverGurobi as RobotSolver
+# from pma.robot_solver import RobotSolverOSQP as RobotSolver
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
@@ -214,6 +214,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'cont_filter_sizes': [7, 5],
         'num_filters': [32, 32, 32],
         'filter_sizes': [7, 5, 5],
+        'load_render': True
     }
 
     #for o in range(no):

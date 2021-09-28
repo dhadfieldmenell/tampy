@@ -1,8 +1,6 @@
 import numpy as np
 import pybullet as p
-
 import robodesk
-
 import main
 from core.parsing import parse_domain_config, parse_problem_config
 import core.util_classes.common_constants as const
@@ -16,13 +14,11 @@ from pma.pr_graph import *
 from pma.robot_solver import RobotSolverGurobi
 # from pma.robot_solver import RobotSolverOSQP
 import core.util_classes.transform_utils as T
-
 from policy_hooks.multiprocess_main import load_config, setup_dirs, DIR_KEY
 from policy_hooks.run_training import argsparser
 from policy_hooks.utils.load_agent import *
 import policy_hooks.robodesk.hyp as hyp
 import policy_hooks.robodesk.desk_prob as prob
-
 from core.util_classes.viewer import PyBulletViewer
 
 args = argsparser()
@@ -35,6 +31,7 @@ base_config.update(vars(args))
 base_config['args'] = args
 config, config_module = load_config(args, base_config)
 config.update(base_config)
+config['load_render'] = True
 agent_config = load_agent(config)
 agent = build_agent(agent_config)
 env = agent.base_env
@@ -90,31 +87,34 @@ for param in params:
         params[targ].value[:,0] = params[param].pose[:,0]
         params[targ].rotation[:,0] = params[param].rotation[:,0]
 
-# goal = '(and (InSlideDoor ball drawer) (Stacked upright_block flat_block) (NearGripperRight panda green_button))'
-#goal = '(and (SlideDoorOpen drawer_handle drawer) (NearApproachRight panda upright_block))'
-#goal = '(and (InSlideDoor upright_block shelf) (NearApproachRight panda ball))'
-#goal = '(and (SlideDoorClose drawer_handle drawer) (InSlideDoor ball drawer))'
-#goal = '(and (InSlideDoor ball drawer) (InSlideDoor upright_block shelf) (SlideDoorClose drawer_handle drawer) (SlideDoorClose shelf_handle shelf))'
-#goal = '(and (SlideDoorClose shelf_handle shelf) (InSlideDoor upright_block shelf))'
-#goal = '(and (At flat_block bin_target) (At upright_block off_desk_target))'
-#goal = '(and (InSlideDoor ball drawer) (NearGripperRight panda green_button))'
-
 # GUROBI CAN ACHIEVE THE BELOW GOALS
-# goal = '(Lifted flat_block panda)'
-# goal = '(Lifted upright_block panda)'
-# goal = '(Lifted upright_block panda)'
-# goal = '(Stacked upright_block flat_block)'
-# goal = '(SlideDoorClose shelf_handle shelf)'
+
+# OSQP CAN
+# goal = '(Lifted upright_block panda)' (takes forever!)
 # goal = '(SlideDoorOpen drawer_handle drawer)'
-# goal = '(InSlideDoor ball drawer)'
 # goal = '(At flat_block bin_target)'
 # goal = '(InSlideDoor upright_block shelf)'
 # goal = '(InSlideDoor flat_block shelf)'
+# goal = '(and (SlideDoorOpen drawer_handle drawer) (NearApproachRight panda upright_block))'
+
+# OSQP CANNOT
+goal = '(Lifted flat_block panda)'
+# goal = '(Stacked upright_block flat_block)'
+# goal = '(SlideDoorClose shelf_handle shelf)'
+# goal = '(InSlideDoor ball drawer)'
+# goal = '(and (InSlideDoor upright_block shelf) (NearApproachRight panda ball))'
+# goal = '(and (SlideDoorClose drawer_handle drawer) (InSlideDoor ball drawer))'
+# goal = '(and (SlideDoorClose shelf_handle shelf) (InSlideDoor upright_block shelf))'
+
 
 # GUROBI CANNOT ACHIEVE THE BELOW GOALS
 # goal = '(NearGripperRight panda green_button)'
 # goal = '(At ball bin_target)'
 # goal = '(Lifted ball panda)'
+# goal = '(and (InSlideDoor ball drawer) (Stacked upright_block flat_block) (NearGripperRight panda green_button))'
+# goal = '(and (InSlideDoor ball drawer) (InSlideDoor upright_block shelf) (SlideDoorClose drawer_handle drawer) (SlideDoorClose shelf_handle shelf))'
+# goal = '(and (At flat_block bin_target) (At upright_block off_desk_target))'
+# goal = '(and (InSlideDoor ball drawer) (NearGripperRight panda green_button))'
 
 print('CONSISTENT?', problem.init_state.is_consistent())
 solver = RobotSolverGurobi()
@@ -132,4 +132,5 @@ for act in plan.actions:
         ctrl = np.r_[panda.right[:,t], grip]
         obs, rew, done, info = agent.mjc_env.step(ctrl)
         agent.render_viewer(obs['image'])
-        print(obs['image'])
+
+agent.exit_viewer()

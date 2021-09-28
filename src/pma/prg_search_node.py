@@ -48,7 +48,11 @@ class HLSearchNode(SearchNode):
         if self.ref_plan is not None:
             if len(self.ref_plan.actions) < len(self.prefix):
                 raise IndexError('ref_plan must be compatible with prefix')
-            plan_obj.fill(self.ref_plan, amin=0, amax=len(self.prefix)-1)
+            try:
+                plan_obj.fill(self.ref_plan, amin=0, amax=len(self.prefix)-1)
+            except AttributeError:
+                raise ValueError('Task Planner failed to find a feasible plan')
+
             plan_obj.start = len(self.prefix)
             ts = (0, plan_obj.actions[plan_obj.start].active_timesteps[0])
             print('PREFIX SUCCESS:', plan_obj.get_failed_preds(active_ts=ts, tol=1e-3))
