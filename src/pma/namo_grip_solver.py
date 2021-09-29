@@ -1,7 +1,7 @@
 import numpy as np
 
 from sco.expr import BoundExpr, QuadExpr, AffExpr
-from pma import bactrack_ll_solver_gurobi
+from pma import backtrack_ll_solver_gurobi
 from core.util_classes.namo_grip_predicates import (
     RETREAT_DIST,
     dsafe,
