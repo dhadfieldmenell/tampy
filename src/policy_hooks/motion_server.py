@@ -195,10 +195,15 @@ class MotionServer(Server):
 
         failed_preds = plan.get_failed_preds((prev_t, fail_step+fail_pred.active_range[1]), priority=-1)
         if len(failed_preds):
-            print('Refine failed with linear constr. viol.', node._trace, plan.actions, failed_preds, len(node.ref_traj), node.label)
+            #print('Refine failed with linear constr. viol.', node._trace, plan.actions, failed_preds, len(node.ref_traj), node.label)
             return
 
-        print('Refine failed:', plan.get_failed_preds((0, fail_step+fail_pred.active_range[1])), fail_pred, fail_step, plan.actions, node.label, node._trace, prev_t)
+        try:
+            failed = plan.get_failed_preds((0, fail_step+fail_pred.active_range[1]))
+        except:
+            failed = 'Error on fail check'
+
+        print('Refine failed:', failed, fail_pred, fail_step, plan.actions, node.label, node._trace, prev_t)
         if not node.hl: return
         if not node.gen_child(): return
         n_problem = node.get_problem(fail_step, fail_pred, fail_negated)

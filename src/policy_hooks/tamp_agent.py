@@ -927,7 +927,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             dummy_sample.targets = targets
             pre_cost = self.precond_cost(dummy_sample, task, 0)
             if pre_cost > 1e-4:
-                print('FAILED EXECUTION OF PRECONDITIONS', plan.actions[a], plan.actions)
+                print('FAILED EXECUTION OF PRECONDITIONS', plan.actions[a], plan.actions, task)
                 self.precond_cost(dummy_sample, task, 0, debug=True)
                 return False, False, path, info
 
@@ -992,7 +992,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 if not success:
                     self.n_fail_opt[task] = self.n_fail_opt.get(task, 0) + 1
                     try:
-                        print('FAILED TO SOLVE:', plan.actions[a], plan.get_failed_preds((act_st, act_et)), used_rollout)
+                        print('FAILED TO SOLVE:', a, plan.actions[a], plan.get_failed_preds((act_st, act_et)), used_rollout)
                     except Exception as e:
                         print('FAILED, Error IN FAIL CHECK', e)
 
@@ -1275,7 +1275,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
         failed_preds = [p for p in failed_preds if ((p[1]._rollout or not type(p[1].expr) is EqExpr) and not p[1]._nonrollout)]
         if debug:
-            print('FAILED:', failed_preds, plan.actions, self.process_id)
+            print('FAILED:', failed_preds, plan.actions, task, self.process_id)
         return failed_preds
 
 

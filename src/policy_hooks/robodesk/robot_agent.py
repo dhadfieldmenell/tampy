@@ -38,20 +38,20 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.tamp_agent import TAMPAgent
 
 
-const.NEAR_GRIP_COEFF = 2e-2 # 2.2e-2 # 1.8e-2 # 2e-2
-const.NEAR_GRIP_ROT_COEFF = 4e-3
-const.NEAR_APPROACH_COEFF = 7e-3
+const.NEAR_GRIP_COEFF = 3e-2 # 2.2e-2 # 1.8e-2 # 2e-2
+const.NEAR_GRIP_ROT_COEFF = 7e-3
+const.NEAR_APPROACH_COEFF = 1e-2 # 8e-3
 const.NEAR_RETREAT_COEFF = 1.2e-2
 const.NEAR_APPROACH_ROT_COEFF = 1e-3
-const.GRASP_DIST = 0.14
-const.PLACE_DIST = 0.18
-const.APPROACH_DIST = 0.01 #0.01 # 0.02
-const.RETREAT_DIST = 0.015 # 0.02
+const.GRASP_DIST = 0.12
+const.PLACE_DIST = 0.12
+const.APPROACH_DIST = 0.012 #0.01 # 0.02
+const.RETREAT_DIST = 0.012 # 0.02
 const.QUICK_APPROACH_DIST = 0.015 # 0.02
 const.QUICK_RETREAT_DIST = 0.015 # 0.02
-const.EEREACHABLE_COEFF = 4e-1 # 9e-2 # 1e-1 # 3e-2 # 2e-2
-const.EEREACHABLE_ROT_COEFF = 5e-2 # 8e-3
-const.EEREACHABLE_STEPS = 7
+const.EEREACHABLE_COEFF = 2e-1 # 9e-2 # 1e-1 # 3e-2 # 2e-2
+const.EEREACHABLE_ROT_COEFF = 1e-2 # 8e-3
+const.EEREACHABLE_STEPS = 6
 const.EEATXY_COEFF = 5e-2 # 8e-2
 const.RCOLLIDES_COEFF = 2e-2 # 2e-2
 const.OBSTRUCTS_COEFF = 2.5e-2
@@ -323,12 +323,13 @@ class EnvWrapper():
 
         if item_name.find('ball') >= 0:
             #quat = T.euler_to_quaternion([0., -0.8, 1.57], 'wxyz')
-            if pos[2] > 0.75:
-                quat = T.euler_to_quaternion([0., 1.1, -1.57], 'wxyz')
+            if pos[2] > 0.65:
+                quat = T.euler_to_quaternion([0., 1., -1.57], 'wxyz')
             else:
                 quat = T.euler_to_quaternion([0., 0., 0.], 'wxyz')
 
         if item_name.find('button') >= 0:
+            pos = pos.copy()
             pos[1] -= 0.035
 
         if order != 'xyzw':
@@ -439,14 +440,14 @@ class EnvWrapper():
                         if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.05):
                             self.env.physics.named.data.xfrc_applied['ball'][2] = -3.
                         if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.06):
-                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = -5.
-                        #if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['upright_block']) < 0.05):
-                        #    self.env.physics.named.data.xfrc_applied['upright_block'][2] = -2.
+                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = -3.
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['upright_block']) < 0.05):
+                            self.env.physics.named.data.xfrc_applied['upright_block'][2] = -2.
                     else:
-                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.05):
-                            self.env.physics.named.data.xfrc_applied['ball'][2] = 3.
-                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.05):
-                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = 3.
+                        #if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.05):
+                        #    self.env.physics.named.data.xfrc_applied['ball'][2] = 3.
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.07):
+                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = 4.
                         if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['upright_block']) < 0.03):
                             self.env.physics.named.data.xfrc_applied['upright_block'][2] = 3.
 
@@ -1045,7 +1046,7 @@ class RobotAgent(TAMPAgent):
         x = np.zeros(self.dX)
         for (pname, aname), inds in self.state_inds.items():
             val = self.mjc_env.get_attr(pname, aname, euler=True)
-
+            '''
             if clip:
                 if aname in ['right']:
                     lb, ub = self.mjc_env.geom.get_joint_limits(aname)
@@ -1053,12 +1054,14 @@ class RobotAgent(TAMPAgent):
                 elif aname.find('gripper') >= 0:
                     cv, ov = self.panda.geom.get_gripper_closed_val(), self.panda.geom.get_gripper_open_val()
                     val = ov if np.max(np.abs(val-cv)) > np.max(np.abs(val-ov)) else cv
+            '''
 
             if len(inds) != len(val):
                 raise Exception('Bad state retrieval for', pname, aname, 'expected', len(inds), 'but got', len(val))
 
             x[inds] = val
 
+        if clip: x = self.clip_state(x)
         return x
 
 
@@ -1441,7 +1444,7 @@ class RobotAgent(TAMPAgent):
 
     def _off_desk(self, x, item_name):
         pos = x[self.state_inds[item_name, 'pose']]
-        return pos[0] > 0.6
+        return np.abs(pos[0]) > 0.6 or pos[1] < 0.65
 
 
     def _lifted(self, x, item_name):

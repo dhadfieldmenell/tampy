@@ -28,14 +28,14 @@ SHELF_TARGET_ROT = [1.57, 0., 0.]
 BIN_TARGET_POS = [0.4, 0.52, 0.75]
 BIN_TARGET_ROT = [0., 0., 0.]
 OFF_DESK_TARGET_POS = [0.68, 0.58, 0.77]
-OFF_DESK_TARGET_ROT = [0., 0., 0.]
+OFF_DESK_TARGET_ROT = [1.57, 1.57, 0.] # [0., 0., 0.]
 
 SHELF_GEOM = 'desk_shelf'
 SHELF_POS = [0., 0.85, 0.]
 SHELF_ROT = [0., 0., 0.]
 SHELF_HANDLE_POS = (np.array(SHELF_POS) + const.SHELF_HANDLE_POS).tolist()
 
-DESK_BODY_GEOM = [0.575, 0.275, 0.025] # [0.6, 0.275, 0.025]
+DESK_BODY_GEOM = [0.575, 0.265, 0.01] # [0.6, 0.275, 0.025]
 DESK_BODY_POS = [0., 0.85, 0.735]
 DESK_BODY_ROT = [0, 0, 0]
 
@@ -201,8 +201,8 @@ def main():
     s += "(DeskHeightBlock shelf_handle upright_block), "
     s += "(StationaryBase panda), "
     s += "(IsMP panda), "
-    s += "(SlideDoorOpen shelf_handle shelf), "
-    s += "(SlideDoorClose drawer_handle drawer), "
+    #s += "(SlideDoorOpen shelf_handle shelf), "
+    #s += "(SlideDoorClose drawer_handle drawer), "
     s += "(WithinJointLimit panda), "
     s += "(StationaryW desk_body) \n\n"
 
@@ -220,6 +220,9 @@ def main():
     s += "(Stationary red_button), "
     s += "(Stationary green_button), "
     s += "(Stationary blue_button), "
+    s += "(Fixed red_button), "
+    s += "(Fixed green_button), "
+    s += "(Fixed blue_button), "
     s += "\n\n"
 
     with open(filename, "w") as f:

@@ -133,7 +133,7 @@ class Sphere(Item):
         self._type = "sphere"
         self.radius = float(radius)
         self.near_coeff = 2.5
-        self.eereachable_coeff = 1.2e1
+        self.eereachable_coeff = 2e0
 
 class Obstacle(Item):
     """
@@ -176,8 +176,8 @@ class Box(Obstacle):
         z = max(0, self.height - 0.03)
         self.grasp_point = [0., 0., z]
         self.near_coeff = 1.2
-        if self.height < 0.02:
-            self.near_coeff = 0.8
+        if self.height <= 0.02:
+            self.near_coeff = 0.6 # 0.8
 
 class Basket(Item):
     """
@@ -232,8 +232,8 @@ class Door(XMLItem):
             self.width = 0.15
             self.close_val = 0.6
             self.open_val = 0.
-            self.open_thresh = 0.15
-            self.close_thresh = 0.45
+            self.open_thresh = 0.2
+            self.close_thresh = 0.4
             self.open_dir = [-1., 0., 0.]
             col_links = set([-1, 0, 1, 2])
         else:

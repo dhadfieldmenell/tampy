@@ -41,9 +41,6 @@ cur_objs = ['cereal', 'milk', 'can', 'bread']
 ctrl_mode = "JOINT_POSITION"
 true_mode = 'JOINT'
 
-#ctrl_mode = 'OSC_POSE'
-#true_mode = 'IK'
-
 controller_config = load_controller_config(default_controller=ctrl_mode)
 if ctrl_mode.find('JOINT') >= 0:
     controller_config['kp'] = [7500, 6500, 6500, 6500, 6500, 6500, 12000]
@@ -77,8 +74,7 @@ env = robosuite.make(
     ignore_done=True,
     reward_shaping=True,
     initialization_noise={'magnitude': 0., 'type': 'gaussian'},
-    camera_widths=128,
-    camera_heights=128,
+    render_gpu_device_id=0,
 )
 obs = env.reset()
 jnts = env.sim.data.qpos[:7]

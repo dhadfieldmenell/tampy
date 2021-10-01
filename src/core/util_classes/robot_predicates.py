@@ -1541,6 +1541,9 @@ class Stationary(ExprPredicate):
         self.spacial_anchor = False
         self._init_include = False
 
+class Fixed(Stationary):
+    pass
+
 class StationaryRot(ExprPredicate):
     """
         Format: Stationary, Can
@@ -3828,11 +3831,13 @@ class Lifted(ExprPredicate):
         A = np.array([[-1.]])
 
         if self.obj.name.lower().find('upright') >= 0:
-            b = 0.925 * np.ones((1,1))
+            #b = 0.925 * np.ones((1,1))
+            b = 0.9 * np.ones((1,1))
         elif self.obj.name.lower().find('flat') >= 0:
             b = 0.825 * np.ones((1,1))
         else:
-            b = 0.875 * np.ones((1,1))
+            #b = 0.875 * np.ones((1,1))
+            b = 0.85 * np.ones((1,1))
         val = np.zeros((1,1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)

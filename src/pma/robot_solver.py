@@ -11,7 +11,7 @@ import core.util_classes.transform_utils as T
 from pma import backtrack_ll_solver
 
 
-PANDA_REF_JNTS = [-0.30, -0.4, 0.28, -2.5, 0.13, 1.87, 0.91]
+#PANDA_REF_JNTS = [-0.30, -0.4, 0.28, -2.5, 0.13, 1.87, 0.91]
 #PANDA_REF_JNTS = [0.3, -0.8, 1.0, -2.5, 1.5, 1.87, 0.91]
 #PANDA_REF_JNTS = [0.3, -0.8, 1.0, -2.5, 0.5, 1.87, 0.2]
 #PANDA_REF_JNTS = [0.5, -0.8, 1.0, -2.5, 0.5, 1.87, 0.2]
@@ -95,9 +95,9 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
             attempt += 1
 
         if not len(iks): return None
-        #if a_name.find('lift') >= 0 and obj.name.find('upright') >= 0:
-        #    iks[-1] += 1.57 if iks[-1] < -1.25 else -1.57
-        #    #iks[-1] += 1.57 if iks[-1] < 0. else -1.57
+        if a_name.find('lift') >= 0 and obj.name.find('upright') >= 0:
+            iks[-1] += 1.57 if iks[-1] < -1.25 else -1.57
+            #iks[-1] += 1.57 if iks[-1] < 0. else -1.57
         arm_pose = np.array(iks).reshape((-1,1))
         pose = {arm: arm_pose}
         gripper = robot.geom.get_gripper(arm)
@@ -236,7 +236,7 @@ class RobotSolver(backtrack_ll_solver.BacktrackLLSolver):
            a_name.find('lift') >= 0:
             rel_pos = False
             y_offset = max(-0.14, 0.55-obj.pose[1,st])
-            #disp[0] = -obj.pose[0,st] / 3.
+            disp[0] = -obj.pose[0,st] / 3.
             #disp[1] = y_offset
             #disp[1] = (0.575-obj.pose[1,st]) / 2.
             disp[1] = (0.575-obj.pose[1,st]) / 2.

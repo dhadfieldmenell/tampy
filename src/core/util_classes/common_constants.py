@@ -31,7 +31,7 @@ APPROACH_DIST = 0.025
 RETREAT_DIST = 0.03
 QUICK_APPROACH_DIST = 0.025
 QUICK_RETREAT_DIST = 0.03
-EEREACHABLE_STEPS = 6 # 7 # 6 # 4
+EEREACHABLE_STEPS = 7 # 6 # 4
 
 # Collision Constants
 DIST_SAFE = 1e-3
@@ -94,7 +94,7 @@ Following are for relative positions on complex objects
 #DRAWER_HANDLE_POS = [0., -0.34, -0.02]
 DRAWER_HANDLE_POS = [0., -0.32, -0.03]
 #IN_DRAWER_POS = [0., -0.4, 0.03]
-IN_DRAWER_POS = [0., -0.4, 0.06]
+IN_DRAWER_POS = [0., -0.4, 0.07]
 DRAWER_HANDLE_ORN = [0., 0., 1.57]
 #DRAWER_HANDLE_ORN = [0., 0., -1.57]
 IN_DRAWER_ORN = [0., 0., 0.]

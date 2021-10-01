@@ -215,16 +215,16 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'filter_sizes': [7, 5, 5],
     }
 
-    #for o in range(no):
-    #    config['sensor_dims'][utils.OBJ_DELTA_ENUMS[o]] = 3
-    #    config['sensor_dims'][utils.OBJ_ROTDELTA_ENUMS[o]] = 3
-    #    config['sensor_dims'][utils.TARG_ROTDELTA_ENUMS[o]] = 3
-    #    config['sensor_dims'][utils.OBJ_ENUMS[o]] = 3
-    #    config['sensor_dims'][utils.TARG_ENUMS[o]] = 3
-    #    #config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
-    #    #config['prim_obs_include'].append(utils.TARG_ENUMS[o])
-    #    #config['prim_obs_include'].append(utils.OBJ_ROTDELTA_ENUMS[o])
-    #    # config['prim_obs_include'].append(utils.TARG_ROTDELTA_ENUMS[o])
+    for o in range(no):
+        config['sensor_dims'][utils.OBJ_DELTA_ENUMS[o]] = 3
+        config['sensor_dims'][utils.OBJ_ROTDELTA_ENUMS[o]] = 3
+        config['sensor_dims'][utils.TARG_ROTDELTA_ENUMS[o]] = 3
+        config['sensor_dims'][utils.OBJ_ENUMS[o]] = 3
+        config['sensor_dims'][utils.TARG_ENUMS[o]] = 3
+        #config['prim_obs_include'].append(utils.OBJ_DELTA_ENUMS[o])
+        #config['prim_obs_include'].append(utils.TARG_ENUMS[o])
+        #config['prim_obs_include'].append(utils.OBJ_ROTDELTA_ENUMS[o])
+        # config['prim_obs_include'].append(utils.TARG_ROTDELTA_ENUMS[o])
     return config
 
 config = refresh_config()
