@@ -1,7 +1,8 @@
 import numpy as np
 
 from sco.expr import BoundExpr, QuadExpr, AffExpr
-from pma import backtrack_ll_solver_gurobi
+from pma import backtrack_ll_solver_gurobi as backtrack_ll_solver
+# from pma import backtrack_ll_solver_OSQP as backtrack_ll_solver
 from core.util_classes.namo_grip_predicates import (
     RETREAT_DIST,
     dsafe,
@@ -11,8 +12,8 @@ from core.util_classes.namo_grip_predicates import (
     BoxObjPred,
 )
 
-
-class NAMOSolver(backtrack_ll_solver_gurobi.BacktrackLLSolver):
+class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
+# class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver_OSQP):
     def get_resample_param(self, a):
         return a.params[0]  # Experiment with avoiding robot pose symbols
 

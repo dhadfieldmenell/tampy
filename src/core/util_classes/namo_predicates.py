@@ -369,11 +369,7 @@ class CollisionPredicate(ExprPredicate):
             distance = c[8]  # c.contactDistance
             normal = np.array(c[7])  # c.contactNormalOnB # Pointing towards A
             results.append((pt0, pt1, distance))
-            # if distance < self.dsafe and 'obs0' in [name0, name1] and not np.any(np.isnan(pose0)) and not np.any(np.isnan(pose1)):
-            #     print(name0, name1, distance, pose0, pose1)
 
-            # plotting
-            # import pdb; pdb.set_trace()
             if self._debug:
                 self._plot_collision(pt0, pt1, distance)
                 print("pt0 = ", pt0)
@@ -390,7 +386,6 @@ class CollisionPredicate(ExprPredicate):
         )
 
     def _plot_collision(self, ptA, ptB, distance):
-        self.handles = []
         if not np.allclose(ptA, ptB, atol=1e-3):
             if distance < 0:
                 # Red because collision
@@ -398,7 +393,7 @@ class CollisionPredicate(ExprPredicate):
             else:
                 # Green because no collision
                 rgb = (0, 1, 0)
-            self.handles.append(P.addUserDebugLine(ptA, ptB, rgb, 0.01))
+            P.addUserDebugLine(ptA, ptB, rgb, 0.01)
 
 
 class HLGraspFailed(ExprPredicate):

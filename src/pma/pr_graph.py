@@ -56,7 +56,7 @@ def p_mod_abs(
             Q.put((n.heuristic(), n))
             Q.put((c.heuristic(), c))
         elif n.is_ll_node():
-            n.plan(ll_solver, n_resamples=n_resamples)
+            n.plan(ll_solver, n_resamples=n_resamples, debug=debug)
             if n.solved():
                 print("SOLVED PR GRAPH")
                 if smoothing:

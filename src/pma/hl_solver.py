@@ -270,14 +270,14 @@ class FFSolver(HLSolver):
             Plan Object for ll_solver to optimize. (internal_repr/plan)
         """
         plan_str = self.run_planner(abs_prob, self.abs_domain, prefix=prefix, label=label)
-        plan = self.get_plan(plan_str, domain, concr_prob, concr_prob.initial)
+        plan = self.get_plan(plan_str, domain, concr_prob, concr_prob.initial, debug=debug)
         if type(plan) is not str:
             plan.plan_str = plan_str
             plan.goal = concr_prob.goal
             plan.initial = concr_prob.initial
         return plan
 
-    def get_plan(self, plan_str, domain, concr_prob, initial=None, reuse_params=None):
+    def get_plan(self, plan_str, domain, concr_prob, initial=None, reuse_params=None, debug=False):
         """
         Argument:
             plan_str: list of high level plan. (List(String))
@@ -301,7 +301,7 @@ class FFSolver(HLSolver):
 
         actions = self._spawn_actions(plan_str, domain, params,
                                       plan_horizon, concr_prob, openrave_env,
-                                      initial)
+                                      initial, debug=debug)
         plan = Plan(params, actions, plan_horizon, openrave_env, sess=sess)
         plan.start = concr_prob.start_action
         plan.prob = concr_prob
@@ -344,7 +344,7 @@ class FFSolver(HLSolver):
 
     def _spawn_actions(self, plan_str, domain, params,
                                        plan_horizon, concr_prob, env,
-                                       initial=[]):
+                                       initial=[], debug=False):
         """
         Argument:
             plan_str: list of high level plan. (List(String))
@@ -389,7 +389,7 @@ class FFSolver(HLSolver):
                     init_pred = domain.pred_schemas[p_name].pred_class(name="initpred%d"%i,
                                                                           params=p_objs,
                                                                           expected_param_types=domain.pred_schemas[p_name].expected_params,
-                                                                          env=env)
+                                                                          env=env, debug=debug)
                     preds.append({'negated': False, 'pred': init_pred, 'hl_info': 'hl_state', 'active_timesteps': (0,0)})
                 except TypeError as e:
                     print(("type error for {}".format(pred)))
@@ -408,7 +408,7 @@ class FFSolver(HLSolver):
                     invariant_pred = domain.pred_schemas[p_name].pred_class(name="invariantpred%d"%i,
                                                                           params=p_objs,
                                                                           expected_param_types=domain.pred_schemas[p_name].expected_params,
-                                                                          env=env)
+                                                                          env=env, debug=debug)
                     ts = (curr_h, curr_h + a_schema.horizon - 1)
                     preds.append({'negated': False, 'pred': invariant_pred, 'hl_info': 'invariant', 'active_timesteps': ts})
                 except TypeError as e:
@@ -432,13 +432,10 @@ class FFSolver(HLSolver):
                         arg_valuations = [val + [(name, p_type)] for name in arg_names_of_type for val in arg_valuations]
                 for val in arg_valuations:
                     val, types = list(zip(*val))
-                    #try:
-                    #    assert list(types) == pred_schema.expected_params, "Expected params from schema don't match types! Bad task planner output."
-                    #except:
-                    #    import ipdb; ipdb.set_trace()
-                    # if list(types) != pred_schema.expected_params:
-                    #     import pdb; pdb.set_trace()
-                    pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params, env=env)
+                    try:
+                        pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params, env=env, debug=debug)
+                    except:
+                        pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params, env=env)
                     ts = (p_d["active_timesteps"][0] + curr_h, p_d["active_timesteps"][1] + curr_h)
                     preds.append({"negated": p_d["negated"], "hl_info": p_d["hl_info"], "active_timesteps": ts, "pred": pred})
             # updating hl_state

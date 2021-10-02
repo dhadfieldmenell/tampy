@@ -93,7 +93,7 @@ class BacktrackLLSolver(LLSolver):
         return success
 
     #@profile
-    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None, n_resamples=5, init_traj=[], st=0):
+    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None, n_resamples=5, init_traj=[], st=0, debug=False):
         if amax is None:
             amax = len(plan.actions) - 1
 
@@ -215,7 +215,7 @@ class BacktrackLLSolver(LLSolver):
 
             success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                               active_ts = active_ts, verbose=verbose,
-                                              force_init=True, init_traj=init_traj)
+                                              force_init=True, init_traj=init_traj, debug=debug)
             if success:
                 if recursive_solve():
                     break
@@ -257,7 +257,7 @@ class BacktrackLLSolver(LLSolver):
 
     #@profile
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
-              verbose=False, force_init=False, init_traj=[]):
+              verbose=False, force_init=False, init_traj=[], debug=False):
         success = False
         if callback is not None:
             viewer = callback()
@@ -277,7 +277,7 @@ class BacktrackLLSolver(LLSolver):
                 ## refinement loop
                 success = self._solve_opt_prob(plan, priority=priority,
                                 callback=callback, active_ts=active_ts, verbose=verbose,
-                                init_traj=init_traj)
+                                init_traj=init_traj, debug=debug)
                 # success = len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) == 0
 
                 # No point in resampling if the endpoints or linear constraints can't be satisfied
@@ -313,7 +313,7 @@ class BacktrackLLSolver(LLSolver):
     #@profile
     def _solve_opt_prob(self, plan, priority, callback=None, init=True,
                         active_ts=None, verbose=False, resample=False, 
-                        smoothing = False, init_traj=[]):
+                        smoothing = False, init_traj=[], debug=False):
         if callback is not None: viewer = callback()
         self.plan = plan
         if active_ts==None:

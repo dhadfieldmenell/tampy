@@ -16,6 +16,7 @@ from pma.namo_grip_solver import *
 from pma.hl_solver import *
 from pma.pr_graph import *
 from pma import backtrack_ll_solver_gurobi as bt_ll
+# from pma import backtrack_ll_solver_OSQP as bt_ll
 from policy_hooks.utils.load_task_definitions import parse_state
 from core.util_classes.namo_grip_predicates import angle_diff
 from core.util_classes.openrave_body import OpenRAVEBody
@@ -111,5 +112,3 @@ for t in range(plan.horizon-1):
     env.step(ctrl_vec, mode='velocity')
     if visual:
         env.render(camera_id=0, height=256, width=256, view=True)
-
-import ipdb; ipdb.set_trace()

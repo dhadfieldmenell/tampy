@@ -13,7 +13,7 @@ import os
 import sys
 import traceback
 
-import pybullet as p
+import pybullet as P
 
 from collections import OrderedDict
 
@@ -349,7 +349,11 @@ class CollisionPredicate(ExprPredicate):
         active_range=(0, 1),
         priority=3,
     ):
-        self._debug = debug
+        # NOTE: Below line is for debugging purposes only, should be commented out
+        # and line below should be commented in
+        self._debug = True
+        # self._debug = debug
+
         # if self._debug:
         #     self._env.SetViewer("qtcoin")
         self.dsafe = dsafe
@@ -448,21 +452,21 @@ class CollisionPredicate(ExprPredicate):
     def _check_robot_aabb(self, b0, b1):
         vals = np.zeros((self.n_cols, 1))
         jacs = np.zeros((self.n_cols, 4))
-        (x1, y1, z1), (x2, y2, z2) = p.getAABB(b0.body_id, 5)
-        (x3, y3, z3), (x4, y4, z4) = p.getAABB(b0.body_id, 7)
-        (x5, y5, z5), (x6, y6, z6) = p.getAABB(b0.body_id, 3)
+        (x1, y1, z1), (x2, y2, z2) = P.getAABB(b0.body_id, 5)
+        (x3, y3, z3), (x4, y4, z4) = P.getAABB(b0.body_id, 7)
+        (x5, y5, z5), (x6, y6, z6) = P.getAABB(b0.body_id, 3)
         grip_aabb = [
             (min(x1, x3, x5), min(y1, y3, y5), min(z1, z3, z5)),
             (max(x4, x2, x6), max(y4, y2, y6), max(z4, z2, z6)),
         ]
         minpt, maxpt = grip_aabb
-        overlaps = p.getOverlappingObjects(grip_aabb[0], grip_aabb[1])
+        overlaps = P.getOverlappingObjects(grip_aabb[0], grip_aabb[1])
         if overlaps is not None and len(overlaps):
             ind = 0
             for body_id, link in overlaps:
                 if body_id != b1.body_id:
                     continue
-                cur_minpt, cur_maxpt = p.getAABB(body_id, link)
+                cur_minpt, cur_maxpt = P.getAABB(body_id, link)
                 d1, d2 = cur_minpt[0] - maxpt[0], minpt[0] - cur_maxpt[0]
                 d3, d4 = cur_minpt[1] - maxpt[1], minpt[1] - cur_maxpt[1]
                 if (
@@ -503,7 +507,7 @@ class CollisionPredicate(ExprPredicate):
         # if self.check_aabb:
         #    vals, jacs = self._check_robot_aabb(b0, b1)
 
-        collisions = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
+        collisions = P.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
 
         col_val, jac01 = self._calc_grad_and_val(
             p0.name, p1.name, pose0, pose1, collisions
@@ -570,26 +574,37 @@ class CollisionPredicate(ExprPredicate):
 
             distance = c[8]  # c.contactDistance
             normal = np.array(c[7])  # c.contactNormalOnB # Pointing towards A
-
             results.append((pt0, pt1, distance))
+
+            if self._debug:
+                # self._plot_collision(pt0, pt1, distance)
+                print("pt0 = ", pt0)
+                print("pt1 = ", pt1)
+                print("distance = ", distance)
+                print("normal = ", normal)
+                self._plot_collision_normal(pt0, pt1, distance, normal)
+
             vals[i, 0] = self.dsafe - distance
             jacs[i, :2] = -1 * normal[:2]
             jacs[i, 2:] = normal[:2]
-        return np.array(vals).reshape((self.n_cols, 1)), np.array(jacs).reshape(
-            (self.n_cols, 4)
-        )
+
+        return np.array(vals).reshape((self.n_cols, 1)), np.array(jacs).reshape((self.n_cols, 4))
 
     def _plot_collision(self, ptA, ptB, distance):
-        self.handles = []
         if not np.allclose(ptA, ptB, atol=1e-3):
             if distance < 0:
-                self.handles.append(
-                    self._env.drawarrow(p1=ptA, p2=ptB, linewidth=0.01, color=(1, 0, 0))
-                )
+                # Red because collision
+                rgb = (1, 0, 0)
             else:
-                self.handles.append(
-                    self._env.drawarrow(p1=ptA, p2=ptB, linewidth=0.01, color=(0, 0, 0))
-                )
+                # Green because no collision
+                rgb = (0, 1, 0)
+            P.addUserDebugLine(ptA, ptB, rgb, 0.05)
+
+    def _plot_collision_normal(self, ptA, ptB, distance, normal):
+        if not np.allclose(ptA, ptB, atol=1e-3):
+            if distance < 0:
+                # Plot red arrow because collision
+                P.addUserDebugLine(ptA, ptA + normal, (1, 0, 0), 0.01, 0.5)
 
 
 class HLPoseUsed(ExprPredicate):
@@ -2011,7 +2026,7 @@ def sample_pose(plan, pose, robot, rs_scale):
 
     old_priority = [p.priority for p, n in preds]
     for p, n in preds:
-        p.priority = -1
+        P.priority = -1
     p = Plan.create_plan_for_preds(preds, collision_preds[0]._env)
     s = NAMOSolver(transfer_norm="l2")
     success = s._solve_opt_prob(p, 0, resample=False, verbose=False)
@@ -2028,7 +2043,7 @@ def sample_pose(plan, pose, robot, rs_scale):
     robot.pose = old_pose
     robot._free_attrs["pose"] = old_free
     for i, (p, n) in enumerate(preds):
-        p.priority = old_priority[i]
+        P.priority = old_priority[i]
 
     wall.pose = old_w_pose
 
@@ -2231,7 +2246,7 @@ class ObstructsHolding(CollisionPredicate):
         pose0, pose1 = self.set_pos(x[:6])
         aabb_vals = np.zeros((self.n_cols, 1))
         aabb_jacs = np.zeros((self.n_cols, 4))
-        collisions1 = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
+        collisions1 = P.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
 
         col_val1, jac01 = self._calc_grad_and_val(
             self.r.name, self.obstr.name, pose_r, pose_obstr, collisions1
@@ -2251,7 +2266,7 @@ class ObstructsHolding(CollisionPredicate):
             pose_held = x[6:8]
             b2.set_pose(pose_held)
 
-            collisions2 = p.getClosestPoints(b2.body_id, b1.body_id, contact_dist)
+            collisions2 = P.getClosestPoints(b2.body_id, b1.body_id, contact_dist)
 
             col_val2, jac21 = self._calc_grad_and_val(
                 self.held.name, self.obstr.name, pose_held, pose_obstr, collisions2

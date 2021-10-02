@@ -39,11 +39,10 @@ bt_ll.TRAJOPT_COEFF = 1e-3
 hl_solver = FFSolver(d_c)
 abs_domain = hl_solver.abs_domain
 
-
 # state represents the initial configuration of the world
 # Normally these value are just set in the problem file itself
 # However sometimes it's useful to adjust them at run-time; e.g.
-# if you wish to programitically generate sample problems
+# if you wish to programmatically generate sample problems
 pr2_pose = [0, -5.0]
 can0_pose = [-3.4, -3.8]
 can1_pose = [2.4, -1.2]

@@ -177,9 +177,9 @@ class LLSearchNode(SearchNode):
         if self.ref_plan is not None:
             self.curr_plan.fill(self.ref_plan, amax=len(self.ref_plan.actions)-1)
 
-    def plan(self, solver, n_resamples=5):
+    def plan(self, solver, n_resamples=5, debug=False):
         self.curr_plan.freeze_actions(self.curr_plan.start)
-        success = solver._backtrack_solve(self.curr_plan, anum=self.curr_plan.start, n_resamples=n_resamples)
+        success = solver._backtrack_solve(self.curr_plan, anum=self.curr_plan.start, n_resamples=n_resamples, debug=debug)
         self._solved = success
 
     def get_failed_pred(self, forward_only=False):
