@@ -201,8 +201,8 @@ def main():
     s += "(DeskHeightBlock shelf_handle upright_block), "
     s += "(StationaryBase panda), "
     s += "(IsMP panda), "
-    #s += "(SlideDoorOpen shelf_handle shelf), "
-    #s += "(SlideDoorClose drawer_handle drawer), "
+    s += "(SlideDoorOpen shelf_handle shelf), "
+    s += "(SlideDoorClose drawer_handle drawer), "
     s += "(WithinJointLimit panda), "
     s += "(StationaryW desk_body) \n\n"
 

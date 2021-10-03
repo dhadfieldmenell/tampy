@@ -38,15 +38,15 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.tamp_agent import TAMPAgent
 
 
-const.NEAR_GRIP_COEFF = 3e-2 # 2.2e-2 # 1.8e-2 # 2e-2
+const.NEAR_GRIP_COEFF = 4e-2 # 2.2e-2 # 1.8e-2 # 2e-2
 const.NEAR_GRIP_ROT_COEFF = 7e-3
-const.NEAR_APPROACH_COEFF = 8e-3
+const.NEAR_APPROACH_COEFF = 1e-2 # 8e-3
 const.NEAR_RETREAT_COEFF = 1.2e-2
 const.NEAR_APPROACH_ROT_COEFF = 1e-3
-const.GRASP_DIST = 0.12
-const.PLACE_DIST = 0.12
-const.APPROACH_DIST = 0.015 #0.01 # 0.02
-const.RETREAT_DIST = 0.015 # 0.02
+const.GRASP_DIST = 0.13 # 0.12
+const.PLACE_DIST = 0.13 # 0.12
+const.APPROACH_DIST = 0.01
+const.RETREAT_DIST = 0.01
 const.QUICK_APPROACH_DIST = 0.015 # 0.02
 const.QUICK_RETREAT_DIST = 0.015 # 0.02
 const.EEREACHABLE_COEFF = 2e-1 # 9e-2 # 1e-1 # 3e-2 # 2e-2
@@ -128,7 +128,7 @@ class EnvWrapper():
         self.model = self.physics.model
         self.mode = mode
         self.z_offsets = {}
-        #self.z_offsets = {'upright_block': 0.02}
+        self.z_offsets = {'flat_block': -0.01}
         self.upright_rot = Rotation.from_euler('xyz', [1.57, 1.57, 0.])
         self.upright_rot_inv = self.upright_rot.inv()
         self.flat_rot = Rotation.from_euler('xyz', [0., 0., 0.])
@@ -376,7 +376,7 @@ class EnvWrapper():
             quat = [quat[3], quat[0], quat[1], quat[2]]
 
         if pos is not None:
-            pos = [pos[0], pos[1], pos[2]+self.z_offsets.get(item_name, 0.0)]
+            pos = [pos[0], pos[1], pos[2]-self.z_offsets.get(item_name, 0.0)]
 
         try:
             if pos is not None:
@@ -439,16 +439,16 @@ class EnvWrapper():
                     if self.env.physics.data.ctrl[-1] > 0.03:
                         if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.05):
                             self.env.physics.named.data.xfrc_applied['ball'][2] = -3.
-                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.06):
-                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = -3.
-                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['upright_block']) < 0.05):
-                            self.env.physics.named.data.xfrc_applied['upright_block'][2] = -2.
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.05):
+                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = -2.
+                        #if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['upright_block']) < 0.05):
+                        #    self.env.physics.named.data.xfrc_applied['upright_block'][2] = -2.
                     else:
                         #if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['ball']) < 0.05):
                         #    self.env.physics.named.data.xfrc_applied['ball'][2] = 3.
-                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.07):
-                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = 4.
-                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['upright_block']) < 0.03):
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['flat_block']) < 0.04):
+                            self.env.physics.named.data.xfrc_applied['flat_block'][2] = 5.
+                        if np.all(np.abs(ee_pos - self.env.physics.named.data.xpos['upright_block']) < 0.04):
                             self.env.physics.named.data.xfrc_applied['upright_block'][2] = 3.
 
                     self.env.physics.step()
@@ -547,7 +547,7 @@ class RobotAgent(TAMPAgent):
         self._load_goals()
         self.hor = 18
 
-        freq = 20
+        freq = 18 # 20
         self.base_env = robodesk.RoboDesk(task='lift_ball', \
                                           reward='success', \
                                           action_repeat=freq, \
@@ -987,32 +987,37 @@ class RobotAgent(TAMPAgent):
         for goal in self.goals:
             if targets[self.target_inds[goal, 'value']][0] == 1:
                 key, params = self.goals[goal]
-                key = key.lower()
-                if key.find('lift') >= 0:
-                    suc = self._lifted(x, params[0])
-                elif key.find('open') >= 0:
-                    suc = self._door_open(x, params[1])
-                elif key.find('close') >= 0:
-                    suc = self._door_close(x, params[1])
-                elif key.find('stack') >= 0:
-                    suc = self._stacked(x, params[0])
-                elif key.find('near') >= 0 and params[1].find('off_desk') >= 0:
-                    suc = self._off_desk(x, params[0])
-                elif key.find('near') >= 0 and params[1].find('bin') >= 0:
-                    suc = self._in_bin(x, params[0])
-                elif key.find('inslide') >= 0 and params[1].find('shelf') >= 0:
-                    suc = self._in_shelf(x, params[0])
-                elif key.find('inslide') >= 0 and params[1].find('drawer') >= 0:
-                    suc = self._in_drawer(x, params[0])
-                elif key.find('grip') >= 0 and params[1].find('button') >= 0:
-                    suc = self._button(x, params[1])
-                else:
-                    raise NotImplementedError('Cannot parse goal for {} {}'.format(key, params))
-
+                suc = self.parse_goal(x, key, params)
                 cost += 1 if not suc else 0
 
         return 1. if cost > 0 else 0.
 
+
+    def parse_goal(self, x, key, params):
+        key = key.lower()
+        if key.find('lift') >= 0:
+            suc = self._lifted(x, params[0])
+        elif key.find('open') >= 0:
+            suc = self._door_open(x, params[1])
+        elif key.find('close') >= 0:
+            suc = self._door_close(x, params[1])
+        elif key.find('stack') >= 0:
+            suc = self._stacked(x, params[0])
+        elif key.find('near') >= 0 and params[1].find('off_desk') >= 0:
+            suc = self._off_desk(x, params[0])
+        elif key.find('near') >= 0 and params[1].find('bin') >= 0:
+            suc = self._in_bin(x, params[0])
+        elif key.find('inslide') >= 0 and params[1].find('shelf') >= 0:
+            suc = self._in_shelf(x, params[0])
+        elif key.find('inslide') >= 0 and params[1].find('drawer') >= 0:
+            suc = self._in_drawer(x, params[0])
+        elif key.find('grip') >= 0 and params[1].find('button') >= 0:
+            suc = self._button(x, params[1])
+        else:
+            raise NotImplementedError('Cannot parse goal for {} {}'.format(key, params))
+
+        return suc
+    
 
     def reset_to_sample(self, sample):
         self.reset_to_state(sample.get_X(sample.T-1))
@@ -1452,6 +1457,8 @@ class RobotAgent(TAMPAgent):
         thresh = 0.82
         if item_name.find('upright') >= 0:
             thresh = 0.87
+        elif item_name.find('flat') >= 0:
+            thresh = 0.81 + self.mjc_env.z_offsets['flat_block']
         return pos[2] > thresh
 
 

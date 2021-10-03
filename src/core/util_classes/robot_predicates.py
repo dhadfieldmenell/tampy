@@ -3834,7 +3834,7 @@ class Lifted(ExprPredicate):
             #b = 0.925 * np.ones((1,1))
             b = 0.9 * np.ones((1,1))
         elif self.obj.name.lower().find('flat') >= 0:
-            b = 0.825 * np.ones((1,1))
+            b = 0.8 * np.ones((1,1))
         else:
             #b = 0.875 * np.ones((1,1))
             b = 0.85 * np.ones((1,1))

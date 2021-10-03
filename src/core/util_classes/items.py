@@ -175,9 +175,11 @@ class Box(Obstacle):
         self.height = dim[2]
         z = max(0, self.height - 0.03)
         self.grasp_point = [0., 0., z]
-        self.near_coeff = 1.2
-        if self.height <= 0.02:
+        self.near_coeff = 1.5
+        max_dim = max(dim)
+        if max_dim <= 0.02:
             self.near_coeff = 0.6 # 0.8
+            self.eereachable_coeff = 3e-1
 
 class Basket(Item):
     """

@@ -28,7 +28,6 @@ GOAL_OPTIONS = [
                 '(Stacked upright_block flat_block)',
                 '(InGripperRight panda green_button)',
                 ]
-
 INVARIANT_GOALS = []
 
 def prob_file(descr=None):

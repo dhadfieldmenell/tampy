@@ -173,7 +173,7 @@ class MotionServer(Server):
             n_plan.value += 1
 
         if not success:
-            print('Opt failure from', node.label, node.nodetype)
+            # print('Opt failure from', node.label, node.nodetype)
             n_fail = self._hyperparams['policy_opt']['buffer_sizes']['n_plan_{}_failed'.format(node.nodetype)]
             with n_fail.get_lock():
                 n_fail.value += 1
@@ -222,7 +222,7 @@ class MotionServer(Server):
                              nodetype=node.nodetype,
                              info=node.info)
         self.push_queue(hlnode, self.task_queue)
-        print(self.id, 'Failed to refine, pushing to task node.')
+        #print(self.id, 'Failed to refine, pushing to task node.')
 
 
     def run(self):

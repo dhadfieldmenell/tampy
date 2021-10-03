@@ -62,6 +62,7 @@ problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, None, use_t
 params = problem.init_state.params
 
 
+sucs = []
 N_RUNS = 10
 for run_num in range(N_RUNS):
     agent.mjc_env.reset()
@@ -133,14 +134,23 @@ for run_num in range(N_RUNS):
          #'(InSlideDoor ball drawer)',
          #'(At flat_block bin_target)',
          #'(At ball bin_target)',
-         '(Near upright_block off_desk_target)',
+         #'(Near upright_block off_desk_target)',
          #'(InSlideDoor upright_block shelf)',
-         #'(InSlideDoor flat_block shelf)',
+         '(InSlideDoor flat_block shelf)',
          #'(InGripperRight panda green_button)',
             ]
 
     goal = random.choice(goals)
-    print('SOLVING:', goal)
+    goal_info = []
+    goal_str = goal.strip()[1:-1]
+    if goal_str.startswith('and'):
+        goals = goal_str.split('(')
+        for g in goals:
+            if g.find(')') >= 0:
+                goal_info.append(g.strip()[:-1].split(' '))
+    else:
+        goal_info = [goal_str.split(' ')]
+    print('SOLVING:', goal, goal_info)
 
     print('CONSISTENT?', problem.init_state.is_consistent())
     solver = RobotSolver()
@@ -162,7 +172,13 @@ for run_num in range(N_RUNS):
             ctrl = np.r_[panda.right[:,t], grip]
             obs, rew, done, info = agent.mjc_env.step(ctrl)
             agent.render_viewer(obs['image'])
-        import ipdb; ipdb.set_trace()
+        print('BLOCK POSE:', et, mjc_env.get_item_pose('flat_block'))
 
-    import ipdb; ipdb.set_trace()
+    x = agent.get_state()
+    goal_suc = [agent.parse_goal(x, g[0], g[1:]) for g in goal_info]
+    print('Goal?', goal, goal_suc)
+    #import ipdb; ipdb.set_trace()
+    sucs.append(goal_suc)
+
+print('\n\nALL GOALS:', sucs)
 

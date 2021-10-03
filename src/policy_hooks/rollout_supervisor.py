@@ -225,8 +225,8 @@ class RolloutSupervisor():
             with n_plans.get_lock():
                 n_plans.value += 1
 
-        else:
-            print('Failure in supervised rollout. {}'.format([pt[:2] for pt in train_pts]))
+        #else:
+        #    print('Failure in supervised rollout. {}'.format([pt[:2] for pt in train_pts]))
 
         self.parse_train_pts(train_pts, path, targets, node)
         self.agent._eval_mode = False

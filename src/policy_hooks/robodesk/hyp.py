@@ -154,7 +154,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                         #utils.END_POSE_ENUM,
                         #utils.END_ROT_ENUM,
                         utils.RIGHT_ENUM,
-                        utils.RIGHT_VEL_ENUM,
+                        #utils.RIGHT_VEL_ENUM,
                         utils.RIGHT_EE_POS_ENUM,
                         utils.RIGHT_GRIPPER_ENUM,
                         utils.GRIP_CMD_ENUM,
@@ -212,7 +212,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'cont_filters': [32, 16],
         'cont_filter_sizes': [7, 5],
         'num_filters': [32, 32, 32],
-        'filter_sizes': [7, 5, 5],
+        'filter_sizes': [7, 5, 3],
     }
 
     for o in range(no):
