@@ -2970,7 +2970,7 @@ class NearApproachRight(ApproachRight):
 class NearRetreatRight(ApproachRight):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         #self.f_tol = 0.04
-        self.coeff = const.NEAR_APPROACH_COEFF
+        self.coeff = const.NEAR_RETREAT_COEFF
         super(NearRetreatRight, self).__init__(name, params, expected_param_types, env, debug)
         self.approach_dist = const.PLACE_DIST
 

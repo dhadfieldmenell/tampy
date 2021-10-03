@@ -10,7 +10,7 @@ do
                                                        -hllr 0.0002 -lldec 0.000001 -hldec 0.00001 \
                                                        -add_noop 0 --permute_hl 0 \
                                                        -image -hl_image \
-                                                       -imwidth 128 -imheight 128 \
+                                                       -imwidth 100 -imheight 100 \
                                                        -batch 50 \
                                                        -expl_wt 2 -expl_eta 4 \
                                                        -motion 18 \
@@ -24,7 +24,7 @@ do
                                                        -neg_pre -neg_post \
                                                        -neg_ratio 0.02 -opt_ratio 0.5 -dagger_ratio 0.48 -roll_ratio 0.000 \
                                                        -descr robodesk_all_9_tasks_sun & 
-        sleep 8h
+        sleep 10h
         pkill -f run_train -9
         pkill -f ros -9
         sleep 5s
