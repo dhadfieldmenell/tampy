@@ -1005,7 +1005,7 @@ if __name__ == '__main__':
     while not terminate:
         if not perpetual:
             terminate = True
-        gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=300, window=20, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_{}'.format(keywords[0]))
+        gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=300, window=200, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_{}'.format(keywords[0]))
         gen_data_plots(xvar='number of plans', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=100, window=1000, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_nplans_{}'.format(keywords[0]))
         #gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=True, include=include, inter=120, window=200, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='splitendsucc_{}'.format(keywords[0]))
 

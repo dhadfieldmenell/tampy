@@ -63,7 +63,7 @@ params = problem.init_state.params
 
 
 sucs = []
-N_RUNS = 10
+N_RUNS = 50
 for run_num in range(N_RUNS):
     agent.mjc_env.reset()
     for param in ['ball', 'upright_block', 'flat_block', \
@@ -125,17 +125,13 @@ for run_num in range(N_RUNS):
     #goal = "(NearGripperRight panda green_button)"
 
     goals = [
-         #'(Lifted flat_block panda)',
          #'(Lifted upright_block panda)',
-         '(Lifted ball panda)',
+         #'(Lifted ball panda)',
          #'(Stacked upright_block flat_block)',
          #'(SlideDoorClose shelf_handle shelf)',
          #'(SlideDoorOpen drawer_handle drawer)',
-         #'(InSlideDoor ball drawer)',
-         #'(At flat_block bin_target)',
-         #'(At ball bin_target)',
+         '(Near flat_block bin_target)',
          #'(Near upright_block off_desk_target)',
-         #'(InSlideDoor upright_block shelf)',
          #'(InSlideDoor flat_block shelf)',
          #'(InGripperRight panda green_button)',
             ]
@@ -155,8 +151,11 @@ for run_num in range(N_RUNS):
     print('CONSISTENT?', problem.init_state.is_consistent())
     solver = RobotSolver()
 
-    plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=3)
+    plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=3, max_iter=2)
 
+    if type(plan) is str or plan is None:
+        sucs.append([goal_info[0][0], 'OPT FAIL'])
+        continue
     #import ipdb; ipdb.set_trace()
 
     if visual:
@@ -172,13 +171,15 @@ for run_num in range(N_RUNS):
             ctrl = np.r_[panda.right[:,t], grip]
             obs, rew, done, info = agent.mjc_env.step(ctrl)
             agent.render_viewer(obs['image'])
-        print('BLOCK POSE:', et, mjc_env.get_item_pose('flat_block'))
 
     x = agent.get_state()
     goal_suc = [agent.parse_goal(x, g[0], g[1:]) for g in goal_info]
     print('Goal?', goal, goal_suc)
     #import ipdb; ipdb.set_trace()
-    sucs.append(goal_suc)
+    sucs.append([goal_info[0], goal_suc])
 
-print('\n\nALL GOALS:', sucs)
+    print('\n\n-----------\nALL GOALS:')
+    for item in sucs:
+        print(item)
+    print('------------\n\n')
 

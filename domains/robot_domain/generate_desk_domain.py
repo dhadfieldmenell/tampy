@@ -716,11 +716,11 @@ class Hold(Action):
     def __init__(self):
         self.name = 'hold'
         if not hasattr(self, 'timesteps'):
-            self.timesteps = 9 + const.EEREACHABLE_STEPS
+            self.timesteps = 7 + const.EEREACHABLE_STEPS
         end = self.timesteps - 1
         self.end = end
         self.args = '(?robot - Robot ?item - Reachable ?target - Reachable)'
-        grasp_time = self.end - 1
+        grasp_time = self.end # - 1
         self.grasp_time = grasp_time
         steps = const.EEREACHABLE_STEPS
         self.pre = [#('(At ?item ?target)', '0:0'),
@@ -733,9 +733,9 @@ class Hold(Action):
                     ('(IsMP ?robot)', '0:{}'.format(end-1)),
                     ('(WithinJointLimit ?robot)', '0:{}'.format(end)),
                     #('(forall (?obs - Obstacle) (not (RCollides ?robot ?obs)))', '1:{}'.format(self.grasp_time-steps)),
-                    ('(forall (?obs - Obstacle) (not (RCollides ?robot ?obs)))', '1:{}'.format(self.grasp_time-steps-3)),
+                    ('(forall (?obs - Obstacle) (not (RCollides ?robot ?obs)))', '1:{}'.format(self.grasp_time-steps-1)),
                     #('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '{}:{}'.format(0, 0)),
-                    ('(forall (?obj - Item) (not (Obstructs ?robot ?obj)))', '1:{}'.format(grasp_time-steps-2)),
+                    ('(forall (?obj - Item) (not (Obstructs ?robot ?obj)))', '1:{}'.format(grasp_time-steps-1)),
                     #('(forall (?obj - Item) (not (Obstructs ?robot ?obj)))', '0:0'),
                     #('(forall (?obj - Item) (not (ObstructsHolding ?robot ?obj ?item)))', '{}:{}'.format(grasp_time-steps-2, end-1))
                     ('(InReach ?item ?robot)', '0:0'),
@@ -753,10 +753,11 @@ class HoldArm(Hold):
         self.name = 'hold_{}'.format(self.arm)
         self.pre.extend([('(NearApproach{} ?robot ?item)'.format(arm), '0:0'),
                         #('(NearApproach{}Rot ?robot ?item)'.format(arm), '0:0'),
-                        ('(EEAtYRel{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time-steps-3, self.grasp_time-steps-1)),
-                        ('(EEApproachAbs{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time, self.grasp_time)),
-                        ('(EEAt{}Rot ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time-steps-2, self.grasp_time)),
-                        ('(OpenGripper{} ?robot)'.format(arm), '{0}:{1}'.format(1,self.grasp_time)),
+                        #('(EEAtYRel{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time-steps-3, self.grasp_time-steps-1)),
+                        #('(EEApproachAbs{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time, self.grasp_time)),
+                        ('(EEApproach{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time, self.grasp_time)),
+                        ('(EEAt{}Rot ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time-steps+1, self.grasp_time-1)),
+                        ('(OpenGripper{} ?robot)'.format(arm), '{0}:{1}'.format(1,self.end-1)),
                         ('(forall (?obj - Item) (not (InGripper{} ?robot ?obj)))'.format(arm), '0:{}'.format(-1)),
                         ('(forall (?obj - Item) (not (NearGripper{} ?robot ?obj)))'.format(arm), '0:-1'),
                         ])
@@ -954,7 +955,7 @@ class LiftArm(Lift):
                         #('(Stationary{}Arm ?robot)'.format(arm), '{0}:{0}'.format(self.grasp_time)),
                         ('(EEApproach{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time, self.grasp_time)),
                         #('(EEAtYRel{} ?robot ?item)'.format(arm), '{}:{}'.format(0, 0)),
-                        #('(EEAtYRel{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time-steps-3, self.grasp_time-steps-1)),
+                        ('(EEAtYRel{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time-steps-3, self.grasp_time-steps-1)),
                         #('(EEApproachAbs{} ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time, self.grasp_time)),
                         ('(EEAt{}Rot ?robot ?item)'.format(arm), '{}:{}'.format(self.grasp_time-3, self.grasp_time-1)),
                         #('(CloseGripper{} ?robot)'.format(arm), '{0}:{1}'.format(self.grasp_time+1,self.end-1)),
@@ -1001,7 +1002,8 @@ class Place(Action):
         self.pre = [('(Near ?item ?target)', '{0}:{1}'.format(putdown_time, end-1)),
                     ('(forall (?door - Door) (not (SlideDoorAt ?item ?door)))', '{0}:{1}'.format(0, -1)),
                     ('(At ?item ?target)', '{0}:{1}'.format(putdown_time, putdown_time)),
-                    ('(Lifted ?item ?robot)', '{0}:{1}'.format(0, -1)),
+                    #('(Lifted ?item ?robot)', '{0}:{1}'.format(0, -1)),
+                    ('(not (Lifted ?item ?robot))', '{0}:{1}'.format(0, -1)),
                     #('(forall (?obj - Item) (not (At ?obj ?target)))', '0:0'),
                     #('(forall (?obj - Item) (not (Near ?obj ?target)))', '0:0'),
                     ('(forall (?obj - Item) \
@@ -1044,14 +1046,13 @@ class Place(Action):
                     )', '{}:{}'.format(end, end-1)),
         ]
 
-
 class PlaceArm(Place):
     def __init__(self, arm):
         super(PlaceArm, self).__init__()
         self.arm = arm.lower()
         arm = arm.lower().capitalize()
         self.name = 'place_{}'.format(self.arm)
-        self.pre.extend([#('(NearGripper{} ?robot ?item)'.format(arm), '0:0'),
+        self.pre.extend([('(NearGripper{} ?robot ?item)'.format(arm), '0:0'),
                          ('(NearGripper{} ?robot ?item)'.format(arm), '1:{}'.format(self.putdown_time)),
                          ('(not (NearGripper{} ?robot ?item))'.format(arm), 
                              '{}:{}'.format(self.putdown_time+self.steps, self.end-1)),
@@ -1251,7 +1252,8 @@ class PlaceInDoor(Action):
                     ('(SlideDoorOpen ?handle ?door)', '{0}:{1}'.format(0,0)),
                     ('(SlideDoorAt ?handle ?door)', '{0}:{1}'.format(0,0)),
                     ('(SlideDoorOpen ?handle ?door)', '{0}:{1}'.format(1, end-1)),
-                    ('(Lifted ?item ?robot)', '{0}:{1}'.format(0,0)),
+                    #('(Lifted ?item ?robot)', '{0}:{1}'.format(0,0)),
+                    ('(not (Lifted ?item ?robot))', '{0}:{1}'.format(0, -1)),
                     #('(forall (?obj - Item) \
                     #    (not (DeskHeightBlock ?item ?obj))\
                     #)', '{}:{}'.format(0, 0)),
@@ -1297,7 +1299,7 @@ class PlaceInDoorArm(PlaceInDoor):
         self.arm = arm.lower()
         arm = arm.lower().capitalize()
         self.name = 'place_in_door_{}'.format(self.arm)
-        self.pre.extend([#('(NearGripper{} ?robot ?item)'.format(arm), '0:0'),
+        self.pre.extend([('(NearGripper{} ?robot ?item)'.format(arm), '0:0'),
                          #('(forall (?obj - Reachable) (not (NearApproach{} ?robot ?obj)))'.format(arm), '{0}:{1}'.format(0, -1)),
                          ('(NearGripper{} ?robot ?item)'.format(arm), '1:{}'.format(self.putdown_time)),
                          #('(not (NearGripper{} ?robot ?item))'.format(arm), 
@@ -1352,7 +1354,7 @@ class Stack(Action):
     def __init__(self):
         self.name = 'stack'
         self.steps = const.EEREACHABLE_STEPS
-        self.timesteps = 11 + 2 * const.EEREACHABLE_STEPS
+        self.timesteps = 12 + 2 * const.EEREACHABLE_STEPS
         end = self.timesteps - 1
         self.end = end
         self.args = '(?robot - Robot ?base - Box ?item - Box)'
@@ -1369,6 +1371,7 @@ class Stack(Action):
                     ('(Stacked ?item ?base)', '{0}:{1}'.format(putdown_time, end-1)),
                     ('(Stackable ?base ?item)', '{0}:{1}'.format(0, 0)),
                     ('(Lifted ?item ?robot)', '{0}:{1}'.format(0, 0)),
+                    #('(not (Lifted ?item ?robot))', '{0}:{1}'.format(0, -1)),
                     ('(AtRot ?item ?base)', '{0}:{1}'.format(putdown_time-self.steps, end-1)),
                     ('(forall (?obj - Item) \
                         (Stationary ?obj))', '{0}:{1}'.format(putdown_time, end-1)),
@@ -1423,8 +1426,8 @@ class StackArm(Stack):
                              '{}:{}'.format(self.putdown_time, self.putdown_time)),
                          ('(EERetreatStack{} ?robot ?base ?item)'.format(arm), 
                              '{}:{}'.format(self.putdown_time, self.putdown_time)),
-                         ('(EEAt{}Rot ?robot ?base)'.format(arm), 
-                             '{}:{}'.format(self.putdown_time, self.putdown_time+1)),
+                         #('(EEAt{}Rot ?robot ?base)'.format(arm), 
+                         #    '{}:{}'.format(self.putdown_time+1, self.putdown_time+1)),
                          ('(CloseGripper{} ?robot)'.format(arm), 
                              '{}:{}'.format(1,  self.putdown_time-1)),
                          ('(OpenGripper{} ?robot)'.format(arm), 

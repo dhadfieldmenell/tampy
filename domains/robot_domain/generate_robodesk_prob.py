@@ -27,7 +27,7 @@ SHELF_TARGET_POS = [0.3, 1.2, 0.85]
 SHELF_TARGET_ROT = [1.57, 0., 0.]
 BIN_TARGET_POS = [0.4, 0.52, 0.75]
 BIN_TARGET_ROT = [0., 0., 0.]
-OFF_DESK_TARGET_POS = [0.67, 0.54, 0.73] # [0.68, 0.58, 0.77]
+OFF_DESK_TARGET_POS = [0.67, 0.54, 0.78] # [0.68, 0.58, 0.77]
 OFF_DESK_TARGET_ROT = [0., 0., 0.]
 
 SHELF_GEOM = 'desk_shelf'
@@ -35,8 +35,8 @@ SHELF_POS = [0., 0.85, 0.]
 SHELF_ROT = [0., 0., 0.]
 SHELF_HANDLE_POS = (np.array(SHELF_POS) + const.SHELF_HANDLE_POS).tolist()
 
-DESK_BODY_GEOM = [0.575, 0.265, 0.01] # [0.6, 0.275, 0.025]
-DESK_BODY_POS = [0., 0.85, 0.735]
+DESK_BODY_GEOM = [0.58, 0.27, 0.03] # [0.6, 0.275, 0.025]
+DESK_BODY_POS = [0., 0.85, 0.72] # 0.735]
 DESK_BODY_ROT = [0, 0, 0]
 
 DRAWER_GEOM = 'desk_drawer'

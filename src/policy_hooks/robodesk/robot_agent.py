@@ -40,16 +40,16 @@ from policy_hooks.tamp_agent import TAMPAgent
 
 const.NEAR_GRIP_COEFF = 4e-2 # 2.2e-2 # 1.8e-2 # 2e-2
 const.NEAR_GRIP_ROT_COEFF = 7e-3
-const.NEAR_APPROACH_COEFF = 1.2e-2 # 8e-3
+const.NEAR_APPROACH_COEFF = 7e-3 # 8e-3
 const.NEAR_RETREAT_COEFF = 8e-3 # 1.2e-2
 const.NEAR_APPROACH_ROT_COEFF = 1e-3
-const.GRASP_DIST = 0.13 # 0.12
-const.PLACE_DIST = 0.13 # 0.12
-const.APPROACH_DIST = 0.01
-const.RETREAT_DIST = 0.01
+const.GRASP_DIST = 0.12 # 0.13
+const.PLACE_DIST = 0.12 # 0.13
+const.APPROACH_DIST = 0.01 # 0.01
+const.RETREAT_DIST = 0.01 # 0.01
 const.QUICK_APPROACH_DIST = 0.015 # 0.02
 const.QUICK_RETREAT_DIST = 0.015 # 0.02
-const.EEREACHABLE_COEFF = 2e-1 # 9e-2 # 1e-1 # 3e-2 # 2e-2
+const.EEREACHABLE_COEFF = 3e-1 # 2e-1 # 9e-2 # 1e-1 # 3e-2 # 2e-2
 const.EEREACHABLE_ROT_COEFF = 1e-2 # 8e-3
 #const.EEREACHABLE_STEPS = 5
 const.EEATXY_COEFF = 5e-2 # 8e-2
@@ -128,7 +128,7 @@ class EnvWrapper():
         self.model = self.physics.model
         self.mode = mode
         self.z_offsets = {}
-        self.z_offsets = {'flat_block': -0.01}
+        self.z_offsets = {'flat_block': 0.01}#-0.01}
         self.upright_rot = Rotation.from_euler('xyz', [1.57, 1.57, 0.])
         self.upright_rot_inv = self.upright_rot.inv()
         self.flat_rot = Rotation.from_euler('xyz', [0., 0., 0.])
@@ -174,7 +174,10 @@ class EnvWrapper():
                   image = ImageOps.expand(image, border=border, fill=(0, 0, 0))
                   im_draw = ImageDraw.Draw(image)
                   _, texth = self.im_font.getsize(str_overlays[0])
-                  pos = [(2,2), (2, imsize+2*border-texth-2), (2, 4+texth), (2, imsize+2*border-2*texth-4)]
+                  pos = [(2,2), 
+                          (2, imsize+2*border-texth-2), 
+                          (2, 4+texth), 
+                          (2, imsize+2*border-2*texth-4)]
                   for ind, ovr in enumerate(str_overlays):
                       w, h = self.im_font.getsize(ovr)
                       x, y = pos[ind]
@@ -543,11 +546,11 @@ class RobotAgent(TAMPAgent):
         self.compound_goals = hyperparams['master_config'].get('compound_goals', False)
         self.max_goals = hyperparams['master_config'].get('max_goals', 3)
         self.max_goals = min(self.max_goals, len(self.prob.GOAL_OPTIONS))
-        self.rlen = 10 if not self.compound_goals else 5 * (len(self.prob.INVARIANT_GOALS) + self.max_goals)
+        self.rlen = 6 if not self.compound_goals else 5 * (len(self.prob.INVARIANT_GOALS) + self.max_goals)
         self._load_goals()
         self.hor = 18
 
-        freq = 18 # 20
+        freq = 20
         self.base_env = robodesk.RoboDesk(task='lift_ball', \
                                           reward='success', \
                                           action_repeat=freq, \
@@ -615,18 +618,20 @@ class RobotAgent(TAMPAgent):
         targets = s.targets
 
         for goal in self.prob.GOAL_OPTIONS + self.prob.INVARIANT_GOALS:
-            #if targets[self.target_inds[goal, 'value']] == 1.:
-            #    goalover += goal
-            if targets[self.target_inds[goal, 'value']] == 1.:
-                goalover += "1 "
+            if not self.compound_goals:
+                if targets[self.target_inds[goal, 'value']] == 1.:
+                    goalover += goal
             else:
-                goalover += "0 "
+                if targets[self.target_inds[goal, 'value']] == 1.:
+                    goalover += "1 "
+                else:
+                    goalover += "0 "
         overlays = (textover1, textover2, textover3, goalover)
         #for ctxt in self.base_env.sim.render_contexts:
         #    ctxt._overlay[mj_const.GRID_TOPLEFT] = ['{}'.format(task), '']
         #    ctxt._overlay[mj_const.GRID_BOTTOMLEFT] = ['{0: <7} {1: <7} {2}'.format(precost, postcost, gripcmd), '']
         #return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
-        im = self.mjc_env.render(overlays=overlays, resize=True, imsize=96)
+        im = self.mjc_env.render(overlays=overlays, resize=True, imsize=112)
         #for ctxt in self.base_env.sim.render_contexts:
         #    for key in list(ctxt._overlay.keys()):
         #        del ctxt._overlay[key]
