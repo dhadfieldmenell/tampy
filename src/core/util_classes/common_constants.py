@@ -95,7 +95,7 @@ RESAMPLE_FACTOR_LR = [0.1, 0.1, 0.05]
 Following are for relative positions on complex objects
 """
 #DRAWER_HANDLE_POS = [0., -0.34, -0.02]
-DRAWER_HANDLE_POS = [0., -0.32, -0.03]
+DRAWER_HANDLE_POS = [0., -0.34, -0.04]
 #IN_DRAWER_POS = [0., -0.4, 0.03]
 IN_DRAWER_POS = [0., -0.4, 0.07]
 DRAWER_HANDLE_ORN = [0., 0., 1.57]

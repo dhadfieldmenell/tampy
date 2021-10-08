@@ -207,10 +207,10 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'n_thresh': -1,
         'expand_process': False,
         'her': False,
-        'num_filters': [32, 32, 16],
+        'num_filters': [16, 32, 32],
         'filter_sizes': [7, 7, 5],
-        'prim_filters': [16, 16, 16],
-        'prim_filter_sizes': [7, 5, 5],
+        'prim_filters': [16, 32],
+        'prim_filter_sizes': [7, 5],
         'cont_filters': [32, 16],
         'cont_filter_sizes': [7, 5],
     }

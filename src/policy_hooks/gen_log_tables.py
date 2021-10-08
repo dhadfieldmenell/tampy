@@ -1011,7 +1011,7 @@ if __name__ == '__main__':
 
         gen_data_plots(xvar='time', yvar=['distance from goal'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=300, window=50, fname='dist_{}'.format(keywords[0]))
 
-        gen_data_plots(xvar='time', yvar=['success rate'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='per_goal_success', exclude=exclude, split_runs=False, include=include, inter=120, window=60, fname='pergoal_success', split_goal=True)
+        gen_data_plots(xvar='time', yvar=['success rate'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='per_goal_success', exclude=exclude, split_runs=False, include=include, inter=180, window=100, fname='pergoal_success', split_goal=True)
         gen_data_plots(xvar='time', yvar=['optimization time', 'plan length', 'opt duration per ts'], keywords=keywords, lab='motion', label_vars=['descr'], separate=True, keyind=5, ylabel='move_policy_successes', exclude=exclude, split_runs=False, include=include, inter=600, window=500, fname='tampspeedup') 
         gen_data_plots(xvar='time', yvar=['episode return'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=200, window=100, fname='endreturn_{}'.format(keywords[0]))
 
