@@ -307,6 +307,7 @@ class RolloutServer(Server):
                 n_plans = self._hyperparams['policy_opt']['buffer_sizes']['n_plans'].value
                 save_video = self.id.find('test') >= 0
                 val, path = self.test_hl(save_video=save_video)
+                self.agent._eval_mode = False
                 if self._n_plans >= self.ff_iters:
                     self.send_to_label(path, val > 0)
 

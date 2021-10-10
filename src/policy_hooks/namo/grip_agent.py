@@ -1049,14 +1049,16 @@ class NAMOGripAgent(NAMOSortingAgent):
         cost = 0
         for human in self.humans:
             hpos = x[self.state_inds[human, 'pose']]
-            cost -= goal_wt * np.linalg.norm(hpos-self.humans[human])
+            cost += goal_wt * np.linalg.norm(hpos-self.humans[human])
 
             for (pname, aname), inds in self.state_inds.items():
                 if aname != 'pose': continue
                 if pname.find('pr2') >= 0 and np.linalg.norm(x[inds]-hpos) < 0.8:
                     cost += rcol_wt
-                elif pname.find('pr2') >= 0 or pname.find('can') >= 0:
-                    cost += col_wt * np.linalg.norm(x[inds]-hpos)
+                elif pname.find('can') >= 0:
+                    cost -= col_wt * np.linalg.norm(x[inds]-hpos)
+                #elif pname.find('pr2') >= 0:
+                #    cost -= col_wt * np.linalg.norm(x[inds]-hpos)
         return cost
 
 
