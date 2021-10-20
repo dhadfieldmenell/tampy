@@ -2237,6 +2237,7 @@ class InGripper(PosePredicate):
         if not hasattr(self, 'rot_coeff'): self.rot_coeff = const.IN_GRIPPER_ROT_COEFF
         if hasattr(params[1], 'geom') and hasattr(params[1].geom, 'near_coeff'):
             self.coeff *= params[1].geom.near_coeff
+            #self.rot_coeff *= params[1].geom.near_coeff
 
         if hasattr(params[1], 'geom') and 'sphere' in params[1].geom.get_types():
             self.rot_coeff = 0.

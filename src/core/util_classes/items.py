@@ -182,7 +182,8 @@ class Box(Obstacle):
             self.near_coeff = 0.6 # 0.8
             self.eereachable_coeff = 8e-1
         elif self.height <= 0.02:
-            self.near_coeff = 0.5
+            self.near_coeff = 0.5 # 0.6
+            self.eereachable_coeff = 1.8e0
 
 class Basket(Item):
     """

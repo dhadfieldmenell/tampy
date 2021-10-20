@@ -115,19 +115,21 @@ class MotionServer(Server):
         self.agent.store_hist_info(node.info)
         
         init_t = time.time()
-        success, opt_suc, path, info = self.agent.backtrack_solve(plan, 
-                                                                 anum=plan.start, 
-                                                                 x0=x0,
-                                                                 targets=node.targets,
-                                                                 n_resamples=self._hyperparams['n_resample'], 
-                                                                 rollout=self.rollout_opt, 
-                                                                 traj=node.ref_traj, 
-                                                                 st=cur_t, 
-                                                                 permute=self.permute_hl,
-                                                                 label=node.nodetype,
-                                                                 backup=self.backup,
-                                                                 verbose=verbose,
-                                                                 hist_info=node.info)
+        for roll_opt in [self.rollout_opt, False]:
+            success, opt_suc, path, info = self.agent.backtrack_solve(plan, 
+                                                                     anum=plan.start, 
+                                                                     x0=x0,
+                                                                     targets=node.targets,
+                                                                     n_resamples=self._hyperparams['n_resample'], 
+                                                                     rollout=roll_opt, 
+                                                                     traj=node.ref_traj, 
+                                                                     st=cur_t, 
+                                                                     permute=self.permute_hl,
+                                                                     label=node.nodetype,
+                                                                     backup=self.backup,
+                                                                     verbose=verbose,
+                                                                     hist_info=node.info)
+            if success or not self.rollout_opt: break
         end_t = time.time()
         for step in path:
             step.wt = wt

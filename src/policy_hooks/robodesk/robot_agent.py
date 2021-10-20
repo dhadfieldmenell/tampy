@@ -58,7 +58,7 @@ const.OBSTRUCTS_COEFF = 2.5e-2
 bt_ll.INIT_TRAJ_COEFF = 3e-1
 bt_ll.RS_COEFF = 1e1
 STACK_OFFSET = 0.08
-SHELF_Y = 0.87
+SHELF_Y = 0.86 # 0.87
 
 STEP = 0.1
 NEAR_TOL = 0.05
@@ -128,7 +128,7 @@ class EnvWrapper():
         self.model = self.physics.model
         self.mode = mode
         self.z_offsets = {}
-        self.z_offsets = {'flat_block': 0.01}#-0.01}
+        self.z_offsets = {'flat_block': 0.0}#1}
         self.upright_rot = Rotation.from_euler('xyz', [1.57, 1.57, 0.])
         self.upright_rot_inv = self.upright_rot.inv()
         self.flat_rot = Rotation.from_euler('xyz', [0., 0., 0.])
@@ -140,7 +140,7 @@ class EnvWrapper():
             self.env._get_obs = lambda: {'image': np.zeros((4,4,3))}
         self.cur_obs = self.reset()
 
-    def render(self, mode='rgb_array', resize=True, overlays=(), imsize=None):
+    def render(self, mode='rgb_array', resize=True, overlays=(), imsize=None, cam_ids=[-1]):
         params = {'distance': 1.8, 'azimuth': 90, 'elevation': -60,
                   'crop_box': (16.75, 25.0, 105.0, 88.75), 'size': 120}
         imsize = self.env.image_size if imsize is None else imsize
@@ -151,41 +151,46 @@ class EnvWrapper():
             params['size'] = int(ratio * 120)
             params['crop_box'] = (ratio*16.75, ratio*25., params['size']-ratio*15., params['size']-ratio*31.25)
 
-        camera = mujoco.Camera(
-            physics=self.physics, height=params['size'],
-            width=params['size'], camera_id=-1)
-        camera._render_camera.distance = params['distance']  # pylint: disable=protected-access
-        camera._render_camera.azimuth = params['azimuth']  # pylint: disable=protected-access
-        camera._render_camera.elevation = params['elevation']  # pylint: disable=protected-access
-        camera._render_camera.lookat[:] = [0, 0.535, 1.1]  # pylint: disable=protected-access
+        ims = []
+        for cam_id in cam_ids:
+            camera = mujoco.Camera(
+                physics=self.physics, height=params['size'],
+                width=params['size'], camera_id=cam_id)
+            camera._render_camera.distance = params['distance']  # pylint: disable=protected-access
+            camera._render_camera.azimuth = params['azimuth']  # pylint: disable=protected-access
+            camera._render_camera.elevation = params['elevation']  # pylint: disable=protected-access
+            camera._render_camera.lookat[:] = [0, 0.535, 1.1]  # pylint: disable=protected-access
 
 
-        mjc_overlays = tuple(ovr for ovr in overlays if type(ovr) is not str)
-        str_overlays = tuple(ovr for ovr in overlays if type(ovr) is str)
-        image = camera.render(depth=False, segmentation=False, overlays=mjc_overlays)
-        camera._scene.free()  # pylint: disable=protected-access
+            mjc_overlays = tuple(ovr for ovr in overlays if type(ovr) is not str)
+            str_overlays = tuple(ovr for ovr in overlays if type(ovr) is str)
+            image = camera.render(depth=False, segmentation=False, overlays=mjc_overlays)
+            camera._scene.free()  # pylint: disable=protected-access
 
-        if resize:
-              image = Image.fromarray(image).crop(box=params['crop_box'])
-              image = image.resize([imsize, imsize],
+            if resize:
+                image = Image.fromarray(image).crop(box=params['crop_box'])
+                image = image.resize([imsize, imsize],
                                    resample=Image.ANTIALIAS)
-              if len(str_overlays):
-                  border = 30
-                  image = ImageOps.expand(image, border=border, fill=(0, 0, 0))
-                  im_draw = ImageDraw.Draw(image)
-                  _, texth = self.im_font.getsize(str_overlays[0])
-                  pos = [(2,2), 
-                          (2, imsize+2*border-texth-2), 
-                          (2, 4+texth), 
-                          (2, imsize+2*border-2*texth-4)]
-                  for ind, ovr in enumerate(str_overlays):
-                      w, h = self.im_font.getsize(ovr)
-                      x, y = pos[ind]
-                      im_draw.rectangle((x, y, x+w, y+h), fill='black')
-                      im_draw.text(pos[ind], ovr, fill=(255,255,255), font=self.im_font)
 
-              image = np.asarray(image)
-        return image
+            if len(str_overlays):
+                border = 30
+                image = ImageOps.expand(image, border=border, fill=(0, 0, 0))
+                im_draw = ImageDraw.Draw(image)
+                _, texth = self.im_font.getsize(str_overlays[0])
+                pos = [(2,2), 
+                        (2, imsize+2*border-texth-2), 
+                        (2, 4+texth), 
+                        (2, imsize+2*border-2*texth-4)]
+                for ind, ovr in enumerate(str_overlays):
+                    w, h = self.im_font.getsize(ovr)
+                    x, y = pos[ind]
+                    im_draw.rectangle((x, y, x+w, y+h), fill='black')
+                    im_draw.text(pos[ind], ovr, fill=(255,255,255), font=self.im_font)
+
+            image = np.asarray(image)
+            ims.append(image)
+
+        return np.concatenate(ims, axis=0)
 
 
     def get_task():
@@ -551,11 +556,13 @@ class RobotAgent(TAMPAgent):
         self.hor = 18
 
         freq = 20
+        self.cam_ids = [-1,1] if self.incl_grip_obs else [-1]
         self.base_env = robodesk.RoboDesk(task='lift_ball', \
                                           reward='success', \
                                           action_repeat=freq, \
                                           episode_length=None, \
-                                          image_size=self.image_width)
+                                          image_size=self.image_width,
+                                          cam_ids=self.cam_ids)
 
         prim_options = self.prob.get_prim_choices(self.task_list)
         self.obj_list = prim_options[OBJ_ENUM]
@@ -631,7 +638,7 @@ class RobotAgent(TAMPAgent):
         #    ctxt._overlay[mj_const.GRID_TOPLEFT] = ['{}'.format(task), '']
         #    ctxt._overlay[mj_const.GRID_BOTTOMLEFT] = ['{0: <7} {1: <7} {2}'.format(precost, postcost, gripcmd), '']
         #return self.base_env.sim.render(height=self.image_height, width=self.image_width, camera_name="frontview")
-        im = self.mjc_env.render(overlays=overlays, resize=True, imsize=112)
+        im = self.mjc_env.render(overlays=overlays, resize=True, imsize=112, cam_ids=self.cam_ids)
         #for ctxt in self.base_env.sim.render_contexts:
         #    for key in list(ctxt._overlay.keys()):
         #        del ctxt._overlay[key]
@@ -973,12 +980,18 @@ class RobotAgent(TAMPAgent):
                IM_ENUM in self._hyperparams['prim_obs_include']:
                 im = self.mjc_env.cur_obs['image']
                 im = (im - 128.) / 128.
+                if self.incl_grip_obs:
+                    grip_im = (self.mjc_env.cur_obs['hand_image'] - 128.) / 128.
+                    im = np.c_[im, grip_im]
+
                 if self.incl_init_obs:
                     init_im = (self.mjc_env.cur_obs['image']-self.mjc_env.init_obs['image'])  / 256.
                     im = np.c_[im, init_im]
+
                 if self.incl_trans_obs:
                     trans_im = (self.mjc_env.cur_obs['image']-self.mjc_env.trans_obs['image'])  / 256.
                     im = np.c_[im, trans_im]
+
                 sample.set(IM_ENUM, im.flatten(), t)
 
 
@@ -1361,8 +1374,8 @@ class RobotAgent(TAMPAgent):
 
     def add_viewer(self):
         if self._viewer is not None or self.cur_im is not None: return
-        self.cur_im = np.zeros((self.image_height, self.image_width, 3))
-        self._launch_viewer(self.image_width, self.image_height)
+        self.cur_im = np.zeros((2*self.image_height, self.image_width, 3))
+        self._launch_viewer(self.image_width, 2*self.image_height)
 
 
     def _launch_viewer(self, width, height, title='Main'):

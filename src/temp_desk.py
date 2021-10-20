@@ -38,6 +38,14 @@ agent = build_agent(agent_config)
 env = agent.base_env
 mjc_env = agent.mjc_env
 
+'''
+agent.add_viewer()
+agent.mjc_env.set_attr('panda', 'right', np.zeros(7), forward=True)
+agent.render_viewer(env.render(resize=True))
+agent.render_viewer(env.render(resize=True))
+agent.render_viewer(env.render(resize=True))
+import ipdb; ipdb.set_trace()
+'''
 
 try:
     p.disconnect()
@@ -126,14 +134,15 @@ for run_num in range(N_RUNS):
 
     goals = [
          #'(Lifted upright_block panda)',
-         #'(Lifted ball panda)',
+         '(Lifted ball panda)',
          #'(Stacked upright_block flat_block)',
          #'(SlideDoorClose shelf_handle shelf)',
          #'(SlideDoorOpen drawer_handle drawer)',
-         '(Near flat_block bin_target)',
+         #'(Near flat_block bin_target)',
          #'(Near upright_block off_desk_target)',
          #'(InSlideDoor flat_block shelf)',
          #'(InGripperRight panda green_button)',
+         #'(and (InSlideDoor upright_block shelf) (SlideDoorClose shelf_handle shelf))',
             ]
 
     goal = random.choice(goals)
@@ -165,12 +174,19 @@ for run_num in range(N_RUNS):
     panda = plan.params['panda']
     for act in plan.actions:
         st, et = act.active_timesteps
+        x = agent.get_state()
+        for (pname, aname), inds in agent.state_inds.items():
+            getattr(plan.params[pname], aname)[:, st] = x[inds]
+        print('FAILED', act, plan.get_failed_preds((st,st)))
         for t in range(st, et):
             grip = panda.right_gripper[:, min(t+1, plan.horizon-1)]
             grip = -0.005 * np.ones(2) if grip[0] < 0.01 else 0.07 * np.ones(2)
             ctrl = np.r_[panda.right[:,t], grip]
             obs, rew, done, info = agent.mjc_env.step(ctrl)
-            agent.render_viewer(obs['image'])
+            if 'hand_image' in obs:
+                agent.render_viewer(np.r_[obs['image'], obs['hand_image']])
+            else:
+                agent.render_viewer(obs['image'])
 
     x = agent.get_state()
     goal_suc = [agent.parse_goal(x, g[0], g[1:]) for g in goal_info]
@@ -182,4 +198,5 @@ for run_num in range(N_RUNS):
     for item in sucs:
         print(item)
     print('------------\n\n')
+    import ipdb; ipdb.set_trace()
 

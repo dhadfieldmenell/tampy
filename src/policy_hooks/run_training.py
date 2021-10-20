@@ -364,6 +364,7 @@ def argsparser():
     parser.add_argument('-imchannels', '--image_channels', type=int, default=3)
     parser.add_argument('-init_obs', '--incl_init_obs', action='store_true', default=False)
     parser.add_argument('-trans_obs', '--incl_trans_obs', action='store_true', default=False)
+    parser.add_argument('-grip_obs', '--incl_grip_obs', action='store_true', default=False)
 
     # HL args
     parser.add_argument('-check_t', '--check_prim_t', type=int, default=1)

@@ -158,6 +158,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.opt_wt = self.master_config['opt_wt']
         self.incl_init_obs = self.master_config.get('incl_init_obs', False)
         self.incl_trans_obs = self.master_config.get('incl_trans_obs', False)
+        self.incl_grip_obs = self.master_config.get('incl_grip_obs', False)
 
         # TAMP solver info
         bt_ll.COL_COEFF = self.master_config['col_coeff']

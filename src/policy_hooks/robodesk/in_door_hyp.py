@@ -107,10 +107,9 @@ algorithm['mp_policy_prior'] = {
 }
 
 def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
-    #prob.GOAL_OPTIONS = [
-    #            '(Stacked upright_block flat_block)',
-    #            #'(InGripperRight panda green_button)',
-    #            ]
+    prob.GOAL_OPTIONS = [
+                '(InSlideDoor flat_block shelf)',
+                ]
     prob.NUM_OBJS = no
     prob.NUM_TARGS = nt
     prob.N_GRASPS = N_GRASPS
@@ -167,7 +166,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                              utils.RIGHT_EE_POS_ENUM,
                              #utils.RIGHT_EE_ROT_ENUM,
                              utils.RIGHT_ENUM,
-                             #utils.RIGHT_VEL_ENUM,
+                             utils.RIGHT_VEL_ENUM,
                              utils.RIGHT_GRIPPER_ENUM,
                              utils.GRIP_CMD_ENUM,
                              ],
@@ -207,10 +206,10 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'n_thresh': -1,
         'expand_process': False,
         'her': False,
-        'num_filters': [32, 32, 16],
+        'num_filters': [16, 32, 32],
         'filter_sizes': [7, 5, 3],
-        'prim_filters': [16,16,16], # [16, 32],
-        'prim_filter_sizes': [7,5,5], # [7, 5],
+        'prim_filters': [16, 32],
+        'prim_filter_sizes': [5, 5],
         'cont_filters': [32, 16],
         'cont_filter_sizes': [7, 5],
     }

@@ -69,8 +69,8 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False,
                 all_data[k][full_exp] = {}
                 used.append(full_exp)
                 i = 0
-                data = []
                 while i < 20:
+                    data = []
                     cur_dir = '{0}_{1}'.format(full_exp, i)
                     if not os.path.isdir(cur_dir):
                         i += 1
@@ -1007,11 +1007,11 @@ if __name__ == '__main__':
             terminate = True
         gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=300, window=200, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_{}'.format(keywords[0]))
         gen_data_plots(xvar='number of plans', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=100, window=1000, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_nplans_{}'.format(keywords[0]))
-        #gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=True, include=include, inter=120, window=200, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='splitendsucc_{}'.format(keywords[0]))
+        gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=True, include=include, inter=120, window=200, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='splitendsucc_{}'.format(keywords[0]))
 
         gen_data_plots(xvar='time', yvar=['distance from goal'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=300, window=50, fname='dist_{}'.format(keywords[0]))
 
-        gen_data_plots(xvar='time', yvar=['success rate'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='per_goal_success', exclude=exclude, split_runs=False, include=include, inter=180, window=100, fname='pergoal_success', split_goal=True)
+        gen_data_plots(xvar='time', yvar=['success rate'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='per_goal_success', exclude=exclude, split_runs=False, include=include, inter=180, window=200, fname='pergoal_success', split_goal=True)
         gen_data_plots(xvar='time', yvar=['optimization time', 'plan length', 'opt duration per ts'], keywords=keywords, lab='motion', label_vars=['descr'], separate=True, keyind=5, ylabel='move_policy_successes', exclude=exclude, split_runs=False, include=include, inter=600, window=500, fname='tampspeedup') 
         gen_data_plots(xvar='time', yvar=['episode return'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=200, window=100, fname='endreturn_{}'.format(keywords[0]))
 
@@ -1022,6 +1022,13 @@ if __name__ == '__main__':
         gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='move_to_grasp_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot4', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='movetograsppol')
         gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='move_to_putdown_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot3', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='movetoputpol')
         gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='grasp_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot2', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='grasppol')
+        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='hold_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot2', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='grasppol')
+        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='lift_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot2', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='grasppol')
+        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='stack_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot2', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='grasppol')
+        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='place_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot2', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='grasppol')
+        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='place_in_door_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot2', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='grasppol')
+        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='slide_open_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot2', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='grasppol')
+        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='slide_close_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot2', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='grasppol')
         gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='putdown_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot1', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='putpol')
 
         if not terminate:

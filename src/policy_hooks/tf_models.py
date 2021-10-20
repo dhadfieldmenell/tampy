@@ -330,7 +330,10 @@ def tf_cond_network(dim_input=27, dim_output=2, batch_size=25, network_config=No
 
 
 def fp_cont_network(dim_input=27, dim_output=2, batch_size=25, network_config=None, input_layer=None):
-    print('Building cont output fp net')
+    im_height = network_config['image_height']
+    im_width = network_config['image_width']
+    num_channels = network_config['image_channels']
+    print('Building cont output fp net for {}x{}x{}'.format(im_height, im_width, num_channels))
     pool_size = 2
     n_layers = 2 if 'n_layers' not in network_config else network_config['n_layers'] + 1
     dim_hidden = network_config.get('dim_hidden', 40)
@@ -366,9 +369,6 @@ def fp_cont_network(dim_input=27, dim_output=2, batch_size=25, network_config=No
     n_conv = len(num_filters)
 
     fp_only = True # False
-    im_height = network_config['image_height']
-    im_width = network_config['image_width']
-    num_channels = network_config['image_channels']
     image_input = tf.reshape(image_input, [-1, im_width, im_height, num_channels])
     #image_input = annotate_xy(im_width, im_height, image_input)
 
