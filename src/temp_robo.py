@@ -67,7 +67,7 @@ else:
     controller_config["output_min"] = -0.02  # [-0.1, -0.1, -0.1, -2, -2, -2]
 
 
-visual = len(os.environ.get("DISPLAY", "")) > 0 
+visual = len(os.environ.get("DISPLAY", "")) > 0
 has_render = visual
 env = robosuite.make(
     "PickPlace",
@@ -251,7 +251,6 @@ for _ in range(40):
     env.sim.forward()
 
 
-
 nsteps = 60
 cur_ind = 0
 
@@ -281,7 +280,9 @@ for act in plan.actions:
     # failed_preds = [p for p in failed_preds if (p[1]._rollout or not type(p[1].expr) is EqExpr)]
     print("FAILED:", t, failed_preds, act.name)
     old_state = env.sim.get_state()
-    from IPython import embed; embed()
+    from IPython import embed
+
+    embed()
     # import ipdb; ipdb.set_trace()
     # env.sim.reset()
     # env.sim.data.qpos[:7] = plan.params['sawyer'].right[:,t]
@@ -335,7 +336,9 @@ for act in plan.actions:
                 obs = env.step(act)
             end_jnts = env.sim.data.qpos[:7]
 
-            ee_to_sim_discrepancy = env.sim.data.site_xpos[grip_ind] - sawyer.right_ee_pos[:, t]
+            ee_to_sim_discrepancy = (
+                env.sim.data.site_xpos[grip_ind] - sawyer.right_ee_pos[:, t]
+            )
 
             print(
                 "EE PLAN VS SIM:",
@@ -345,7 +348,6 @@ for act in plan.actions:
 
             # if ee_to_sim_discrepancy[2] > 0.01:
             #     from IPython import embed; embed()
-            
 
             # print('\n\n\n')
 

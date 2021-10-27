@@ -86,7 +86,7 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
     def backtrack_solve(self, plan, callback=None, verbose=False, n_resamples=5):
         # plan.save_free_attrs()
         success = self._backtrack_solve(
-            plan, callback, anum=0, verbose=verbose, n_resamples=n_resamples
+            plan, callback, anum=0, verbose=verbose, n_resamples=n_resamples, 
         )
         # plan.restore_free_attrs()
         return success
@@ -102,6 +102,7 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
         n_resamples=5,
         init_traj=[],
         st=0,
+        debug=False
     ):
         if amax is None:
             amax = len(plan.actions) - 1
@@ -176,7 +177,7 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
         ### if there is no parameter to resample or some part of rs_param is fixed, then go ahead optimize over this action
         if (
             rs_param is None
-        ):  #  or sum([not np.all(rs_param._free_attrs[attr]) for attr in rs_param._free_attrs.keys() ]):
+        ):
             ## this parameter is fixed
             if callback is not None:
                 callback_a = lambda: callback(a)
@@ -215,15 +216,12 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
                         )
             free_attrs[param] = free
 
-        """
-        sampler_begin
-        """
+        # sampler_begin
+
         robot_poses = self.obj_pose_suggester(plan, anum, resample_size=1, st=st)
 
-        """
-        sampler end
-        """
-
+        # sampler end
+        
         if callback is not None:
             callback_a = lambda: callback(a)
         else:
@@ -301,9 +299,10 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
         verbose=False,
         force_init=False,
         init_traj=[],
+        debug=False,
     ):
         # print(plan.params['ball'].pose[:,0])
-        # print(plan.params['ball'].pose[:,18])
+        # print(plan.params['ball'].p]ose[:,18])
         # print(plan.params['ball'].pose[0,:])
 
         success = False
@@ -321,11 +320,12 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
 
         for priority in self.solve_priorities:
             if DEBUG: print('solving at priority', priority)
+
             for attempt in range(max(1, n_resamples)):
                 ## refinement loop
                 success = self._solve_opt_prob(plan, priority=priority,
                                 callback=callback, active_ts=active_ts, verbose=verbose,
-                                init_traj=init_traj)
+                                init_traj=init_traj, debug=debug)
                 # success = len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) == 0
 
                 # No point in resampling if the endpoints or linear constraints can't be satisfied
@@ -334,6 +334,7 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
 
                 if DEBUG:
                     print("pre-resample attempt {} failed:".format(attempt))
+                    print("FAILED PREDICATES")
                     print(plan.get_failed_preds(active_ts, priority=priority, tol=1e-3))
 
                 success = self._solve_opt_prob(plan, priority=priority, callback=callback, 
@@ -342,6 +343,7 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
 
                 if DEBUG:
                     print("resample attempt: {} at priority {}".format(attempt, priority))
+                    print("FAILED PREDICATES")
                     print(plan.get_failed_preds(active_ts, priority=priority, tol=1e-3))
                 
                 if success:
@@ -353,9 +355,11 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
                 break
 
         if DEBUG:
+            print("FAILED PREDICATES")
             print((plan.get_failed_preds(active_ts=active_ts, tol=1e-3), active_ts))
 
         self._cleanup_plan(plan, active_ts)
+
         return success
 
     # @profile
@@ -370,6 +374,7 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
         resample=False,
         smoothing=False,
         init_traj=[],
+        debug=False,
     ):
         if callback is not None:
             viewer = callback()
@@ -404,6 +409,7 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
 
         initial_trust_region_size = self.initial_trust_region_size
         end_t = active_ts[1] - active_ts[0]
+
         if resample:
             tol = 1e-3
             """
@@ -453,6 +459,7 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
 
                 tol = 1e-3
                 initial_trust_region_size = 1e3
+
             elif priority == -1:
                 """
                 Solve the optimization problem while enforcing every constraints.
@@ -869,15 +876,18 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
                             # TODO: REMOVE line below, for tracing back predicate for debugging.
                             if DEBUG:
                                 bexpr.source = (negated, pred, t)
+
                             self._bexpr_to_pred[bexpr] = (negated, pred, t)
                             groups = ["all"]
+
                             if self.early_converge:
                                 ## this will check for convergence per parameter
                                 ## this is good if e.g., a single trajectory quickly
                                 ## gets stuck
                                 groups.extend([param.name for param in pred.params])
-
+                            
                             self._prob.add_cnt_expr(bexpr, groups)
+
 
     def _add_first_and_last_timesteps_of_actions(
         self,
@@ -892,13 +902,14 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
         """
         if active_ts is None:
             active_ts = (0, plan.horizon - 1)
+
         for action in plan.actions:
             true_start, true_end = action.active_timesteps
             action_start, action_end = action.active_timesteps
             ## only add an action
-            if action_start >= active_ts[1] and action_start > active_ts[0]:
+            if action_start >= active_ts[1]:
                 continue
-            if action_end < active_ts[0]:
+            if action_end <= active_ts[0]:
                 continue
 
             if action_start < active_ts[0]:
@@ -925,9 +936,9 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
                         verbose=verbose,
                     )
             ## add all of the linear ineqs
-            timesteps = list(
-                range(max(action_start, active_ts[0]), min(action_end, active_ts[1]))
-            )
+            timesteps = list(range(max(action_start, active_ts[0]),
+                              min(action_end, active_ts[1])+1))
+
             for pred_dict in action.preds:
                 self._add_pred_dict(
                     pred_dict,
@@ -950,13 +961,14 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
         This function adds both linear and non-linear predicates from
         actions that are active within the range of active_ts.
         """
+
         if active_ts == None:
             active_ts = (0, plan.horizon - 1)
         for action in plan.actions:
             action_start, action_end = action.active_timesteps
-            if action_start >= active_ts[1] and action_start > active_ts[0]:
+            if action_start >= active_ts[1]:
                 continue
-            if action_end < active_ts[0]:
+            if action_end <= active_ts[0]:
                 continue
 
             if action_start < active_ts[0]:
@@ -1077,13 +1089,6 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
                         param_ll = self._param_to_ll[param]
                         ll_attr_val = getattr(param_ll, attr_name)
                         param_ll_vars = ll_attr_val.reshape((KT, 1), order="F")
-
-                        # DEBUGGING!!!
-                        # for i in range(param_ll_vars.shape[0]):
-                        #     if param_ll_vars[i, 0].var_name == "(can1-pose-(0, 2))":
-                        #         import pdb
-
-                        #         pdb.set_trace()
 
                         attr_val = getattr(param, attr_name)
                         init_val = attr_val[:, start : end + 1].reshape(

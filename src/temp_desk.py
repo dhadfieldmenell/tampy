@@ -7,12 +7,12 @@ import core.util_classes.common_constants as const
 from core.util_classes.robots import Baxter
 from core.util_classes.openrave_body import *
 from core.util_classes.transform_utils import *
-from pma import backtrack_ll_solver_gurobi as bt_ll
-# from pma import backtrack_ll_solver_OSQP as bt_ll
+# from pma import backtrack_ll_solver_gurobi as bt_ll
+from pma import backtrack_ll_solver_OSQP as bt_ll
 from pma.hl_solver import *
 from pma.pr_graph import *
 from pma.robot_solver import RobotSolverGurobi
-# from pma.robot_solver import RobotSolverOSQP
+from pma.robot_solver import RobotSolverOSQP
 import core.util_classes.transform_utils as T
 from policy_hooks.multiprocess_main import load_config, setup_dirs, DIR_KEY
 from policy_hooks.run_training import argsparser
@@ -90,7 +90,7 @@ for param in params:
 # GUROBI CAN ACHIEVE THE BELOW GOALS
 
 # OSQP CAN
-# goal = '(Lifted upright_block panda)' (takes forever!)
+goal = '(Lifted upright_block panda)' # (takes forever!)
 # goal = '(SlideDoorOpen drawer_handle drawer)'
 # goal = '(At flat_block bin_target)'
 # goal = '(InSlideDoor upright_block shelf)'
@@ -98,7 +98,7 @@ for param in params:
 # goal = '(and (SlideDoorOpen drawer_handle drawer) (NearApproachRight panda upright_block))'
 
 # OSQP CANNOT
-goal = '(Lifted flat_block panda)'
+# goal = '(Lifted flat_block panda)'
 # goal = '(Stacked upright_block flat_block)'
 # goal = '(SlideDoorClose shelf_handle shelf)'
 # goal = '(InSlideDoor ball drawer)'
@@ -116,9 +116,11 @@ goal = '(Lifted flat_block panda)'
 # goal = '(and (At flat_block bin_target) (At upright_block off_desk_target))'
 # goal = '(and (InSlideDoor ball drawer) (NearGripperRight panda green_button))'
 
-print('CONSISTENT?', problem.init_state.is_consistent())
-solver = RobotSolverGurobi()
-# solver = RobotSolverOSQP()
+if not problem.init_state.is_consistent():
+    exit()
+
+# solver = RobotSolverGurobi()
+solver = RobotSolverOSQP()
 
 plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=3)
 

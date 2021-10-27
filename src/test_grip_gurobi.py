@@ -12,11 +12,10 @@ prob_gen.FIX_TARGETS = True
 prob_gen.n_aux = 0
 prob_gen.END_TARGETS = prob_gen.END_TARGETS[:8]
 prob_gen.domain_file = "../domains/namo_domain/namo_current_holgrip.domain"
-from pma.namo_grip_solver import *
+from pma.namo_grip_solver import NAMOSolverGurobi
 from pma.hl_solver import *
 from pma.pr_graph import *
 from pma import backtrack_ll_solver_gurobi as bt_ll
-# from pma import backtrack_ll_solver_OSQP as bt_ll
 from policy_hooks.utils.load_task_definitions import parse_state
 from core.util_classes.namo_grip_predicates import angle_diff
 from core.util_classes.openrave_body import OpenRAVEBody
@@ -34,11 +33,13 @@ p_c = main.parse_file_to_dict(prob_file)
 problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, None)
 
 possible_can_locs = list(itertools.product(list(range(-70, 70, 4)), list(range(-60, 0, 4))))
-random.shuffle(possible_can_locs)
+# random.shuffle(possible_can_locs)
 params = problem.init_state.params
-inds = np.random.choice(range(len(possible_can_locs)), N_OBJS+1, replace=False)
+# inds = np.random.choice(range(len(possible_can_locs)), N_OBJS+1, replace=False)
+# import ipdb; ipdb.set_trace()
+inds = [52, 478, 382]
 targ_inds = list(range(8))
-random.shuffle(targ_inds)
+# random.shuffle(targ_inds)
 
 params['obs0'].pose[:,0] = [-3.5, 0.]
 params['pr2'].pose[:,0] = np.array(possible_can_locs[inds[-1]]) / 10.
@@ -55,9 +56,12 @@ for pname in params:
     if targ in params:
         params[targ].value[:,0] = params[pname].pose[:,0]
 
-solver = NAMOSolver()
+solver = NAMOSolverGurobi()
 hls = FFSolver(d_c)
 plan, descr = p_mod_abs(hls, solver, domain, problem, goal=goal, debug=True, n_resamples=5)
+
+if plan is None:
+    exit()
 
 fpath = baxter_gym.__path__[0]
 act_jnts = ['robot_x', 'robot_y', 'robot_theta', 'left_finger_joint', 'right_finger_joint']

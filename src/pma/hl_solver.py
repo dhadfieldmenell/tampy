@@ -392,7 +392,8 @@ class FFSolver(HLSolver):
                                                                           env=env, debug=debug)
                     preds.append({'negated': False, 'pred': init_pred, 'hl_info': 'hl_state', 'active_timesteps': (0,0)})
                 except TypeError as e:
-                    print(("type error for {}".format(pred)))
+                    # print(("type error for {}".format(pred)))
+                    pass
 
             # Invariant predicates are enforced every timestep
             for i, pred in enumerate(invariant_preds):

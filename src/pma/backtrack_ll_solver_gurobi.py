@@ -332,6 +332,7 @@ class BacktrackLLSolver(LLSolver):
         model.update()
         initial_trust_region_size = self.initial_trust_region_size
         end_t = active_ts[1] - active_ts[0]
+
         if resample:
             tol = 1e-3
             """
@@ -579,7 +580,7 @@ class BacktrackLLSolver(LLSolver):
     #@profile
     def check_sync(self):
         """
-            This function checks whether all sco variable are synchronized
+        This function checks whether all sco variable are synchronized
         """
         grb_val_map = {}
         correctness = True
@@ -752,13 +753,14 @@ class BacktrackLLSolver(LLSolver):
                                 ## this is good if e.g., a single trajectory quickly
                                 ## gets stuck
                                 groups.extend([param.name for param in pred.params])
+
                             self._prob.add_cnt_expr(bexpr, groups)
 
     #@profile
     def _add_first_and_last_timesteps_of_actions(self, plan, priority = MAX_PRIORITY,
                                                  add_nonlin=False, active_ts=None, verbose=False):
         """
-            Adding only non-linear constraints on the first and last timesteps of each action.
+        Adding only non-linear constraints on the first and last timesteps of each action.
         """
         if active_ts is None:
             active_ts = (0, plan.horizon-1)
@@ -789,6 +791,7 @@ class BacktrackLLSolver(LLSolver):
             for pred_dict in action.preds:
                 self._add_pred_dict(pred_dict, timesteps, add_nonlin=False,
                                     priority=priority, verbose=verbose)
+
 
     #@profile
     def _add_all_timesteps_of_actions(self, plan, priority=MAX_PRIORITY,

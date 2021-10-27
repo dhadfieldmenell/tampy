@@ -578,10 +578,10 @@ class CollisionPredicate(ExprPredicate):
 
             if self._debug:
                 # self._plot_collision(pt0, pt1, distance)
-                print("pt0 = ", pt0)
-                print("pt1 = ", pt1)
-                print("distance = ", distance)
-                print("normal = ", normal)
+                # print("pt0 = ", pt0)
+                # print("pt1 = ", pt1)
+                # print("distance = ", distance)
+                # print("normal = ", normal)
                 self._plot_collision_normal(pt0, pt1, distance, normal)
 
             vals[i, 0] = self.dsafe - distance
@@ -1899,7 +1899,7 @@ class WideObstructs(Obstructs):
         super(WideObstructs, self).__init__(
             name, params, expected_param_types, env, debug
         )
-        self.dsafe = 0.05  # 0.35
+        self.dsafe = 0.35 #0.001 #0.05  # 0.35
         self.check_aabb = False  # True
 
 
@@ -2357,7 +2357,7 @@ class InGraspAngle(ExprPredicate):
         self.dist = 0.0
         self.dsafe = dsafe
         self.gripdist = gripdist
-        self.coeff = 0.1
+        self.coeff = 0.0001
         if self.r.is_symbol():
             k = "value"
         else:
@@ -2641,7 +2641,8 @@ class NearGraspAngle(InGraspAngle):
         super(NearGraspAngle, self).__init__(
             name, params, expected_param_types, env, sess, debug
         )
-        self.coeff = 5e-3
+        # self.coeff = 5e-3
+        self.coeff = 5e-4
         self._rollout = True
 
 
@@ -3701,6 +3702,7 @@ class ThetaDirValid(ExprPredicate):
     ):
         (self.r,) = params
         self.forward, self.reverse = False, False
+        self.coeff = 10e0
         attr_inds = OrderedDict(
             [
                 (
@@ -3727,14 +3729,10 @@ class ThetaDirValid(ExprPredicate):
         )
 
     def f(self, x):
-        cur_tensor = get_tf_graph("thetadir_tf_both")
-        if self.forward:
-            cur_tensor = get_tf_graph("thetadir_tf_off")
-        if self.reverse:
-            cur_tensor = get_tf_graph("thetadir_tf_opp")
-        return np.array(
-            [TF_SESS[0].run(cur_tensor, feed_dict={get_tf_graph("thetadir_tf_in"): x})]
-        )
+        cur_tensor = get_tf_graph('thetadir_tf_both')
+        if self.forward: cur_tensor = get_tf_graph('thetadir_tf_off')
+        if self.reverse: cur_tensor = get_tf_graph('thetadir_tf_opp')
+        return self.coeff * np.array([TF_SESS[0].run(cur_tensor, feed_dict={get_tf_graph('thetadir_tf_in'): x})])
 
     def grad(self, x):
         cur_grads = get_tf_graph("thetadir_tf_grads")
@@ -3745,7 +3743,7 @@ class ThetaDirValid(ExprPredicate):
         v = TF_SESS[0].run(cur_grads, feed_dict={get_tf_graph("thetadir_tf_in"): x}).T
         v[np.isnan(v)] = 0.0
         v[np.isinf(v)] = 0.0
-        return v
+        return self.coeff * v
 
     def resample(self, negated, time, plan):
         res = OrderedDict()

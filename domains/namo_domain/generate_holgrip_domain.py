@@ -79,7 +79,6 @@ class MoveTo(Action):
                 ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
                 ('(StationaryRot ?robot)', '{0}:{1}'.format(et-4, et-1)),
                 ('(ForThetaDirValid ?robot)', '{0}:{1}'.format(et-4, et-1)),
-                #('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
         ]
 
 class Transfer(Action):
@@ -116,7 +115,6 @@ class Transfer(Action):
                 ('(forall (?w - Obstacle) (StationaryW ?w))', '0:{0}'.format(et-1)), 
                 ('(IsMP ?robot)', '0:{0}'.format(et-1)),
                 ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '2:{0}'.format(et-1)),
-                #('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
                 ('(StationaryRot ?robot)', '{0}:{1}'.format(et-3, et-1)),
                 ('(ForThetaDirValid ?robot)', '{0}:{1}'.format(et-3, et-1)),
                 ('(not (GripperClosed ?robot))', '{0}:{1}'.format(et, et-1)),
@@ -162,7 +160,7 @@ class Place(Action):
                 ('(forall (?obj - Can) (forall (?targ - Target) (not (HLTransferFailed ?obj ?targ))))', '{0}:{0}'.format(et,et-1)),
                 ('(forall (?targ - Target) (not (HLPlaceFailed ?targ)))', '{0}:{0}'.format(et,et-1)),
                 # ('(LinearRetreat ?robot)', '0:{0}'.format(et-1)),
-                #('(StationaryRot ?robot)', '0:{0}'.format(et-2)),
+                # ('(StationaryRot ?robot)', '0:{0}'.format(et-2)),
                 ('(StationaryRot ?robot)', '0:{0}'.format(1)),
                 #('(RevThetaDirValid ?robot)', '0:{0}'.format(et-2)),
                 ('(RevThetaDirValid ?robot)', '0:{0}'.format(1)),

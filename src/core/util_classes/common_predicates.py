@@ -13,12 +13,11 @@ from sco.expr import AffExpr, EqExpr, Expr, LEqExpr
 """
 This file implements the classes for commonly used predicates that are useful in a wide variety of
 typical domains.
-namo_domain specific predicates can be found in core/util_classes/namo_predicates_gurobi.pu
+namo_domain specific predicates can be found in core/util_classes/namo_predicates_gurobi.py
 pr2_domain specific predicates can be cound in core/util_classes/pr2_predicates.py
 """
 
 DEFAULT_TOL = 1e-3
-
 
 def get_param_vector_helper(pred, res_arr, startind, t, attr_inds):
     i = startind
@@ -28,8 +27,10 @@ def get_param_vector_helper(pred, res_arr, startind, t, attr_inds):
             if p.is_symbol():
                 res_arr[i : i + n_vals] = getattr(p, attr)[ind_arr, 0]
             else:
-                # print(p, attr, t, getattr(p,attr).shape)
-                res_arr[i : i + n_vals] = getattr(p, attr)[ind_arr, t]
+                try:
+                    res_arr[i : i + n_vals] = getattr(p, attr)[ind_arr, t]
+                except AttributeError:
+                    import ipdb; ipdb.set_trace()
             i += n_vals
     return i
 
