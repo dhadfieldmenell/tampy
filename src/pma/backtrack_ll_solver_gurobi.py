@@ -305,9 +305,11 @@ class BacktrackLLSolver(LLSolver):
                 break
 
         if DEBUG:
+            print("FAILED PREDICATES")
             print((plan.get_failed_preds(active_ts=active_ts, tol=1e-3), active_ts))
 
         self._cleanup_plan(plan, active_ts)
+
         return success
 
     #@profile
@@ -383,6 +385,7 @@ class BacktrackLLSolver(LLSolver):
                 self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True,
                                                    active_ts=active_ts, verbose=verbose)
                 tol=1e-3
+                # import ipdb; ipdb.set_trace()
 
         solv = Solver()
         solv.initial_trust_region_size = initial_trust_region_size
@@ -716,8 +719,8 @@ class BacktrackLLSolver(LLSolver):
     def _add_pred_dict(self, pred_dict, effective_timesteps, add_nonlin=True,
                        priority=MAX_PRIORITY, verbose=False):
         """
-            This function creates constraints for the predicate and added to
-            Prob class in sco.
+        This function creates constraints for the predicate and added to
+        Prob class in sco.
         """
         ## for debugging
         ignore_preds = []
@@ -797,8 +800,8 @@ class BacktrackLLSolver(LLSolver):
     def _add_all_timesteps_of_actions(self, plan, priority=MAX_PRIORITY,
                                       add_nonlin=True, active_ts=None, verbose=False):
         """
-            This function adds both linear and non-linear predicates from
-            actions that are active within the range of active_ts.
+        This function adds both linear and non-linear predicates from
+        actions that are active within the range of active_ts.
         """
         if active_ts==None:
             active_ts = (0, plan.horizon-1)
@@ -864,13 +867,14 @@ class BacktrackLLSolver(LLSolver):
     #@profile
     def _get_trajopt_obj(self, plan, active_ts=None):
         """
-            This function selects parameter of type Robot and Can and returns
-            the expression e(x) = |Px|^2
-            Which optimize trajectory so that robot and can's attributes in
-            current timestep is close to that of next timestep.
-            forming a straight line between each end points.
-            Where P is the KT x KT matrix, where Px is the difference of
-            value in current timestep compare to next timestep
+        This function selects parameter of type Robot and Can and returns
+        the expression e(x) = |Px|^2
+        This optimizes the trajectory so that robot and can's attributes in
+        current timestep is close to that of next timestep.
+        forming a straight line between each end points.
+
+        Where P is the KT x KT matrix, where Px is the difference of
+        value in current timestep compare to next timestep
         """
         if active_ts == None:
             active_ts = (0, plan.horizon-1)

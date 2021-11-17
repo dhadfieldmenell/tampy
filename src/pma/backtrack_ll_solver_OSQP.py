@@ -301,22 +301,10 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
         init_traj=[],
         debug=False,
     ):
-        # print(plan.params['ball'].pose[:,0])
-        # print(plan.params['ball'].p]ose[:,18])
-        # print(plan.params['ball'].pose[0,:])
 
         success = False
         if callback is not None:
             viewer = callback()
-        # if force_init or not plan.initialized:
-        #    self._solve_opt_prob(plan, priority=-2, callback=callback,
-        #        active_ts=active_ts, verbose=verbose, init_traj=init_traj)
-        #    # self._solve_opt_prob(plan, priority=-1, callback=callback,
-        #    #     active_ts=active_ts, verbose=verbose)
-        #    plan.initialized=True
-
-        # if success or len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) == 0:
-        #    return True
 
         for priority in self.solve_priorities:
             if DEBUG: print('solving at priority', priority)
@@ -348,8 +336,6 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
                 
                 if success:
                     break
-
-                # assert not (success and not len(plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)) == 0)
 
             if not success:
                 break
@@ -448,7 +434,6 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
                 """
                 obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
                 self._add_obj_bexprs(obj_bexprs)
-
                 self._add_first_and_last_timesteps_of_actions(
                     plan,
                     priority=MAX_PRIORITY,
@@ -456,7 +441,6 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
                     verbose=verbose,
                     add_nonlin=False,
                 )
-
                 tol = 1e-3
                 initial_trust_region_size = 1e3
 
@@ -848,7 +832,11 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
         """
         ## for debugging
         ignore_preds = []
+        
+        original_priority = priority
+
         priority = np.maximum(priority, 0)
+
         if not pred_dict["hl_info"] == "hl_state":
             start, end = pred_dict["active_timesteps"]
             active_range = list(range(start, end + 1))
@@ -961,7 +949,6 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
         This function adds both linear and non-linear predicates from
         actions that are active within the range of active_ts.
         """
-
         if active_ts == None:
             active_ts = (0, plan.horizon - 1)
         for action in plan.actions:
@@ -1094,6 +1081,7 @@ class BacktrackLLSolver_OSQP(LLSolverOSQP):
                         init_val = attr_val[:, start : end + 1].reshape(
                             (KT, 1), order="F"
                         )
+
                         sco_var = self.create_variable(param_ll_vars, init_val)
                         bexpr = BoundExpr(quad_expr, sco_var)
                         traj_objs.append(bexpr)

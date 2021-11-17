@@ -42,7 +42,8 @@ targ_inds = list(range(8))
 # random.shuffle(targ_inds)
 
 params['obs0'].pose[:,0] = [-3.5, 0.]
-params['pr2'].pose[:,0] = np.array(possible_can_locs[inds[-1]]) / 10.
+params['pr2'].pose[:,0] = np.array(possible_can_locs[inds[-1]]) / 10.0
+
 for n in range(len(prob_gen.END_TARGETS)):
     params['end_target_{}'.format(n)].value[:,0] = prob_gen.END_TARGETS[n]
 
