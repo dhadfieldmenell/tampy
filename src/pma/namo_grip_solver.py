@@ -51,7 +51,7 @@ class NAMOSolverGurobi(backtrack_ll_solver.BacktrackLLSolver):
         return rs_param
 
     def freeze_rs_param(self, act):
-        return False  # True
+        return False
 
     def obj_pose_suggester(self, plan, anum, resample_size=1, st=0):
         robot_pose = []
@@ -91,43 +91,31 @@ class NAMOSolverGurobi(backtrack_ll_solver.BacktrackLLSolver):
             ):
                 target = act.params[2]
                 grasp = act.params[5]
-                target_rot = -np.arctan2(
-                    target.value[0, 0] - oldx, target.value[1, 0] - oldy
-                )
+                target_rot = -np.arctan2(target.value[0,0] - oldx, target.value[1,0] - oldy)
+                if target.value[1] > 1.7:
+                    target_rot = max(min(target_rot, np.pi/4), -np.pi/4)
+                elif target.value[1] < -7.7 and np.abs(target_rot) < 3*np.pi/4:
+                    target_rot = np.sign(target_rot) * 3*np.pi/4
+
                 while target_rot < old_rot:
                     target_rot += 2 * np.pi
                 while target_rot > old_rot:
-                    target_rot -= 2 * np.pi
-                if np.abs(target_rot - old_rot) > np.abs(
-                    target_rot - old_rot + 2 * np.pi
-                ):
-                    target_rot += 2 * np.pi
-                # if np.abs(target_rot) > np.pi/2.:
-                #    target_rot = opposite_angle(target_rot)
+                    target_rot -= 2*np.pi
+                if np.abs(target_rot-old_rot) > np.abs(target_rot-old_rot+2*np.pi): target_rot += 2*np.pi
+
                 dist = gripdist + dsafe
-                target_pos = target.value - [
-                    [-dist * np.sin(-target_rot)],
-                    [dist * np.cos(-target_rot)],
-                ]
-                target_pos = target.value - [
-                    [-dist * np.sin(target_rot)],
-                    [dist * np.cos(target_rot)],
-                ]
-                robot_pose.append(
-                    {
-                        "pose": target_pos,
-                        "gripper": np.array([[0.1]]),
-                        "theta": np.array([[target_rot]]),
-                    }
-                )
+                target_pos = target.value - [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
+                robot_pose.append({'pose': target_pos, 'gripper': np.array([[0.1]]), 'theta': np.array([[target_rot]])})
                 # robot_pose.append({'pose': target_pos + grasp.value, 'gripper': np.array([[-1.]])})
             elif act.name == "transfer" or act.name == "new_quick_place_at":
                 target = act.params[4]
                 grasp = act.params[5]
-                target_rot = -np.arctan2(
-                    target.value[0, 0] - oldx, target.value[1, 0] - oldy
-                )
-                target_rot = max(min(target_rot, np.pi / 4), -np.pi / 4)
+                target_rot = -np.arctan2(target.value[0,0] - oldx, target.value[1,0] - oldy)
+                if target.value[1] > 1.7:
+                    target_rot = max(min(target_rot, np.pi/4), -np.pi/4)
+                elif target.value[1] < -7.7 and np.abs(target_rot) < 3*np.pi/4:
+                    target_rot = np.sign(target_rot) * 3*np.pi/4
+
                 while target_rot < old_rot:
                     target_rot += 2 * np.pi
                 while target_rot > old_rot:
@@ -137,22 +125,9 @@ class NAMOSolverGurobi(backtrack_ll_solver.BacktrackLLSolver):
                 ):
                     target_rot += 2 * np.pi
                 dist = -gripdist - dsafe
-                target_pos = target.value + [
-                    [-dist * np.sin(-target_rot)],
-                    [dist * np.cos(-target_rot)],
-                ]
-                target_pos = target.value + [
-                    [-dist * np.sin(target_rot)],
-                    [dist * np.cos(target_rot)],
-                ]
-                robot_pose.append(
-                    {
-                        "pose": target_pos,
-                        "gripper": np.array([[-0.1]]),
-                        "theta": np.array([[target_rot]]),
-                    }
-                )
-            elif act.name == "place":
+                target_pos = target.value + [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
+                robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[target_rot]])})
+            elif act.name == 'place':
                 target = act.params[4]
                 grasp = act.params[5]
                 target_rot = old_rot
@@ -280,16 +255,18 @@ class NAMOSolverGurobi(backtrack_ll_solver.BacktrackLLSolver):
             and act.active_timesteps[1] >= active_ts[1]
         ][0]
         for param in plan.params.values():
-            if param._type not in ["Box", "Can"]:
-                continue
-            if act.name.lower().find("transfer") >= 0 and param in act.params:
-                continue
-            expected_param_types = ["Robot", param._type]
+            if param._type not in ['Box', 'Can']: continue
+            if param in act.params: continue
+            if act.name.lower().find('transfer') >= 0 and param in act.params: continue
+            if act.name.lower().find('move') >= 0 and param in act.params: continue
+            expected_param_types = ['Robot', param._type]
             params = [robot, param]
-            pred = ColObjPred(
-                "obstr", params, expected_param_types, plan.env, coeff=coeff
-            )
-            for t in range(active_ts[0], active_ts[1] - 1):
+            pred = ColObjPred('obstr', params, expected_param_types, plan.env, coeff=coeff)
+            for t in range(active_ts[0], active_ts[1]):
+                if act.name.lower().find('move') >= 0 \
+                   and param in act.params \
+                   and t >= act.active_timesteps[1]-4: continue
+
                 var = self._spawn_sco_var_for_pred(pred, t)
                 bexpr = BoundExpr(pred.neg_expr.expr, var)
                 objs.append(bexpr)

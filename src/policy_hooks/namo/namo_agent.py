@@ -1445,9 +1445,8 @@ class NAMOSortingAgent(TAMPAgent):
                 pos1_inds = self.state_inds[objs[i], 'pose']
                 targ = '{}_end_target'.format(objs[ind])
                 pos2_inds = self.target_inds[targ, 'value']
-                noise = np.random.uniform(-0.2, 0.2, len(pos2_inds))
+                noise = np.random.normal(0, 0.1, len(pos2_inds))
                 self.init_vecs[cond][pos1_inds] = self.targets[cond][targ] + noise
-                #self.init_vecs[cond][pos1_inds][1] = max(min(self.init_vecs[cond][pos1_inds][1], 2.5), -8.5)
 
         if self.master_config['easy']:
             self.init_vecs[cond][self.state_inds['pr2', 'pose']] = [0, -2.]

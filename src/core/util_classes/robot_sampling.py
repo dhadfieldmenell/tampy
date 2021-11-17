@@ -6,7 +6,7 @@ from core.util_classes.robots import Robot
 import core.util_classes.transform_utils as T
 
 from functools import reduce
-import core.util_classes.common_constants as const
+import core.util_classes.baxter_constants as const
 from collections import OrderedDict
 from sco.expr import Expr
 import math
@@ -345,7 +345,6 @@ def resample_obstructs(pred, negated, t, plan):
     dof_map = {arm: getattr(robot, arm)[:,t] for arm in r_geom.arms}
     for gripper in r_geom.grippers: dof_map[gripper] = getattr(robot, gripper)[:,t]
     rave_body.set_pose(robot.pose[:,t], robot.rotation[:,t])
-    rave_body.set_dof(dof_map)
 
     for param in list(plan.params.values()):
         if not param.is_symbol() and param != robot:
@@ -594,13 +593,6 @@ def resample_in_gripper(pred, negated, t, plan):
     act = acts[0]
     a_st, a_et = act.active_timesteps
 
-    if hasattr(pred, 'obj'):
-        targ_pos = pred.obj.pose[:,t].copy()
-        targ_rot = pred.obj.rotation[:,t].copy()
-    elif hasattr(pred, 'targ'):
-        targ_pos = pred.targ.value[:,0].copy()
-        targ_rot = pred.targ.rotation[:,0].copy()
-
     arm = pred.arm
     targ_quat = T.euler_to_quaternion(targ_rot, 'xyzw')
     gripper_axis = robot.geom.get_gripper_axis(pred.arm)
@@ -613,19 +605,23 @@ def resample_in_gripper(pred, negated, t, plan):
     cur_info = robot_body.fwd_kinematics(arm)
     cur_pos, cur_quat = cur_info['pos'], cur_info['quat']
 
-    base_targ_pos = targ_pos
-    n_steps = 2
-    p_st, p_et = max(a_st, t-n_steps), min(a_et, t+n_steps+1)
-    for ts in range(p_st, p_et):
-        grasp_pt = obj.geom.grasp_point if hasattr(obj.geom, 'grasp_point') else np.zeros(3)
-        vec = np.array(grasp_pt)
-        if ts < t:
-            vec += np.array([0., 0., np.abs(ts-t)*const.APPROACH_DIST])
+    st, et = pred.active_range
+    for ts in range(max(a_st, t+st), min(a_et-1, t+et)):
+        if use_pos:
+            dist = pred.approach_dist if ts <= t else pred.retreat_dist
+            vec = -pred.rel_pt - dist * np.abs(t-ts) * pred.axis
+            mask = pred.mask
+            if rel:
+                vec = obj_mat.dot(vec)
+                mask = obj_mat.dot(mask)
+            targ_pos = targ_pos+vec
+            for ind, val in enumerate(mask):
+                if np.abs(val) < 1e-1:
+                    targ_pos[ind] = cur_pos[ind]
         else:
-            vec += np.array([0., 0., np.abs(ts-t)*const.RETREAT_DIST])
+            targ_pos = np.array(cur_pos)
 
-        vec = obj_trans[:3,:3].dot(vec)
-        targ_pos = base_targ_pos+vec
+        quat = quat if use_rot else cur_quat
         ik = robot_body.get_ik_from_pose(targ_pos, quat, arm)
         add_to_attr_inds_and_res(ts, attr_inds, res, robot, [(arm, np.array(ik).flatten())])
     return res, attr_inds

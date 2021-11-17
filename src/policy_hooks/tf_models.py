@@ -340,7 +340,6 @@ def fp_cont_network(dim_input=27, dim_output=2, batch_size=25, network_config=No
         dim_hidden = copy(dim_hidden)
     n_layers = len(dim_hidden) + 1
     dim_hidden.append(dim_output)
-    dh = dim_hidden
 
     # List of indices for state (vector) data and image (tensor) data in observation.
     x_idx, img_idx, i = [], [], 0

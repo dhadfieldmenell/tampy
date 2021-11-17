@@ -2,10 +2,6 @@ from IPython import embed as shell
 import itertools
 import numpy as np
 import random
-import sys
-
-sys.path.insert(0, '../../src/')
-import core.util_classes.common_constants as const
 
 
 # SEED = 1234
@@ -25,25 +21,22 @@ EE_ROT = [3.139, 0.00, -2.182]
 
 SHELF_TARGET_POS = [0.3, 1.2, 0.85]
 SHELF_TARGET_ROT = [1.57, 0., 0.]
-BIN_TARGET_POS = [0.4, 0.52, 0.75]
+BIN_TARGET_POS = [0.4, 0.55, 0.75]
 BIN_TARGET_ROT = [0., 0., 0.]
-OFF_DESK_TARGET_POS = [0.68, 0.58, 0.77]
+OFF_DESK_TARGET_POS = [0.8, 0.675, 0.75]
 OFF_DESK_TARGET_ROT = [0., 0., 0.]
 
 SHELF_GEOM = 'desk_shelf'
 SHELF_POS = [0., 0.85, 0.]
 SHELF_ROT = [0., 0., 0.]
-SHELF_HANDLE_POS = (np.array(SHELF_POS) + const.SHELF_HANDLE_POS).tolist()
 
-DESK_BODY_GEOM = [0.575, 0.275, 0.025] # [0.6, 0.275, 0.025]
+DESK_BODY_GEOM = [0.6, 0.275, 0.025]
 DESK_BODY_POS = [0., 0.85, 0.735]
 DESK_BODY_ROT = [0, 0, 0]
 
 DRAWER_GEOM = 'desk_drawer'
 DRAWER_POS = [0., 0.85, 0.655]
 DRAWER_ROT = [0. ,0., 0.]
-DRAWER_HANDLE_POS = (np.array(DRAWER_POS) + const.DRAWER_HANDLE_POS).tolist()
-
 
 def get_panda_pose_str(name, RArm = R_ARM_INIT, G = OPEN_GRIPPER, Pos = PANDA_INIT_POSE, Rot = PANDA_INIT_ROT):
     s = ""
@@ -91,18 +84,13 @@ def main():
 
     items = ['upright_block', 'flat_block', 'ball', 'red_button', 'green_button', 'blue_button', \
              'shelf_handle', 'drawer_handle']
-    init_pos = [[0.15, 0.78, 0.85], [0.15, 0.63, 0.775], [-0.4, 0.7, 0.799], [-0.45, 0.59, 0.76], \
-                [-0.25, 0.59, 0.76], [-0.05, 0.59, 0.76], SHELF_HANDLE_POS, DRAWER_HANDLE_POS]
-    dims = [[0.09, 0.023, 0.023], [0.08, 0.035, 0.015], [0.04], \
-            [0.02, 0.02, 0.02], [0.02, 0.02, 0.02],  [0.02, 0.02, 0.02], \
-            [0.005, 0.005], [0.005, 0.005]]
+    init_pos = [[0.15, 0.78, 0.85], [0.15, 0.63, 0.775], [-0.4, 0.7, 0.799], [-0.45, 1.0, 1.1], \
+                [-0.25, 1.0, 1.1], [-0.05, 1.0, 1.1], [-0.3, 0.78, 1.005], [0., 0.49, 0.665]]
+    dims = [[0.09, 0.023, 0.023], [0.08, 0.035, 0.015], [0.04], [0.035, 0.01], [0.035, 0.01], \
+            [0.035, 0.01], [0.01, 0.05], [0.01, 0.05]]
     item_types = []
     for item in items:
         if item.find('block') >= 0:
-            item_type = 'Box'
-        elif item.find('handle') >= 0:
-            item_type = 'Can' # 'Box'
-        elif item.find('button') >= 0:
             item_type = 'Box'
         elif item.find('ball') >= 0:
             item_type = 'Sphere'
@@ -113,17 +101,18 @@ def main():
         item_types.append(item_type)
 
     for ind, item in enumerate(items):
-        #s += "PandaPose (name {}); ".format("{0}_grasp_begin".format(item))
-        #s += "PandaPose (name {}); ".format("{0}_grasp_end".format(item))
-        #s += "PandaPose (name {}); ".format("{0}_putdown_begin".format(item))
-        #s += "PandaPose (name {}); ".format("{0}_putdown_end".format(item))
+        s += "PandaPose (name {}); ".format("{0}_grasp_begin".format(item))
+        s += "PandaPose (name {}); ".format("{0}_grasp_end".format(item))
+        s += "PandaPose (name {}); ".format("{0}_putdown_begin".format(item))
+        s += "PandaPose (name {}); ".format("{0}_putdown_end".format(item))
 
         item_type = item_types[ind]
         s += "{} (name {}); ".format(item_type, item)
-        #s += "Target (name {}_init_target); ".format(item)
-        #s += "Target (name {}_end_target); ".format(item)
+        s += "Target (name {}_init_target); ".format(item)
+        s += "Target (name {}_end_target); ".format(item)
 
     s += "Target (name bin_target); "
+    s += "Target (name shelf_target); "
     s += "Target (name off_desk_target); "
     s += "PandaPose (name {}); ".format("robot_init_pose")
     s += "PandaPose (name {}); ".format("robot_end_pose")
@@ -132,10 +121,7 @@ def main():
     s += "Door (name drawer) \n\n"
 
     s += "Init: "
-    rots = {'shelf_handle': const.SHELF_HANDLE_ORN, 
-            'upright_block': [1.57, 1.57, 0.],
-            'flat_block': [0., 0., 0.],
-            'drawer_handle': const.DRAWER_HANDLE_ORN,}
+    rots = {'shelf_handle': [1.57, 1.57, 0], 'upright_block': [1.57, 1.57, 0.]}
     for ind, item in enumerate(items):
         dim = dims[ind]
         item_type = item_types[ind]
@@ -153,16 +139,16 @@ def main():
         s += "(pose {0} {1}), ".format(item, init_pos[ind])
         s += "(rotation {0} {1}), ".format(item, rot)
 
-        #s += "(value {}_init_target {}), ".format(item, init_pos[ind])
-        #s += "(rotation {}_init_target {}), ".format(item, rot)
+        s += "(value {}_init_target {}), ".format(item, init_pos[ind])
+        s += "(rotation {}_init_target {}), ".format(item, rot)
 
-        #s += "(value {}_end_target {}), ".format(item, init_pos[ind])
-        #s += "(rotation {}_end_target {}), ".format(item, rot)
+        s += "(value {}_end_target {}), ".format(item, init_pos[ind])
+        s += "(rotation {}_end_target {}), ".format(item, rot)
 
-        #s += get_undefined_robot_pose_str("{0}_grasp_begin".format(item))
-        #s += get_undefined_robot_pose_str("{0}_grasp_end".format(item))
-        #s += get_undefined_robot_pose_str("{0}_putdown_begin".format(item))
-        #s += get_undefined_robot_pose_str("{0}_putdown_end".format(item))
+        s += get_undefined_robot_pose_str("{0}_grasp_begin".format(item))
+        s += get_undefined_robot_pose_str("{0}_grasp_end".format(item))
+        s += get_undefined_robot_pose_str("{0}_putdown_begin".format(item))
+        s += get_undefined_robot_pose_str("{0}_putdown_end".format(item))
 
     s += "(hinge drawer [0.])"
     s += "(hinge shelf [0.])"
@@ -171,6 +157,8 @@ def main():
     s += get_panda_pose_str('robot_init_pose', R_ARM_INIT, OPEN_GRIPPER, PANDA_INIT_POSE)
     s += get_undefined_robot_pose_str('robot_end_pose')
 
+    s += "(value shelf_target {}), ".format(SHELF_TARGET_POS)
+    s += "(rotation shelf_target {}), ".format(SHELF_TARGET_ROT)
     s += "(value bin_target {}), ".format(BIN_TARGET_POS)
     s += "(rotation bin_target {}), ".format(BIN_TARGET_ROT)
     s += "(value off_desk_target {}), ".format(OFF_DESK_TARGET_POS)
@@ -191,18 +179,10 @@ def main():
     s += "(rotation drawer {}); ".format(DRAWER_ROT)
 
     for item in items:
-        if item.find('blue') >= 0 or item.find('red') >= 0: continue
-        #s += "(At {0} {0}_init_target), ".format(item)
-        #s += "(Near {0} {0}_init_target), ".format(item)
-        s += "(InReach {0} panda), ".format(item)
+        s += "(At {0} {0}_init_target), ".format(item)
     s += "(RobotAt panda robot_init_pose),"
-    s += "(Stackable flat_block upright_block), "
-    s += "(DeskHeightBlock flat_block upright_block), "
-    s += "(DeskHeightBlock shelf_handle upright_block), "
     s += "(StationaryBase panda), "
     s += "(IsMP panda), "
-    s += "(SlideDoorOpen shelf_handle shelf), "
-    s += "(SlideDoorClose drawer_handle drawer), "
     s += "(WithinJointLimit panda), "
     s += "(StationaryW desk_body) \n\n"
 

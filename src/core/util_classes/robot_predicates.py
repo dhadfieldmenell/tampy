@@ -1761,7 +1761,6 @@ class StationaryXZ(ExprPredicate):
         e = EqExpr(AffExpr(A, b), val)
         super(StationaryXZ, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
         self.spacial_anchor = False
-        self._init_include = False
 
 class StationaryYZ(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
@@ -1774,7 +1773,6 @@ class StationaryYZ(ExprPredicate):
         e = EqExpr(AffExpr(A, b), val)
         super(StationaryYZ, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
         self.spacial_anchor = False
-        self._init_include = False
 
 class StationaryXY(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
@@ -1787,7 +1785,6 @@ class StationaryXY(ExprPredicate):
         e = EqExpr(AffExpr(A, b), val)
         super(StationaryYZ, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
         self.spacial_anchor = False
-        self._init_include = False
 
 class GraspValid(ExprPredicate):
     """
@@ -1841,133 +1838,6 @@ class SlideDoorAt(ExprPredicate):
         self.spacial_anchor = True
 
 
-class OpenSlideDoorAt(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None):
-        assert len(params) == 2
-        assert params[1].geom.hinge_type == 'prismatic'
-        self.handle, self.door = params
-        ind = 0
-        for val in self.door.geom.open_dir:
-            if val != 0: break
-            ind += 1
-
-        attr_inds = OrderedDict([(self.handle, [("pose", np.array([0, 1, 2], dtype=np.int))]),
-                                 (self.door, [("pose", np.array([0, 1, 2], dtype=np.int)),
-                                                ("hinge", np.array([0], dtype=np.int))])])
-
-        A = np.zeros((3,7))
-        for i in range(3):
-            A[i, i] = 1.
-            A[i, 3+i] = -1.
-            if i == ind:
-                A[i, -1] = -1.
-
-        A = np.r_[A, -A]
-        b = -np.array(self.door.geom.open_handle_pos).reshape((-1,1))
-        b = np.r_[b, -b]
-        val = np.array([self.door.geom.push_open_region])
-        val = np.r_[val, val].reshape((-1,1))
-        aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
-        super(OpenSlideDoorAt, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
-        self.spacial_anchor = True
-
-
-class CloseSlideDoorAt(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None):
-        assert len(params) == 2
-        assert params[1].geom.hinge_type == 'prismatic'
-        self.handle, self.door = params
-        ind = 0
-        for val in self.door.geom.close_dir:
-            if val != 0: break
-            ind += 1
-
-        attr_inds = OrderedDict([(self.handle, [("pose", np.array([0, 1, 2], dtype=np.int))]),
-                                 (self.door, [("pose", np.array([0, 1, 2], dtype=np.int)),
-                                                ("hinge", np.array([0], dtype=np.int))])])
-
-        A = np.zeros((3,7))
-        for i in range(3):
-            A[i, i] = 1.
-            A[i, 3+i] = -1.
-            if i == ind:
-                A[i, -1] = -1.
-
-        A = np.r_[A, -A]
-        b = -np.array(self.door.geom.close_handle_pos).reshape((-1,1))
-        b = np.r_[b, -b]
-        val = np.array([self.door.geom.push_close_region])
-        val = np.r_[val, val].reshape((-1,1))
-        aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
-        super(CloseSlideDoorAt, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
-        self.spacial_anchor = True
-
-
-class SlideDoorAtOpen(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None):
-        assert len(params) == 2
-        assert params[1].geom.hinge_type == 'prismatic'
-        self.handle, self.door = params
-        ind = 0
-        for val in self.door.geom.open_dir:
-            if val != 0: break
-            ind += 1
-
-        attr_inds = OrderedDict([(self.door, [("hinge", np.array([0], dtype=np.int))])])
-
-        open_val = self.door.geom.open_val
-        close_val = self.door.geom.close_val
-        sgn = 1 if open_val < close_val else -1
-        self.coeff = 1. # 1e-3 / (np.abs(open_val-close_val) / 2.)
-        A = sgn*self.coeff*np.array([[1.]])
-        b = sgn*self.coeff*np.array([[-self.door.geom.open_val]])
-        val = np.zeros((1,1))
-        aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
-
-        #neg_b = self.coeff*np.array([[-self.door.geom.handle_pos[ind]], [0.]])
-        #neg_aff_e = AffExpr(A, neg_b)
-        #self.neg_expr = EgExpr(neg_aff_e, val)
-        super(SlideDoorAtOpen, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
-        self.spacial_anchor = True
-        self._init_include = False
-
-
-class SlideDoorAtClose(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None):
-        assert len(params) == 2
-        assert params[1].geom.hinge_type == 'prismatic'
-        self.handle, self.door = params
-        ind = 0
-        for val in self.door.geom.open_dir:
-            if val != 0: break
-            ind += 1
-
-        attr_inds = OrderedDict([(self.door, [("hinge", np.array([0], dtype=np.int))])])
-
-        open_val = self.door.geom.open_val
-        close_val = self.door.geom.close_val
-        sgn = 1 if open_val > close_val else -1
-        self.coeff = 1. # 1e-3 / (np.abs(open_val-close_val) / 2.)
-        A = sgn*self.coeff*np.array([[1.]])
-        b = sgn*self.coeff*np.array([[-self.door.geom.close_val]])
-        val = np.zeros((1,1))
-        aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
-        super(SlideDoorAtClose, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
-        self.spacial_anchor = True
-        self._init_include = False
-
-    #def test(self, time, negated=False, tol=None):
-    #    if not self.is_concrete(): return False
-    #    if tol is None: tol = self.tol
-    #    expr = self.neg_expr if negated else expr
-    #    return expr.eval(self.get_param_vector(time), tol=tol, negated=False)
-
-
-
 class SlideDoorOpen(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
@@ -1978,24 +1848,23 @@ class SlideDoorOpen(ExprPredicate):
             if val != 0: break
             ind += 1
 
-        attr_inds = OrderedDict([(self.door, [("hinge", np.array([0], dtype=np.int))])])
+        attr_inds = OrderedDict([(self.handle, [("pose", np.array([ind], dtype=np.int))]),
+                                 (self.door, [("pose", np.array([ind], dtype=np.int)),
+                                                ("hinge", np.array([0], dtype=np.int))])])
 
+        self.coeff = 1e-1
+        A = self.coeff*np.array([[1., -1., 0.], [0., 0., 1.]])
         open_val = self.door.geom.open_val
-        close_val = self.door.geom.close_val
-        sgn = 1 if open_val < close_val else -1
-        self.coeff = 1. # 1e-3 / (np.abs(open_val-close_val) / 2.)
-        A = sgn*self.coeff*np.array([[1.]])
-        b = sgn*self.coeff*np.array([[-self.door.geom.open_thresh]])
-        val = np.zeros((1,1))
+        b = self.coeff*np.array([[-self.door.geom.handle_pos[ind]-open_val], [-open_val]])
+        val = np.zeros((2,1))
         aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
+        e = EqExpr(aff_e, val)
 
         #neg_b = self.coeff*np.array([[-self.door.geom.handle_pos[ind]], [0.]])
         #neg_aff_e = AffExpr(A, neg_b)
         #self.neg_expr = EgExpr(neg_aff_e, val)
         super(SlideDoorOpen, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.spacial_anchor = True
-        self._init_include = False
 
 
 class SlideDoorClose(ExprPredicate):
@@ -2008,92 +1877,26 @@ class SlideDoorClose(ExprPredicate):
             if val != 0: break
             ind += 1
 
-        attr_inds = OrderedDict([(self.door, [("hinge", np.array([0], dtype=np.int))])])
+        attr_inds = OrderedDict([(self.handle, [("pose", np.array([ind], dtype=np.int))]),
+                                 (self.door, [("pose", np.array([ind], dtype=np.int)),
+                                                ("hinge", np.array([0], dtype=np.int))])])
 
+        self.coeff = 1e-1
+        A = self.coeff*np.array([[1., -1., 0.], [0., 0., 1.]])
         open_val = self.door.geom.open_val
-        close_val = self.door.geom.close_val
-        sgn = 1 if open_val > close_val else -1
-        self.coeff = 1. # 1e-3 / (np.abs(open_val-close_val) / 2.)
-        A = sgn*self.coeff*np.array([[1.]])
-        b = sgn*self.coeff*np.array([[-self.door.geom.close_thresh]])
-        val = np.zeros((1,1))
+        b = self.coeff*np.array([[-self.door.geom.handle_pos[ind]], [0.]])
+        val = np.zeros((2,1))
         aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
+        e = EqExpr(aff_e, val)
+
         super(SlideDoorClose, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.spacial_anchor = True
-        self._init_include = False
 
     #def test(self, time, negated=False, tol=None):
     #    if not self.is_concrete(): return False
     #    if tol is None: tol = self.tol
     #    expr = self.neg_expr if negated else expr
     #    return expr.eval(self.get_param_vector(time), tol=tol, negated=False)
-
-
-class InSlideDoor(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None):
-        assert len(params) == 2
-        assert params[1].geom.hinge_type == 'prismatic'
-        self.obj, self.door = params
-        #ind = 0
-        #for val in self.door.geom.open_dir:
-        #    if val != 0: break
-        #    ind += 1
-
-        attr_inds = OrderedDict([(self.obj, [("pose", np.array([0, 1, 2], dtype=np.int)),
-                                             ("rotation", np.array([0, 1, 2], dtype=np.int))]),
-                                 (self.door, [("pose", np.array([0, 1, 2], dtype=np.int)),
-                                              ("rotation", np.array([0, 1, 2], dtype=np.int))]),
-                                 ])
-
-        A = np.c_[np.eye(6), -np.eye(6)]
-        A[-3:,-3:] = 0.
-        A = np.r_[A, -A]
-        b = -np.array(self.door.geom.in_pos).reshape((-1,1))
-        b = np.r_[b, -np.array(self.door.geom.in_orn).reshape((-1,1))]
-        b = np.r_[b, -b]
-        val = np.zeros((6,1))
-        val[0] = self.door.geom.width
-        val[1] = 0.01
-        val[2] = 0.03
-        val[3:6] = 0.01
-        val = np.r_[val, val]
-        aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
-        super(InSlideDoor, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
-        self.spacial_anchor = True
-        self._init_include = False
-        self._nonrollout = True
-
-class Stacked(ExprPredicate):
-    #@profile
-    def __init__(self, name, params, expected_param_types, env=None):
-        assert len(params) == 2
-        self.obj, self.base_obj = params
-        h1 = self.obj.geom.height if hasattr(self.obj.geom, 'height') else self.obj.geom.radius
-        h2 = self.base_obj.geom.height if hasattr(self.base_obj.geom, 'height') else self.base_obj.geom.radius
-        attr_inds = OrderedDict([(self.obj, [("pose", np.array([0,1,2], dtype=np.int)),
-                                             ("rotation", np.array([0,1,2], dtype=np.int))]),
-                                 (self.base_obj, [("pose", np.array([0,1,2], dtype=np.int)),
-                                                ("rotation", np.array([0,1,2], dtype=np.int))])])
-
-        self.coeff = 2e-2
-        self.rot_coeff = 5e-3
-        if self.obj is self.base_obj:
-            A = np.zeros((6,6))
-        else:
-            A = np.c_[np.eye(6), -np.eye(6)]
-            A[:3] *= self.coeff
-            A[3:] *= self.rot_coeff
-        b, val = np.zeros((6, 1)), np.zeros((6, 1))
-        b[2,0] = -self.coeff*(h1 + h2)
-        aff_e = AffExpr(A, b)
-        e = EqExpr(aff_e, val)
-
-        super(Stacked, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
-        self.spacial_anchor = True
-        self._init_include = False
-        self._nonrollout = True
 
 
 ### EE CONSTRAINTS - Non-linear constraints on end effector pos/orn
@@ -2505,14 +2308,11 @@ class EEReachable(PosePredicate):
         self.retreat_dist = const.RETREAT_DIST
         self.axis_coeff = 0. # For LEq, allow a little more slack in the gripper direction
         self.mask = np.ones((3,1))
-        if not hasattr(self, 'rel_pt'):
-            self.rel_pt = np.array(params[1].geom.grasp_point) if hasattr(params[1], 'geom') and hasattr(params[1].geom, 'grasp_point') else np.zeros(3)
+        self.rel_pt = np.array(params[1].geom.grasp_point) if hasattr(params[1], 'geom') and hasattr(params[1].geom, 'grasp_point') else np.zeros(3)
         if not hasattr(self, 'axis'): self.axis = np.array([0, 0, -1])
         if not hasattr(self, 'f_tol'): self.f_tol = 0
         if not hasattr(self, 'pause'): self.pause = 0 # extra time ee is at target pos
         if not hasattr(self, 'arm'): self.arm = self.robot.geom.arms[0]
-        if hasattr(params[1], 'geom'):
-            self.coeff *= params[1].geom.eereachable_coeff
 
         self.eval_rel = True
         self.eval_f = self.stacked_f
@@ -2555,8 +2355,7 @@ class EEReachable(PosePredicate):
         for s in range(start, end+1):
             rel_pt = self.rel_pt + self.get_rel_pt(s)
             if self.eval_rel:
-                obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x[i:i+self.attr_dim])
-                f_res.append(self.coeff * self.rel_ee_pos_check_f(x[i:i+self.attr_dim], rel_pt))
+                f_res.append(self.mask * self.coeff * self.rel_ee_pos_check_f(x[i:i+self.attr_dim], rel_pt))
             else:
                 f_res.append(self.mask * self.coeff * self.abs_ee_pos_check_f(x[i:i+self.attr_dim], rel_pt))
             i += self.attr_dim
@@ -2586,9 +2385,9 @@ class EEReachable(PosePredicate):
         for s in range(start, end+1):
             rel_pt = self.rel_pt + self.get_rel_pt(s)
             if self.eval_rel:
-                grad[j:j+dim, i:i+self.attr_dim] = self.coeff * self.rel_ee_pos_check_jac(x[i:i+self.attr_dim], rel_pt)
+                grad[j:j+dim, i:i+self.attr_dim] = self.coeff * self.mask * self.rel_ee_pos_check_jac(x[i:i+self.attr_dim], rel_pt)
             else:
-                grad[j:j+dim, i:i+self.attr_dim] = self.coeff * self.abs_ee_pos_check_jac(x[i:i+self.attr_dim], rel_pt)
+                grad[j:j+dim, i:i+self.attr_dim] = self.coeff * self.mask * self.abs_ee_pos_check_jac(x[i:i+self.attr_dim], rel_pt)
             j += dim
             i += self.attr_dim
 
@@ -2604,9 +2403,6 @@ class EEReachable(PosePredicate):
             return -rel_step*self.retreat_dist*self.axis
 
     def resample(self, negated, t, plan):
-        if negated: return None, None
-        if hasattr(self, 'obj') and 'door' in self.obj.geom.get_types():
-            return None, None
         return robot_sampling.resample_eereachable(self, negated, t, plan, inv=False, rel=self.eval_rel, use_rot=False)
 
 class EEReachableRot(EEReachable):
@@ -2644,9 +2440,6 @@ class EEReachableRot(EEReachable):
         return grad
 
     def resample(self, negated, t, plan):
-        if negated: return None, None
-        if hasattr(self, 'obj') and 'door' in self.obj.geom.get_types():
-            return None, None
         return robot_sampling.resample_eereachable(self, negated, t, plan, inv=False, use_pos=False)
 
 class Approach(EEReachable):
@@ -2803,7 +2596,7 @@ class EEAtZRelLeft(EEReachableLeft):
 class EEAtXYLeft(EEReachableLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.coeff = const.EEATXY_COEFF
-        super(EEAtXYLeft, self).__init__(name, params, expected_param_types, env=env, debug=debug, steps=0)
+        super(EEAtXYLeft, self).__init__(name, params, expected_param_types, env, debug)
         self.mask = np.array([1., 1., 0.]).reshape((3,1))
         self.approach_dist = const.GRASP_DIST
         self.eval_rel = False
@@ -2819,7 +2612,7 @@ class EEAtRelXYLeft(EEAtXYLeft):
 class EEAtXZLeft(EEAtXYLeft):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.axis = np.array([0., -1., 0.])
-        super(EEAtXZLeft, self).__init__(name, params, expected_param_types, env, debug)
+        super(EEAtXZLeft, self).__init__(name, params, expected_param_types, env, debug,)
         self.mask = np.array([1., 0., 1.]).reshape((3,1))
 
 class EEAtRelXZLeft(EEAtXZLeft):
@@ -3355,10 +3148,6 @@ class RCollides(CollisionPredicate):
         self.neg_coeff = const.RCOLLIDE_COEFF
         attrs = {self.robot: self.robot.geom.arms + self.robot.geom.grippers + ['pose', 'rotation'], \
                  self.obstacle: ['pose', 'rotation']}
-
-        if 'door' in self.obstacle.geom.get_types():
-            attrs[self.obstacle].append('hinge')
-
         attr_inds, attr_dim = init_robot_pred(self, self.robot, [self.obstacle], attrs=attrs)
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
                                self.obstacle: self.lazy_spawn_or_body(self.obstacle, self.obstacle.name, self.obstacle.geom)}
@@ -3729,63 +3518,6 @@ class HeightBlock(ExprPredicate):
       
         return not negated
 
-class DeskHeightBlock(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.goal_obj, self.block_obj, = params
-        goal_geom, block_geom = self.goal_obj.geom, self.block_obj.geom
-        self.goal_h = goal_geom.height if hasattr(goal_geom, 'height') else goal_geom.radius
-        self.block_h = block_geom.height if hasattr(block_geom, 'height') else block_geom.radius
-        self.dist = 0.1
-
-        attr_inds = OrderedDict([(self.goal_obj, [("pose", np.array([0,1,2], dtype=np.int))]),
-                                 (self.block_obj, [("pose", np.array([0,1,2], dtype=np.int))])])
-
-        A = np.c_[np.r_[np.eye(3), -np.eye(3)], np.r_[-np.eye(3), np.eye(3)]]
-        A *= 0
-        b, val = np.zeros((6, 1)), NEAR_TOL*np.ones((6, 1))
-        aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
-
-        super(DeskHeightBlock, self).__init__(name, e, attr_inds, params, expected_param_types, tol=1e-3, priority=-2, active_range=(0,0))
-        self._init_include = False
-
-    def test(self, time, negated=False, tol=1e-3):
-        # Move taller objects first
-        if self.block_h <= self.goal_h:
-            return negated
-
-        block_pos = self.block_obj.pose[:, time]
-        goal_pos = self.goal_obj.pose[:, time]
-        if self.goal_obj.name.find('shelf_handle') >= 0 and \
-           self.block_obj.name.find('upright') >= 0:
-            if block_pos[2] < 0.75 or block_pos[0] > 0.55 or \
-               block_pos[1] < 0.75 or block_pos[1] > 0.86:
-                return negated
-
-            if goal_pos[0] > 0.1:
-                return negated
-            return not negated
-                      
-        if 'box' not in self.block_obj.geom.get_types():
-            return negated
-
-        if 'box' not in self.goal_obj.geom.get_types():
-            return negated
-
-        if block_pos[1] > 0.86:
-            return negated
-
-        if block_pos[2] < 0.75:
-            return negated
-
-        if block_pos[0] > 0.55:
-            return negated
-      
-        if block_pos[1] < 0.6:
-            return negated
-
-        return not negated
-
 class AboveTable(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
@@ -3819,6 +3551,23 @@ class LiftedAboveTable(ExprPredicate):
         super(LiftedAboveTable, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.spacial_anchor = True
 
+class LiftedAboveTable(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        self.obj, self.table = params
+        attr_inds = OrderedDict([(self.obj, [("pose", np.array([2], dtype=np.int))]),
+                                 (self.table, [("pose", np.array([2], dtype=np.int))])])
+            
+        A = np.array([[-1.,1.]])
+
+        b = -0.15 * np.ones((1,1))
+        val = np.zeros((1,1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+
+        super(LiftedAboveTable, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        self.spacial_anchor = True
+
 class Lifted(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
@@ -3827,71 +3576,11 @@ class Lifted(ExprPredicate):
             
         A = np.array([[-1.]])
 
-        if self.obj.name.lower().find('upright') >= 0:
-            b = 0.925 * np.ones((1,1))
-        elif self.obj.name.lower().find('flat') >= 0:
-            b = 0.825 * np.ones((1,1))
-        else:
-            b = 0.875 * np.ones((1,1))
+        b = 1.0 * np.ones((1,1))
         val = np.zeros((1,1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
 
         super(Lifted, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
         self.spacial_anchor = True
-        self._init_include = False
 
-class InReach(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None):
-        assert len(params) == 2
-        self.obj, self.robot = params
-        attr_inds = OrderedDict([(self.obj, [("pose", np.array([2], dtype=np.int))])])
-            
-        A = np.array([[-1.]])
-        if self.obj.name.find('upright') >= 0:
-            b = 0.8 * np.ones((1,1))
-        elif self.robot.name.find('panda') >= 0:
-            b = 0.6 * np.ones((1,1))
-        else:
-            b = np.zeros((1,1))
-        val = np.zeros((1,1))
-        aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
-
-        super(InReach, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
-        self.spacial_anchor = True
-        self._init_include = False
-
-class Stackable(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None):
-        assert len(params) == 2
-        self.obj, self.item = params
-        attr_inds = OrderedDict([(self.obj, [("pose", np.array([2], dtype=np.int))])])
-            
-        A = np.array([[1.]])
-        if self.obj.name.find('flat') >= 0 and self.item.name.find('upright') >= 0:
-            b = -1. * np.ones((1,1))
-        else:
-            b = np.zeros((1,1))
-        val = np.zeros((1,1))
-        aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
-
-        super(Stackable, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
-        self.spacial_anchor = True
-        self._init_include = True
-
-class OffDesk(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None):
-        assert len(params) == 2
-        self.obj, self.robot = params
-        attr_inds = OrderedDict([(self.obj, [("pose", np.array([0], dtype=np.int))])])
-            
-        A = np.array([[-1.]])
-        b = 0.62 * np.ones((1,1))
-        val = np.zeros((1,1))
-        aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
-
-        super(OffDesk, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
-        self.spacial_anchor = True

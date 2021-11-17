@@ -69,23 +69,25 @@ else:
 
 visual = len(os.environ.get("DISPLAY", "")) > 0
 has_render = visual
+obj_mode = 0 if len(cur_objs) > 1 else 2
 env = robosuite.make(
     "PickPlace",
-    robots=["Sawyer"],  # load a Sawyer robot and a Panda robot
-    gripper_types="default",  # use default grippers per robot arm
-    controller_configs=controller_config,  # each arm is controlled using OSC
-    # has_renderer=True,                      # on-screen rendering
-    has_renderer=has_render,  # on-screen rendering
-    render_camera="frontview",  # visualize the "frontview" camera
-    has_offscreen_renderer=(not has_render),  # no off-screen rendering
-    control_freq=50,  # 20 hz control for applied actions
-    horizon=200,  # each episode terminates after 200 steps
-    use_object_obs=True,  # no observations needed
-    use_camera_obs=False,  # no observations needed
-    single_object_mode=0,
+    robots=["Sawyer"],             # load a Sawyer robot and a Panda robot
+    gripper_types="default",                # use default grippers per robot arm
+    controller_configs=controller_config,   # each arm is controlled using OSC
+    #has_renderer=True,                      # on-screen rendering
+    has_renderer=has_render,                      # on-screen rendering
+    render_camera="frontview",              # visualize the "frontview" camera
+    has_offscreen_renderer=(not has_render),           # no off-screen rendering
+    control_freq=50,                        # 20 hz control for applied actions
+    horizon=200,                            # each episode terminates after 200 steps
+    use_object_obs=True,                   # no observations needed
+    use_camera_obs=False,                   # no observations needed
+    single_object_mode=obj_mode,
     object_type=cur_objs[0],
     ignore_done=True,
-    initialization_noise={"magnitude": 0.0, "type": "gaussian"},
+    reward_shaping=True,
+    initialization_noise={'magnitude': 0., 'type': 'gaussian'},
     camera_widths=128,
     camera_heights=128,
 )
@@ -115,11 +117,9 @@ d_c = main.parse_file_to_dict(domain_fname)
 domain = parse_domain_config.ParseDomainConfig.parse(d_c)
 hls = FFSolver(d_c)
 p_c = main.parse_file_to_dict(prob)
-visual = len(os.environ.get("DISPLAY", "")) > 0
-visual = False
-problem = parse_problem_config.ParseProblemConfig.parse(
-    p_c, domain, pbv.env, use_tf=True, sess=None, visual=visual
-)
+visual = len(os.environ.get('DISPLAY', '')) > 0
+#visual = False
+problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, None, use_tf=True, sess=None, visual=visual)
 params = problem.init_state.params
 # ll_plan_str = ["0: MOVE_TO_GRASP_LEFT BAXTER CLOTH0 ROBOT_INIT_POSE ROBOT_END_POSE"]
 # plan = hls.get_plan(ll_plan_str, domain, problem)
@@ -179,14 +179,15 @@ params["sawyer"].right_ee_pos[:, 0] = T.quaternion_to_euler(info["quat"], "xyzw"
 
 goal = ""
 for obj in cur_objs:
-    goal += "(At {} {}_end_target)".format(obj, obj)
-goal += ""
+    goal += '(Near {} {}_end_target)'.format(obj, obj)
+goal += ''
 solver = RobotSolver()
 load_traj = False
 replan = True
 if not replan:
     plan = oldplan
 
+import ipdb; ipdb.set_trace()
 if replan:
     plan, descr = p_mod_abs(
         hls, solver, domain, problem, goal=goal, debug=True, n_resamples=10
@@ -396,11 +397,9 @@ for act in plan.actions:
                 # act[3:6] -= robosuite.utils.transform_utils.quat2axisangle(cur)
                 # act[:7] = (act[:7] - np.array([env.sim.data.qpos[ind] for ind in sawyer_inds]))
                 obs = env.step(act)
-            print(
-                "EE PLAN VS SIM:",
-                env.sim.data.site_xpos[grip_ind] - sawyer.right_ee_pos[:, t],
-                t,
-            )
-        if has_render:
-            env.render()
-plan.params["sawyer"].right[:, t] = env.sim.data.qpos[:7]
+            print('EE PLAN VS SIM:', env.sim.data.site_xpos[grip_ind]-sawyer.right_ee_pos[:,t], t, env.reward())
+        if has_render: env.render()
+    import ipdb; ipdb.set_trace()
+plan.params['sawyer'].right[:,t] = env.sim.data.qpos[:7]
+import ipdb; ipdb.set_trace()
+

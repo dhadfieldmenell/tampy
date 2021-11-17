@@ -35,7 +35,6 @@ problem = parse_problem_config.ParseProblemConfig.parse(
 state = problem.init_state
 solver = NAMOSolver()
 bt_ll.DEBUG = True
-bt_ll.TRAJOPT_COEFF = 1e-3
 hl_solver = FFSolver(d_c)
 abs_domain = hl_solver.abs_domain
 
@@ -88,6 +87,7 @@ if plan is None or type(plan) is str:
 elif len(plan.get_failed_preds()):
     print(f"PLAN FINISHED WITH FAILED PREDICATES: {plan.get_failed_preds()}")
 else:
-    print("PLAN FINISHED SUCCESSFULLY")
-    print("Final High Level Plan:")
-    print(plan.actions)
+    print('PLAN FINISHED SUCCESSFULLY')
+
+import ipdb; ipdb.set_trace()
+

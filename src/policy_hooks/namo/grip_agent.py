@@ -159,9 +159,8 @@ class NAMOGripAgent(NAMOSortingAgent):
             # items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.4), 'rgba': tuple(cur_color), 'mass': 10.})
             #items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 10.})
             items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 40.})
-            targ_color = cur_color[:3] + [1.] # [0.75] # [0.25]
-            #items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (0.45, 0.45, 0.045), 'rgba': tuple(targ_color), 'mass': 1.})
-            items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (0.35, 0.35, 0.045), 'rgba': tuple(targ_color), 'mass': 1.})
+            targ_color = cur_color[:3] + [0.75] # [0.25]
+            items.append({'name': '{0}_end_target'.format(name), 'type': 'box', 'is_fixed': True, 'pos': (0, 0, 1.5), 'dimensions': (NEAR_TOL*1.5, NEAR_TOL*1.5, 0.045), 'rgba': tuple(targ_color), 'mass': 1.})
 
         for i in range(len(wall_dims)):
             dim, next_trans = wall_dims[i]
@@ -588,10 +587,8 @@ class NAMOGripAgent(NAMOSortingAgent):
             if attr == 'pose':
                 pos = mp_state[self.state_inds[param_name, 'pose']].copy()
                 self.mjc_env.set_item_pos(param_name, np.r_[pos, 0.5], forward=False)
-                if param_name.find('can') >= 0:
-                    targ = self.target_vecs[0][self.target_inds['{0}_end_target'.format(param_name), 'value']]
-                    self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, -0.15], forward=False)
-        self.mjc_env.physics.data.qvel[:] = 0.
+                #self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, 1.5], forward=False)
+                self.mjc_env.set_item_pos('{0}_end_target'.format(param_name), np.r_[targ, -0.15], forward=False)
         self.mjc_env.physics.forward()
 
 

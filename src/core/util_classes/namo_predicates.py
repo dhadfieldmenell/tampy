@@ -10,7 +10,21 @@ from core.internal_repr.predicate import Predicate
 from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import PredicateException
-from sco.expr import AffExpr, EqExpr, Expr, LEqExpr
+from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
+import numpy as np
+import tensorflow as tf
+
+USE_OPENRAVE = False
+if USE_OPENRAVE:
+    import ctrajoptpy
+else:
+    import pybullet as p
+
+from collections import OrderedDict
+import os
+
+from pma.ll_solver import NAMOSolver
+
 
 """
 This file implements the predicates for the 2D NAMO domain.
