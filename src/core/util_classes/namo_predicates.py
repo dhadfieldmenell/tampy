@@ -23,8 +23,6 @@ else:
 from collections import OrderedDict
 import os
 
-from pma.ll_solver import NAMOSolver
-
 
 """
 This file implements the predicates for the 2D NAMO domain.
