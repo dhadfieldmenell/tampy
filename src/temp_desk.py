@@ -134,7 +134,7 @@ for run_num in range(N_RUNS):
 
     goals = [
          #'(Lifted upright_block panda)',
-         '(Lifted ball panda)',
+         #'(Lifted ball panda)',
          #'(Stacked upright_block flat_block)',
          #'(SlideDoorClose shelf_handle shelf)',
          #'(SlideDoorOpen drawer_handle drawer)',
@@ -142,7 +142,7 @@ for run_num in range(N_RUNS):
          #'(Near upright_block off_desk_target)',
          #'(InSlideDoor flat_block shelf)',
          #'(InGripperRight panda green_button)',
-         #'(and (InSlideDoor upright_block shelf) (SlideDoorClose shelf_handle shelf))',
+         '(and (InSlideDoor upright_block shelf) (SlideDoorClose shelf_handle shelf))',
             ]
 
     goal = random.choice(goals)

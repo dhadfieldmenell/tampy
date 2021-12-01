@@ -4,7 +4,7 @@ do
 
 	python3.6 -W ignore policy_hooks/run_training.py -c policy_hooks.robodesk.inshelf_hyp \
                                                        -no 1 -llus 4000  -hlus 12000 \
-                                                       -ff 1. -mask -hln 2 -lln 2 -hldim 64 -lldim 64 \
+                                                       -ff 1. -mask -hln 2 -lln 2 -hldim 96 -lldim 96 \
                                                        -eta 5 \
                                                        -hist_len 1 -prim_first_wt 3 -lr 0.0001 \
                                                        -hllr 0.0001 -lldec 0.000001 -hldec 0.00001 \
@@ -23,7 +23,7 @@ do
                                                        -neg_pre -neg_post \
                                                        -roll_opt \
                                                        -neg_ratio 0.0 -opt_ratio 0.75 -dagger_ratio 0.25 -roll_ratio 0.000 \
-                                                       -descr robodesk_inshelf_fri & 
+                                                       -descr robodesk_inshelf_with_grip_cam & 
         sleep 10h
         pkill -f run_train -9
         pkill -f ros -9

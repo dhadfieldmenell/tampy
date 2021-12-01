@@ -19,7 +19,7 @@ import policy_hooks.utils.policy_solver_utils as utils
 NO_COL = True
 NUM_OBJS = 4
 NUM_TARGS = 4
-N_HUMAN = 0#6
+N_HUMAN = 6
 SORT_CLOSET = False
 USE_PERTURB = False
 OPT_MCTS_FEEDBACK = True

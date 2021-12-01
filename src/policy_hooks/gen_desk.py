@@ -69,14 +69,16 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False,
                 all_data[k][full_exp] = {}
                 used.append(full_exp)
                 i = 0
-                data = []
                 while i < 20:
+                    data = []
                     cur_dir = '{0}_{1}'.format(full_exp, i)
                     if not os.path.isdir(cur_dir):
                         i += 1
                         continue
                     fnames = os.listdir(cur_dir)
-
+                    with open(cur_dir+'/args.pkl', 'rb') as f:
+                        args = pickle.load(f)
+                    args = vars(args)
                     if pre:
                         info = [f for f in fnames if f.find('hl_test_pre') >= 0 and f.endswith('pre_log.npy')]
                     elif rerun:
@@ -98,6 +100,19 @@ def get_test_data(keywords, include, exclude, pre=False, rerun=False,
                         for buf in data:
                             for pts in buf:
                                 pt = pts[0]
+                                if args['descr'].find('grip') >= 0 and args['descr'].find('shelf') >= 0 and pt[3] > 28000:
+                                    continue
+
+                                if args['descr'].find('shelf') < 0:
+                                    if args['descr'].find('sun') >= 0 and cur_dir.find('_0') < 0 and pt[3] > 26000:
+                                        continue
+
+                                    if args['descr'].find('sat') >= 0 and pt[3] > 26000:
+                                        continue
+
+                                    if args['descr'].find('fri') >= 0 and pt[3] > 31000:
+                                        continue
+
                                 no, nt = int(pt[4]), int(pt[5])
                                 all_data[k][full_exp][cur_dir][cur_dir].append({'time': pt[3], 'success at end': pt[0], 'path length': pt[1], 'distance from goal': pt[2], 'n_data': pt[6], 'key': (no, nt), 'label': label, 'ind': i, 'success anywhere': pt[7], 'optimal_rollout_success': pt[9], 'number of plans': pt[10], 'subgoals anywhere': pt[11], 'subgoals closest distance': pt[12], 'collision': pt[8], 'exp id': i})
                                 if len(pt) > 13:
@@ -866,11 +881,11 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                     err_style='band'
                     err_kws = {'alpha': 0.12}
                     markers = {
-                           '9 Task': 'o', 'Put In Shelf': 's'}
+                            '9 Task (RGB)': 'o', 'In Shelf, Door Closed (RGB)': '^', '9 Task (RGB w/Grip Cam.)': 's'}
                     if sns_plot is None:
                         #sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, markers=True, dashes=dashes, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette(['black', 'dimgrey', 'silver', 'white'], n_colors=2))
                         #sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, dashes=False, markers=markers, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette(['dimgrey', 'black'], n_colors=2), hue_order=['9 Task', 'Put In Shelf'])
-                        sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, dashes=False, markers=markers, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette('colorblind', n_colors=2), hue_order=['9 Task', 'Put In Shelf'], linewidth=3, markersize=10)
+                        sns_plot = sns.relplot(x=xv, y=cur_y, hue=columns[0], style=columns[0], kind='line', data=df, dashes=False, markers=markers, ci=ci, n_boot=100, err_style=err_style, err_kws=err_kws, palette=sns.color_palette('colorblind', n_colors=3), hue_order=['9 Task (RGB)', '9 Task (RGB w/Grip Cam.)', 'In Shelf, Door Closed (RGB)'], linewidth=3, markersize=10)
                         sns_plot.fig.set_figwidth(10)
                         sns_plot._legend.remove()
                         # sns_plot.fig.get_axes()[0].legend(loc=(0.0, -0.5), prop={'size': 12})
@@ -882,7 +897,7 @@ def plot(data, columns, descr, xvars, yvars, separate=True, keyind=0, inter=100,
                     sns_plot.fig.axes[-1].set_title('{0} vs {1}'.format(xv, cur_y), size=14)
                     if xlim is not None:
                         sns_plot.fig.axes[-1].set(xlim=xlim[xind])
-                        sns_plot.fig.axes[-1].set_xticks([0, 1, 2, 3, 4])
+                        sns_plot.fig.axes[-1].set_xticks(list(range(0, 11, 2)))
                     if ylim is not None:
                         sns_plot.fig.axes[-1].set(ylim=ylim[yind])
                         sns_plot.fig.axes[-1].set_yticks(np.arange(0, ylim[yind][1], ylim[yind][1]/5.))
@@ -911,11 +926,16 @@ def gen_label(exp_dir, label_vars=[], split_runs=False, run_ind=0):
 
     for v in label_vars:
         if v not in args: continue
-        if args[v].find('putaway') >= 0:
-            label = 'Put In Shelf'
-            break
         if args[v].find('all') >= 0:
-            label = '9 Task'
+            if args[v].find('grip') >= 0 and args[v].find('not_with') < 0:
+                label = '9 Task (RGB w/Grip Cam.)'
+                break
+
+            label = '9 Task (RGB)'
+            break
+
+        if args[v].find('shelf') >= 0:
+            label = 'In Shelf, Door Closed (RGB)'
             break
 
         if v == 'descr':
@@ -1040,26 +1060,19 @@ if __name__ == '__main__':
     while not terminate:
         if not perpetual:
             terminate = True
-        gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=360, window=240, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], xlim=[(0, 4)], fname='endsucc_{}'.format(keywords[0]))
-        gen_data_plots(xvar='number of plans', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=100, window=1000, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_nplans_{}'.format(keywords[0]))
+        gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=1800, window=480, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], xlim=[(0, 10)], fname='endsucc_{}'.format(keywords[0]))
+        gen_data_plots(xvar='time', yvar=['success rate'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='per_goal_success', exclude=exclude, split_runs=False, include=include, inter=180, window=200, fname='pergoal_success', split_goal=True)
+        #gen_data_plots(xvar='number of plans', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=100, window=1000, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='endsucc_nplans_{}'.format(keywords[0]))
         #gen_data_plots(xvar='time', yvar=['success at end'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=True, include=include, inter=120, window=200, ylim=[(0.,1.), (0.,1.), (0, 1.), (0, 2.)], fname='splitendsucc_{}'.format(keywords[0]))
 
         gen_data_plots(xvar='time', yvar=['opt duration per ts'], keywords=keywords, lab='motion', label_vars=['descr'], separate=True, keyind=5, ylabel='move_policy_successes', exclude=exclude, split_runs=False, include=include, inter=1200, window=500, fname='tampspeedup', ylim=[(0., 2.5)], xlim=[(0., 12000), (0., 12000), (0., 12000), (0., 10000)]) 
         #gen_data_plots(xvar='time', yvar=['success rate'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='per_goal_success', exclude=exclude, split_runs=False, include=include, inter=10, window=100, fname='pergoal_success', split_goal=True)
-        gen_data_plots(xvar='time', yvar=['dagger_success'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='per_goal_success', exclude=exclude, split_runs=False, include=include, inter=10, window=100, fname='dagger_success', split_goal=False)
+        #gen_data_plots(xvar='time', yvar=['dagger_success'], keywords=keywords, lab='rollout_info', label_vars=['descr'], separate=True, keyind=5, ylabel='per_goal_success', exclude=exclude, split_runs=False, include=include, inter=10, window=100, fname='dagger_success', split_goal=False)
         #gen_data_plots(xvar='time', yvar=['optimization time', 'plan length', 'opt duration per ts'], keywords=keywords, lab='motion', label_vars=['descr'], separate=True, keyind=5, ylabel='move_policy_successes', exclude=exclude, split_runs=False, include=include, inter=600, window=500, fname='tampspeedup') 
-        gen_data_plots(xvar='time', yvar=['episode return'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=200, window=100, fname='endreturn_{}'.format(keywords[0]))
-
-        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='control', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='primpol')
-        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='primitive', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='primpol')
+        #gen_data_plots(xvar='time', yvar=['episode return'], keywords=keywords, lab='test', label_vars=['descr'], separate=True, keyind=5, ylabel='succdataloadtargs', exclude=exclude, split_runs=False, include=include, inter=200, window=100, fname='endreturn_{}'.format(keywords[0]))
 
 
-        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='move_to_grasp_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot4', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='movetograsppol')
-        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='lift_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot3', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='liftpol')
-        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='slide_open_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot2', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='openpol')
-        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='slide_close_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot2', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='closepol')
-        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='place_in_door_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot1', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='place_in_pol')
-        gen_data_plots(xvar='time', yvar=[['train_component_loss', 'val_component_loss']], keywords=keywords, lab='place_right', label_vars=['descr'], separate=True, keyind=5, ylabel='recentplot1', exclude=exclude, split_runs=True, include=include, inter=60, window=20, fname='placepol')
+
 
         if not terminate:
             time.sleep(180)

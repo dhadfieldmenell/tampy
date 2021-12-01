@@ -47,19 +47,19 @@ bt_ll.INIT_TRAJ_COEFF = 1e-2
 
 HUMAN_TARGS = [
                 (9.0, 0.),
+                (9.0, 2.0),
+                (9.0, 1.0),
                 (9.0, -1.0),
                 (9.0, -2.0),
                 (9.0, -3.0),
                 (9.0, -4.0),
-                (9.0, -5.0),
-                (9.0, -6.0),
+                (-9.0, 2.),
+                (-9.0, 1.),
                 (-9.0, 0.),
                 (-9.0, -1.0),
                 (-9.0, -2.0),
                 (-9.0, -3.0),
                 (-9.0, -4.0),
-                (-9.0, -5.0),
-                (-9.0, -6.0),
                 ]
 
 MAX_SAMPLELISTS = 1000
@@ -176,11 +176,11 @@ class NAMOGripAgent(NAMOSortingAgent):
             self.humans['human{}'.format(human_id)] = HUMAN_TARGS[np.random.randint(len(HUMAN_TARGS))]
             self.human_trajs['human{}'.format(human_id)] = np.zeros(2) 
             items.append({'name': 'human{}'.format(human_id),
-                          'type': 'sphere',
+                          'type': 'cylinder',
                           'is_fixed': False,
                           'pos': [0., 0., 0.],
-                          'dimensions': [0.3],
-                          'mass': 40,
+                          'dimensions': [0.3, 0.2],
+                          'mass': 10,
                           'rgba': (1., 1., 1., 1.)})
 
         no = self._hyperparams['num_objs']
@@ -349,7 +349,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         #        if pname.find('box') > 0: self._feasible = False
 
         for human in self.humans:
-            if np.linalg.norm(self.mjc_env.get_item_pos(human)[:2] - self.mjc_env.get_item_pos('pr2')[:2]) < 0.7:
+            if np.linalg.norm(self.mjc_env.get_item_pos(human)[:2] - self.mjc_env.get_item_pos('pr2')[:2]) < 0.65:
                 self._feasible = False
 
         col = 1 if len(self._col) > 0 else 0
@@ -1045,15 +1045,18 @@ class NAMOGripAgent(NAMOSortingAgent):
         return self._feasible
 
 
-    def human_cost(self, x, goal_wt=1e0, col_wt=7.5e-1, rcol_wt=1e2):
+    def human_cost(self, x, goal_wt=1e1, col_wt=2e0, rcol_wt=5e0):
         cost = 0
         for human in self.humans:
             hpos = x[self.state_inds[human, 'pose']]
             cost += goal_wt * np.linalg.norm(hpos-self.humans[human])
 
             for (pname, aname), inds in self.state_inds.items():
+                if pname == human: continue
                 if aname != 'pose': continue
                 if pname.find('pr2') >= 0 and np.linalg.norm(x[inds]-hpos) < 0.8:
+                    cost += rcol_wt
+                elif pname.find('human') >= 0 and np.linalg.norm(x[inds]-hpos) < 0.8:
                     cost += rcol_wt
                 elif pname.find('can') >= 0:
                     cost -= col_wt * np.linalg.norm(x[inds]-hpos)
@@ -1086,7 +1089,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             self.mjc_env.physics.forward()
             #traj = np.random.uniform(-2, 2, (self.prob.N_HUMAN, hor, 2))
             traj = np.random.uniform(-1, 1, (self.prob.N_HUMAN, hor, 2))
-            traj[:,:,1] *= 0.5
+            traj[:,:,1] *= 2
             cost = 0
             for t in range(hor):
                 x = self.get_state()
