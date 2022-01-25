@@ -9,7 +9,7 @@ import shutil
 import sys
 import time
 
-from policy_hooks.multiprocess_main import MultiProcessMain
+from policy_hooks.multiprocess_main import MultiProcessMain, load_config, setup_dirs, get_dir_name
 
 USE_BASELINES = True 
 if USE_BASELINES:
@@ -17,18 +17,6 @@ if USE_BASELINES:
 
 
 DIR_KEY = 'experiment_logs/'
-
-def get_dir_name(base, no, nt, ind, descr, args=None):
-    dir_name = base + 'objs{0}_{1}/{2}'.format(no, nt, descr)
-    if args is not None and not len(descr):
-        useq = '_qfunc' if args.qfunc else ''
-        useHer = '_her' if args.her else ''
-        expand = '_expand' if args.expand else ''
-        neg = '_negExs' if args.negative else ''
-        onehot = '_onehot' if args.onehot_task else ''
-        curric = '_curric{0}_{1}'.format(args.cur_thresh, args.n_thresh) if args.cur_thresh > 0 else ''
-        dir_name += '{0}{1}{2}{3}{4}{5}'.format(useq, useHer, expand, curric, neg, onehot)
-    return dir_name
 
 
 def load_multi(exp_list, n_objs=None, n_targs=None, args=None):
@@ -51,14 +39,6 @@ def load_multi(exp_list, n_objs=None, n_targs=None, args=None):
             next_config['weight_dir'] = get_dir_name(next_config['base_weight_dir'], next_config['num_objs'], next_config['num_targs'], i, next_config['descr'], args)
             next_config['base_dir'] = next_config['weight_dir']
             next_config['server_id'] = '{0}'.format(str(random.randint(0, 2**16)))
-            next_config['mp_server'] = True
-            next_config['pol_server'] = True
-            next_config['mcts_server'] = True
-            next_config['use_local'] = True
-            next_config['log_server'] = False
-            next_config['view_server'] = False
-            next_config['use_local'] = True
-            next_config['log_timing'] = False
             next_config['args'] = args
             configs.append((next_config, config_module))
 
@@ -66,42 +46,12 @@ def load_multi(exp_list, n_objs=None, n_targs=None, args=None):
     return exps
 
 
-def load_config(args, config=None, reload_module=None):
-    config_file = args.config
-    if reload_module is not None:
-        config_module = reload_module
-        imp.reload(config_module)
-    else:
-        config_module = importlib.import_module('policy_hooks.'+config_file)
-    config = config_module.refresh_config(args.nobjs, args.nobjs)
-    config['use_local'] = not args.remote
-    config['num_conds'] = args.nconds if args.nconds > 0 else config['num_conds']
-    config['common']['num_conds'] = config['num_conds']
-    config['algorithm']['conditions'] = config['num_conds']
-    config['num_objs'] = args.nobjs if args.nobjs > 0 else config['num_objs']
-    config['weight_dir'] = get_dir_name(next_config['base_weight_dir'], next_config['num_objs'], next_config['num_targs'], i, next_config['descr'], args)
-    #config['weight_dir'] = config['base_weight_dir'] + str(config['num_objs'])
-    next_config['base_dir'] = config['weight_dir']
-    config['log_timing'] = args.timing
-    # config['pretrain_timeout'] = args.pretrain_timeout
-    config['hl_timeout'] = args.hl_timeout if args.hl_timeout > 0 else config['hl_timeout']
-    config['mcts_server'] = args.mcts_server or args.all_servers
-    config['mp_server'] = args.mp_server or args.all_servers
-    config['pol_server'] = args.policy_server or args.all_servers
-    config['log_server'] = args.log_server or args.all_servers
-    config['view_server'] = args.view_server
-    config['pretrain_steps'] = args.pretrain_steps if args.pretrain_steps > 0 else config['pretrain_steps']
-    config['viewer'] = args.viewer
-    config['server_id'] = args.server_id if args.server_id != '' else str(random.randint(0,2**32))
-    return config, config_module
-
-
 def run_baseline(args):
     # Retrieve previous information to match how the expert was trained
     exps_info = [[args.config]]
     n_objs = args.nobjs if args.nobjs > 0 else None
     n_targs = args.nobjs if args.nobjs > 0 else None
-    #n_targs = args.ntargs if args.ntargs > 0 else None
+
     if USE_BASELINES and len(args.expert_path):
         sys.path.insert(1, args.expert_path)
         exps_info = [['hyp']]
@@ -110,6 +60,7 @@ def run_baseline(args):
         args.add_obs_delta = prev_args.add_obs_delta
         args.hist_len = prev_args.hist_len
         args.add_action_hist = prev_args.add_action_hist
+
     exps = load_multi(exps_info, n_objs, n_targs, args)
     config = exps[0][0][0]
     config['source'] = args.config
@@ -157,47 +108,6 @@ def run_baseline(args):
     sys.exit(0)
 
 
-def setup_dirs(c, args):
-    current_id = 0 if c.get('index', -1) < 0 else c['index']
-    if c.get('index', -1) < 0:
-        while os.path.isdir(DIR_KEY+c['weight_dir']+'_'+str(current_id)):
-            current_id += 1
-    c['group_id'] = current_id
-    c['weight_dir'] = c['weight_dir']+'_{0}'.format(current_id)
-    dir_name = ''
-    sub_dirs = [DIR_KEY] + c['weight_dir'].split('/')
-
-    try:
-        from mpi4py import MPI
-        rank = MPI.COMM_WORLD.Get_rank()
-    except Exception as e:
-        rank = 0
-    if rank < 0: rank = 0
-
-    c['rank'] = rank
-    if rank == 0:
-        for d_ind, d in enumerate(sub_dirs):
-            dir_name += d + '/'
-            if not os.path.isdir(dir_name):
-                os.mkdir(dir_name)
-        if args.hl_retrain:
-            src = DIR_KEY + args.hl_data + '/hyp.py'
-        elif len(args.expert_path):
-            src = args.expert_path+'/hyp.py'
-        else:
-            src = c['source'].replace('.', '/')+'.py'
-        shutil.copyfile(src, DIR_KEY+c['weight_dir']+'/hyp.py')
-        with open(DIR_KEY+c['weight_dir']+'/__init__.py', 'w+') as f:
-            f.write('')
-        with open(DIR_KEY+c['weight_dir']+'/args.pkl', 'wb+') as f:
-            pickle.dump(args, f, protocol=0)
-        with open(DIR_KEY+c['weight_dir']+'/args.txt', 'w+') as f:
-            f.write(str(vars(args)))
-    else:
-        time.sleep(0.1) # Give others a chance to let base set up dirs
-    return current_id
-
-
 def main():
     args = argsparser()
     if args.run_baseline:
@@ -215,7 +125,7 @@ def main():
     exps_info = exps
     n_objs = args.nobjs if args.nobjs > 0 else None
     n_targs = args.nobjs if args.nobjs > 0 else None
-    #n_targs = args.ntargs if args.ntargs > 0 else None
+
     if len(args.test):
         sys.path.insert(1, DIR_KEY+args.test)
         exps_info = [['hyp']]
@@ -235,6 +145,7 @@ def main():
         old_vars = vars(old_args)
         for key in old_vars:
             if key not in var_args: var_args[key] = old_vars[key]
+
     if args.hl_retrain:
         sys.path.insert(1, DIR_KEY+args.hl_data)
         exps_info = [['hyp']]
@@ -243,12 +154,6 @@ def main():
     for ind, exp in enumerate(exps):
         mains = []
         for ind2, (c, cm) in enumerate(exp):
-            #if len(args.test):
-            #    # c['weight_dir'] = args.test
-            #    m = MultiProcessMain(c)
-            #    m.run_test(c)
-            #    continue
-
             print('\n\n\n\n\n\nLOADING NEXT EXPERIMENT\n\n\n\n\n\n')
             old_dir = c['weight_dir']
             old_file = c['task_map_file']
@@ -263,14 +168,17 @@ def main():
                 m.monitor = False # If true, m will wait to finish before moving on
                 m.group_id = current_id
                 m.hl_only_retrain()
+
             elif len(args.test):
                 m = MultiProcessMain(c, load_at_spawn=False)
                 m.run_test(m.config)
+
             else:
                 m = MultiProcessMain(c, load_at_spawn=True)
                 m.monitor = False # If true, m will wait to finish before moving on
                 m.group_id = current_id
                 m.start()
+
             mains.append(m)
             time.sleep(1)
         active = True
@@ -292,10 +200,6 @@ def main():
 
         print('\n\n\n\n\n\n\n\nEXITING')
         sys.exit(0)
-
-    if not args.nofull:
-        main = MultiProcessMain(config)
-        main.start(kill_all=args.killall)
 
 
 def argsparser():

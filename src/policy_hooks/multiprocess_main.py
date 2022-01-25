@@ -2,11 +2,7 @@ import multiprocessing as mp
 from multiprocessing.managers import SyncManager
 from multiprocessing import Process, Pool, Queue
 from queue import PriorityQueue
-import atexit
-from collections import OrderedDict
-import subprocess
 import ctypes
-import logging
 import imp
 import importlib
 import os
@@ -20,30 +16,21 @@ import argparse
 from datetime import datetime
 from threading import Thread
 import pprint
-import psutil
 import time
 import traceback
 import random
 
 import numpy as np
 
-import software_constants
-from gps.algorithm.cost.cost_utils import *
-
 from policy_hooks.control_attention_policy_opt import ControlAttentionPolicyOpt
-from policy_hooks.mcts import MCTS
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.task_net import * 
-from policy_hooks.mcts import MCTS
-from policy_hooks.state_traj_cost import StateTrajCost
-from policy_hooks.action_traj_cost import ActionTrajCost
 from policy_hooks.utils.load_task_definitions import *
 from policy_hooks.policy_server import PolicyServer
 from policy_hooks.rollout_server import RolloutServer
 from policy_hooks.motion_server import MotionServer
 from policy_hooks.task_server import TaskServer
-from policy_hooks.human_labels.label_server import LabelServer
 from policy_hooks.tf_models import tf_network, multi_modal_network_fp, fp_cont_network
 import policy_hooks.hl_retrain as hl_retrain
 from policy_hooks.utils.load_agent import *
@@ -97,7 +84,6 @@ class MultiProcessMain(object):
         if 'id' not in self.config: self.config['id'] = -1
         time_limit = config.get('time_limit', 14400)
 
-        conditions = self.config['num_conds']
         self.task_list = tuple(sorted(list(get_tasks(self.config['task_map_file']).keys())))
         self.cur_n_rollout = 0
         if 'multi_policy' not in self.config: self.config['multi_policy'] = False
@@ -115,41 +101,25 @@ class MultiProcessMain(object):
         config['agent'] = load_agent(config)
         self.sensor_dims = config['agent']['sensor_dims']
 
-        if 'cloth_width' in self.config:
-            self.config['agent']['cloth_width'] = self.config['cloth_width']
-            self.config['agent']['cloth_length'] = self.config['cloth_length']
-            self.config['agent']['cloth_spacing'] = self.config['cloth_spacing']
-            self.config['agent']['cloth_radius'] = self.config['cloth_radius']
-
         old_render = self.config['agent']['master_config']['load_render']
         self.config['agent']['master_config']['load_render'] = False
         self.agent = self.config['agent']['type'](self.config['agent'])
         self.config['agent']['master_config']['load_render'] = old_render
-        if hasattr(self.agent, 'cloth_init_joints'):
-            self.config['agent']['cloth_init_joints'] = self.agent.cloth_init_joints
-
         self.policy_opt = None
 
         self.weight_dir = self.config['weight_dir']
 
-        self.mcts = []
         self._map_cont_discr_tasks()
         self._set_alg_config()
-        self.config['mcts'] = self.mcts
-        # self.config['agent'] = self.agent
-        self.config['alg_map'] = self.alg_map
         self.config['dX'] = self.config['agent']['dX']
         self.config['dU'] = self.config['agent']['dU']
         self.config['symbolic_bound'] = self.config['agent']['symbolic_bound']
         self.config['dO'] = self.agent.dO
         self.config['dPrimObs'] = self.agent.dPrim
         self.config['dContObs'] = self.agent.dCont
-        self.config['dValObs'] = self.agent.dVal #+ np.sum([len(options[e]) for e in options])
         self.config['dPrimOut'] = self.agent.dPrimOut
         self.config['state_inds'] = self.agent.state_inds
         self.config['action_inds'] = self.agent.action_inds
-        self.config['policy_out_coeff'] = self.policy_out_coeff
-        self.config['policy_inf_coeff'] = self.policy_inf_coeff
         self.config['target_inds'] = self.agent.target_inds
         self.config['target_dim'] = self.agent.target_dim
         self.config['task_list'] = self.agent.task_list
@@ -176,36 +146,6 @@ class MultiProcessMain(object):
 
 
     def _set_alg_config(self):
-        self.policy_inf_coeff = self.config['algorithm']['policy_inf_coeff']
-        self.policy_out_coeff = self.config['algorithm']['policy_out_coeff']
-        state_cost_wp = np.ones((self.agent.symbolic_bound), dtype='float64')
-        traj_cost = {
-                        'type': StateTrajCost,
-                        'data_types': {
-                            utils.STATE_ENUM: {
-                                'wp': state_cost_wp,
-                                'target_state': np.zeros((1, self.agent.symbolic_bound)),
-                                'wp_final_multiplier': 5e1,
-                            }
-                        },
-                        'ramp_option': RAMP_CONSTANT
-                    }
-        action_cost = {
-                        'type': ActionTrajCost,
-                        'data_types': {
-                            utils.ACTION_ENUM: {
-                                'wp': np.ones((1, self.agent.dU), dtype='float64'),
-                                'target_state': np.zeros((1, self.agent.dU)),
-                            }
-                        },
-                        'ramp_option': RAMP_CONSTANT
-                     }
-
-        self.config['algorithm']['cost'] = traj_cost
-        self.config['dQ'] = self.agent.dU
-        self.config['algorithm']['init_traj_distr']['dQ'] = self.agent.dU
-        self.config['algorithm']['init_traj_distr']['dt'] = 1.0
-
         if self.config.get('add_hl_image', False):
             primitive_network_model = fp_multi_modal_discr_network
         elif self.config.get('conditional', False):
@@ -226,7 +166,6 @@ class MultiProcessMain(object):
             network_model = tf_network
 
         self.config['algorithm']['policy_opt'] = {
-            'q_imwt': self.config.get('q_imwt', 0),
             'll_policy': self.config.get('ll_policy', ''),
             'hl_policy': self.config.get('hl_policy', ''),
             'cont_policy': self.config.get('cont_policy', ''),
@@ -242,7 +181,6 @@ class MultiProcessMain(object):
                 'image_channels': self.config['image_channels'],
                 'sensor_dims': self.sensor_dims,
                 'n_layers': self.config['n_layers'],
-                'q_imwt': 1,
                 'dim_hidden': self.config['dim_hidden'],
             },
             'primitive_network_params': {
@@ -258,22 +196,6 @@ class MultiProcessMain(object):
                 'filter_sizes': self.config.get('prim_filter_sizes', [7,5]),
                 'dim_hidden': self.config['prim_dim_hidden'],
                 'output_boundaries': self.config['prim_bounds'],
-                'aux_boundaries': self.config['aux_bounds'],
-                'types': self.task_types,
-            },
-            'label_network_params': {
-                'obs_include': self.config['agent']['prim_obs_include'],
-                'obs_image_data': [IM_ENUM, OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
-                'agent': self.agent,
-                'image_width': self.config['image_width'],
-                'image_height': self.config['image_height'],
-                'image_channels': self.config['image_channels'],
-                'sensor_dims': self.sensor_dims,
-                'n_layers': self.config['prim_n_layers'],
-                'num_filters': [32, 32],
-                'filter_sizes': [7, 5],
-                'dim_hidden': self.config['prim_dim_hidden'],
-                'output_boundaries': [(0,2)],
                 'aux_boundaries': self.config['aux_bounds'],
                 'types': self.task_types,
             },
@@ -304,7 +226,6 @@ class MultiProcessMain(object):
             'weight_decay': self.config['weight_decay'],
             'prim_weight_decay': self.config['prim_weight_decay'],
             'cont_weight_decay': self.config['cont_weight_decay'],
-            'val_weight_decay': self.config['prim_weight_decay'],
             'weights_file_prefix': 'policy',
             'image_width': utils.IM_W,
             'image_height': utils.IM_H,
@@ -314,49 +235,16 @@ class MultiProcessMain(object):
             'allow_growth': True,
             'update_size': self.config['update_size'],
             'prim_update_size': self.config['prim_update_size'],
-            'val_update_size': self.config['prim_update_size'],
             'solver_type': self.config['solver_type'],
         }
 
-        self.alg_map = {}
-        alg_map = {}
-        for ind, task in enumerate(self.agent.task_list):
-            plan = [pl for lab, pl in self.agent.plans.items() if lab[0] == ind][0]
-            self.config['algorithm']['T'] = plan.horizon
-            alg_map[task] = copy.copy(self.config['algorithm'])
         self.config['policy_opt'] = self.config['algorithm']['policy_opt']
         self.config['policy_opt']['split_nets'] = self.config.get('split_nets', False)
-
-        self.config['algorithm'] = alg_map
-        for task in self.agent.task_list:
-            self.config['algorithm'][task]['policy_opt']['scope'] = 'value'
-            self.config['algorithm'][task]['policy_opt']['weight_dir'] = self.config['weight_dir']
-            self.config['algorithm'][task]['policy_opt']['prev'] = 'skip'
-            self.config['algorithm'][task]['agent'] = self.agent
-            self.config['algorithm'][task]['init_traj_distr']['T'] = alg_map[task]['T']
-            self.config['algorithm'][task]['task'] = task
-            self.alg_map[task] = self.config['algorithm'][task]['type'](self.config['algorithm'][task])
-            self.policy_opt = self.alg_map[task].policy_opt
-            self.alg_map[task].set_conditions(len(self.agent.x0))
-            self.alg_map[task].agent = self.agent
-
-        for task in self.agent.task_list:
-            self.config['algorithm'][task]['policy_opt']['prev'] = None
-        self.config['alg_map'] = self.alg_map
 
 
     def allocate_shared_buffers(self, config):
         buffers = {}
         buf_sizes = {}
-        #if self.config['policy_opt'].get('split_nets', False):
-        #    for scope in self.task_list:
-        #        buffers[scope] = mp.Array(ctypes.c_char, (2**28))
-        #        buf_sizes[scope] = mp.Value('i')
-        #        buf_sizes[scope].value = 0
-        #else:
-        #    buffers['control'] = mp.Array(ctypes.c_char, (2**28))
-        #    buf_sizes['control'] = mp.Value('i')
-        #    buf_sizes['control'].value = 0
         power = 26
         for task in self.pol_list:
             buffers[task] = mp.Array(ctypes.c_char, (2**power))
@@ -383,8 +271,6 @@ class MultiProcessMain(object):
             buf_sizes['n_plan_{}'.format(key)] = mp.Value('i')
             buf_sizes['n_plan_{}'.format(key)].value = 0
 
-        buf_sizes['n_mcts'] = mp.Value('i')
-        buf_sizes['n_mcts'].value = 0
         buf_sizes['n_ff'] = mp.Value('i')
         buf_sizes['n_ff'].value = 0
         buf_sizes['n_postcond'] = mp.Value('i')
@@ -513,29 +399,7 @@ class MultiProcessMain(object):
         server.run()
 
 
-    def cont_only_retrain(self):
-        software_constants.USE_ROS = False
-        hyperparams = self.config
-        hyperparams['id'] = 'test'
-        hyperparams['scope'] = 'cont'
-        descr = hyperparams.get('descr', '')
-        self.allocate_shared_buffers(hyperparams)
-        self.allocate_queues(hyperparams)
-        hyperparams['policy_opt']['share_buffer'] = True
-        hyperparams['policy_opt']['buffers'] = hyperparams['buffers']
-        hyperparams['policy_opt']['buffer_sizes'] = hyperparams['buffer_sizes']
-        server = PolicyServer(hyperparams)
-        server.agent = hyperparams['agent']['type'](hyperparams['agent'])
-        ll_dir = hyperparams['ll_policy']
-        hl_dir = hyperparams['hl_data']
-        print(('Launching hl retrain from', ll_dir, hl_dir))
-        #hl_retrain.retrain_hl_from_samples(server, hl_dir)
-        server.data_gen.load_from_dir(DIR_KEY+hl_dir)
-        server.run()
-
-
     def hl_retrain(self, hyperparams):
-        software_constants.USE_ROS = False
         hyperparams['run_mcts_rollouts'] = False
         hyperparams['run_alg_updates'] = False
         hyperparams['run_hl_test'] = True
@@ -551,7 +415,6 @@ class MultiProcessMain(object):
 
 
     def run_test(self, hyperparams):
-        software_constants.USE_ROS = False
         hyperparams['run_mcts_rollouts'] = False
         hyperparams['run_alg_updates'] = False
         hyperparams['run_hl_test'] = True
@@ -726,18 +589,6 @@ def load_config(args, config=None, reload_module=None):
     else:
         config_module = importlib.import_module(config_file)
     config = config_module.refresh_config(args.nobjs, args.nobjs)
-    config['use_local'] = not args.remote
-    config['num_conds'] = args.nconds if args.nconds > 0 else config['num_conds']
-    config['common']['num_conds'] = config['num_conds']
-    config['algorithm']['conditions'] = config['num_conds']
-    config['num_objs'] = args.nobjs if args.nobjs > 0 else config['num_objs']
-    config['log_timing'] = args.timing
-    config['mcts_server'] = args.mcts_server or args.all_servers
-    config['mp_server'] = args.mp_server or args.all_servers
-    config['pol_server'] = args.policy_server or args.all_servers
-    config['log_server'] = args.log_server or args.all_servers
-    config['view_server'] = args.view_server
-    config['viewer'] = args.viewer
     config['server_id'] = args.server_id if args.server_id != '' else str(random.randint(0,2**32))
     return config, config_module
 

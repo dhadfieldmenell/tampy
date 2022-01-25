@@ -16,7 +16,6 @@ from core.internal_repr.plan import Plan
 from policy_hooks.sample import Sample
 from policy_hooks.sample_list import SampleList
 from policy_hooks.utils.policy_solver_utils import *
-from policy_hooks.msg_classes import *
 from policy_hooks.rollout_supervisor import *
 from policy_hooks.server import *
 from policy_hooks.search_node import *
@@ -322,11 +321,11 @@ class RolloutServer(Server):
             self.send_rollout(node)
 
 
-            for task in self.alg_map:
+            for task in self.agent.task_list:
                 data = self.agent.get_opt_samples(task, clear=True)
                 if len(data) and self.ll_rollout_opt:
                     inv_cov = self.agent.get_inv_cov()
-                    self.alg_map[task]._update_policy_no_cost(data, label='rollout')
+                    self._update_policy_no_cost(task, data, label='rollout')
 
             if self.hl_rollout_opt:
                 self.run_hl_update(label='rollout')

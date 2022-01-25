@@ -13,9 +13,9 @@ do
                                                        -imwidth 64 -imheight 64 \
                                                        -batch 50 \
                                                        -expl_wt 5 -expl_eta 4 \
-                                                       -motion 24 \
-                                                       -task 2 \
-                                                       -rollout 4 \
+                                                       -motion 2 \
+                                                       -task 1 \
+                                                       -rollout 1 \
                                                        -warm 300 \
                                                        -verbose \
                                                        --load_render \

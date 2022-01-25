@@ -20,7 +20,6 @@ from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.sample import Sample
-from policy_hooks.policy_solver import get_base_solver
 from policy_hooks.utils.load_task_definitions import *
 
 
@@ -28,7 +27,6 @@ def load_agent(config):
     prob = config['prob']
     bt_ll.COL_COEFF = config.get('col_coeff', 0.)
     time_limit = config.get('time_limit', 14400)
-    conditions = config['num_conds']
     task_list = tuple(sorted(list(get_tasks(config['task_map_file']).keys())))
     cur_n_rollout = 0
     config['task_list'] = task_list
@@ -39,9 +37,9 @@ def load_agent(config):
 
     plans, openrave_bodies, env = prob.get_plans()
     state_vector_include, action_vector_include, target_vector_include = config['get_vector'](config)
-    dX, state_inds, dU, action_inds, symbolic_bound = utils.get_state_action_inds(list(plans.values())[0], config['robot_name'], config['attr_map'], state_vector_include, action_vector_include)
-    target_dim, target_inds = utils.get_target_inds(list(plans.values())[0], config['attr_map'], target_vector_include)
-    x0, targets = prob.get_random_initial_state_vec(config, False, dX, state_inds, conditions)
+    dX, state_inds, dU, action_inds, symbolic_bound = utils.get_state_action_inds(list(plans.values())[0], config['robot_name'], None, state_vector_include, action_vector_include)
+    target_dim, target_inds = utils.get_target_inds(list(plans.values())[0], None, target_vector_include)
+    x0, targets = prob.get_random_initial_state_vec(config, False, dX, state_inds, 0)
 
 
     im_h = config.get('image_height', utils.IM_H)
@@ -50,14 +48,6 @@ def load_agent(config):
     config['image_height'] = im_h
     config['image_width'] = im_w
     config['image_channels'] = im_c
-    for plan in list(plans.values()):
-        plan.state_inds = state_inds
-        plan.action_inds = action_inds
-        plan.dX = dX
-        plan.dU = dU
-        plan.symbolic_bound = symbolic_bound
-        plan.target_dim = target_dim
-        plan.target_inds = target_inds
 
     sensor_dims = {
         utils.DONE_ENUM: 1,
@@ -191,8 +181,6 @@ def load_agent(config):
         'prim_out_include': prim_out,
         'cont_obs_include': config['cont_obs_include'],
         'cont_out_include': cont_out,
-        'val_obs_include': config['val_obs_include'],
-        'conditions': config['num_conds'],
         'solver': None,
         'rollout_seed': config.get('rollout_seed', False),
         'num_objs': config['num_objs'],
@@ -210,13 +198,10 @@ def load_agent(config):
         'openrave_bodies': openrave_bodies,
         'n_dirs': config.get('n_dirs', 1),
         'prob': prob,
-        'attr_map': config['attr_map'],
         'prim_dims': prim_dims,
         'mp_solver_type': config['mp_solver_type'],
         'robot_name': config['robot_name'],
         'split_nets': config.get('split_nets', True),
-        'policy_inf_coeff': config['policy_inf_coeff'],
-        'policy_out_coeff': config['policy_out_coeff'],
         'master_config': config,
     }
     agent_config['agent_load'] = True

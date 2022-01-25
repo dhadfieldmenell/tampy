@@ -18,7 +18,6 @@ import core.util_classes.transform_utils as T
 from policy_hooks.sample import Sample
 from policy_hooks.sample_list import SampleList
 from policy_hooks.utils.policy_solver_utils import *
-from policy_hooks.msg_classes import *
 from policy_hooks.server import Server
 from policy_hooks.search_node import *
 
@@ -240,14 +239,14 @@ class MotionServer(Server):
             self.refine_plan(node)
 
             inv_cov = self.agent.get_inv_cov()
-            for task in self.alg_map:
+            for task in self.agent.task_list:
                 data = self.agent.get_opt_samples(task, clear=True)
                 opt_samples = [sample for sample in data if not len(sample.source_label) or sample.source_label.find('opt') >= 0]
                 expl_samples = [sample for sample in data if len(sample.source_label) and sample.source_label.find('opt') < 0]
                 if len(opt_samples):
-                    self.alg_map[task]._update_policy_no_cost(opt_samples, label='optimal', inv_cov=inv_cov)
+                    self._update_policy_no_cost(task, opt_samples, label='optimal', inv_cov=inv_cov)
                 if len(expl_samples):
-                    self.alg_map[task]._update_policy_no_cost(expl_samples, label='dagger', inv_cov=inv_cov)
+                    self._update_policy_no_cost(task, expl_samples, label='dagger', inv_cov=inv_cov)
 
             self.run_hl_update()
 
@@ -259,94 +258,4 @@ class MotionServer(Server):
 
         self.policy_opt.sess.close()
 
-
-    def update_expert_demos(self, demos):
-        for path in demos:
-            for key in self.expert_demos:
-                self.expert_demos[key].append([])
-            for s in path:
-                for t in range(s.T):
-                    if not s.use_ts[t]: continue
-                    self.expert_demos['acs'][-1].append(s.get(ACTION_ENUM, t=t))
-                    self.expert_demos['obs'][-1].append(s.get_prim_obs(t=t))
-                    self.expert_demos['ep_rets'][-1].append(1)
-                    self.expert_demos['rews'][-1].append(1)
-                    self.expert_demos['tasks'][-1].append(s.get(FACTOREDTASK_ENUM, t=t))
-                    self.expert_demos['use_mask'][-1].append(s.use_ts[t])
-        if self.cur_step % 5:
-            np.save(self.expert_data_file, self.expert_demos)
-
-    def log_node_info(self, node, success, path):
-        key = 'n_ff'
-        if node.label.find('post') >= 0:
-            key = 'n_postcond'
-        elif node.label.find('pre') >= 0:
-            key = 'n_precond'
-        elif node.label.find('mid') >= 0:
-            key = 'n_midcond'
-        elif node.label.find('rollout') >= 0:
-            key = 'n_explore'
-
-        self.infos[key] += 1
-        self.infos['n_plans'] += 1
-        for altkey in self.avgs:
-            if altkey != key:
-                self.avgs[altkey].append(0)
-            else:
-                self.avgs[altkey].append(1)
-
-        failkey = key.replace('n_', 'n_fail_')
-        if not success:
-            self.fail_infos[failkey] += 1
-            self.fail_infos['n_fail_plans'] += 1
-            self.fail_avgs[failkey].append(0)
-        else:
-            self.fail_avgs[failkey].append(1)
-
-        with self.policy_opt.buf_sizes[key].get_lock():
-            self.policy_opt.buf_sizes[key].value += 1
-
-
-    def get_log_info(self):
-        info = {
-                'time': time.time() - self.start_t,
-                'optimization time': np.mean(self.plan_times),
-                'plan length': np.mean(self.plan_horizons),
-                'opt duration per ts': np.mean(self.plan_times) / np.mean(self.plan_horizons),
-                }
-
-        for key in self.infos:
-            info[key] = self.infos[key]
-
-        for key in self.fail_infos:
-            info[key] = self.fail_infos[key]
-
-        for key in self.fail_rollout_infos:
-            info[key] = self.fail_rollout_infos[key]
-
-        wind = 10
-        for key in self.avgs:
-            if len(self.avgs[key]):
-                info[key+'_avg'] = np.mean(self.avgs[key][-wind:])
-
-        for key in self.fail_avgs:
-            if len(self.fail_avgs[key]):
-                info[key+'_avg'] = np.mean(self.fail_avgs[key][-wind:])
-
-        for key in self.opt_rollout_info:
-            if len(self.opt_rollout_info[key]):
-                info[key] = np.mean(self.opt_rollout_info[key][-wind:])
-
-        if len(self.init_costs): info['mp initial costs'] = np.mean(self.init_costs[-10:])
-        if len(self.rolled_costs): info['mp rolled out costs'] = np.mean(self.rolled_costs[-10:])
-        if len(self.final_costs): info['mp optimized costs'] = np.mean(self.final_costs[-10:])
-        return info #self.log_infos
-
-
-    def write_log(self):
-        with open(self.motion_log, 'a+') as f:
-            info = self.get_log_info()
-            pp_info = pprint.pformat(info, depth=60)
-            f.write(str(pp_info))
-            f.write('\n\n')
 

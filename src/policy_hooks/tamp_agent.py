@@ -18,12 +18,7 @@ from sco.expr import *
 import core.util_classes.common_constants as common_const
 import pma.backtrack_ll_solver as bt_ll
 from pma.pr_graph import *
-if common_const.USE_OPENRAVE:
-    import openravepy
-    from openravepy import RaveCreatePhysicsEngine
-    import ctrajoptpy
-else:
-    import pybullet as p
+import pybullet as p
 
 from core.util_classes.namo_predicates import dsafe
 from policy_hooks.agent import Agent
@@ -56,17 +51,16 @@ class optimal_pol:
 class TAMPAgent(Agent, metaclass=ABCMeta):
     def __init__(self, hyperparams):
         Agent.__init__(self, hyperparams)
+        self.rollout_seed = self._hyperparams['rollout_seed']
+        self.seed = self._hyperparams['rollout_seed']
+
+        # Setting up the domain and problem
         self.config = hyperparams
+        self.master_config = hyperparams['master_config']
+        self.process_id = self.master_config['id']
         self.prob = hyperparams['prob']
-        plans, openrave_bodies, env = self.prob.get_plans()
-        self.plans = plans # self._hyperparams['plans']
-        self.openrave_bodies = openrave_bodies
-        self.env = env
-        self.plans_list = list(self.plans.values())
-        self.sensor_dims = self._hyperparams['sensor_dims']
         self.task_list = self._hyperparams['task_list']
-        self.task_encoding = self._hyperparams['task_encoding']
-        self._samples = {task: [] for task in self.task_list}
+        self.sensor_dims = self._hyperparams['sensor_dims']
         self.state_inds = self._hyperparams['state_inds']
         self.action_inds = self._hyperparams['action_inds']
         self.image_width = hyperparams.get('image_width', utils.IM_W)
@@ -74,28 +68,15 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         self.image_channels = hyperparams.get('image_channels', utils.IM_C)
         self.dU = self._hyperparams['dU']
         self.symbolic_bound = self._hyperparams['symbolic_bound']
-        self.solver = self._hyperparams['solver']
-        self.rollout_seed = self._hyperparams['rollout_seed']
         self.num_objs = self._hyperparams['num_objs']
-        self.rlen = 25#4 + 2 * self.num_objs * len(self.task_list)
+        self.rlen = 4 + 2 * self.num_objs * len(self.task_list)
         self.hor = 20
-        self._eval_mode = False
-        self.retime = hyperparams['master_config'].get('retime', False)
-        if self.retime: self.rlen *= 2
         self.init_vecs = self._hyperparams['x0']
         self.x0 = [x[:self.symbolic_bound] for x in self.init_vecs]
         self.targets = self._hyperparams['targets']
         self.target_dim = self._hyperparams['target_dim']
         self.target_inds = self._hyperparams['target_inds']
         self.target_vecs = []
-        self.master_config = hyperparams['master_config']
-        self.view = hyperparams['master_config'].get('view', False)
-        self.camera_id = 0
-        self.rank = hyperparams['master_config'].get('rank', 0)
-        self.process_id = self.master_config['id']
-        self.goal_type = self.master_config.get('goal_type', 'default')
-        self.dagger_window = self.master_config.get('dagger_window', 0)
-        self._tol = 1e-3
         for condition in range(len(self.x0)):
             target_vec = np.zeros((self.target_dim,))
             for target_name in self.targets[condition]:
@@ -103,19 +84,28 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                     target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
             self.target_vecs.append(target_vec)
         self.cur_state = self.x0[0]
-        #self.task_to_onehot = {}
-        #for i, task in enumerate(self.plans.keys()):
-        #    self.task_to_onehot[i] = task
-        #    self.task_to_onehot[task] = i
-        self.sensor_dims = self._hyperparams['sensor_dims']
-        self.discrete_prim = self._hyperparams.get('discrete_prim', True)
         self.swap = self._hyperparams['master_config'].get('swap', False)
+
+        # Variables related to motion planning
+        plans, openrave_bodies, env = self.prob.get_plans()
+        self.plans = plans # self._hyperparams['plans']
+        self.plans_list = list(self.plans.values())
+        self.sensor_dims = self._hyperparams['sensor_dims']
+
+        self._samples = {task: [] for task in self.task_list}
+        self._eval_mode = False
+        self.retime = hyperparams['master_config'].get('retime', False)
+        if self.retime: self.rlen *= 2
+
+        # Rendering
+        self.view = hyperparams['master_config'].get('view', False)
+        self.camera_id = 0
+        self.incl_init_obs = self.master_config.get('incl_init_obs', False)
+        self.incl_trans_obs = self.master_config.get('incl_trans_obs', False)
+        self.incl_grip_obs = self.master_config.get('incl_grip_obs', False)
 
         self.policies = {task: None for task in self.task_list}
         self._get_hl_plan = self._hyperparams['get_hl_plan']
-        self.attr_map = self._hyperparams['attr_map']
-        #self.env = self._hyperparams['env']
-        #self.openrave_bodies = self._hyperparams['openrave_bodies']
 
         self._done = 0.
         self._task_done = 0.
@@ -128,7 +118,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         opts = self._hyperparams['prob'].get_prim_choices(self.task_list)
         self.discrete_opts = [enum for enum, enum_opts in opts.items() if hasattr(enum_opts, '__len__')]
         self.continuous_opts = [enum for enum, enum_opts in opts.items() if not hasattr(enum_opts, '__len__')]
-        #self.label_options = list(itertools.product(*[list(range(len(opts[e]))) for e in opts])) # range(self.num_tasks), *[range(n) for n in self.num_prims]))
         self.hist_len = self._hyperparams['hist_len']
         self.task_hist_len = self._hyperparams['master_config'].get('task_hist_len', 0)
         self.traj_hist = None
@@ -145,31 +134,16 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
 
         self.task_paths = []
 
-        self.n_policy_calls = {}
-        if common_const.USE_OPENRAVE:
-            self._cc = openravepy.RaveCreateCollisionChecker(self.env, "ode")
-            self._cc.SetCollisionOptions(openravepy.CollisionOptions.Contacts)
-            self.env.SetCollisionChecker(self._cc)
         self.n_dirs = self._hyperparams['n_dirs']
-        self.seed = 1234
         self.prim_dims = self._hyperparams['prim_dims']
         self.prim_dims_keys = list(self.prim_dims.keys())
         self.permute_hl = self.master_config.get('permute_hl', False)
         self.opt_wt = self.master_config['opt_wt']
-        self.incl_init_obs = self.master_config.get('incl_init_obs', False)
-        self.incl_trans_obs = self.master_config.get('incl_trans_obs', False)
-        self.incl_grip_obs = self.master_config.get('incl_grip_obs', False)
 
         # TAMP solver info
         bt_ll.COL_COEFF = self.master_config['col_coeff']
-        self.solver = self._hyperparams['mp_solver_type'](self._hyperparams)
-        if 'll_solver_type' in self._hyperparams['master_config']:
-            self.ll_solver = self._hyperparams['master_config']['ll_solver_type'](self._hyperparams)
-        else:
-            self.ll_solver = self._hyperparams['mp_solver_type'](self._hyperparams)
-        self.traj_smooth = self.master_config['traj_smooth']
+        self.ll_solver = self._hyperparams['mp_solver_type'](self._hyperparams)
         self.hl_solver = get_hl_solver(self.prob.domain_file)
-        self.hl_pol = False # self.master_config['hl_post']
 
         # Tracking info
         self.debug = True
@@ -185,7 +159,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         if hasattr(self, 'mjc_env'):
             self.mjc_env.add_viewer()
         else:
-            self.viewer = OpenRAVEViewer(self.env)
+            self.viewer = OpenRAVEViewer()
 
 
     def get_opt_samples(self, task=None, clear=False):
@@ -201,26 +175,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return data
 
 
-    def add_cont_sample(self, sample, max_buf=1e2):
-        max_buf = int(max_buf)
-        self.cont_samples.append(sample)
-        self.cont_samples = self.cont_samples[-max_buf:]
-
-
-    def get_cont_samples(self, clear=True):
-        data = self.cont_samples
-        if clear: self.cont_samples = []
-        return data
-
-
-    def get_samples(self, task):
-        samples = []
-        for batch in self._samples[task]:
-            samples.append(batch)
-
-        return samples
-
-
     def get_hist(self):
         return {'x': self._x_delta.copy(), 'task': self._prev_task.copy()}
 
@@ -228,71 +182,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
     def store_hist(self, hist):
         self._x_delta[:] = hist['x'][:]
         self._prev_task[:] = hist['task'][:]
-
-
-    def add_sample_batch(self, samples, task):
-        raise Exception('Deprecated')
-        if type(task) is tuple:
-            task = self.task_list[task[0]]
-        if not hasattr(samples[0], '__getitem__'):
-            if not isinstance(samples, SampleList):
-                samples = SampleList(samples)
-            self._samples[task].append(samples)
-        else:
-            for batch in samples:
-                if not isinstance(batch, SampleList):
-                    batch = SampleList(batch)
-                self._samples[task].append(batch)
-        while len(self._samples[task]) > MAX_SAMPLELISTS:
-            del self._samples[task][0]
-
-
-    def clear_samples(self, keep_prob=0., keep_opt_prob=1.):
-        for task in self.task_list:
-            n_keep = int(keep_prob * len(self._samples[task]))
-            self._samples[task] = random.sample(self._samples[task], n_keep)
-
-            n_opt_keep = int(keep_opt_prob * len(self.optimal_samples[task]))
-            self.optimal_samples[task] = random.sample(self.optimal_samples[task], n_opt_keep)
-
-
-    def store_x_hist(self, x):
-        self._x_delta = x.reshape((self.hist_len+1, self.dX))
-
-
-    def store_act_hist(self, u):
-        self._prev_U = u.reshape((self.hist_len, self.dU))
-
-
-    def store_task_hist(self, task):
-        self._prev_task = task.reshape((self.task_hist_len, self.dPrimOut))
-
-
-    def reset_sample_refs(self):
-        for task in self.task_list:
-            for batch in self._samples[task]:
-                for sample in batch:
-                    sample.set_ref_X(np.zeros((sample.T, self.symbolic_bound)))
-                    sample.set_ref_U(np.zeros((sample.T, self.dU)))
-
-
-    def reset_hist(self):
-        self._prev_U = np.zeros((self.hist_len, self.dU))
-
-
-    def add_task_paths(self, paths):
-        self.task_paths.extend(paths)
-        while len(self.task_paths) > MAX_TASK_PATHS:
-            del self.task_paths[0]
-
-
-    def get_task_paths(self):
-        return copy.copy(self.task_paths)
-
-
-    def clear_task_paths(self, keep_prob=0.):
-        n_keep = int(keep_prob * len(self.task_paths))
-        self.task_paths = random.sample(self.task_paths, n_keep)
 
 
     def animate_sample(self, sample):
@@ -495,16 +384,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return samples
 
 
-    # @abstractmethod
-    # def dist_obs(self, plan, t):
-    #     raise NotImplementedError
-
-
-    # @abstractmethod
-    # def run_policy_step(self, u, x, plan, t, obj):
-    #     raise NotImplementedError
-
-
     @abstractmethod
     def goal(self, cond, targets=None):
         raise NotImplementedError
@@ -552,15 +431,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         raise NotImplementedError('This should be defined in child')
 
 
-    @abstractmethod
-    def solve_sample_opt_traj(self, state, task, condition, traj_mean=[], fixed_targets=[]):
-        raise NotImplementedError
-
-
-    def _sample_opt_traj(self, plan, state, task, condition):
-        raise NotImplementedError('This should be defined in child')
-
-
     def replace_targets(self, condition=0):
         new_targets = self.prob.get_end_targets(self.prob.NUM_OBJS, randomize=False)
         self.targets[condition] = new_targets
@@ -569,20 +439,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
         self.target_vecs[condition]= target_vec
 
-
-    # @abstractmethod
-    # def get_sample_constr_cost(self, sample):
-    #     raise NotImplementedError
-
-
-    def randomize_init_state(self, condition=0):
-        self.targets[condition] = self.prob.get_end_targets(self.num_objs)
-        self.init_vecs[condition] = self.prob.get_random_initial_state_vec(self.config, False, self.targets, self.dX, self.state_inds, 1)[0]
-        self.x0[condition] = self.init_vecs[condition][:self.symbolic_bound]
-        target_vec = np.zeros((self.target_dim,))
-        for target_name in self.targets[condition]:
-            target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
-        self.target_vecs[condition] = target_vec
 
     def replace_conditions(self, conditions=None, curric_step=-1):
         if conditions is None:
@@ -611,88 +467,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             self.target_vecs[cond][self.target_inds[target_name, 'value']] = self.targets[cond][target_name]
 
 
-
-    def get_prim_options(self, cond, state):
-        mp_state = state[self._x_data_idx[STATE_ENUM]]
-        out = {}
-        out[TASK_ENUM] = copy.copy(self.task_list)
-        options = self.prob.get_prim_choices(self.task_list)
-        plan = self.plans_list[0]
-        for enum in self.prim_dims:
-            if enum == TASK_ENUM: continue
-            out[enum] = []
-            for item in options[enum]:
-                if item in plan.params:
-                    param = plan.params[item]
-                    if param.is_symbol():
-                        out[enum].append(param.value[:,0].copy())
-                    else:
-                        out[enum].append(mp_state[self.state_inds[item, 'pose']].copy())
-                    continue
-
-                # val = self.env.get_pos_from_label(item, mujoco_frame=False)
-                # if val is not None:
-                #     out[enum] = val
-                # out[enum].append(val)
-            out[enum] = np.array(out[enum])
-        return out
-
-
-    def get_prim_value(self, cond, state, task):
-        mp_state = state[self._x_data_idx[STATE_ENUM]]
-        out = {}
-        out[TASK_ENUM] = self.task_list[task[0]]
-        plan = self.plans[task]
-        options = self.prob.get_prim_choices(self.task_list)
-        for i in range(1, len(task)):
-            enum = self.prim_dims_keys()[i-1]
-            item = options[enum][task[i]]
-            if item in plan.params:
-                param = plan.params[item]
-                if param.is_symbol():
-                    out[enum] = param.value[:,0]
-                else:
-                    out[enum] = mp_state[self.state_inds[item, 'pose']]
-                continue
-
-            # val = self.env.get_pos_from_label(item, mujoco_frame=False)
-            # if val is not None:
-            #     out[enum] = val
-
-        return out
-
-
-    def get_prim_index(self, enum, name):
-        prim_options = self.prob.get_prim_choices(self.task_list)
-        return prim_options[enum].index(name)
-
-
-    def get_prim_indices(self, names):
-        task = [self.task_list.index(names[0])]
-        for i in range(1, len(names)):
-            task.append(self.get_prim_index(self.prim_dims_keys()[i-1], names[i]))
-        return tuple(task)
-
-
-    def get_target_dict(self, cond):
-        info = {}
-        for target_name in self.targets[cond]:
-            info[target_name] = list(self.targets[cond][target_name])
-        return info
-
-
-    def get_trajectories(self, sample=None, mp_state=None):
-        if sample is not None:
-            mp_state = sample.get(STATE_ENUM)
-
-        info = {}
-        plan = list(self.plans.values())[0]
-        for param_name, attr in self.state_inds:
-            if plan.params[param_name].is_symbol(): continue
-            info[param_name, attr] = mp_state[:, self.state_inds[param_name, attr]]
-        return info
-
-
     def first_postcond(self, sample, tol=1e-3, x0=None, task=None):
         for t in range(sample.T):
             cost = self.postcond_cost(sample, t=t, tol=tol, x0=x0, task=task)
@@ -712,38 +486,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
         return self.cost_f(sample.get_X(t), task, sample.condition, active_ts=(0, 0), targets=sample.targets, tol=tol, x0=x0, debug=debug)
 
 
-    def relabel_path(self, path):
-        end = path[-1]
-        start_X = path[0].get_X(0)
-        end_X = end.get_X(end.T-1)
-        goal = self.relabel_goal(end)
-        if ONEHOT_GOAL_ENUM in self._hyperparams['sensor_dims'] and np.all(goal[ONEHOT_GOAL_ENUM] == 0.):
-            return []
-
-        new_path = []
-        cur_s = path[0]
-        i = 0
-        while self.goal_f(end.condition, start_X, goal[TARGETS_ENUM]) > 1e-2:
-            new_s = Sample(self)
-            new_s.targets = goal[TARGETS_ENUM]
-            new_s.set_val_obs(path[i].get_val_obs())
-            new_s.set_prim_obs(path[i].get_prim_obs())
-            new_s.set_X(path[i].get_X())
-            new_s.success = 1.
-            for t in range(new_s.T):
-                new_s.set(TARGETS_ENUM, goal[TARGETS_ENUM], t)
-                new_s.set(GOAL_ENUM, goal[GOAL_ENUM], t)
-                if ONEHOT_GOAL_ENUM in self._hyperparams['sensor_dims']:
-                    new_s.set(ONEHOT_GOAL_ENUM, goal[ONEHOT_GOAL_ENUM], t)
-            new_path.append(new_s)
-            start_X = new_path[-1].get_X(new_path[-1].T-1)
-            i += 1
-
-        for i, s in enumerate(new_path):
-            s.discount = 0.9 ** (len(new_path) - i)
-        return new_path
-
-
     def get_hl_info(self, state=None, targets=None, cond=0, plan=None, act=0):
         if targets is None:
             targets = self.target_vecs[cond].copy()
@@ -758,16 +500,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
                 if str(plan.actions[0]) in reps: continue
                 reps.append(str(plan.actions[0]))
                 plans.append(plan)
-            #plans = list(self.plans.values())[:1]
-            #used = []
-            #for next_plan in self.plans.values():
-            #    for action in next_plan.actions:
-            #        for p in action.preds:
-            #            if p['pred'].get_rep() not in used and \
-            #               p['active_timesteps'][0] == 0:
-            #                preds.append(p)
-            #                used.append(p['pred'].get_rep())
-
         st = plans[0].actions[act].active_timesteps[0]
         for plan in plans:
             for pname, aname in self.state_inds:
@@ -820,24 +552,6 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             encoded.append(self.encode_action(a))
         encoded = [tuple(l) for l in encoded]
         return encoded
-
-
-    def get_encoded_tasks(self):
-        if hasattr(self, '_cached_encoded_tasks'):
-            return self._cached_encoded_tasks
-        opts = self.prob.get_prim_choices(self.task_list)
-        nacts = np.prod([len(opts[e]) for e in opts])
-        dact = np.sum([len(opts[e]) for e in opts])
-        out = np.zeros((len(self.label_options), dact))
-        for i, l in enumerate(self.label_options):
-            cur_vec = np.zeros(0)
-            for j, e in enumerate(opts.keys()):
-                v = np.zeros(len(opts[e]))
-                v[l[j]] = 1.
-                cur_vec = np.concatenate([cur_vec, v])
-            out[i, :] = cur_vec
-        self._cached_encoded_tasks = out
-        return out
 
 
     def _backtrack_solve(self, plan, anum=0, n_resamples=5, st=0):
@@ -1228,7 +942,7 @@ class TAMPAgent(Agent, metaclass=ABCMeta):
             plan.params[pname]._free_attrs[aname][:,0] = 1.
             if '{0}_init_target'.format(pname) in plan.params:
                 plan.params['{0}_init_target'.format(pname)].value[:,0] = x0[self.state_inds[pname, aname]]
-        suc = self.solver.solve(plan, traj_mean=np.array(x0).reshape((1,-1)), active_ts=(0,0))
+        suc = self.ll_solver.solve(plan, traj_mean=np.array(x0).reshape((1,-1)), active_ts=(0,0))
         for pname, aname in self.state_inds:
             if plan.params[pname].is_symbol(): continue
             x0[self.state_inds[pname, aname]] = getattr(plan.params[pname], aname)[:,0]

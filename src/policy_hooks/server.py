@@ -11,13 +11,11 @@ from software_constants import *
 
 from PIL import Image
 import pybullet as P
-# import tensorflow as tf
 
 from core.internal_repr.plan import Plan
 from policy_hooks.sample import Sample
 from policy_hooks.sample_list import SampleList
 from policy_hooks.utils.policy_solver_utils import *
-from policy_hooks.msg_classes import *
 from policy_hooks.save_video import save_video
 from policy_hooks.search_node import *
 
@@ -26,8 +24,6 @@ LOG_DIR = 'experiment_logs/'
 
 class Server(object):
     def __init__(self, hyperparams):
-        global tf
-        import tensorflow as tf
         self.id = hyperparams['id']
         self._hyperparams = hyperparams
         self.config = hyperparams
@@ -43,20 +39,9 @@ class Server(object):
         self.exp_id = self.weight_dir.split('/')[-1]
         label = self.config['label_server']
         self.classify_labels = self.config['classify_labels']
-        if self.config['weight_dir'].find('sawyer') >= 0:
-            if self.id.find('moretest') < 0 and \
-               self.id.find('0') < 0 and \
-               (not label or self.id.find('3') < 0) and \
-               (not label or self.id.find('4') < 0) and \
-               (not label or self.id.find('5') < 0) and \
-               (not label or self.id.find('6') < 0) and \
-               (not label or self.id.find('7') < 0) and \
-               (not label or self.id.find('8') < 0) and \
-               (not label or self.id.find('9') < 0) and \
-               self.id.find('label') < 0:
-                self.render = False
-                hyperparams['load_render'] = False
-                hyperparams['agent']['master_config']['load_render'] = False
+        if self.config['weight_dir'].find('sawyer') >= 0 and self.render:
+            self.render = self.id.find('test') >= 0 and np.random.uniform() < 0.1
+            hyperparams['agent']['master_config']['load_render'] = self.render
 
         n_gpu = hyperparams['n_gpu']
         if n_gpu == 0:
@@ -64,18 +49,9 @@ class Server(object):
         elif n_gpu == 1:
             gpu = 0
         else:
-            #gpus = str(list(range(1, n_gpu+1)))[1:-1]
-            #gpus = str(list(range(0, n_gpu)))[1:-1]
             gpus = np.random.choice(range(n_gpu))
         os.environ['CUDA_VISIBLE_DEVICES'] = "{0}".format(gpus)
-        #os.environ['CUDA_VISIBLE_DEVICES'] = ""
 
-        self.solver = hyperparams['mp_solver_type'](hyperparams)
-        self.opt_smooth = hyperparams.get('opt_smooth', False)
-        self.alg_map = hyperparams['alg_map']
-        for alg in list(self.alg_map.values()):
-            #alg.set_conditions(len(self.agent.x0))
-            alg.set_conditions(1)
         self.init_policy_opt(hyperparams)
         hyperparams['agent']['master_config'] = hyperparams
         try:
@@ -84,10 +60,8 @@ class Server(object):
             print('No need to disconnect pybullet')
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
         self.agent.process_id = '{0}_{1}'.format(self.id, self.group_id)
-        self.agent.solver = self.solver
         self.map_cont_discr_tasks()
         self.prob = self.agent.prob
-        self.solver.agent = self.agent
         
         if self.render:
             self.cur_vid_id = 0
@@ -105,7 +79,6 @@ class Server(object):
         self.ll_queue = hyperparams['ll_queue']
         self.hl_queue = hyperparams['hl_queue']
         self.cont_queue = hyperparams['cont_queue']
-        self.label_queue = hyperparams['label_queue']
 
         self.pol_cls = DummyPolicy
         self.opt_cls = DummyPolicyOpt
@@ -129,9 +102,8 @@ class Server(object):
         self.stopped = False
         self.expert_demos = {'acs':[], 'obs':[], 'ep_rets':[], 'rews':[], 'tasks':[], 'use_mask':[]}
         self.last_log_t = time.time()
-
-        for alg in list(self.alg_map.values()):
-            alg.policy_opt = DummyPolicyOpt(self.update, self.prob)
+        self.policy_opts = {task: DummyPolicyOpt(self.update, self.prob) for task in self.task_list}
+        
         self.current_id = 0
         self.cur_step = 0
         self.adj_eta = False
@@ -140,27 +112,8 @@ class Server(object):
         self.explore_wt = hyperparams['explore_wt']
         self.check_prim_t = hyperparams.get('check_prim_t', 1)
         self.agent.plans, self.agent.openrave_bodies, self.agent.env = self.agent.prob.get_plans(use_tf=True)
-        self.dagger_window = hyperparams['dagger_window']
         self.rollout_opt = hyperparams['rollout_opt']
-        task_plans = list(self.agent.plans.items())
-        for task, plan in task_plans:
-            #self.agent.plans[task[0]] = plan
-            plan.state_inds = self.agent.state_inds
-            plan.action_inds = self.agent.action_inds
-            plan.dX = self.agent.dX
-            plan.dU = self.agent.dU
-            plan.symbolic_bound = self.agent.symbolic_bound
-            plan.target_dim = self.agent.target_dim
-            plan.target_inds = self.agent.target_inds
-            for param in plan.params.values():
-                for attr in param.attrs:
-                    if (param.name, attr) not in plan.state_inds:
-                        if type(getattr(param, attr)) is not np.ndarray: continue
-                        val = getattr(param, attr)[:,0]
-                        if np.any(np.isnan(val)):
-                            getattr(param, attr)[:] = 0.
-                        else:
-                            getattr(param, attr)[:,:] = val.reshape((-1,1))
+        
         self.expert_data_file = LOG_DIR+hyperparams['weight_dir']+'/'+str(self.id)+'_exp_data.npy'
         self.ff_data_file = LOG_DIR+hyperparams['weight_dir']+'/ff_samples_{0}_{1}.pkl'
         self.log_file = LOG_DIR + hyperparams['weight_dir'] + '/rollout_logs/{0}_log.txt'.format(self.id)
@@ -200,8 +153,6 @@ class Server(object):
                                                             hyperparams['dValObs'],
                                                             hyperparams['prim_bounds'],
                                                             hyperparams['cont_bounds'])
-        for alg in list(self.alg_map.values()):
-            alg.local_policy_opt = self.policy_opt
         self.weights_to_store = {}
 
 
@@ -290,20 +241,14 @@ class Server(object):
 
         if self.policy_opt.task_map[alg_key]['policy'].scale is None:
             if opt_s is not None:
-                return opt_s.get_U(t) # + self.alg_map[task].cur[0].traj_distr.chol_pol_covar[t].T.dot(noise)
-            t = min(t, self.alg_map[task].cur[0].traj_distr.T-1)
-            return self.alg_map[task].cur[0].traj_distr.act(x.copy(), obs.copy(), t, noise)
+                return opt_s.get_U(t)
+            raise ValueError('Cannot call policy without scale or bias')
         return self.policy_opt.task_map[alg_key]['policy'].act(x.copy(), obs.copy(), t, noise)
 
 
     def primitive_call(self, prim_obs, soft=False, eta=1., t=-1, task=None):
         if self.adj_eta: eta *= self.agent.eta_scale
         distrs = self.policy_opt.task_distr(prim_obs, eta)
-        #if task is not None and t % self.check_prim_t:
-        #    for i in range(len(distrs)):
-        #        distrs[i] = np.zeros_like(distrs[i])
-        #        distrs[i][task[i]] = 1.
-        #    return distrs
         if not soft: return distrs
         out = []
         opts = self.agent.prob.get_prim_choices(self.task_list)
@@ -361,47 +306,19 @@ class Server(object):
 
 
     def set_policies(self):
-        inter = 120
-        if self.policy_opt.share_buffers and time.time() - self._last_weight_read > inter:
+        if self.policy_opt.share_buffers and time.time() - self._last_weight_read > 120:
             self.policy_opt.read_shared_weights()
             self._last_weight_read = time.time()
-        chol_pol_covar = {}
-        #for task in self.agent.task_list:
-        #    if task not in self.policy_opt.valid_scopes:
-        #        task_name = 'control'
-        #    else:
-        #        task_name = task
-
-        #    #if self.policy_opt.task_map[task_name]['policy'].scale is None:
-        #    #    chol_pol_covar[task] = np.eye(self.agent.dU) # self.alg_map[task].cur[0].traj_distr.chol_pol_covar
-        #    #else:
-        #    #    chol_pol_covar[task] = self.policy_opt.task_map[task_name]['policy'].chol_pol_covar
-
+        scopes = self.policy_opt.valid_scopes
+        task_map = self.policy_opt.task_map
         rollout_policies = {task: DummyPolicy(task,
                                               self.policy_call,
-                                              scale=self.policy_opt.task_map[task if task in self.policy_opt.valid_scopes else 'control']['policy'].scale)
+                                              scale=task_map[task if task in scopes else 'control']['policy'].scale)
                                   for task in self.agent.task_list}
 
         if len(self.agent.continuous_opts):
             rollout_policies['cont'] = ContPolicy(self.policy_opt)
         self.agent.policies = rollout_policies
-
-
-    def run_hl_update(self, label=None):
-        ### Look for saved successful HL rollout paths and send them to update the HL options policy
-        ref_paths = []
-        path_samples = []
-        for path in self.agent.get_task_paths():
-            path_samples.extend(path)
-            ref_paths.append(path)
-
-        self.agent.clear_task_paths()
-        if label is not None:
-            for s in path_samples:
-                s.source_label = label
-        
-        self.update_primitive(path_samples)
-        if self._hyperparams.get('save_expert', False): self.update_expert_demos(ref_paths)
 
 
     def run(self):
@@ -417,22 +334,11 @@ class Server(object):
         tgt_aux = np.zeros((0))
         tgt_x = np.zeros((0, self.agent.dX))
         opts = self.agent.prob.get_prim_choices(self.agent.task_list)
-
-        #if len(samples):
-        #    lab = samples[0].source_label
-        #    lab = 'n_plans' if lab == 'optimal' else 'n_rollout'
-        #    if lab in self.policy_opt.buf_sizes:
-        #        with self.policy_opt.buf_sizes[lab].get_lock():
-        #            self.policy_opt.buf_sizes[lab].value += 1
-        #        samples[0].source_label = ''
-
         for ind, sample in enumerate(samples):
             mu = sample.get_prim_out()
             tgt_mu = np.concatenate((tgt_mu, mu))
             tgt_x = np.concatenate((tgt_x, sample.get_X()))
-            st, et = 0, sample.T # st, et = sample.step * sample.T, (sample.step + 1) * sample.T
-            #aux = np.ones(sample.T)
-            #if sample.task_start: aux[0] = 0.
+            st, et = 0, sample.T
             aux = int(sample.opt_strength) * np.ones(sample.T)
             tgt_aux = np.concatenate((tgt_aux, aux))
             wt = np.array([sample.prim_use_ts[t] * self.prim_decay**t for t in range(sample.T)])
@@ -450,7 +356,6 @@ class Server(object):
             tgt_prc = np.concatenate((tgt_prc, prc))
 
         if len(tgt_mu):
-            # print('Sending update to primitive net')
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', samples[0].source_label, aux=tgt_aux, x=tgt_x)
 
 
@@ -462,14 +367,6 @@ class Server(object):
         tgt_aux = np.zeros((0))
         tgt_x = np.zeros((0, self.agent.dX))
         opts = self.agent.prob.get_prim_choices(self.agent.task_list)
-
-        #if len(samples):
-        #    lab = samples[0].source_label
-        #    lab = 'n_plans' if lab == 'optimal' else 'n_rollout'
-        #    if lab in self.policy_opt.buf_sizes:
-        #        with self.policy_opt.buf_sizes[lab].get_lock():
-        #            self.policy_opt.buf_sizes[lab].value += 1
-        #        samples[0].source_label = ''
 
         for ind, sample in enumerate(samples):
             mu = sample.get_cont_out()
@@ -588,44 +485,6 @@ class Server(object):
             f.write(pp_info)
             f.write('\n')
 
-    
-    def send_to_label(self, rollout, suc, tdelta=2):
-        if not self.config['label_server'] \
-           or not len(rollout) \
-           or not self.render \
-           or not self.agent.policies_initialized(): return
-
-        targets = rollout[-1].targets
-        vid = self._gen_video(rollout, tdelta=tdelta)
-        x = np.concatenate([s.get_X()[::tdelta] for s in rollout])
-        obs = np.concatenate([s.get_prim_obs()[::tdelta] for s in rollout])
-        q = self.config['label_in_queue']
-        print('Sending rollout to label')
-        assert vid is not None
-
-        pt = (vid, x, targets, self.agent.state_inds, obs, suc)
-        self.push_queue(pt, q)
-
-
-    def save_image(self, rollout=None, success=None, ts=0, render=True, x=None):
-        if not self.render: return
-        suc_flag = ''
-        if success is not None:
-            suc_flag = 'succeeded' if success else 'failed'
-        fname = '/home/michaelmcdonald/Dropbox/videos/{0}_{1}_{2}.png'.format(self.id, self.cur_vid_id, suc_flag)
-        self.cur_vid_id += 1
-        if rollout is not None: self.agent.target_vecs[0][:] = rollout.targets
-        if render:
-            if x is None:
-                x = rollout.get_X(t=ts)
-            im = self.agent.get_image(x)
-        else:
-            im = rollout.get(IM_ENUM, t=ts).reshape((self.agent.image_height, self.agent.image_width, 3))
-            im = (128 * im) + 128
-            im = im.astype(np.uint8)
-        im = Image.fromarray(im)
-        im.save(fname)
-
 
     def _gen_video(self, rollout, st=0, ts=None, annotate=False, tdelta=1):
         if not self.render: return None
@@ -657,6 +516,38 @@ class Server(object):
         self.agent.image_height = old_h
         self.agent.image_width = old_w
         return np.array(buf)
+
+
+    def _update_policy_no_cost(self, task, optimal_samples, label, inv_cov):
+        dU, dO = self.agent.dU, self.agent.dO
+        obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dU))
+        tgt_prc, tgt_wt = np.zeros((0, dU, dU)), np.zeros((0,))
+        x_data = np.zeros((0, self.agent.dX))
+        prim_obs_data = np.zeros((0, self.agent.dPrim))
+
+        for sample in optimal_samples:
+            prc = np.zeros((1, sample.T, dU, dU))
+            wt = np.zeros((sample.T,))
+            traj = self.new_traj_distr[0]
+            for t in range(sample.T):
+                prc[:, t, :, :] = np.tile(inv_cov, [1, 1, 1])
+                wt[t] = sample.use_ts[t]
+
+            tgt_mu = np.concatenate((tgt_mu, sample.get_U()))
+            obs_data = np.concatenate((obs_data, sample.get_obs()))
+            prim_obs_data = np.concatenate((prim_obs_data, sample.get_prim_obs()))
+            x_data = np.concatenate((x_data, sample.get_X()))
+            tgt_wt = np.concatenate((tgt_wt, wt))
+            tgt_prc = np.concatenate((tgt_prc, prc.reshape(-1, dU, dU)))
+
+        obs_data = obs_data.reshape((-1, dO))
+        prim_obs_data = prim_obs_data.reshape((-1, self.agent.dPrim))
+        x_data = x_data.reshape((-1, self.dX))
+        tgt_mu = tgt_mu.reshape((-1, dU))
+        tgt_wt = tgt_wt.reshape((-1, 1))
+        tgt_prc = tgt_prc.reshape((-1, dU, dU))
+
+        self.policy_opts[task].update(obs_data, tgt_mu, tgt_prc, tgt_wt, task, label, primobs=prim_obs_data, x=x_data)
 
 
     def save_video(self, rollout, success=None, ts=None, lab='', annotate=True, st=0):
@@ -700,6 +591,81 @@ class Server(object):
         self.agent.image_height = old_h
         self.agent.image_width = old_w
         #print('Time to save video:', time.time() - init_t)
+
+
+    def log_node_info(self, node, success, path):
+        key = 'n_ff'
+        if node.label.find('post') >= 0:
+            key = 'n_postcond'
+        elif node.label.find('pre') >= 0:
+            key = 'n_precond'
+        elif node.label.find('mid') >= 0:
+            key = 'n_midcond'
+        elif node.label.find('rollout') >= 0:
+            key = 'n_explore'
+
+        self.infos[key] += 1
+        self.infos['n_plans'] += 1
+        for altkey in self.avgs:
+            if altkey != key:
+                self.avgs[altkey].append(0)
+            else:
+                self.avgs[altkey].append(1)
+
+        failkey = key.replace('n_', 'n_fail_')
+        if not success:
+            self.fail_infos[failkey] += 1
+            self.fail_infos['n_fail_plans'] += 1
+            self.fail_avgs[failkey].append(0)
+        else:
+            self.fail_avgs[failkey].append(1)
+
+        with self.policy_opt.buf_sizes[key].get_lock():
+            self.policy_opt.buf_sizes[key].value += 1
+
+
+    def get_log_info(self):
+        info = {
+                'time': time.time() - self.start_t,
+                'optimization time': np.mean(self.plan_times),
+                'plan length': np.mean(self.plan_horizons),
+                'opt duration per ts': np.mean(self.plan_times) / np.mean(self.plan_horizons),
+                }
+
+        for key in self.infos:
+            info[key] = self.infos[key]
+
+        for key in self.fail_infos:
+            info[key] = self.fail_infos[key]
+
+        for key in self.fail_rollout_infos:
+            info[key] = self.fail_rollout_infos[key]
+
+        wind = 10
+        for key in self.avgs:
+            if len(self.avgs[key]):
+                info[key+'_avg'] = np.mean(self.avgs[key][-wind:])
+
+        for key in self.fail_avgs:
+            if len(self.fail_avgs[key]):
+                info[key+'_avg'] = np.mean(self.fail_avgs[key][-wind:])
+
+        for key in self.opt_rollout_info:
+            if len(self.opt_rollout_info[key]):
+                info[key] = np.mean(self.opt_rollout_info[key][-wind:])
+
+        if len(self.init_costs): info['mp initial costs'] = np.mean(self.init_costs[-10:])
+        if len(self.rolled_costs): info['mp rolled out costs'] = np.mean(self.rolled_costs[-10:])
+        if len(self.final_costs): info['mp optimized costs'] = np.mean(self.final_costs[-10:])
+        return info #self.log_infos
+
+
+    def write_log(self):
+        with open(self.motion_log, 'a+') as f:
+            info = self.get_log_info()
+            pp_info = pprint.pformat(info, depth=60)
+            f.write(str(pp_info))
+            f.write('\n\n')
 
 
 class ContPolicy:
